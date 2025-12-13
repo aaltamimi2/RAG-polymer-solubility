@@ -380,8 +380,9 @@ class DataValidator:
 class AdaptiveAnalyzer:
     """Intelligent adaptive analysis with threshold searching and temperature exploration"""
 
-    SELECTIVITY_THRESHOLDS = [0.5, 0.3, 0.2, 0.15, 0.1, 0.05, 0.02, 0.01]
-    SOLUBILITY_THRESHOLDS = [0.1, 0.05, 0.02, 0.01, 0.005, 0.001]
+    # Thresholds in PERCENTAGE form (0-100 scale) to match database solubility values
+    SELECTIVITY_THRESHOLDS = [50, 30, 20, 15, 10, 5, 2, 1, 0.5, 0.1]
+    SOLUBILITY_THRESHOLDS = [10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01]
     TEMPERATURE_STEPS = [25, 40, 50, 60, 75, 80, 90, 100, 110, 120, 130, 140, 150]
 
     def __init__(self, db_connection, validator: DataValidator):
@@ -424,8 +425,11 @@ class AdaptiveAnalyzer:
                                   target_polymer: str,
                                   comparison_polymers: List[str],
                                   start_temp: float = 25,
-                                  min_selectivity: float = 0.1) -> Dict[str, Any]:
-        """Explore temperatures to find optimal separation conditions."""
+                                  min_selectivity: float = 10.0) -> Dict[str, Any]:
+        """Explore temperatures to find optimal separation conditions.
+
+        Note: min_selectivity is in percentage points (0-100 scale).
+        """
         results = {
             'optimal_conditions': None,
             'all_conditions': [],
@@ -581,8 +585,11 @@ class AdaptiveAnalyzer:
                                      target_polymer: str,
                                      comparison_polymers: Optional[List[str]] = None,
                                      initial_temp: float = 25,
-                                     initial_selectivity: float = 0.3) -> SeparationResult:
-        """Comprehensive adaptive separation analysis."""
+                                     initial_selectivity: float = 30.0) -> SeparationResult:
+        """Comprehensive adaptive separation analysis.
+
+        Note: Selectivity is in percentage points (0-100 scale).
+        """
         result = SeparationResult(is_feasible=False)
 
         # Ensure comparison_polymers is a list
@@ -641,11 +648,15 @@ class AdaptiveAnalyzer:
 
     def _calculate_confidence(self, selectivity_threshold: float,
                              actual_temp: float, requested_temp: float) -> float:
-        """Calculate confidence score based on how close to ideal conditions"""
+        """Calculate confidence score based on how close to ideal conditions.
+
+        Note: selectivity_threshold is in percentage points (0-100 scale).
+        """
         confidence = 1.0
 
-        threshold_penalty = {0.5: 0, 0.3: 0.05, 0.2: 0.1, 0.15: 0.15,
-                           0.1: 0.2, 0.05: 0.3, 0.02: 0.4, 0.01: 0.5}
+        # Threshold penalty based on percentage-scale thresholds
+        threshold_penalty = {50: 0, 30: 0.05, 20: 0.1, 15: 0.15,
+                           10: 0.2, 5: 0.3, 2: 0.4, 1: 0.5, 0.5: 0.55, 0.1: 0.6}
         confidence -= threshold_penalty.get(selectivity_threshold, 0.3)
 
         temp_deviation = abs(actual_temp - requested_temp)
@@ -1185,9 +1196,13 @@ def find_optimal_separation_conditions(
     target_polymer: str,
     comparison_polymers: str,
     start_temperature: float = 25.0,
-    initial_selectivity: float = 0.3
+    initial_selectivity: float = 30.0
 ) -> str:
-    """Find optimal conditions to separate target polymer from comparison polymers."""
+    """Find optimal conditions to separate target polymer from comparison polymers.
+
+    Note: Selectivity is in percentage points (0-100 scale). A selectivity of 30 means
+    the target polymer has 30% higher solubility than the max competing polymer.
+    """
     
     # Safely parse comparison_polymers
     if isinstance(comparison_polymers, str):
@@ -1219,7 +1234,7 @@ def find_optimal_separation_conditions(
     output = [f"**Adaptive Separation Analysis**\n"]
     output.append(f"Target: Dissolve {target_polymer}")
     output.append(f"Separate from: {', '.join(comp_polymers)}")
-    output.append(f"Starting conditions: T={start_temperature}°C, selectivity threshold={initial_selectivity}\n")
+    output.append(f"Starting conditions: T={start_temperature}°C, selectivity threshold={initial_selectivity}%\n")
 
     result = sql_db.analyzer.adaptive_separation_analysis(
         table_name, polymer_column, solvent_column,
@@ -1234,15 +1249,15 @@ def find_optimal_separation_conditions(
         output.append(f"**Optimal Conditions:**")
         output.append(f"  - Temperature: {result.conditions['temperature']}°C")
         output.append(f"  - Solvent: {result.conditions['best_solvent']}")
-        output.append(f"  - Selectivity: {result.selectivity:.4f}")
-        output.append(f"  - Target solubility: {result.conditions['target_solubility']:.4f}")
-        output.append(f"  - Max other solubility: {result.conditions['max_other_solubility']:.4f}")
+        output.append(f"  - Selectivity: {result.selectivity:.1f}%")
+        output.append(f"  - Target solubility: {result.conditions['target_solubility']:.1f}%")
+        output.append(f"  - Max other solubility: {result.conditions['max_other_solubility']:.1f}%")
         output.append(f"  - Confidence: {result.confidence:.1%}")
 
         if result.alternative_conditions:
             output.append("\n**Alternative Conditions:**")
             for i, alt in enumerate(result.alternative_conditions[:3], 1):
-                output.append(f"  {i}. T={alt['temperature']}°C, {alt['best_solvent']} (selectivity={alt['selectivity']:.4f})")
+                output.append(f"  {i}. T={alt['temperature']}°C, {alt['best_solvent']} (selectivity={alt['selectivity']:.1f}%)")
     else:
         output.append("⚠️ **Separation NOT FEASIBLE** with current data\n")
 
@@ -1480,7 +1495,7 @@ def analyze_selective_solubility_enhanced(
 
     output.append("**Selective Solvents (ranked by selectivity):**\n")
     for i, data in enumerate(selectivity_data[:15], 1):
-        sel_symbol = "✅" if data['selectivity_difference'] > 0.1 else "⚠️" if data['selectivity_difference'] > 0 else "❌"
+        sel_symbol = "✅" if data['selectivity_difference'] > 10 else "⚠️" if data['selectivity_difference'] > 0 else "❌"
         output.append(f"{i}. {sel_symbol} **{data['solvent']}**")
         output.append(f"   - {target_polymer} solubility: {data['target_solubility']:.4f}")
         output.append(f"   - Max comparison solubility: {data['max_other_solubility']:.4f}")
@@ -1510,10 +1525,10 @@ def analyze_selective_solubility_enhanced(
         axes[0].grid(True, alpha=0.3, axis='y')
 
         selectivity_diffs = [d['selectivity_difference'] for d in selectivity_data[:top_n]]
-        colors = ['green' if s > 0.1 else 'orange' if s > 0 else 'red' for s in selectivity_diffs]
+        colors = ['green' if s > 10 else 'orange' if s > 0 else 'red' for s in selectivity_diffs]
         axes[1].barh(solvent_names, selectivity_diffs, color=colors, alpha=0.8)
         axes[1].axvline(x=0, color='black', linestyle='-', linewidth=0.5)
-        axes[1].axvline(x=0.1, color='green', linestyle='--', linewidth=1, label='Good selectivity (0.1)')
+        axes[1].axvline(x=10, color='green', linestyle='--', linewidth=1, label='Good selectivity (10%)')
         axes[1].set_xlabel('Selectivity Difference', fontsize=12, fontweight='bold')
         axes[1].set_title('Selectivity Ranking', fontsize=14, fontweight='bold')
         axes[1].legend()
@@ -1990,20 +2005,30 @@ def plot_selectivity_heatmap(
     df = result["dataframe"]
     pivot_df = df.pivot(index=polymer_column, columns=solvent_column, values='avg_solubility')
 
+    # Determine if we should show annotations based on size
+    n_cells = pivot_df.shape[0] * pivot_df.shape[1]
+    show_annot = n_cells <= 100  # Only annotate if not too many cells
+    annot_fontsize = 10 if n_cells <= 30 else 8 if n_cells <= 60 else 6
+
     fig, axes = plt.subplots(1, 2 if target_polymer else 1,
-                            figsize=(16 if target_polymer else 12, 8))
+                            figsize=(20 if target_polymer else 14, 10))
 
     if target_polymer:
         axes = [axes[0], axes[1]]
     else:
         axes = [axes]
 
-    sns.heatmap(pivot_df, annot=True, fmt='.3f', cmap='YlGnBu',
-               cbar_kws={'label': 'Solubility'}, linewidths=0.5, ax=axes[0])
+    # Main heatmap with improved formatting
+    sns.heatmap(pivot_df, annot=show_annot, fmt='.1f', cmap='YlGnBu',
+               cbar_kws={'label': 'Solubility (%)', 'shrink': 0.8},
+               linewidths=0.5, ax=axes[0], annot_kws={'size': annot_fontsize})
     axes[0].set_title(f'Solubility Heatmap ({temperature}°C ± {temperature_tolerance}°C)',
-                     fontsize=14, fontweight='bold')
-    axes[0].set_xlabel('Solvent', fontsize=12, fontweight='bold')
-    axes[0].set_ylabel('Polymer', fontsize=12, fontweight='bold')
+                     fontsize=16, fontweight='bold', pad=15)
+    axes[0].set_xlabel('Solvent', fontsize=14, fontweight='bold')
+    axes[0].set_ylabel('Polymer', fontsize=14, fontweight='bold')
+    # Rotate x-axis labels for readability
+    axes[0].set_xticklabels(axes[0].get_xticklabels(), rotation=45, ha='right', fontsize=10)
+    axes[0].set_yticklabels(axes[0].get_yticklabels(), fontsize=11)
 
     if target_polymer and target_polymer in pivot_df.index:
         target_row = pivot_df.loc[target_polymer]
@@ -2014,13 +2039,15 @@ def plot_selectivity_heatmap(
 
         selectivity_df.index = [f"{p} vs {target_polymer}" for p in pivot_df.index]
 
-        sns.heatmap(selectivity_df, annot=True, fmt='.3f', cmap='RdYlGn',
-                   center=0, cbar_kws={'label': 'Selectivity'},
-                   linewidths=0.5, ax=axes[1])
+        sns.heatmap(selectivity_df, annot=show_annot, fmt='.1f', cmap='RdYlGn',
+                   center=0, cbar_kws={'label': 'Selectivity (%)', 'shrink': 0.8},
+                   linewidths=0.5, ax=axes[1], annot_kws={'size': annot_fontsize})
         axes[1].set_title(f'Selectivity for {target_polymer}',
-                         fontsize=14, fontweight='bold')
-        axes[1].set_xlabel('Solvent', fontsize=12, fontweight='bold')
-        axes[1].set_ylabel('Comparison', fontsize=12, fontweight='bold')
+                         fontsize=16, fontweight='bold', pad=15)
+        axes[1].set_xlabel('Solvent', fontsize=14, fontweight='bold')
+        axes[1].set_ylabel('Comparison', fontsize=14, fontweight='bold')
+        axes[1].set_xticklabels(axes[1].get_xticklabels(), rotation=45, ha='right', fontsize=10)
+        axes[1].set_yticklabels(axes[1].get_yticklabels(), fontsize=11)
 
     plt.tight_layout()
     filepath = save_plot(fig, "selectivity_heatmap", "matplotlib")
@@ -2036,7 +2063,7 @@ def plot_selectivity_heatmap(
             target_sol = pivot_df.loc[target_polymer, solvent]
             max_other = pivot_df.drop(target_polymer)[solvent].max()
             selectivity = target_sol - max_other
-            symbol = "✅" if selectivity > 0.1 else "⚠️" if selectivity > 0 else "❌"
+            symbol = "✅" if selectivity > 10 else "⚠️" if selectivity > 0 else "❌"
             output += f"  {symbol} {solvent}: selectivity = {selectivity:.4f}\n"
 
     output += f"\n{get_plot_url(filepath)}"
@@ -2135,10 +2162,10 @@ def plot_multi_panel_analysis(
                     linewidth=2, markersize=6, label=f'vs {comp}')
 
         ax2.axhline(y=0, color='black', linestyle='--', alpha=0.5)
-        ax2.axhline(y=0.1, color='green', linestyle=':', alpha=0.7, label='Good selectivity')
+        ax2.axhline(y=10, color='green', linestyle=':', alpha=0.7, label='Good selectivity (10%)')
 
     ax2.set_xlabel('Temperature (°C)', fontsize=11, fontweight='bold')
-    ax2.set_ylabel('Selectivity (target - other)', fontsize=11, fontweight='bold')
+    ax2.set_ylabel('Selectivity (%) (target - other)', fontsize=11, fontweight='bold')
     ax2.set_title('Selectivity vs Temperature', fontsize=12, fontweight='bold')
     ax2.legend(fontsize=9)
     ax2.grid(True, alpha=0.3)
@@ -2160,7 +2187,7 @@ def plot_multi_panel_analysis(
                 if len(comp_sol) > 0:
                     max_other = max(max_other, comp_sol.values[0])
 
-            if target_sol_val - max_other > 0.05:
+            if target_sol_val - max_other > 5:  # 5% threshold for good separation
                 good_separation_temps.append(temp)
 
         all_temps = sorted(temps)
@@ -2247,9 +2274,17 @@ def plot_comparison_dashboard(
     df = result["dataframe"]
     solvents = df[solvent_column].unique()
 
-    fig = plt.figure(figsize=(18, 10))
+    # Limit number of solvents for readability
+    max_solvents = 15
+    if len(solvents) > max_solvents:
+        # Keep top solvents by average solubility
+        solvent_means = df.groupby(solvent_column)['avg_sol'].mean().sort_values(ascending=False)
+        solvents = solvent_means.head(max_solvents).index.tolist()
+        df = df[df[solvent_column].isin(solvents)]
 
-    # Panel 1: Grouped bar chart
+    fig = plt.figure(figsize=(20, 12))
+
+    # Panel 1: Grouped bar chart - IMPROVED
     ax1 = fig.add_subplot(2, 2, 1)
     x = np.arange(len(solvents))
     width = 0.8 / len(polymer_list)
@@ -2261,47 +2296,61 @@ def plot_comparison_dashboard(
         for solvent in solvents:
             sol_data = poly_data[poly_data[solvent_column] == solvent]['avg_sol']
             values.append(sol_data.values[0] if len(sol_data) > 0 else 0)
-        ax1.bar(x + i * width, values, width, label=polymer, color=colors[i])
+        ax1.bar(x + i * width, values, width, label=polymer, color=colors[i], edgecolor='black', linewidth=0.5)
 
-    ax1.set_xlabel('Solvent', fontsize=11)
-    ax1.set_ylabel('Solubility', fontsize=11)
-    ax1.set_title(f'Solubility Comparison at {temperature}°C', fontsize=12, fontweight='bold')
+    ax1.set_xlabel('Solvent', fontsize=13, fontweight='bold')
+    ax1.set_ylabel('Solubility (%)', fontsize=13, fontweight='bold')
+    ax1.set_title(f'Solubility Comparison at {temperature}°C', fontsize=15, fontweight='bold', pad=10)
     ax1.set_xticks(x + width * (len(polymer_list) - 1) / 2)
-    ax1.set_xticklabels(solvents, rotation=45, ha='right')
-    ax1.legend()
+    # Truncate long solvent names and rotate for readability
+    short_labels = [s[:20] + '...' if len(s) > 20 else s for s in solvents]
+    ax1.set_xticklabels(short_labels, rotation=55, ha='right', fontsize=10)
+    ax1.tick_params(axis='y', labelsize=11)
+    ax1.legend(fontsize=11, loc='upper right')
     ax1.grid(True, alpha=0.3, axis='y')
 
-    # Panel 2: Heatmap
+    # Panel 2: Heatmap - IMPROVED
     ax2 = fig.add_subplot(2, 2, 2)
     pivot = df.pivot(index=polymer_column, columns=solvent_column, values='avg_sol')
-    sns.heatmap(pivot, annot=True, fmt='.3f', cmap='YlOrRd', ax=ax2)
-    ax2.set_title('Solubility Heatmap', fontsize=12, fontweight='bold')
+    # Determine annotation size based on data
+    n_cells = pivot.shape[0] * pivot.shape[1]
+    annot_size = 11 if n_cells <= 20 else 9 if n_cells <= 40 else 7
+    sns.heatmap(pivot, annot=True, fmt='.1f', cmap='YlOrRd', ax=ax2,
+                annot_kws={'size': annot_size}, linewidths=0.5,
+                cbar_kws={'label': 'Solubility (%)', 'shrink': 0.8})
+    ax2.set_title('Solubility Heatmap', fontsize=15, fontweight='bold', pad=10)
+    ax2.set_xlabel('Solvent', fontsize=12, fontweight='bold')
+    ax2.set_ylabel('Polymer', fontsize=12, fontweight='bold')
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+    ax2.set_yticklabels(ax2.get_yticklabels(), fontsize=11)
 
-    # Panel 3: Box plot
+    # Panel 3: Box plot - IMPROVED
     ax3 = fig.add_subplot(2, 2, 3)
     data_for_box = [df[df[polymer_column] == p]['avg_sol'].values for p in polymer_list]
     bp = ax3.boxplot(data_for_box, labels=polymer_list, patch_artist=True)
     for patch, color in zip(bp['boxes'], colors):
         patch.set_facecolor(color)
-    ax3.set_xlabel('Polymer', fontsize=11)
-    ax3.set_ylabel('Solubility Distribution', fontsize=11)
-    ax3.set_title('Solubility Distribution by Polymer', fontsize=12, fontweight='bold')
+        patch.set_edgecolor('black')
+    ax3.set_xlabel('Polymer', fontsize=13, fontweight='bold')
+    ax3.set_ylabel('Solubility Distribution (%)', fontsize=13, fontweight='bold')
+    ax3.set_title('Solubility Distribution by Polymer', fontsize=15, fontweight='bold', pad=10)
+    ax3.tick_params(axis='both', labelsize=11)
     ax3.grid(True, alpha=0.3, axis='y')
 
-    # Panel 4: Rankings
+    # Panel 4: Rankings - IMPROVED
     ax4 = fig.add_subplot(2, 2, 4)
     ax4.axis('off')
 
-    ranking_text = "**Polymer Rankings**\n\n"
+    ranking_text = "POLYMER RANKINGS\n" + "="*25 + "\n\n"
     mean_sols = {p: df[df[polymer_column] == p]['avg_sol'].mean() for p in polymer_list}
     sorted_polymers = sorted(mean_sols.items(), key=lambda x: x[1], reverse=True)
 
     for i, (polymer, sol) in enumerate(sorted_polymers, 1):
-        ranking_text += f"{i}. {polymer}: {sol:.4f}\n"
+        ranking_text += f"{i}. {polymer}: {sol:.2f}%\n"
 
-    ax4.text(0.1, 0.9, ranking_text, transform=ax4.transAxes, fontsize=11,
+    ax4.text(0.1, 0.85, ranking_text, transform=ax4.transAxes, fontsize=14,
             verticalalignment='top', fontfamily='monospace',
-            bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.5))
+            bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.7, edgecolor='gray'))
 
     plt.tight_layout()
     filepath = save_plot(fig, "comparison_dashboard", "matplotlib")
@@ -2484,8 +2533,8 @@ def plan_sequential_separation(
                 elif sol_info["solvent"] == "No data":
                     output.append(f"  {rank}. No data available")
                 else:
-                    symbol = "✅" if sol_info["selectivity"] > 0.1 else "⚠️" if sol_info["selectivity"] > 0 else "❌"
-                    line = f"  {rank}. {symbol} **{sol_info['solvent']}**: selectivity={sol_info['selectivity']:.4f} (target={sol_info['target_sol']:.2f}%, max_other={sol_info['max_other']:.2f}%)"
+                    symbol = "✅" if sol_info["selectivity"] > 10 else "⚠️" if sol_info["selectivity"] > 0 else "❌"
+                    line = f"  {rank}. {symbol} **{sol_info['solvent']}**: selectivity={sol_info['selectivity']:.1f}% (target={sol_info['target_sol']:.1f}%, max_other={sol_info['max_other']:.1f}%)"
                     
                     # Add properties if available
                     props = []
@@ -2531,7 +2580,7 @@ def plan_sequential_separation(
         seq_str = ' → '.join(score_data["sequence"])
         min_sel = score_data["min_selectivity"]
         symbol = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉" if rank == 3 else f"{rank}."
-        output.append(f"{symbol} **{seq_str}** (min selectivity: {min_sel:.4f})")
+        output.append(f"{symbol} **{seq_str}** (min selectivity: {min_sel:.1f}%)")
     
     output.append("")
     
@@ -2541,14 +2590,15 @@ def plan_sequential_separation(
 
         try:
             def get_color(selectivity):
-                if selectivity > 0.3:
-                    return '#2ecc71'  # Green
-                elif selectivity > 0.1:
-                    return '#f1c40f'  # Yellow
+                """Get color based on selectivity percentage (0-100 scale)."""
+                if selectivity > 30:
+                    return '#2ecc71'  # Green - excellent
+                elif selectivity > 10:
+                    return '#f1c40f'  # Yellow - good
                 elif selectivity > 0:
-                    return '#e67e22'  # Orange
+                    return '#e67e22'  # Orange - marginal
                 else:
-                    return '#e74c3c'  # Red
+                    return '#e74c3c'  # Red - poor
 
             # Build solvent lookup from sequence_details
             solvent_lookup = {}
@@ -2654,16 +2704,16 @@ def plan_sequential_separation(
                         ax.text(1, 0.8, f'Continue with\n{len(remaining_after_second)} more steps...',
                                ha='center', va='center', fontsize=8, color='#95a5a6', style='italic')
 
-            # Add legend
+            # Add legend with percentage-based thresholds
             legend_elements = [
                 plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#2ecc71',
-                          markersize=12, markeredgecolor='black', label='High selectivity (>0.3)'),
+                          markersize=12, markeredgecolor='black', label='Excellent (>30%)'),
                 plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#f1c40f',
-                          markersize=12, markeredgecolor='black', label='Medium (0.1-0.3)'),
+                          markersize=12, markeredgecolor='black', label='Good (10-30%)'),
                 plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#e67e22',
-                          markersize=12, markeredgecolor='black', label='Low (0-0.1)'),
+                          markersize=12, markeredgecolor='black', label='Marginal (0-10%)'),
                 plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#e74c3c',
-                          markersize=12, markeredgecolor='black', label='Negative (<0)'),
+                          markersize=12, markeredgecolor='black', label='Poor (<0%)'),
                 plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#2ecc71',
                           markersize=12, markeredgecolor='black', label='Final (isolated)'),
             ]
@@ -2680,10 +2730,10 @@ def plan_sequential_separation(
     
     # Summary recommendations
     output.append("\n## Recommendations\n")
-    if sequence_scores and sequence_scores[0]["min_selectivity"] > 0.1:
+    if sequence_scores and sequence_scores[0]["min_selectivity"] > 10:
         best = sequence_scores[0]
         output.append(f"✅ **Best sequence:** {' → '.join(best['sequence'])}")
-        output.append(f"   - Minimum selectivity: {best['min_selectivity']:.4f}")
+        output.append(f"   - Minimum selectivity: {best['min_selectivity']:.1f}%")
         output.append(f"   - All steps have positive selectivity")
     elif sequence_scores:
         output.append("⚠️ **No sequence has all high-selectivity steps.**")
@@ -3204,11 +3254,11 @@ def analyze_separation_with_properties(
     
     for i, r in enumerate(results[:top_k], 1):
         selectivity = r.get('selectivity', 0)
-        symbol = "✅" if selectivity > 0.1 else "⚠️" if selectivity > 0 else "❌"
-        
+        symbol = "✅" if selectivity > 10 else "⚠️" if selectivity > 0 else "❌"
+
         line = f"{i}. {symbol} **{r['solvent']}**"
-        line += f"\n   - Selectivity: {selectivity:.4f}"
-        line += f" (target: {r.get('target_solubility', 0):.2f}%, max_other: {r.get('max_other_solubility', 0):.2f}%)"
+        line += f"\n   - Selectivity: {selectivity:.1f}%"
+        line += f" (target: {r.get('target_solubility', 0):.1f}%, max_other: {r.get('max_other_solubility', 0):.1f}%)"
         
         if properties_available:
             props = []

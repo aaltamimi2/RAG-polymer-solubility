@@ -460,7 +460,7 @@ class BenchmarkRunner:
             spaceAfter=10
         ))
         styles.add(ParagraphStyle(
-            name='Code',
+            name='CodeBlock',
             parent=styles['Normal'],
             fontSize=8,
             fontName='Courier',
@@ -561,7 +561,7 @@ class BenchmarkRunner:
                             story.append(Paragraph(para.replace('\n', '<br/>'), styles['Response']))
                         except:
                             # If paragraph has issues, use preformatted
-                            story.append(Preformatted(para[:500], styles['Code']))
+                            story.append(Preformatted(para[:500], styles['CodeBlock']))
 
                 # Images
                 for img_path in result["images"]:
