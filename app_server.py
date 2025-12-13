@@ -212,7 +212,21 @@ def chat_with_agent(message: str, session_id: Optional[str] = None) -> dict:
         messages = result.get("messages", [])
         if messages:
             final = messages[-1]
-            content = getattr(final, 'content', str(final)) or "Processing complete."
+            content = getattr(final, 'content', None)
+            # Handle list-type content (newer LangChain format)
+            if isinstance(content, list):
+                text_parts = []
+                for part in content:
+                    if isinstance(part, dict) and part.get('type') == 'text':
+                        text_parts.append(part.get('text', ''))
+                    elif isinstance(part, str):
+                        text_parts.append(part)
+                content = '\n'.join(text_parts) if text_parts else str(content)
+            elif content is None:
+                content = str(final)
+            elif not isinstance(content, str):
+                content = str(content)
+            content = content or "Processing complete."
         else:
             content = "No response generated."
         
