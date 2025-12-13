@@ -2437,38 +2437,14 @@ def plan_sequential_separation(
         solvent_table = get_solvent_table_name()
         if solvent_table and results:
             try:
-                name_col = get_solvent_name_column(solvent_table)
-                schema = sql_db.table_schemas[solvent_table]
-                cols_lower = {c.lower(): c for c in schema['columns']}
-                
-                logp_col = next((cols_lower[key] for key in cols_lower if 'logp' in key), None)
-                bp_col = next((cols_lower[key] for key in cols_lower if 'bp' in key or 'boil' in key), None)
-                energy_col = next((cols_lower[key] for key in cols_lower if 'energy' in key), None)
-                
-                # Get properties for found solvents
+                # Use exact matching for solvent properties
                 solvent_names = [r["solvent"] for r in results[:k]]
-                conditions = [f"LOWER({name_col}) LIKE '%{s.lower()}%'" for s in solvent_names]
-                prop_query = f"SELECT * FROM {solvent_table} WHERE {' OR '.join(conditions)}"
-                prop_df = sql_db.conn.execute(prop_query).fetchdf()
-                
-                if len(prop_df) > 0:
-                    # Create lookup
-                    prop_lookup = {}
-                    for _, row in prop_df.iterrows():
-                        sol_name = str(row[name_col]).lower()
-                        prop_lookup[sol_name] = {
-                            'logp': row[logp_col] if logp_col and logp_col in row.index else None,
-                            'bp': row[bp_col] if bp_col and bp_col in row.index else None,
-                            'energy': row[energy_col] if energy_col and energy_col in row.index else None,
-                        }
-                    
-                    # Add to results
-                    for r in results:
-                        sol_lower = r["solvent"].lower()
-                        for key, props in prop_lookup.items():
-                            if sol_lower in key or key in sol_lower:
-                                r.update({k: v for k, v in props.items() if v is not None})
-                                break
+                prop_lookup = lookup_solvent_properties(solvent_names, solvent_table)
+
+                # Add properties to results
+                for r in results:
+                    if r["solvent"] in prop_lookup:
+                        r.update({k: v for k, v in prop_lookup[r["solvent"]].items() if v is not None})
             except Exception as e:
                 logger.debug(f"Could not fetch solvent properties: {e}")
         
@@ -2559,209 +2535,145 @@ def plan_sequential_separation(
     
     output.append("")
     
-    # Create decision tree visualization - HIERARCHICAL TREE STRUCTURE
+    # Create decision tree visualization - CLEAN FLOWCHART STYLE
     if create_decision_tree and sequence_scores:
         output.append("## Decision Tree Visualization\n")
-        
+
         try:
-            # Build a proper tree structure
-            # For n polymers, we create n separate trees (one for each first choice)
-            
             def get_color(selectivity):
                 if selectivity > 0.3:
-                    return '#27ae60'  # Green
+                    return '#2ecc71'  # Green
                 elif selectivity > 0.1:
-                    return '#f39c12'  # Yellow/Orange
+                    return '#f1c40f'  # Yellow
                 elif selectivity > 0:
                     return '#e67e22'  # Orange
                 else:
-                    return '#c0392b'  # Red
-            
-            def get_edge_style(selectivity):
-                if selectivity > 0.3:
-                    return {'color': '#27ae60', 'linewidth': 3, 'alpha': 0.9}
-                elif selectivity > 0.1:
-                    return {'color': '#f39c12', 'linewidth': 2.5, 'alpha': 0.8}
-                elif selectivity > 0:
-                    return {'color': '#e67e22', 'linewidth': 2, 'alpha': 0.7}
-                else:
-                    return {'color': '#c0392b', 'linewidth': 1.5, 'alpha': 0.6}
-            
-            # Create figure with subplots - one tree per first polymer choice
-            n_trees = n_polymers
-            fig_width = min(7 * n_trees, 24)
-            fig, axes = plt.subplots(1, n_trees, figsize=(fig_width, 10))
-            if n_trees == 1:
-                axes = [axes]
-            
-            fig.suptitle(f'Sequential Separation Decision Trees\nPolymers: {", ".join(polymer_list)} | Temperature: {temperature}°C', 
-                        fontsize=14, fontweight='bold', y=1.02)
-            
-            # Group sequences by first polymer
-            sequences_by_first = {}
-            for seq_data in sequence_scores:
-                first = seq_data["sequence"][0]
-                if first not in sequences_by_first:
-                    sequences_by_first[first] = []
-                sequences_by_first[first].append(seq_data)
-            
-            # Helper to build solvent lookup from sequence_details
-            solvent_lookup = {}  # key: (target, tuple(remaining)) -> best solvent info
+                    return '#e74c3c'  # Red
+
+            # Build solvent lookup from sequence_details
+            solvent_lookup = {}
             for seq_data in sequence_scores:
                 for step in seq_data["steps"]:
                     key = (step["target"], tuple(sorted(step["remaining"])))
                     if key not in solvent_lookup and step["solvents"]:
                         solvent_lookup[key] = step["solvents"][0]
-            
+
+            # Create figure - side by side for each starting polymer
+            n_trees = n_polymers
+            fig_width = max(6 * n_trees, 12)
+            fig_height = 8
+            fig, axes = plt.subplots(1, n_trees, figsize=(fig_width, fig_height))
+            if n_trees == 1:
+                axes = [axes]
+
+            fig.suptitle(f'Sequential Separation Decision Trees\nPolymers: {", ".join(polymer_list)} | Temperature: {temperature}°C',
+                        fontsize=14, fontweight='bold', y=0.98)
+
             for ax_idx, first_polymer in enumerate(polymer_list):
                 ax = axes[ax_idx]
-                ax.set_xlim(-0.5, 3.5)
-                ax.set_ylim(-0.5, 4.5)
+                ax.set_xlim(-1, 3)
+                ax.set_ylim(-0.5, 5)
                 ax.axis('off')
-                ax.set_title(f'Start with {first_polymer}', fontsize=12, fontweight='bold', pad=10)
-                
-                # Get sequences starting with this polymer
-                seqs = sequences_by_first.get(first_polymer, [])
-                if not seqs:
-                    ax.text(1.5, 2, "No data", ha='center', va='center', fontsize=12)
-                    continue
-                
-                # Draw the tree structure
-                # Level 0: Root (Start)
-                root_x, root_y = 1.5, 4
-                ax.scatter(root_x, root_y, s=400, c='#3498db', zorder=10, edgecolors='black', linewidth=2)
-                ax.text(root_x, root_y, 'Start', ha='center', va='center', fontsize=9, fontweight='bold', color='white')
-                
-                # Level 1: First polymer choice (single node since we're showing one first choice per subplot)
+                ax.set_title(f'Start with {first_polymer}', fontsize=11, fontweight='bold', pad=8)
+
                 remaining_after_first = [p for p in polymer_list if p != first_polymer]
-                level1_x, level1_y = 1.5, 3
-                
-                # Get solvent info for first step
+
+                # Level 0: Start node
+                ax.scatter(1, 4.5, s=600, c='#3498db', zorder=10, edgecolors='black', linewidth=2)
+                ax.text(1, 4.5, 'Mix', ha='center', va='center', fontsize=10, fontweight='bold', color='white')
+
+                # Level 1: Extract first polymer
                 key1 = (first_polymer, tuple(sorted(remaining_after_first)))
-                solvent_info1 = solvent_lookup.get(key1, {"solvent": "?", "selectivity": 0})
-                style1 = get_edge_style(solvent_info1.get("selectivity", 0))
-                
-                # Draw edge from root to first polymer
-                ax.annotate('', xy=(level1_x, level1_y + 0.25), xytext=(root_x, root_y - 0.25),
-                           arrowprops=dict(arrowstyle='->', **style1))
-                
-                # Label the edge with solvent
-                mid_y = (root_y + level1_y) / 2
-                solvent_text = f"{solvent_info1.get('solvent', '?')[:10]}\n(sel: {solvent_info1.get('selectivity', 0):.2f})"
-                ax.text(level1_x + 0.4, mid_y, solvent_text, fontsize=8, ha='left', va='center',
-                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor='gray', alpha=0.9))
-                
-                # Draw first polymer node
-                color1 = get_color(solvent_info1.get("selectivity", 0))
-                ax.scatter(level1_x, level1_y, s=500, c=color1, zorder=10, edgecolors='black', linewidth=2)
-                ax.text(level1_x, level1_y, first_polymer, ha='center', va='center', fontsize=10, fontweight='bold')
-                ax.text(level1_x, level1_y - 0.35, f'Remove {first_polymer}', ha='center', va='top', fontsize=7, style='italic')
-                
-                # Level 2: Second polymer choices (branches)
-                n_second = len(remaining_after_first)
-                level2_positions = []
-                
-                if n_second == 1:
-                    level2_positions = [(1.5, 2)]
-                elif n_second == 2:
-                    level2_positions = [(0.7, 2), (2.3, 2)]
-                elif n_second == 3:
-                    level2_positions = [(0.4, 2), (1.5, 2), (2.6, 2)]
-                elif n_second >= 4:
-                    spacing = 3.0 / (n_second - 1) if n_second > 1 else 0
-                    level2_positions = [(0.25 + i * spacing, 2) for i in range(n_second)]
-                
-                for i, second_polymer in enumerate(remaining_after_first):
-                    x2, y2 = level2_positions[i]
-                    remaining_after_second = [p for p in remaining_after_first if p != second_polymer]
-                    
-                    # Get solvent info
+                sol1 = solvent_lookup.get(key1, {"solvent": "N/A", "selectivity": 0})
+                sel1 = sol1.get("selectivity", 0)
+                color1 = get_color(sel1)
+
+                # Arrow from start to first extraction
+                ax.annotate('', xy=(1, 3.7), xytext=(1, 4.2),
+                           arrowprops=dict(arrowstyle='->', color=color1, linewidth=3))
+
+                # Solvent label on arrow
+                sol_name1 = sol1.get('solvent', 'N/A')
+                ax.text(1.7, 3.95, f"{sol_name1}\n(sel: {sel1:.2f})", fontsize=9, ha='left', va='center',
+                       bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor=color1, linewidth=1.5))
+
+                # First polymer node
+                ax.scatter(1, 3.3, s=600, c=color1, zorder=10, edgecolors='black', linewidth=2)
+                ax.text(1, 3.3, first_polymer, ha='center', va='center', fontsize=10, fontweight='bold')
+
+                # Remaining label
+                ax.text(-0.3, 3.3, f'Remaining:\n{", ".join(remaining_after_first)}',
+                       ha='right', va='center', fontsize=8, color='#7f8c8d', style='italic')
+
+                # Level 2 and beyond
+                if len(remaining_after_first) == 1:
+                    # Only one polymer left - it's isolated
+                    last_poly = remaining_after_first[0]
+                    ax.annotate('', xy=(1, 1.9), xytext=(1, 2.9),
+                               arrowprops=dict(arrowstyle='->', color='#2ecc71', linewidth=3))
+                    ax.scatter(1, 1.5, s=600, c='#2ecc71', zorder=10, edgecolors='black', linewidth=2, marker='s')
+                    ax.text(1, 1.5, last_poly, ha='center', va='center', fontsize=10, fontweight='bold')
+                    ax.text(1, 0.9, '✓ Isolated', ha='center', va='top', fontsize=9, color='#27ae60', fontweight='bold')
+
+                elif len(remaining_after_first) >= 2:
+                    # Need to separate second polymer
+                    second_polymer = remaining_after_first[0]
+                    remaining_after_second = remaining_after_first[1:]
+
                     key2 = (second_polymer, tuple(sorted(remaining_after_second)))
-                    solvent_info2 = solvent_lookup.get(key2, {"solvent": "?", "selectivity": 0})
-                    style2 = get_edge_style(solvent_info2.get("selectivity", 0))
-                    
-                    # Draw edge
-                    ax.annotate('', xy=(x2, y2 + 0.25), xytext=(level1_x, level1_y - 0.25),
-                               arrowprops=dict(arrowstyle='->', **style2))
-                    
-                    # Edge label
-                    mid_x2 = (level1_x + x2) / 2
-                    mid_y2 = (level1_y + y2) / 2
-                    solvent_text2 = f"{solvent_info2.get('solvent', '?')[:8]}\n({solvent_info2.get('selectivity', 0):.2f})"
-                    ax.text(mid_x2, mid_y2 + 0.15, solvent_text2, fontsize=7, ha='center', va='bottom',
-                           bbox=dict(boxstyle='round,pad=0.2', facecolor='lightyellow', edgecolor='gray', alpha=0.9))
-                    
-                    # Draw node
-                    color2 = get_color(solvent_info2.get("selectivity", 0))
-                    ax.scatter(x2, y2, s=450, c=color2, zorder=10, edgecolors='black', linewidth=2)
-                    ax.text(x2, y2, second_polymer, ha='center', va='center', fontsize=9, fontweight='bold')
-                    
-                    # Level 3: Third polymer and beyond (leaf nodes)
-                    if len(remaining_after_second) >= 1:
-                        # For simplicity, show remaining as a vertical chain or final node
-                        n_remaining = len(remaining_after_second)
-                        
-                        if n_remaining == 1:
-                            # Single remaining polymer - it's isolated, no separation needed
-                            third_polymer = remaining_after_second[0]
-                            x3, y3 = x2, 0.8
-                            
-                            # Green edge (no separation needed for last polymer)
-                            ax.annotate('', xy=(x3, y3 + 0.25), xytext=(x2, y2 - 0.25),
-                                       arrowprops=dict(arrowstyle='->', color='#27ae60', linewidth=2))
-                            ax.text((x2 + x3) / 2 + 0.25, (y2 + y3) / 2, 'isolated', fontsize=7, 
-                                   ha='left', va='center', style='italic', color='#27ae60')
-                            
-                            # Final node (square marker for completion)
-                            ax.scatter(x3, y3, s=400, c='#27ae60', zorder=10, edgecolors='black', 
-                                      linewidth=2, marker='s')
-                            ax.text(x3, y3, third_polymer, ha='center', va='center', fontsize=9, fontweight='bold')
-                            ax.text(x3, y3 - 0.3, '✓ Done', ha='center', va='top', fontsize=7, color='#27ae60')
-                        
-                        elif n_remaining >= 2:
-                            # Multiple remaining - show they need more steps
-                            third_polymer = remaining_after_second[0]
-                            others = remaining_after_second[1:]
-                            
-                            key3 = (third_polymer, tuple(sorted(others)))
-                            solvent_info3 = solvent_lookup.get(key3, {"solvent": "?", "selectivity": 0})
-                            style3 = get_edge_style(solvent_info3.get("selectivity", 0))
-                            
-                            x3, y3 = x2, 0.8
-                            ax.annotate('', xy=(x3, y3 + 0.25), xytext=(x2, y2 - 0.25),
-                                       arrowprops=dict(arrowstyle='->', **style3))
-                            
-                            color3 = get_color(solvent_info3.get("selectivity", 0))
-                            ax.scatter(x3, y3, s=400, c=color3, zorder=10, edgecolors='black', linewidth=2)
-                            remaining_text = f"{third_polymer}\n→{','.join(others)}"
-                            ax.text(x3, y3, third_polymer, ha='center', va='center', fontsize=8, fontweight='bold')
-                            ax.text(x3, y3 - 0.35, f"then: {', '.join(others)}", ha='center', va='top', fontsize=6, style='italic')
-                
-                # Add remaining polymers indicator at each branch level
-                ax.text(level1_x - 0.6, level1_y, f'Remaining:\n{", ".join(remaining_after_first)}', 
-                       ha='right', va='center', fontsize=7, color='gray')
-            
+                    sol2 = solvent_lookup.get(key2, {"solvent": "N/A", "selectivity": 0})
+                    sel2 = sol2.get("selectivity", 0)
+                    color2 = get_color(sel2)
+
+                    # Arrow to second extraction
+                    ax.annotate('', xy=(1, 2.0), xytext=(1, 2.9),
+                               arrowprops=dict(arrowstyle='->', color=color2, linewidth=3))
+
+                    # Solvent label
+                    sol_name2 = sol2.get('solvent', 'N/A')
+                    ax.text(1.7, 2.45, f"{sol_name2}\n(sel: {sel2:.2f})", fontsize=9, ha='left', va='center',
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor=color2, linewidth=1.5))
+
+                    # Second polymer node
+                    ax.scatter(1, 1.6, s=600, c=color2, zorder=10, edgecolors='black', linewidth=2)
+                    ax.text(1, 1.6, second_polymer, ha='center', va='center', fontsize=10, fontweight='bold')
+
+                    # Show remaining
+                    if len(remaining_after_second) == 1:
+                        ax.text(-0.3, 1.6, f'Remaining:\n{remaining_after_second[0]}',
+                               ha='right', va='center', fontsize=8, color='#7f8c8d', style='italic')
+                        # Final isolated
+                        ax.annotate('', xy=(1, 0.3), xytext=(1, 1.2),
+                                   arrowprops=dict(arrowstyle='->', color='#2ecc71', linewidth=3))
+                        ax.scatter(1, 0, s=600, c='#2ecc71', zorder=10, edgecolors='black', linewidth=2, marker='s')
+                        ax.text(1, 0, remaining_after_second[0], ha='center', va='center', fontsize=10, fontweight='bold')
+                        ax.text(1, -0.5, '✓ Isolated', ha='center', va='top', fontsize=9, color='#27ae60', fontweight='bold')
+                    else:
+                        ax.text(-0.3, 1.6, f'Remaining:\n{", ".join(remaining_after_second)}',
+                               ha='right', va='center', fontsize=8, color='#7f8c8d', style='italic')
+                        ax.text(1, 0.8, f'Continue with\n{len(remaining_after_second)} more steps...',
+                               ha='center', va='center', fontsize=8, color='#95a5a6', style='italic')
+
             # Add legend
             legend_elements = [
-                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#27ae60', 
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#2ecc71',
                           markersize=12, markeredgecolor='black', label='High selectivity (>0.3)'),
-                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#f39c12', 
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#f1c40f',
                           markersize=12, markeredgecolor='black', label='Medium (0.1-0.3)'),
-                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#e67e22', 
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#e67e22',
                           markersize=12, markeredgecolor='black', label='Low (0-0.1)'),
-                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#c0392b', 
+                plt.Line2D([0], [0], marker='o', color='w', markerfacecolor='#e74c3c',
                           markersize=12, markeredgecolor='black', label='Negative (<0)'),
-                plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#27ae60', 
+                plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#2ecc71',
                           markersize=12, markeredgecolor='black', label='Final (isolated)'),
             ]
             fig.legend(handles=legend_elements, loc='lower center', ncol=5, fontsize=9,
-                      bbox_to_anchor=(0.5, -0.02), frameon=True, fancybox=True)
-            
-            plt.tight_layout()
-            plt.subplots_adjust(bottom=0.1)
+                      bbox_to_anchor=(0.5, 0.02), frameon=True, fancybox=True)
+
+            plt.tight_layout(rect=[0, 0.08, 1, 0.95])
             filepath = save_plot(fig, f"separation_trees_{n_polymers}polymers")
             output.append(f"📊 Decision trees saved: {get_plot_url(filepath)}")
-            
+
         except Exception as e:
             logger.error(f"Decision tree error: {e}", exc_info=True)
             output.append(f"⚠️ Could not create decision tree: {e}")
@@ -2817,23 +2729,125 @@ def get_solvent_name_column(table_name: str) -> Optional[str]:
     """Get the column name that contains solvent names."""
     if table_name not in sql_db.table_schemas:
         return None
-    
+
     cols = sql_db.table_schemas[table_name]['columns']
-    
+
     # Priority order for solvent name column
     priority_patterns = ['solvent_name', 'solvent', 'name', 'compound']
-    
+
     for pattern in priority_patterns:
         for col in cols:
             if pattern in col.lower():
                 return col
-    
+
     # If no match, return first string column
     for col, dtype in sql_db.table_schemas[table_name]['types'].items():
         if 'VARCHAR' in str(dtype).upper() or 'TEXT' in str(dtype).upper():
             return col
-    
+
     return cols[0] if cols else None
+
+
+def get_cosmobase_column(table_name: str) -> Optional[str]:
+    """Get the 'Solvent name in cosmobase' column for exact matching."""
+    if table_name not in sql_db.table_schemas:
+        return None
+
+    cols = sql_db.table_schemas[table_name]['columns']
+
+    # Look for cosmobase column specifically
+    for col in cols:
+        if 'cosmobase' in col.lower():
+            return col
+
+    return None
+
+
+def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> dict:
+    """
+    Look up solvent properties with exact matching first, then fuzzy fallback.
+    Returns a dict mapping solvent names to their properties.
+    """
+    if not solvent_table or solvent_table not in sql_db.table_schemas:
+        return {}
+
+    schema = sql_db.table_schemas[solvent_table]
+    cols = schema['columns']
+    cols_lower = {c.lower(): c for c in cols}
+
+    # Get column names
+    cosmobase_col = get_cosmobase_column(solvent_table)
+    name_col = get_solvent_name_column(solvent_table)
+
+    # Property columns
+    logp_col = next((cols_lower[k] for k in cols_lower if 'logp' in k), None)
+    bp_col = next((cols_lower[k] for k in cols_lower if 'bp' in k or 'boil' in k), None)
+    energy_col = next((cols_lower[k] for k in cols_lower if 'energy' in k), None)
+    cp_col = next((cols_lower[k] for k in cols_lower if 'cp' in k and 'logp' not in k), None)
+
+    result = {}
+
+    for solvent in solvent_names:
+        sol_lower = solvent.lower().strip()
+        props = {'logp': None, 'bp': None, 'energy': None, 'cp': None}
+
+        # Try exact match on cosmobase column first
+        if cosmobase_col:
+            query = f"SELECT * FROM {solvent_table} WHERE LOWER(\"{cosmobase_col}\") = '{sol_lower}'"
+            try:
+                df = sql_db.conn.execute(query).fetchdf()
+                if len(df) == 1:
+                    row = df.iloc[0]
+                    props = {
+                        'logp': row[logp_col] if logp_col and logp_col in row else None,
+                        'bp': row[bp_col] if bp_col and bp_col in row else None,
+                        'energy': row[energy_col] if energy_col and energy_col in row else None,
+                        'cp': row[cp_col] if cp_col and cp_col in row else None,
+                    }
+                    result[solvent] = props
+                    continue
+            except:
+                pass
+
+        # Try exact match on name column
+        if name_col:
+            query = f"SELECT * FROM {solvent_table} WHERE LOWER(\"{name_col}\") = '{sol_lower}'"
+            try:
+                df = sql_db.conn.execute(query).fetchdf()
+                if len(df) == 1:
+                    row = df.iloc[0]
+                    props = {
+                        'logp': row[logp_col] if logp_col and logp_col in row else None,
+                        'bp': row[bp_col] if bp_col and bp_col in row else None,
+                        'energy': row[energy_col] if energy_col and energy_col in row else None,
+                        'cp': row[cp_col] if cp_col and cp_col in row else None,
+                    }
+                    result[solvent] = props
+                    continue
+            except:
+                pass
+
+        # Fuzzy match - find the best (shortest name that contains the solvent)
+        match_col = cosmobase_col or name_col
+        if match_col:
+            query = f"SELECT * FROM {solvent_table} WHERE LOWER(\"{match_col}\") LIKE '%{sol_lower}%' ORDER BY LENGTH(\"{match_col}\")"
+            try:
+                df = sql_db.conn.execute(query).fetchdf()
+                if len(df) > 0:
+                    # Take shortest match (most specific)
+                    row = df.iloc[0]
+                    props = {
+                        'logp': row[logp_col] if logp_col and logp_col in row else None,
+                        'bp': row[bp_col] if bp_col and bp_col in row else None,
+                        'energy': row[energy_col] if energy_col and energy_col in row else None,
+                        'cp': row[cp_col] if cp_col and cp_col in row else None,
+                    }
+            except:
+                pass
+
+        result[solvent] = props
+
+    return result
 
 
 @tool
@@ -3145,56 +3159,20 @@ def analyze_separation_with_properties(
     
     if not results:
         return "❌ No solvents found with data for all specified polymers."
-    
-    # Get solvent properties if available
+
+    # Get solvent properties if available using exact matching
     solvent_table = get_solvent_table_name()
     properties_available = False
-    
+
     if solvent_table:
-        name_col = get_solvent_name_column(solvent_table)
-        schema = sql_db.table_schemas[solvent_table]
-        cols = schema['columns']
-        cols_lower = {c.lower(): c for c in cols}
-        
-        # Find property columns
-        logp_col = next((cols_lower[k] for k in cols_lower if 'logp' in k), None)
-        bp_col = next((cols_lower[k] for k in cols_lower if 'bp' in k or 'boil' in k), None)
-        energy_col = next((cols_lower[k] for k in cols_lower if 'energy' in k), None)
-        cp_col = next((cols_lower[k] for k in cols_lower if 'cp' in k and 'logp' not in k), None)
-        
-        # Query properties for found solvents
         solvent_names = [r["solvent"] for r in results]
-        conditions = [f"LOWER({name_col}) LIKE '%{s.lower()}%'" for s in solvent_names]
-        
-        prop_query = f"SELECT * FROM {solvent_table} WHERE {' OR '.join(conditions)}"
-        
-        try:
-            prop_df = sql_db.conn.execute(prop_query).fetchdf()
-            
-            if len(prop_df) > 0:
-                properties_available = True
-                
-                # Create lookup dict
-                prop_lookup = {}
-                for _, row in prop_df.iterrows():
-                    solvent_name = str(row[name_col]).lower()
-                    prop_lookup[solvent_name] = {
-                        'logp': row[logp_col] if logp_col and logp_col in row else None,
-                        'bp': row[bp_col] if bp_col and bp_col in row else None,
-                        'energy': row[energy_col] if energy_col and energy_col in row else None,
-                        'cp': row[cp_col] if cp_col and cp_col in row else None,
-                    }
-                
-                # Add properties to results
-                for r in results:
-                    solvent_lower = r["solvent"].lower()
-                    # Fuzzy match
-                    for key, props in prop_lookup.items():
-                        if solvent_lower in key or key in solvent_lower:
-                            r.update(props)
-                            break
-        except Exception as e:
-            logger.warning(f"Could not fetch solvent properties: {e}")
+        prop_lookup = lookup_solvent_properties(solvent_names, solvent_table)
+
+        if prop_lookup:
+            properties_available = True
+            for r in results:
+                if r["solvent"] in prop_lookup:
+                    r.update(prop_lookup[r["solvent"]])
     
     # Sort results based on rank_by parameter
     rank_by_lower = rank_by.lower()
