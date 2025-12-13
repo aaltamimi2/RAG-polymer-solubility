@@ -20,14 +20,14 @@ import getpass
 from langchain_google_genai import ChatGoogleGenerativeAI
 import os
 
-# API Keys setup
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDlVrovWncmTMKeQfgB_-w08vcXeqNnXOg"
+# API Keys setup - load from environment variables
+# Set these in your environment or .env file before running
 if "GOOGLE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_API_KEY"] = getpass.getpass("Enter your Google AI API key:")
+    raise ValueError("GOOGLE_API_KEY environment variable is required. Set it before running.")
 
-if "LANGSMITH_API_KEY" not in os.environ:
-    os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter your Langsmith AI API key:")
-os.environ["LANGSMITH_API_KEY"] = "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"
+# Optional: LangSmith for tracing (not required)
+# if "LANGSMITH_API_KEY" not in os.environ:
+#     os.environ["LANGSMITH_API_KEY"] = getpass.getpass("Enter your Langsmith AI API key:")
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
