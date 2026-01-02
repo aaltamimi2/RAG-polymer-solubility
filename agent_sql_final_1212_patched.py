@@ -3193,6 +3193,7 @@ async def plan_sequential_separation(
 
             # Create figure - VERTICAL FLOWCHART (easy to read top-to-bottom)
             n_steps = len(steps)
+            # Increase spacing for more polymers to prevent overlap
             fig_height = max(3 + n_steps * 2.5, 8)
             fig_width = 12
             fig, ax = plt.subplots(figsize=(fig_width, fig_height))
@@ -3205,11 +3206,12 @@ async def plan_sequential_separation(
             )
 
             ax.set_xlim(0, 10)
-            ax.set_ylim(-0.5, n_steps + 2)
+            # Add extra space at top to prevent overlap with solvent boxes
+            ax.set_ylim(-0.5, n_steps + 2.5)
             ax.axis('off')
 
-            # Starting mixture at top
-            y_pos = n_steps + 1
+            # Starting mixture at top (moved higher to prevent overlap)
+            y_pos = n_steps + 1.5
             ax.add_patch(plt.Rectangle((2, y_pos - 0.3), 6, 0.6,
                                        facecolor='#3498db', edgecolor='black', linewidth=2))
             ax.text(5, y_pos, f'STARTING MIXTURE: {", ".join(polymer_list)}',
