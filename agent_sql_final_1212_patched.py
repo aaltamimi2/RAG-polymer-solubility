@@ -4837,6 +4837,7 @@ async def predict_solubility_ml(
         from visualization_library_v2 import generate_all_visualizations
         import os
         import pandas as pd
+        import shutil
 
         # Get predictor
         predictor = get_predictor()
