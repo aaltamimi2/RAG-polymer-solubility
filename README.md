@@ -1,12 +1,12 @@
-# 🧪 Polymer Solubility Analyzer
+# Data-Integrated Solubility Solver via LLM Evaluation (DISSOLVE) Agent
 
-A modern, AI-powered web application for polymer-solvent solubility analysis. Features a clean React frontend with a FastAPI backend powered by LangGraph agents.
+An AI-powered chatbot for polymer-solvent solubility analysis. Powered by Gemini and LangGraph agents.
 
 ![Screenshot](screenshot.png)
 
-## ✨ Features
+##  Features
 
-- **AI-Powered Analysis**: Natural language queries for solubility data
+- **Solubility Analysis**: Natural language queries for solubility data
 - **Solvent Selection**: Find optimal solvents for polymer separation
 - **Cost/Toxicity Analysis**: Rank solvents by energy cost (J/g) or toxicity (LogP)
 - **Sequential Separation Planning**: Enumerate all separation sequences for multiple polymers
@@ -17,7 +17,7 @@ A modern, AI-powered web application for polymer-solvent solubility analysis. Fe
 
 ### 1. Prerequisites
 
-- Python 3.9+
+- LangSmith API Key
 - Google API Key (for Gemini LLM)
 
 ### 2. Installation
@@ -62,7 +62,7 @@ uvicorn app_server:app --host 0.0.0.0 --port 8000 --reload
 
 ### 6. Open the App
 
-Navigate to `http://localhost:8000` in your browser.
+Navigate to `http://localhost:8000` in your browser (on local device 'http://127.0.0.1:8000/') we are planning on adding a website for this.
 
 ## 📁 Project Structure
 

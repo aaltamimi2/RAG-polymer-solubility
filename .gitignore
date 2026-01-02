@@ -1,0 +1,41 @@
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Plots (generated at runtime)
+plots/*.png
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node (if using frontend build)
+node_modules/
+frontend/build/
+
+# Runtime files
+exports/
+*.log

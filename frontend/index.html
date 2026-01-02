@@ -3,130 +3,193 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Polymer Solubility Analyzer</title>
+  <title>STRAP Solubility Search</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: { sans: ['Inter', 'sans-serif'] },
+          fontFamily: {
+            serif: ['Cormorant Garamond', 'Georgia', 'serif'],
+            sans: ['DM Sans', 'system-ui', 'sans-serif'],
+          },
           colors: {
-            primary: {
-              50: '#f0f9ff', 100: '#e0f2fe', 200: '#bae6fd', 300: '#7dd3fc',
-              400: '#38bdf8', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
-              800: '#075985', 900: '#0c4a6e',
-            }
-          }
+            navy: {
+              50: '#f0f4f8',
+              100: '#d9e2ec',
+              200: '#bcccdc',
+              300: '#9fb3c8',
+              400: '#829ab1',
+              500: '#627d98',
+              600: '#486581',
+              700: '#334e68',
+              800: '#243b53',
+              900: '#102a43',
+              950: '#0a1929',
+            },
+            copper: {
+              50: '#fdf8f4',
+              100: '#faeee4',
+              200: '#f5dcc8',
+              300: '#e8c4a4',
+              400: '#d9a87c',
+              500: '#c77b4a',
+              600: '#b8693a',
+              700: '#995532',
+              800: '#7a452e',
+              900: '#643a28',
+            },
+            cream: '#fdfbf7',
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.6s ease-out forwards',
+            'fade-in': 'fadeIn 0.4s ease-out forwards',
+            'slide-in': 'slideIn 0.5s ease-out forwards',
+            'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideIn: {
+              '0%': { opacity: '0', transform: 'translateX(-10px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            pulseSubtle: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.7' },
+            },
+          },
         }
       }
     }
   </script>
   <style>
-    body { font-family: 'Inter', sans-serif; }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: #1e293b; }
-    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    
-    .markdown-content h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
-    .markdown-content h2 { font-size: 1.25rem; font-weight: 600; margin: 0.875rem 0 0.5rem; }
-    .markdown-content h3 { font-size: 1.125rem; font-weight: 600; margin: 0.75rem 0 0.375rem; }
-    .markdown-content p { margin: 0.5rem 0; line-height: 1.6; }
-    .markdown-content ul, .markdown-content ol { margin: 0.5rem 0; padding-left: 1.5rem; }
-    .markdown-content li { margin: 0.25rem 0; }
-    .markdown-content code { background: #1e293b; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; font-family: monospace; }
-    .markdown-content pre { background: #1e293b; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 0.5rem 0; }
-    .markdown-content pre code { background: transparent; padding: 0; }
-    .markdown-content table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.875rem; }
-    .markdown-content th, .markdown-content td { border: 1px solid #334155; padding: 0.5rem; text-align: left; }
-    .markdown-content th { background: #1e293b; font-weight: 600; }
-    .markdown-content strong { font-weight: 600; color: #f1f5f9; }
-    .markdown-content em { font-style: italic; }
-    .markdown-content a { color: #38bdf8; text-decoration: underline; }
-    .markdown-content blockquote { border-left: 4px solid #475569; padding-left: 1rem; margin: 0.5rem 0; color: #94a3b8; }
-    .markdown-content hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
-    
-    .typing-indicator span { animation: typing 1.4s infinite ease-in-out; }
-    .typing-indicator span:nth-child(1) { animation-delay: 0s; }
-    .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes typing { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-4px); } }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .animate-spin { animation: spin 1s linear infinite; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #fdfbf7;
+      color: #102a43;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #bcccdc; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9fb3c8; }
+
+    /* Markdown styles */
+    .prose h1 { font-family: 'Cormorant Garamond', serif; font-size: 1.75rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: #102a43; }
+    .prose h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.375rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #243b53; }
+    .prose h3 { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; margin: 0.875rem 0 0.375rem; color: #334e68; }
+    .prose p { margin: 0.625rem 0; line-height: 1.7; color: #334e68; }
+    .prose ul, .prose ol { margin: 0.5rem 0; padding-left: 1.5rem; color: #334e68; }
+    .prose li { margin: 0.25rem 0; }
+    .prose code { background: #f0f4f8; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.875rem; font-family: 'SF Mono', Monaco, monospace; color: #486581; border: 1px solid #d9e2ec; }
+    .prose pre { background: #102a43; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
+    .prose pre code { background: transparent; padding: 0; border: none; color: #d9e2ec; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+    .prose th, .prose td { border: 1px solid #d9e2ec; padding: 0.625rem 0.875rem; text-align: left; }
+    .prose th { background: #f0f4f8; font-weight: 600; color: #243b53; }
+    .prose strong { font-weight: 600; color: #102a43; }
+    .prose em { font-style: italic; }
+    .prose a { color: #c77b4a; text-decoration: underline; text-underline-offset: 2px; }
+    .prose blockquote { border-left: 3px solid #c77b4a; padding-left: 1rem; margin: 0.75rem 0; color: #627d98; font-style: italic; }
+    .prose hr { border: none; border-top: 1px solid #d9e2ec; margin: 1.5rem 0; }
+
+    /* Typing animation */
+    .typing-dot { animation: typingBounce 1.4s ease-in-out infinite; }
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    /* Molecular decoration */
+    .molecular-bg {
+      background-image:
+        radial-gradient(circle at 20% 80%, rgba(199, 123, 74, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(26, 54, 93, 0.03) 0%, transparent 50%);
+    }
+
+    /* Glass effect for cards */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(217, 226, 236, 0.5);
+    }
+
+    /* Feature button hover */
+    .feature-btn {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .feature-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -8px rgba(26, 54, 93, 0.15);
+    }
+
+    /* Stagger animations */
+    .stagger-1 { animation-delay: 0.1s; }
+    .stagger-2 { animation-delay: 0.2s; }
+    .stagger-3 { animation-delay: 0.3s; }
+    .stagger-4 { animation-delay: 0.4s; }
+    .stagger-5 { animation-delay: 0.5s; }
+    .stagger-6 { animation-delay: 0.6s; }
   </style>
 </head>
-<body class="bg-slate-900 text-slate-100">
+<body class="min-h-screen molecular-bg">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect, useRef, useCallback } = React;
 
-    // ========== Configuration ==========
     const API_BASE = window.location.origin;
 
-    // ========== Simple Markdown Renderer ==========
+    // ========== Markdown Renderer ==========
     function renderMarkdown(text) {
       if (!text) return '';
-      
       let html = text
-        // Escape HTML
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        // Code blocks
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-        // Inline code
         .replace(/`([^`]+)`/g, '<code>$1</code>')
-        // Headers
         .replace(/^### (.*$)/gm, '<h3>$1</h3>')
         .replace(/^## (.*$)/gm, '<h2>$1</h2>')
         .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-        // Bold
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        // Italic
         .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-        // Links
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
-        // Lists
         .replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>')
         .replace(/(<li>.*<\/li>)\n(?=<li>)/g, '$1')
         .replace(/(<li>.*<\/li>)(?!\n<li>)/gs, '<ul>$1</ul>')
-        // Numbered lists  
         .replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>')
-        // Horizontal rule
         .replace(/^---$/gm, '<hr>')
-        // Blockquotes
         .replace(/^>\s+(.*)$/gm, '<blockquote>$1</blockquote>')
-        // Tables (basic)
         .replace(/\|(.+)\|/g, (match, content) => {
           const cells = content.split('|').map(c => c.trim());
-          if (cells.every(c => /^[-:]+$/.test(c))) return ''; // Skip separator rows
+          if (cells.every(c => /^[-:]+$/.test(c))) return '';
           const cellType = match.includes('---') ? 'th' : 'td';
           return '<tr>' + cells.map(c => `<${cellType}>${c}</${cellType}>`).join('') + '</tr>';
         })
-        // Paragraphs (double newline)
         .replace(/\n\n/g, '</p><p>')
-        // Single newlines in context
         .replace(/\n/g, '<br>');
-      
-      // Wrap tables
       html = html.replace(/(<tr>[\s\S]*?<\/tr>)+/g, '<table>$&</table>');
-      
-      // Wrap in paragraph if needed
-      if (!html.startsWith('<')) {
-        html = '<p>' + html + '</p>';
-      }
-      
+      if (!html.startsWith('<')) html = '<p>' + html + '</p>';
       return html;
     }
 
-    // ========== API Functions ==========
+    // ========== API ==========
     const api = {
       async getStatus() {
         const res = await fetch(`${API_BASE}/api/status`);
@@ -144,37 +207,18 @@
       },
       async getTables() {
         const res = await fetch(`${API_BASE}/api/tables`);
-        if (!res.ok) throw new Error('Failed to get tables');
-        return res.json();
-      },
-      async reindex() {
-        const res = await fetch(`${API_BASE}/api/reindex`, { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to reindex');
-        return res.json();
-      },
-      async uploadFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-        const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: formData });
-        if (!res.ok) throw new Error('Failed to upload');
         return res.json();
       },
       async getPlots() {
         const res = await fetch(`${API_BASE}/api/plots`);
-        if (!res.ok) throw new Error('Failed to get plots');
-        return res.json();
-      },
-      async clearPlots() {
-        const res = await fetch(`${API_BASE}/api/plots`, { method: 'DELETE' });
         return res.json();
       },
       async clearSession(sessionId) {
-        const res = await fetch(`${API_BASE}/api/session/${sessionId}`, { method: 'DELETE' });
-        return res.json();
+        await fetch(`${API_BASE}/api/session/${sessionId}`, { method: 'DELETE' });
       }
     };
 
-    // ========== Icon Components ==========
+    // ========== Icon Component ==========
     function Icon({ name, size = 20, className = '' }) {
       const ref = useRef(null);
       useEffect(() => {
@@ -186,59 +230,69 @@
           ref.current.appendChild(svg);
         }
       }, [name, size]);
-      return <span ref={ref} className={`inline-flex ${className}`} />;
+      return <span ref={ref} className={`inline-flex items-center justify-center ${className}`} />;
     }
 
-    // ========== UI Components ==========
-    function StatusBadge({ status }) {
-      const isReady = status === 'ready';
+    // ========== Feature Button ==========
+    function FeatureButton({ icon, label, description, onClick, delay = 0 }) {
       return (
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-          isReady ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
-        }`}>
-          <Icon name={isReady ? 'CheckCircle' : 'AlertCircle'} size={14} />
-          {isReady ? 'Ready' : 'Limited'}
-        </div>
+        <button
+          onClick={onClick}
+          className={`feature-btn group text-left p-5 bg-white rounded-xl border border-navy-100 hover:border-copper-300 opacity-0 animate-fade-up`}
+          style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-navy-50 to-navy-100 flex items-center justify-center text-navy-600 group-hover:from-copper-50 group-hover:to-copper-100 group-hover:text-copper-600 transition-all duration-300">
+              <Icon name={icon} size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-navy-900 group-hover:text-copper-700 transition-colors">{label}</h3>
+              <p className="text-sm text-navy-500 mt-0.5 leading-relaxed">{description}</p>
+            </div>
+          </div>
+        </button>
       );
     }
 
+    // ========== Message Component ==========
     function Message({ message, isUser }) {
       return (
-        <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+        <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''} animate-fade-up`}>
           <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
-            isUser ? 'bg-primary-600' : 'bg-gradient-to-br from-primary-500 to-primary-700'
+            isUser
+              ? 'bg-gradient-to-br from-copper-400 to-copper-600 text-white'
+              : 'bg-gradient-to-br from-navy-700 to-navy-900 text-white'
           }`}>
-            {isUser ? <Icon name="User" size={18} /> : <Icon name="FlaskConical" size={18} />}
+            <Icon name={isUser ? 'User' : 'FlaskConical'} size={16} />
           </div>
-          <div className={`flex-1 max-w-[85%] ${isUser ? 'text-right' : ''}`}>
-            <div className={`inline-block rounded-2xl px-4 py-3 ${
-              isUser ? 'bg-primary-600 text-white' : 'bg-slate-800 text-slate-100'
+          <div className={`flex-1 max-w-[85%] ${isUser ? 'flex flex-col items-end' : ''}`}>
+            <div className={`inline-block rounded-2xl px-5 py-3.5 ${
+              isUser
+                ? 'bg-gradient-to-br from-copper-500 to-copper-600 text-white'
+                : 'bg-white border border-navy-100 shadow-sm'
             }`}>
               {isUser ? (
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
               ) : (
-                <div 
-                  className="markdown-content"
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                />
+                <div className="prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
               )}
             </div>
             {message.images && message.images.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 justify-start">
+              <div className="mt-4 flex flex-wrap gap-3">
                 {message.images.map((img, i) => (
-                  <a key={i} href={`${API_BASE}/plots/${img}`} target="_blank" rel="noopener noreferrer">
-                    <img 
+                  <a key={i} href={`${API_BASE}/plots/${img}`} target="_blank" rel="noopener noreferrer" className="block">
+                    <img
                       src={`${API_BASE}/plots/${img}`}
                       alt={`Plot ${i + 1}`}
-                      className="rounded-lg max-w-xs max-h-64 border border-slate-700 hover:border-primary-500 transition-colors"
+                      className="rounded-xl max-w-sm max-h-72 border border-navy-100 shadow-md hover:shadow-lg hover:border-copper-300 transition-all duration-300"
                     />
                   </a>
                 ))}
               </div>
             )}
             {message.elapsed !== undefined && (
-              <p className="text-xs text-slate-500 mt-1.5">
-                ⏱ {message.elapsed.toFixed(1)}s • {message.iterations} iterations
+              <p className="text-xs text-navy-400 mt-2 font-medium tracking-wide">
+                {message.elapsed.toFixed(1)}s
               </p>
             )}
           </div>
@@ -246,180 +300,36 @@
       );
     }
 
+    // ========== Typing Indicator ==========
     function TypingIndicator() {
       return (
-        <div className="flex gap-3">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-            <Icon name="FlaskConical" size={18} />
+        <div className="flex gap-4 animate-fade-in">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center text-white">
+            <Icon name="FlaskConical" size={16} />
           </div>
-          <div className="bg-slate-800 rounded-2xl px-4 py-3">
-            <div className="typing-indicator flex gap-1">
-              <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
-              <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
-              <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
+          <div className="bg-white border border-navy-100 rounded-2xl px-5 py-4 shadow-sm">
+            <div className="flex gap-1.5">
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
             </div>
           </div>
         </div>
       );
     }
 
-    function QuickAction({ icon, label, onClick }) {
+    // ========== Status Indicator ==========
+    function StatusIndicator({ status }) {
+      const isReady = status?.status === 'ready';
       return (
-        <button
-          onClick={onClick}
-          className="flex items-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-sm text-slate-300 hover:text-white transition-all border border-slate-700 hover:border-slate-600"
-        >
-          <Icon name={icon} size={18} className="text-primary-400" />
-          <span>{label}</span>
-        </button>
-      );
-    }
-
-    function Sidebar({ isOpen, onClose, status, onReindex, onUpload, onClearPlots, onRefresh }) {
-      const [tables, setTables] = useState([]);
-      const [plots, setPlots] = useState([]);
-      const [isLoading, setIsLoading] = useState(false);
-      const fileInputRef = useRef(null);
-
-      useEffect(() => {
-        if (isOpen) loadData();
-      }, [isOpen]);
-
-      const loadData = async () => {
-        try {
-          const [tablesRes, plotsRes] = await Promise.all([api.getTables(), api.getPlots()]);
-          setTables(tablesRes.tables || []);
-          setPlots(plotsRes.plots || []);
-        } catch (e) { console.error('Failed to load sidebar data:', e); }
-      };
-
-      const handleReindex = async () => {
-        setIsLoading(true);
-        try { await onReindex(); await loadData(); await onRefresh(); } 
-        finally { setIsLoading(false); }
-      };
-
-      const handleFileUpload = async (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-          setIsLoading(true);
-          try { await onUpload(file); await loadData(); await onRefresh(); } 
-          finally { setIsLoading(false); }
-        }
-      };
-
-      return (
-        <>
-          {isOpen && <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onClose} />}
-          <div className={`fixed top-0 right-0 h-full w-80 bg-slate-800 border-l border-slate-700 z-50 transform transition-transform duration-300 ${
-            isOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}>
-            <div className="flex flex-col h-full">
-              <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                <h2 className="font-semibold">Data Management</h2>
-                <button onClick={onClose} className="p-1.5 hover:bg-slate-700 rounded-lg">
-                  <Icon name="X" size={20} />
-                </button>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                {/* Status */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">System Status</h3>
-                  <div className="bg-slate-900/50 rounded-xl p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400">Status</span>
-                      <StatusBadge status={status?.status} />
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Tables</span>
-                      <span className="font-medium">{status?.tables_loaded || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-400">Tools</span>
-                      <span className="font-medium">{status?.tools_available || 0}</span>
-                    </div>
-                  </div>
-                  {status?.missing_files?.length > 0 && (
-                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3">
-                      <div className="flex gap-2 text-amber-400 text-sm">
-                        <Icon name="AlertTriangle" size={16} className="flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-medium">Missing files:</p>
-                          <ul className="mt-1 text-amber-300/80 text-xs">
-                            {status.missing_files.map(f => <li key={f}>• {f}</li>)}
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Actions */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</h3>
-                  <div className="space-y-2">
-                    <button onClick={handleReindex} disabled={isLoading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-700 rounded-xl transition-colors font-medium">
-                      <Icon name={isLoading ? 'Loader2' : 'RefreshCw'} size={16} className={isLoading ? 'animate-spin' : ''} />
-                      Reindex Data
-                    </button>
-                    <button onClick={() => fileInputRef.current?.click()} disabled={isLoading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors">
-                      <Icon name="Upload" size={16} />
-                      Upload CSV
-                    </button>
-                    <input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileUpload} className="hidden" />
-                    <button onClick={onClearPlots} disabled={isLoading}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 rounded-xl transition-colors">
-                      <Icon name="Trash2" size={16} />
-                      Clear Plots
-                    </button>
-                  </div>
-                </div>
-                
-                {/* Tables */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">Loaded Tables</h3>
-                  {tables.length === 0 ? (
-                    <p className="text-slate-500 text-sm">No tables loaded</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {tables.map(table => (
-                        <div key={table.name} className="bg-slate-900/50 rounded-xl p-3">
-                          <div className="flex items-center gap-2 text-primary-400">
-                            <Icon name="Table" size={14} />
-                            <span className="font-medium text-sm truncate">{table.name}</span>
-                          </div>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {table.rows?.toLocaleString() || 0} rows • {table.columns?.length || 0} columns
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Plots */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-medium text-slate-500 uppercase tracking-wider">Recent Plots</h3>
-                  {plots.length === 0 ? (
-                    <p className="text-slate-500 text-sm">No plots generated</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {plots.slice(0, 6).map(plot => (
-                        <a key={plot.filename} href={`${API_BASE}${plot.url}`} target="_blank" rel="noopener noreferrer">
-                          <img src={`${API_BASE}${plot.url}`} alt={plot.filename}
-                            className="rounded-lg border border-slate-700 hover:border-primary-500 transition-colors" />
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium tracking-wide ${
+          isReady
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-amber-50 text-amber-700 border border-amber-200'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse-subtle`}></span>
+          {isReady ? `${status.tables_loaded} tables` : 'Loading'}
+        </div>
       );
     }
 
@@ -430,29 +340,25 @@
       const [isLoading, setIsLoading] = useState(false);
       const [sessionId, setSessionId] = useState(null);
       const [status, setStatus] = useState(null);
-      const [sidebarOpen, setSidebarOpen] = useState(false);
-      const [notification, setNotification] = useState(null);
-      
+
       const messagesEndRef = useRef(null);
       const inputRef = useRef(null);
 
-      useEffect(() => { loadStatus(); }, []);
-      useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-      useEffect(() => { if (!isLoading) inputRef.current?.focus(); }, [isLoading]);
+      useEffect(() => {
+        api.getStatus().then(setStatus).catch(console.error);
+      }, []);
 
-      const loadStatus = async () => {
-        try { setStatus(await api.getStatus()); } 
-        catch (e) { console.error('Failed to load status:', e); }
-      };
+      useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages]);
 
-      const showNotification = (message, type = 'info') => {
-        setNotification({ message, type });
-        setTimeout(() => setNotification(null), 3000);
-      };
+      useEffect(() => {
+        if (!isLoading) inputRef.current?.focus();
+      }, [isLoading]);
 
       const handleSend = async () => {
         if (!input.trim() || isLoading) return;
-        const userMessage = { role: 'user', content: input.trim(), timestamp: new Date().toISOString() };
+        const userMessage = { role: 'user', content: input.trim() };
         setMessages(prev => [...prev, userMessage]);
         setInput('');
         setIsLoading(true);
@@ -465,15 +371,12 @@
             content: response.response,
             images: response.images,
             elapsed: response.elapsed_time,
-            iterations: response.iterations,
-            timestamp: new Date().toISOString()
+            iterations: response.iterations
           }]);
         } catch (e) {
-          console.error('Chat error:', e);
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: `**Error:** ${e.message}\n\nPlease check if the backend server is running at ${API_BASE}`,
-            timestamp: new Date().toISOString()
+            content: `I encountered an error: ${e.message}\n\nPlease check if the server is running.`
           }]);
         } finally {
           setIsLoading(false);
@@ -484,102 +387,141 @@
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
       };
 
-      const handleQuickAction = (prompt) => { setInput(prompt); inputRef.current?.focus(); };
-
-      const handleReindex = async () => {
-        try { await api.reindex(); await loadStatus(); showNotification('Data reindexed successfully', 'success'); }
-        catch (e) { showNotification('Failed to reindex data', 'error'); }
+      const handleFeature = (prompt) => {
+        setInput(prompt);
+        inputRef.current?.focus();
       };
 
-      const handleUpload = async (file) => {
-        try { await api.uploadFile(file); await loadStatus(); showNotification(`Uploaded ${file.name}`, 'success'); }
-        catch (e) { showNotification('Failed to upload file', 'error'); }
-      };
-
-      const handleClearPlots = async () => {
-        try { await api.clearPlots(); showNotification('Plots cleared', 'success'); }
-        catch (e) { showNotification('Failed to clear plots', 'error'); }
-      };
-
-      const handleClearChat = async () => {
+      const handleClear = async () => {
         if (sessionId) await api.clearSession(sessionId);
         setMessages([]);
         setSessionId(null);
       };
 
+      const features = [
+        {
+          icon: 'Database',
+          label: 'Explore Data',
+          description: 'View available tables and their structure',
+          prompt: 'What tables are available and what columns do they contain?'
+        },
+        {
+          icon: 'FlaskConical',
+          label: 'Find Solvents',
+          description: 'Search for solvents by polymer compatibility',
+          prompt: 'List solvents that dissolve polystyrene at room temperature'
+        },
+        {
+          icon: 'GitBranch',
+          label: 'Polymer Separation',
+          description: 'Find selective solvents to separate polymers',
+          prompt: 'Find solvents to separate LDPE from PET at 25°C'
+        },
+        {
+          icon: 'BarChart3',
+          label: 'Compare Properties',
+          description: 'Analyze and rank solvents by properties',
+          prompt: 'Rank solvents by energy cost (lowest first) and show a bar chart'
+        },
+        {
+          icon: 'Thermometer',
+          label: 'Temperature Analysis',
+          description: 'Study solubility vs temperature relationships',
+          prompt: 'Plot solubility vs temperature for HDPE across different solvents'
+        },
+        {
+          icon: 'TrendingUp',
+          label: 'Statistical Analysis',
+          description: 'Generate statistical insights and correlations',
+          prompt: 'Show statistical summary of solubility data with visualizations'
+        },
+      ];
+
       return (
-        <div className="h-screen flex flex-col bg-slate-900">
+        <div className="min-h-screen flex flex-col">
           {/* Header */}
-          <header className="flex-shrink-0 border-b border-slate-800 bg-slate-900/95 backdrop-blur-sm sticky top-0 z-30">
-            <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/20">
-                  <Icon name="FlaskConical" size={22} />
+          <header className="border-b border-navy-100 bg-white/80 backdrop-blur-md sticky top-0 z-30">
+            <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-navy-800 to-navy-950 flex items-center justify-center shadow-lg shadow-navy-900/20">
+                    <Icon name="FlaskConical" size={22} className="text-white" />
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-copper-500 border-2 border-white"></div>
                 </div>
                 <div>
-                  <h1 className="font-semibold text-lg">Polymer Solubility Analyzer</h1>
-                  <p className="text-xs text-slate-500">AI-powered solvent selection & analysis</p>
+                  <h1 className="font-serif text-xl font-semibold text-navy-900 tracking-tight">STRAP Solubility Search</h1>
+                  <p className="text-xs text-navy-500 font-medium tracking-wide">Polymer-Solvent Analysis Platform</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <StatusBadge status={status?.status} />
-                <button onClick={() => setSidebarOpen(true)} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-                  <Icon name="Menu" size={20} />
-                </button>
-              </div>
+              <StatusIndicator status={status} />
             </div>
           </header>
 
-          {/* Notification */}
-          {notification && (
-            <div className={`fixed top-16 right-4 z-50 px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 ${
-              notification.type === 'success' ? 'bg-emerald-600' : 
-              notification.type === 'error' ? 'bg-red-600' : 'bg-slate-700'
-            }`}>
-              <Icon name={notification.type === 'success' ? 'CheckCircle' : notification.type === 'error' ? 'AlertCircle' : 'Info'} size={16} />
-              {notification.message}
-            </div>
-          )}
-
           {/* Main Content */}
-          <main className="flex-1 overflow-hidden flex flex-col max-w-5xl mx-auto w-full">
-            <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+          <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto px-6 py-8">
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-center px-4 py-12">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center mb-6 shadow-xl shadow-primary-500/30">
-                    <Icon name="FlaskConical" size={40} />
+                <div className="h-full flex flex-col">
+                  {/* Hero */}
+                  <div className="text-center py-12 opacity-0 animate-fade-up" style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-copper-50 rounded-full text-copper-700 text-sm font-medium mb-6 border border-copper-200">
+                      <Icon name="Sparkles" size={14} />
+                      AI-Powered Analysis
+                    </div>
+                    <h2 className="font-serif text-4xl font-semibold text-navy-900 mb-4 tracking-tight">
+                      Explore Polymer Solubility
+                    </h2>
+                    <p className="text-navy-500 max-w-xl mx-auto leading-relaxed text-lg">
+                      Search solubility data, find separation strategies, and analyze solvent properties
+                      with natural language queries.
+                    </p>
                   </div>
-                  <h2 className="text-2xl font-bold mb-2">Welcome to Polymer Solubility Analyzer</h2>
-                  <p className="text-slate-400 max-w-lg mb-8">
-                    AI-powered analysis for polymer-solvent systems. Ask about solubility data, 
-                    separation strategies, and solvent properties including cost and toxicity.
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-                    <QuickAction icon="Database" label="What tables are available?" 
-                      onClick={() => handleQuickAction("What tables are available?")} />
-                    <QuickAction icon="Beaker" label="List polymers in database"
-                      onClick={() => handleQuickAction("List the available polymers in the database")} />
-                    <QuickAction icon="Thermometer" label="Find selective solvents"
-                      onClick={() => handleQuickAction("Find solvents to separate LDPE from PET at 25°C")} />
-                    <QuickAction icon="DollarSign" label="Rank by cost"
-                      onClick={() => handleQuickAction("Rank solvents by energy cost (lowest first)")} />
+
+                  {/* Feature Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+                    {features.map((feature, i) => (
+                      <FeatureButton
+                        key={feature.label}
+                        icon={feature.icon}
+                        label={feature.label}
+                        description={feature.description}
+                        onClick={() => handleFeature(feature.prompt)}
+                        delay={100 + i * 80}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Subtle footer text */}
+                  <div className="mt-auto pt-12 text-center opacity-0 animate-fade-in" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
+                    <p className="text-navy-400 text-sm">
+                      Type a question below or select a feature above to begin
+                    </p>
                   </div>
                 </div>
               ) : (
-                <>
-                  {messages.map((msg, i) => <Message key={i} message={msg} isUser={msg.role === 'user'} />)}
+                <div className="space-y-6">
+                  {messages.map((msg, i) => (
+                    <Message key={i} message={msg} isUser={msg.role === 'user'} />
+                  ))}
                   {isLoading && <TypingIndicator />}
                   <div ref={messagesEndRef} />
-                </>
+                </div>
               )}
             </div>
 
-            {/* Input */}
-            <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/95 backdrop-blur-sm p-4">
+            {/* Input Area */}
+            <div className="border-t border-navy-100 bg-white/80 backdrop-blur-md p-6">
               <div className="flex gap-3 items-end">
-                <button onClick={handleClearChat} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors" title="Clear chat">
-                  <Icon name="Trash2" size={20} />
-                </button>
+                {messages.length > 0 && (
+                  <button
+                    onClick={handleClear}
+                    className="p-3 text-navy-400 hover:text-copper-600 hover:bg-copper-50 rounded-xl transition-all duration-200"
+                    title="Clear conversation"
+                  >
+                    <Icon name="RotateCcw" size={18} />
+                  </button>
+                )}
                 <div className="flex-1 relative">
                   <textarea
                     ref={inputRef}
@@ -588,32 +530,28 @@
                     onKeyDown={handleKeyDown}
                     placeholder="Ask about polymer solubility, separation strategies, solvent properties..."
                     rows={1}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pr-14 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-slate-500"
-                    style={{ minHeight: '50px', maxHeight: '200px' }}
+                    className="w-full bg-white border border-navy-200 rounded-xl px-5 py-3.5 pr-14 resize-none focus:outline-none focus:ring-2 focus:ring-copper-400 focus:border-transparent placeholder-navy-400 text-navy-900 shadow-sm transition-shadow duration-200 hover:shadow-md"
+                    style={{ minHeight: '52px', maxHeight: '160px' }}
                     disabled={isLoading}
                   />
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || isLoading}
-                    className="absolute right-2 bottom-2 p-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-colors"
+                    className="absolute right-2 bottom-2 p-2.5 bg-gradient-to-br from-navy-800 to-navy-900 hover:from-copper-500 hover:to-copper-600 disabled:from-navy-200 disabled:to-navy-300 text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
                   >
-                    {isLoading ? <Icon name="Loader2" size={18} className="animate-spin" /> : <Icon name="Send" size={18} />}
+                    {isLoading ? (
+                      <Icon name="Loader2" size={18} className="animate-spin" />
+                    ) : (
+                      <Icon name="ArrowUp" size={18} />
+                    )}
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-600 mt-2 text-center">Press Enter to send • Shift+Enter for new line</p>
+              <p className="text-xs text-navy-400 mt-3 text-center">
+                Press <kbd className="px-1.5 py-0.5 bg-navy-100 rounded text-navy-600 font-medium">Enter</kbd> to send
+              </p>
             </div>
           </main>
-
-          <Sidebar 
-            isOpen={sidebarOpen} 
-            onClose={() => setSidebarOpen(false)} 
-            status={status}
-            onReindex={handleReindex}
-            onUpload={handleUpload}
-            onClearPlots={handleClearPlots}
-            onRefresh={loadStatus}
-          />
         </div>
       );
     }

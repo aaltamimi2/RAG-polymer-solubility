@@ -21,66 +21,51 @@ import {
   Beaker,
   Thermometer,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  Moon,
+  Sun,
+  Layers,
+  Shield,
+  Activity,
+  Droplet,
+  Brain
 } from 'lucide-react';
-
-// API Configuration
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+import api, { API_BASE } from './api';
 
 // ============================================================
-// API Functions
+// Utility Functions
 // ============================================================
 
-const api = {
-  async getStatus() {
-    const res = await fetch(`${API_BASE}/api/status`);
-    return res.json();
-  },
-  
-  async chat(message, sessionId) {
-    const res = await fetch(`${API_BASE}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: sessionId })
-    });
-    return res.json();
-  },
-  
-  async getTables() {
-    const res = await fetch(`${API_BASE}/api/tables`);
-    return res.json();
-  },
-  
-  async reindex() {
-    const res = await fetch(`${API_BASE}/api/reindex`, { method: 'POST' });
-    return res.json();
-  },
-  
-  async uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch(`${API_BASE}/api/upload`, {
-      method: 'POST',
-      body: formData
-    });
-    return res.json();
-  },
-  
-  async getPlots() {
-    const res = await fetch(`${API_BASE}/api/plots`);
-    return res.json();
-  },
-  
-  async clearPlots() {
-    const res = await fetch(`${API_BASE}/api/plots`, { method: 'DELETE' });
-    return res.json();
-  },
-  
-  async clearSession(sessionId) {
-    const res = await fetch(`${API_BASE}/api/session/${sessionId}`, { method: 'DELETE' });
-    return res.json();
+// Extract export ID from message content
+function extractExportId(content) {
+  const match = content.match(/\/api\/export\/([a-f0-9]{8})/);
+  return match ? match[1] : null;
+}
+
+// Download CSV file
+async function downloadCSV(exportId, showNotification) {
+  try {
+    const blob = await api.downloadExport(exportId);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export_${exportId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+
+    if (showNotification) {
+      showNotification('CSV downloaded successfully', 'success');
+    }
+  } catch (error) {
+    console.error('CSV download error:', error);
+    if (showNotification) {
+      showNotification(error.message || 'Failed to download CSV', 'error');
+    }
   }
-};
+}
 
 // ============================================================
 // Components
@@ -90,9 +75,10 @@ const api = {
 function StatusBadge({ status }) {
   const isReady = status === 'ready';
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-      isReady ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
-    }`}>
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-headline" style={{
+      backgroundColor: isReady ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+      color: isReady ? 'var(--success)' : 'var(--warning)'
+    }}>
       {isReady ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
       {isReady ? 'Ready' : 'Limited'}
     </div>
@@ -100,12 +86,15 @@ function StatusBadge({ status }) {
 }
 
 // Message Component
-function Message({ message, isUser }) {
+function Message({ message, isUser, onDownloadCSV }) {
+  const exportId = !isUser ? extractExportId(message.content) : null;
+
   return (
     <div className={`flex gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-        isUser ? 'bg-primary-600' : 'bg-slate-700'
-      }`}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 font-headline" style={{
+        backgroundColor: isUser ? 'var(--primary)' : 'var(--bg-tertiary)',
+        color: isUser ? 'white' : 'var(--text-primary)'
+      }}>
         {isUser ? (
           <span className="text-sm font-medium">You</span>
         ) : (
@@ -113,11 +102,11 @@ function Message({ message, isUser }) {
         )}
       </div>
       <div className={`flex-1 max-w-[85%] ${isUser ? 'text-right' : ''}`}>
-        <div className={`inline-block rounded-2xl px-4 py-3 ${
-          isUser 
-            ? 'bg-primary-600 text-white' 
-            : 'bg-slate-800 text-slate-100'
-        }`}>
+        <div className="inline-block rounded-2xl px-4 py-3 font-body" style={{
+          backgroundColor: isUser ? 'var(--primary)' : 'var(--bg-secondary)',
+          color: isUser ? 'white' : 'var(--text-primary)',
+          border: isUser ? 'none' : '1px solid var(--border-color)'
+        }}>
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
@@ -126,27 +115,42 @@ function Message({ message, isUser }) {
             </div>
           )}
         </div>
+        {exportId && (
+          <button
+            onClick={() => onDownloadCSV(exportId)}
+            className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors font-headline"
+            style={{
+              backgroundColor: 'var(--success)',
+              color: 'white'
+            }}
+            aria-label={`Download CSV export ${exportId}`}
+          >
+            <Download size={16} aria-hidden="true" />
+            Download CSV
+          </button>
+        )}
         {message.images && message.images.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2">
             {message.images.map((img, i) => (
-              <a 
+              <a
                 key={i}
                 href={`${API_BASE}/plots/${img}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block"
               >
-                <img 
+                <img
                   src={`${API_BASE}/plots/${img}`}
                   alt={`Plot ${i + 1}`}
-                  className="rounded-lg max-w-xs border border-slate-700 hover:border-primary-500 transition-colors"
+                  className="rounded-lg max-w-xs border transition-colors"
+                  style={{ borderColor: 'var(--border-color)' }}
                 />
               </a>
             ))}
           </div>
         )}
         {message.elapsed && (
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs mt-1 font-mono" style={{ color: 'var(--text-tertiary)' }}>
             {message.elapsed.toFixed(1)}s • {message.iterations} iterations
           </p>
         )}
@@ -159,14 +163,20 @@ function Message({ message, isUser }) {
 function TypingIndicator() {
   return (
     <div className="flex gap-3">
-      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{
+        backgroundColor: 'var(--bg-tertiary)',
+        color: 'var(--text-primary)'
+      }}>
         <FlaskConical size={16} />
       </div>
-      <div className="bg-slate-800 rounded-2xl px-4 py-3">
+      <div className="rounded-2xl px-4 py-3" style={{
+        backgroundColor: 'var(--bg-secondary)',
+        border: '1px solid var(--border-color)'
+      }}>
         <div className="typing-indicator flex gap-1">
-          <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
-          <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
-          <span className="w-2 h-2 bg-slate-500 rounded-full"></span>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
         </div>
       </div>
     </div>
@@ -178,9 +188,23 @@ function QuickAction({ icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm text-slate-300 hover:text-white transition-colors"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors font-headline"
+      style={{
+        backgroundColor: 'var(--bg-secondary)',
+        color: 'var(--text-secondary)',
+        border: '1px solid var(--border-color)'
+      }}
+      onMouseOver={(e) => {
+        e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+        e.currentTarget.style.color = 'var(--text-primary)';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+        e.currentTarget.style.color = 'var(--text-secondary)';
+      }}
+      aria-label={`Quick action: ${label}`}
     >
-      <Icon size={16} />
+      <Icon size={16} aria-hidden="true" />
       {label}
     </button>
   );
@@ -239,22 +263,35 @@ function Sidebar({ isOpen, onClose, status, onReindex, onUpload, onClearPlots })
     <>
       {/* Overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        <div
+          className="fixed inset-0 z-40 lg:hidden"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
           onClick={onClose}
         />
       )}
-      
+
       {/* Sidebar */}
-      <div className={`fixed top-0 right-0 h-full w-80 bg-slate-800 border-l border-slate-700 z-50 transform transition-transform duration-300 ${
+      <div className={`fixed top-0 right-0 h-full w-80 z-50 transform transition-transform duration-300 ${
         isOpen ? 'translate-x-0' : 'translate-x-full'
-      }`}>
+      }`} style={{
+        backgroundColor: 'var(--bg-secondary)',
+        borderLeft: '1px solid var(--border-color)'
+      }}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-slate-700">
-            <h2 className="font-semibold">Data Management</h2>
-            <button onClick={onClose} className="p-1 hover:bg-slate-700 rounded">
-              <X size={20} />
+          <div className="flex items-center justify-between p-4 font-headline" style={{
+            borderBottom: '1px solid var(--border-color)'
+          }}>
+            <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Data Management</h2>
+            <button
+              onClick={onClose}
+              className="p-1 rounded transition-colors"
+              style={{ color: 'var(--text-primary)' }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              aria-label="Close sidebar"
+            >
+              <X size={20} aria-hidden="true" />
             </button>
           </div>
           
@@ -262,28 +299,36 @@ function Sidebar({ isOpen, onClose, status, onReindex, onUpload, onClearPlots })
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {/* System Status */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider">System Status</h3>
-              <div className="bg-slate-900 rounded-lg p-3 space-y-2">
+              <h3 className="text-sm font-medium uppercase tracking-wider font-headline" style={{ color: 'var(--text-tertiary)' }}>
+                System Status
+              </h3>
+              <div className="rounded-lg p-3 space-y-2 font-body" style={{
+                backgroundColor: 'var(--bg-primary)',
+                border: '1px solid var(--border-color)'
+              }}>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Status</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Status</span>
                   <StatusBadge status={status?.status} />
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Tables</span>
-                  <span>{status?.tables_loaded || 0}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Tables</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{status?.tables_loaded || 0}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Tools</span>
-                  <span>{status?.tools_available || 0}</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Tools</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{status?.tools_available || 0}</span>
                 </div>
               </div>
               {status?.missing_files?.length > 0 && (
-                <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                  <div className="flex gap-2 text-amber-400 text-sm">
+                <div className="rounded-lg p-3" style={{
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)'
+                }}>
+                  <div className="flex gap-2 text-sm" style={{ color: 'var(--warning)' }}>
                     <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-medium">Missing files:</p>
-                      <ul className="mt-1 text-amber-300/80">
+                      <p className="font-medium font-headline">Missing files:</p>
+                      <ul className="mt-1 font-body">
                         {status.missing_files.map(f => (
                           <li key={f}>• {f}</li>
                         ))}
@@ -296,22 +341,36 @@ function Sidebar({ isOpen, onClose, status, onReindex, onUpload, onClearPlots })
             
             {/* Actions */}
             <div className="space-y-3">
-              <h3 className="text-sm font-medium text-slate-400 uppercase tracking-wider">Actions</h3>
+              <h3 className="text-sm font-medium uppercase tracking-wider font-headline" style={{ color: 'var(--text-tertiary)' }}>Actions</h3>
               <div className="space-y-2">
                 <button
                   onClick={handleReindex}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-700 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-headline"
+                  style={{
+                    backgroundColor: isLoading ? 'var(--bg-tertiary)' : 'var(--primary)',
+                    color: 'white',
+                    opacity: isLoading ? 0.6 : 1,
+                    cursor: isLoading ? 'not-allowed' : 'pointer'
+                  }}
+                  aria-label="Reindex database from CSV files"
                 >
-                  {isLoading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  {isLoading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <RefreshCw size={16} aria-hidden="true" />}
                   Reindex Data
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-headline"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    opacity: isLoading ? 0.6 : 1,
+                    cursor: isLoading ? 'not-allowed' : 'pointer'
+                  }}
+                  aria-label="Upload new CSV file"
                 >
-                  <Upload size={16} />
+                  <Upload size={16} aria-hidden="true" />
                   Upload CSV
                 </button>
                 <input
@@ -320,13 +379,21 @@ function Sidebar({ isOpen, onClose, status, onReindex, onUpload, onClearPlots })
                   accept=".csv"
                   onChange={handleFileUpload}
                   className="hidden"
+                  aria-label="CSV file upload input"
                 />
                 <button
                   onClick={onClearPlots}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 rounded-lg transition-colors"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-colors font-headline"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)',
+                    opacity: isLoading ? 0.6 : 1,
+                    cursor: isLoading ? 'not-allowed' : 'pointer'
+                  }}
+                  aria-label="Clear all generated plots"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={16} aria-hidden="true" />
                   Clear Plots
                 </button>
               </div>
@@ -398,9 +465,40 @@ function App() {
   const [status, setStatus] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  
+  const [theme, setTheme] = useState('light'); // Light mode as default
+  const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite'); // Gemini model selection
+  const [mlPolymerTypes, setMlPolymerTypes] = useState(null); // ML polymer types data
+  const [showMlTypes, setShowMlTypes] = useState(false); // Show ML types view
+
+  // ML Workflow state
+  const [mlStep, setMlStep] = useState('types'); // 'types' | 'polymers' | 'solvents' | 'results'
+  const [selectedType, setSelectedType] = useState(null);
+  const [polymersInType, setPolymersInType] = useState(null);
+  const [selectedPolymers, setSelectedPolymers] = useState([]);
+  const [solventInput, setSolventInput] = useState('');
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Initialize theme from localStorage or default to light
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('dissolve-theme') || 'light';
+    setTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  }, []);
+
+  // Initialize model from localStorage or default to flash-lite
+  useEffect(() => {
+    const savedModel = localStorage.getItem('dissolve-model') || 'gemini-2.5-flash-lite';
+    setSelectedModel(savedModel);
+  }, []);
+
+  // Save model to localStorage when changed
+  const handleModelChange = (model) => {
+    setSelectedModel(model);
+    localStorage.setItem('dissolve-model', model);
+    showNotification(`Switched to ${model}`, 'info');
+  };
 
   // Load status on mount
   useEffect(() => {
@@ -428,6 +526,101 @@ function App() {
     }
   };
 
+  const loadMlPolymerTypes = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/ml/polymer-types`);
+      const data = await response.json();
+      setMlPolymerTypes(data);
+      setShowMlTypes(true);
+      setMlStep('types');
+    } catch (e) {
+      console.error('Failed to load ML polymer types:', e);
+      showNotification('Failed to load polymer types', 'error');
+    }
+  };
+
+  const selectPolymerType = async (polymerType) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/ml/polymers-by-type/${encodeURIComponent(polymerType)}`);
+      const data = await response.json();
+      setSelectedType(polymerType);
+      setPolymersInType(data);
+      setSelectedPolymers([]);
+      setMlStep('polymers');
+    } catch (e) {
+      console.error('Failed to load polymers:', e);
+      showNotification('Failed to load polymers', 'error');
+    }
+  };
+
+  const togglePolymerSelection = (polymer) => {
+    setSelectedPolymers(prev => {
+      const exists = prev.find(p => p.polymer === polymer.polymer);
+      if (exists) {
+        return prev.filter(p => p.polymer !== polymer.polymer);
+      } else {
+        return [...prev, polymer];
+      }
+    });
+  };
+
+  const selectAllPolymers = () => {
+    if (polymersInType && polymersInType.polymers) {
+      setSelectedPolymers(polymersInType.polymers);
+    }
+  };
+
+  const proceedToSolventSelection = () => {
+    if (selectedPolymers.length === 0) {
+      showNotification('Please select at least one polymer', 'error');
+      return;
+    }
+    setMlStep('solvents');
+  };
+
+  const runMlPrediction = async () => {
+    if (!solventInput.trim()) {
+      showNotification('Please enter at least one solvent', 'error');
+      return;
+    }
+
+    // Close ML tool and return to chat
+    setShowMlTypes(false);
+    setMlStep('types');
+
+    // Create query for ML prediction
+    const solvents = solventInput.split(',').map(s => s.trim()).filter(s => s);
+
+    if (selectedPolymers.length === 1) {
+      // Single polymer prediction
+      const query = `Predict solubility of ${selectedPolymers[0].polymer} in ${solvents.join(', ')} using machine learning with Hansen parameters`;
+      handleQuickAction(query);
+    } else {
+      // Multiple polymers
+      const polymerNames = selectedPolymers.map(p => p.polymer).join(', ');
+      const query = `Predict solubility for these polymers: ${polymerNames} in ${solvents.join(', ')} using machine learning with Hansen parameters`;
+      handleQuickAction(query);
+    }
+
+    // Reset state
+    setSelectedPolymers([]);
+    setSolventInput('');
+    setPolymersInType(null);
+    setSelectedType(null);
+  };
+
+  const backToMlTypes = () => {
+    setMlStep('types');
+    setSelectedPolymers([]);
+    setPolymersInType(null);
+    setSelectedType(null);
+  };
+
+  const backToPolymerSelection = () => {
+    setMlStep('polymers');
+    setSolventInput('');
+  };
+
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
@@ -447,7 +640,7 @@ function App() {
     setIsLoading(true);
 
     try {
-      const response = await api.chat(userMessage.content, sessionId);
+      const response = await api.chat(userMessage.content, sessionId, selectedModel);
       
       if (!sessionId && response.session_id) {
         setSessionId(response.session_id);
@@ -524,27 +717,135 @@ function App() {
     setSessionId(null);
   };
 
+  const handleDownloadCSV = (exportId) => {
+    downloadCSV(exportId, showNotification);
+  };
+
+  const handleExportConversation = () => {
+    if (messages.length === 0) {
+      showNotification('No conversation to export', 'error');
+      return;
+    }
+
+    try {
+      const conversationData = {
+        session_id: sessionId,
+        exported_at: new Date().toISOString(),
+        message_count: messages.length,
+        messages: messages.map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          elapsed_time: msg.elapsed,
+          iterations: msg.iterations,
+          images: msg.images || [],
+        })),
+      };
+
+      const blob = new Blob([JSON.stringify(conversationData, null, 2)], {
+        type: 'application/json',
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dissolve_conversation_${sessionId || 'unknown'}_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      showNotification('Conversation exported successfully', 'success');
+    } catch (error) {
+      console.error('Export error:', error);
+      showNotification('Failed to export conversation', 'error');
+    }
+  };
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(newTheme);
+    localStorage.setItem('dissolve-theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
-      <header className="flex-shrink-0 border-b border-slate-800 bg-slate-900/80 backdrop-blur-sm">
+      <header className="flex-shrink-0 backdrop-blur-sm" style={{
+        borderBottom: '1px solid var(--border-color)',
+        backgroundColor: 'var(--bg-secondary)'
+      }}>
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center">
-              <FlaskConical size={22} />
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{
+              background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)'
+            }}>
+              <FlaskConical size={22} style={{ color: 'white' }} />
             </div>
             <div>
-              <h1 className="font-semibold text-lg">Polymer Solubility Analyzer</h1>
-              <p className="text-xs text-slate-500">AI-powered solvent selection & separation analysis</p>
+              <h1 className="font-semibold text-lg font-headline" style={{ color: 'var(--text-primary)' }}>
+                DISSOLVE Agent
+              </h1>
+              <p className="text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
+                AI-powered solvent selection & separation analysis
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={status?.status} />
+            {/* Model Selector */}
+            <select
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="px-3 py-1.5 text-sm rounded-lg transition-colors font-body cursor-pointer"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)'
+              }}
+              title="Select Gemini model"
+            >
+              <option value="gemini-2.5-flash-lite">Flash Lite (Cheapest)</option>
+              <option value="gemini-2.5-flash">Flash</option>
+              <option value="gemini-2.5-pro">Pro (Most Capable)</option>
+            </select>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)'
+              }}
+              aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            {messages.length > 0 && (
+              <button
+                onClick={handleExportConversation}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors font-headline"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)'
+                }}
+                title="Export conversation as JSON"
+              >
+                <Download size={16} />
+                <span className="hidden sm:inline">Export</span>
+              </button>
+            )}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--text-primary)'
+              }}
+              aria-label="Open data management sidebar"
             >
-              <Menu size={20} />
+              <Menu size={20} aria-hidden="true" />
             </button>
           </div>
         </div>
@@ -552,10 +853,12 @@ function App() {
 
       {/* Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-emerald-600' : 
-          notification.type === 'error' ? 'bg-red-600' : 'bg-slate-700'
-        }`}>
+        <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg font-headline" style={{
+          backgroundColor: notification.type === 'success' ? 'var(--success)' :
+                          notification.type === 'error' ? 'var(--error)' : 'var(--bg-tertiary)',
+          color: 'white',
+          boxShadow: 'var(--shadow-lg)'
+        }}>
           {notification.message}
         </div>
       )}
@@ -566,43 +869,306 @@ function App() {
         <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center mb-4">
-                <FlaskConical size={32} />
-              </div>
-              <h2 className="text-2xl font-semibold mb-2">Welcome to Polymer Solubility Analyzer</h2>
-              <p className="text-slate-400 max-w-md mb-8">
-                AI-powered analysis for polymer-solvent systems. Ask questions about solubility, 
-                separation strategies, and solvent properties.
-              </p>
-              
-              {/* Quick Actions */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
-                <QuickAction 
-                  icon={Database} 
-                  label="What tables are available?"
-                  onClick={() => handleQuickAction("What tables are available?")}
+              {showMlTypes && mlPolymerTypes ? (
+                // ML Polymer Types View
+                <div className="w-full max-w-6xl">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-2xl font-semibold font-headline" style={{ color: 'var(--text-primary)' }}>
+                        Select Polymer Type
+                      </h2>
+                      <p className="text-sm font-body mt-1" style={{ color: 'var(--text-secondary)' }}>
+                        {mlPolymerTypes.total_types} types • {mlPolymerTypes.total_polymers} polymers available
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowMlTypes(false)}
+                      className="px-4 py-2 rounded-lg font-medium transition-colors"
+                      style={{
+                        backgroundColor: 'var(--bg-secondary)',
+                        color: 'var(--text-secondary)'
+                      }}
+                    >
+                      Back
+                    </button>
+                  </div>
+                  {mlStep === 'types' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+                      {mlPolymerTypes.polymer_types.map((polymerType, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => selectPolymerType(polymerType.type)}
+                          className="p-4 rounded-lg text-left transition-all hover:shadow-md"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+                            e.currentTarget.style.borderColor = 'var(--primary)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--bg-secondary)';
+                            e.currentTarget.style.borderColor = 'var(--border-color)';
+                          }}
+                        >
+                          <div className="font-semibold text-sm mb-1 font-headline" style={{ color: 'var(--text-primary)' }}>
+                            {polymerType.type}
+                          </div>
+                          <div className="text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
+                            {polymerType.count} {polymerType.count === 1 ? 'polymer' : 'polymers'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {mlStep === 'polymers' && polymersInType && (
+                    <div className="w-full max-w-4xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-xl font-semibold font-headline" style={{ color: 'var(--text-primary)' }}>
+                            Select Polymer(s) - {selectedType}
+                          </h3>
+                          <p className="text-sm font-body mt-1" style={{ color: 'var(--text-secondary)' }}>
+                            {polymersInType.count} {polymersInType.count === 1 ? 'polymer' : 'polymers'} • {selectedPolymers.length} selected
+                          </p>
+                        </div>
+                        <button
+                          onClick={backToMlTypes}
+                          className="px-4 py-2 rounded-lg font-medium transition-colors"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)'
+                          }}
+                        >
+                          Back
+                        </button>
+                      </div>
+
+                      <div className="mb-4">
+                        <button
+                          onClick={selectAllPolymers}
+                          className="px-4 py-2 rounded-lg font-medium transition-colors mr-2"
+                          style={{
+                            backgroundColor: 'var(--primary)',
+                            color: 'white'
+                          }}
+                        >
+                          Select All
+                        </button>
+                        <button
+                          onClick={() => setSelectedPolymers([])}
+                          className="px-4 py-2 rounded-lg font-medium transition-colors"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)'
+                          }}
+                        >
+                          Clear Selection
+                        </button>
+                      </div>
+
+                      <div className="max-h-80 overflow-y-auto mb-4 space-y-2">
+                        {polymersInType.polymers.map((polymer, idx) => {
+                          const isSelected = selectedPolymers.find(p => p.polymer === polymer.polymer);
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => togglePolymerSelection(polymer)}
+                              className="p-3 rounded-lg cursor-pointer transition-all"
+                              style={{
+                                backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-secondary)',
+                                border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                              }}
+                            >
+                              <div className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={!!isSelected}
+                                  onChange={() => {}}
+                                  className="mr-3"
+                                  style={{ accentColor: 'var(--primary)' }}
+                                />
+                                <div className="flex-1">
+                                  <div className="font-semibold text-sm font-headline" style={{ color: 'var(--text-primary)' }}>
+                                    {polymer.polymer}
+                                  </div>
+                                  <div className="text-xs font-body mt-1" style={{ color: 'var(--text-secondary)' }}>
+                                    δD: {polymer.dispersion.toFixed(1)} • δP: {polymer.polar.toFixed(1)} • δH: {polymer.hydrogen_bonding.toFixed(1)} • R₀: {polymer.interaction_radius.toFixed(1)}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={proceedToSolventSelection}
+                        disabled={selectedPolymers.length === 0}
+                        className="w-full px-6 py-3 rounded-lg font-medium transition-colors"
+                        style={{
+                          backgroundColor: selectedPolymers.length > 0 ? 'var(--primary)' : 'var(--bg-tertiary)',
+                          color: selectedPolymers.length > 0 ? 'white' : 'var(--text-tertiary)',
+                          cursor: selectedPolymers.length > 0 ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        Next: Select Solvents →
+                      </button>
+                    </div>
+                  )}
+
+                  {mlStep === 'solvents' && (
+                    <div className="w-full max-w-2xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-xl font-semibold font-headline" style={{ color: 'var(--text-primary)' }}>
+                            Enter Solvent(s)
+                          </h3>
+                          <p className="text-sm font-body mt-1" style={{ color: 'var(--text-secondary)' }}>
+                            {selectedPolymers.length} {selectedPolymers.length === 1 ? 'polymer' : 'polymers'} selected
+                          </p>
+                        </div>
+                        <button
+                          onClick={backToPolymerSelection}
+                          className="px-4 py-2 rounded-lg font-medium transition-colors"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)'
+                          }}
+                        >
+                          Back
+                        </button>
+                      </div>
+
+                      <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                        <p className="text-sm font-body mb-2" style={{ color: 'var(--text-primary)' }}>
+                          Selected Polymers:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedPolymers.map((polymer, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 rounded-full text-xs font-medium"
+                              style={{
+                                backgroundColor: 'var(--primary)',
+                                color: 'white'
+                              }}
+                            >
+                              {polymer.polymer}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium font-body mb-2" style={{ color: 'var(--text-primary)' }}>
+                          Solvent Name(s)
+                        </label>
+                        <input
+                          type="text"
+                          value={solventInput}
+                          onChange={(e) => setSolventInput(e.target.value)}
+                          placeholder="e.g., Toluene, Acetone, Water (comma-separated for multiple)"
+                          className="w-full px-4 py-3 rounded-lg font-body"
+                          style={{
+                            backgroundColor: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-color)',
+                            color: 'var(--text-primary)'
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              runMlPrediction();
+                            }
+                          }}
+                        />
+                        <p className="text-xs font-body mt-1" style={{ color: 'var(--text-secondary)' }}>
+                          Enter one or more solvent names separated by commas
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={runMlPrediction}
+                        disabled={!solventInput.trim()}
+                        className="w-full px-6 py-3 rounded-lg font-medium transition-colors"
+                        style={{
+                          backgroundColor: solventInput.trim() ? 'var(--primary)' : 'var(--bg-tertiary)',
+                          color: solventInput.trim() ? 'white' : 'var(--text-tertiary)',
+                          cursor: solventInput.trim() ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        Run ML Prediction
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Welcome Screen
+                <>
+                  <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{
+                    background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)'
+                  }}>
+                    <FlaskConical size={32} style={{ color: 'white' }} />
+                  </div>
+                  <h2 className="text-2xl font-semibold mb-2 font-headline" style={{ color: 'var(--text-primary)' }}>
+                    Welcome to DISSOLVE Agent
+                  </h2>
+                  <p className="max-w-md mb-8 font-body" style={{ color: 'var(--text-secondary)' }}>
+                    AI-powered analysis for polymer-solvent systems. Ask questions about solubility,
+                    separation strategies, and solvent properties.
+                  </p>
+
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-4xl">
+                <QuickAction
+                  icon={Beaker}
+                  label="List Polymers"
+                  onClick={() => handleQuickAction("List all available polymers in the database")}
                 />
-                <QuickAction 
-                  icon={Beaker} 
-                  label="List available solvents"
-                  onClick={() => handleQuickAction("List the available polymers in the database")}
+                <QuickAction
+                  icon={Droplet}
+                  label="List Solvents"
+                  onClick={() => handleQuickAction("List all available solvents in the database")}
                 />
-                <QuickAction 
-                  icon={Thermometer} 
-                  label="Separation analysis"
-                  onClick={() => handleQuickAction("Find solvents to separate LDPE from PET at 25°C")}
+                <QuickAction
+                  icon={Layers}
+                  label="Three-Layer Film"
+                  onClick={() => handleQuickAction("Analyze separation for a three-layer film: PVDF/LDPE/PET at 25°C")}
                 />
-                <QuickAction 
-                  icon={DollarSign} 
-                  label="Rank by cost"
+                <QuickAction
+                  icon={Shield}
+                  label="Safety Ranking"
+                  onClick={() => handleQuickAction("Rank common solvents by safety (G-score and LogP) for PVDF")}
+                />
+                <QuickAction
+                  icon={DollarSign}
+                  label="Cost Ranking"
                   onClick={() => handleQuickAction("Rank solvents by energy cost (cheapest first)")}
                 />
+                <QuickAction
+                  icon={Thermometer}
+                  label="Boiling Point"
+                  onClick={() => handleQuickAction("Show common solvents ranked by boiling point")}
+                />
+                <QuickAction
+                  icon={Activity}
+                  label="Integrated Analysis"
+                  onClick={() => handleQuickAction("Perform integrated analysis across selectivity, safety, cost, and boiling point for PVDF separation")}
+                />
+                <QuickAction
+                  icon={Brain}
+                  label="ML Prediction"
+                  onClick={loadMlPolymerTypes}
+                />
               </div>
+                </>
+              )}
             </div>
           ) : (
             <>
               {messages.map((msg, i) => (
-                <Message key={i} message={msg} isUser={msg.role === 'user'} />
+                <Message key={i} message={msg} isUser={msg.role === 'user'} onDownloadCSV={handleDownloadCSV} />
               ))}
               {isLoading && <TypingIndicator />}
               <div ref={messagesEndRef} />
@@ -611,12 +1177,28 @@ function App() {
         </div>
 
         {/* Input Area */}
-        <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/80 backdrop-blur-sm p-4">
+        <div className="flex-shrink-0 backdrop-blur-sm p-4" style={{
+          borderTop: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-secondary)'
+        }}>
           <div className="flex gap-3 items-end">
             <button
               onClick={handleClearChat}
-              className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2.5 rounded-lg transition-colors"
+              style={{
+                color: 'var(--text-secondary)',
+                backgroundColor: 'transparent'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = 'var(--text-primary)';
+                e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = 'var(--text-secondary)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
               title="Clear chat"
+              aria-label="Clear chat history"
             >
               <Trash2 size={20} />
             </button>
@@ -628,24 +1210,41 @@ function App() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about polymer solubility, separation strategies, solvent properties..."
                 rows={1}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent placeholder-slate-500"
-                style={{ minHeight: '48px', maxHeight: '200px' }}
+                className="w-full rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none font-body"
+                style={{
+                  minHeight: '48px',
+                  maxHeight: '200px',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)'
+                }}
                 disabled={isLoading}
+                aria-label="Chat message input"
+                aria-describedby="input-help-text"
               />
+              <span id="input-help-text" className="sr-only">
+                Press Enter to send message, Shift+Enter to add a new line
+              </span>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 bottom-2 p-2 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-700 disabled:text-slate-500 rounded-lg transition-colors"
+                className="absolute right-2 bottom-2 p-2 rounded-lg transition-colors"
+                style={{
+                  backgroundColor: (!input.trim() || isLoading) ? 'var(--bg-tertiary)' : 'var(--primary)',
+                  color: (!input.trim() || isLoading) ? 'var(--text-tertiary)' : 'white',
+                  cursor: (!input.trim() || isLoading) ? 'not-allowed' : 'pointer'
+                }}
+                aria-label={isLoading ? 'Sending message...' : 'Send message'}
               >
                 {isLoading ? (
-                  <Loader2 size={18} className="animate-spin" />
+                  <Loader2 size={18} className="animate-spin" aria-hidden="true" />
                 ) : (
-                  <Send size={18} />
+                  <Send size={18} aria-hidden="true" />
                 )}
               </button>
             </div>
           </div>
-          <p className="text-xs text-slate-600 mt-2 text-center">
+          <p className="text-xs mt-2 text-center font-mono" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true">
             Press Enter to send • Shift+Enter for new line
           </p>
         </div>
