@@ -4,6 +4,7 @@ services:
     env: python
     region: oregon
     plan: free
+    runtime: python-3.11.9
     buildCommand: "pip install -r requirements.txt && cd frontend && npm install && npm run build && cd .."
     startCommand: "python app_server.py"
     envVars:
@@ -11,5 +12,3 @@ services:
         sync: false
       - key: PORT
         value: 8000
-      - key: PYTHON_VERSION
-        value: 3.11.0
