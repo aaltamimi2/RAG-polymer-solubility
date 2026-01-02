@@ -1,22 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import {
   Send,
-  Database,
   Upload,
   RefreshCw,
   Trash2,
-  Image as ImageIcon,
-  ChevronRight,
   AlertCircle,
   CheckCircle,
   Loader2,
   Menu,
   X,
   FlaskConical,
-  BarChart3,
-  Settings,
-  MessageSquare,
   Table,
   Beaker,
   Thermometer,
