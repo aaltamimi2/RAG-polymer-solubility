@@ -1128,12 +1128,12 @@ function App() {
                 <QuickAction
                   icon={Layers}
                   label="Three-Layer Film"
-                  onClick={() => handleQuickAction("Analyze separation for a three-layer film: PVDF/LDPE/PET at 25°C")}
+                  onClick={() => handleQuickAction("Analyze separation for a three-layer film: LDPE/EVOH/PET at 120°C")}
                 />
                 <QuickAction
                   icon={Shield}
                   label="Safety Ranking"
-                  onClick={() => handleQuickAction("Rank common solvents by safety (G-score and LogP) for PVDF")}
+                  onClick={() => handleQuickAction("Rank common solvents by safety (G-score and LogP) for EVOH")}
                 />
                 <QuickAction
                   icon={DollarSign}
@@ -1148,7 +1148,7 @@ function App() {
                 <QuickAction
                   icon={Activity}
                   label="Integrated Analysis"
-                  onClick={() => handleQuickAction("Perform integrated analysis across selectivity, safety, cost, and boiling point for PVDF separation")}
+                  onClick={() => handleQuickAction("Perform integrated analysis across selectivity, safety, cost, and boiling point for LDPE and EVOH separation")}
                 />
                 <QuickAction
                   icon={Brain}
