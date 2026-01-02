@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: polymer-solubility-app
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt && cd frontend && npm install && npm run build && cd .."
+    startCommand: "python app_server.py"
+    envVars:
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: PORT
+        value: 8000
+      - key: PYTHON_VERSION
+        value: 3.11.0

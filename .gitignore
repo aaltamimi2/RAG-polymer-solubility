@@ -34,3 +34,8 @@ plots/*.png
 
 # Node (if using frontend build)
 node_modules/
+frontend/build/
+
+# Runtime files
+exports/
+*.log

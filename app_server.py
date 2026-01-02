@@ -18,10 +18,15 @@ import shutil
 import logging
 import traceback
 import gc
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Async utilities
+from async_utils import run_in_thread
+from session_manager import session_manager
 
 # FastAPI and related
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
@@ -55,6 +60,7 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    model: Optional[str] = "gemini-2.5-flash-lite"
 
 class ChatResponse(BaseModel):
     response: str
@@ -161,24 +167,8 @@ def load_agent():
         logger.error(f"Failed to load agent: {e}\n{traceback.format_exc()}")
         return False
 
-# Session storage
-sessions: Dict[str, dict] = {}
-
-def get_or_create_session(session_id: Optional[str] = None) -> str:
-    """Get or create a session."""
-    if session_id and session_id in sessions:
-        return session_id
-    
-    new_id = session_id or str(uuid.uuid4())
-    sessions[new_id] = {
-        "created": datetime.now().isoformat(),
-        "messages": [],
-        "config": {"configurable": {"thread_id": new_id}}
-    }
-    return new_id
-
-def chat_with_agent(message: str, session_id: Optional[str] = None) -> dict:
-    """Send a message to the agent."""
+async def chat_with_agent(message: str, session_id: Optional[str] = None, model: str = "gemini-2.5-flash-lite") -> dict:
+    """Send a message to the agent (async version with session locking)."""
     if not load_agent():
         return {
             "response": "❌ Agent not loaded. Please check server logs.",
@@ -187,82 +177,94 @@ def chat_with_agent(message: str, session_id: Optional[str] = None) -> dict:
             "elapsed_time": 0,
             "iterations": 0
         }
-    
-    session_id = get_or_create_session(session_id)
-    start_time = time.time()
-    
-    # Track existing plots
-    existing_plots = set(glob.glob(os.path.join(PLOTS_DIR, "*.png")))
-    
-    try:
-        config = sessions[session_id]["config"]
-        
-        result = _agent_graph.invoke(
-            {
-                "messages": [_HumanMessage(content=message)],
-                "iteration_count": 0,
-                "max_iterations": _MAX_ITERATIONS
-            },
-            config
-        )
-        
-        elapsed = time.time() - start_time
-        
-        # Extract response
-        messages = result.get("messages", [])
-        if messages:
-            final = messages[-1]
-            content = getattr(final, 'content', None)
-            # Handle list-type content (newer LangChain format)
-            if isinstance(content, list):
-                text_parts = []
-                for part in content:
-                    if isinstance(part, dict) and part.get('type') == 'text':
-                        text_parts.append(part.get('text', ''))
-                    elif isinstance(part, str):
-                        text_parts.append(part)
-                content = '\n'.join(text_parts) if text_parts else str(content)
-            elif content is None:
-                content = str(final)
-            elif not isinstance(content, str):
-                content = str(content)
-            content = content or "Processing complete."
-        else:
-            content = "No response generated."
-        
-        iterations = result.get("iteration_count", 0)
-        
-        # Find new plots
-        time.sleep(0.3)
-        new_plots = list(set(glob.glob(os.path.join(PLOTS_DIR, "*.png"))) - existing_plots)
-        new_plots.sort(key=os.path.getmtime, reverse=True)
-        
-        # Store in session
-        sessions[session_id]["messages"].append({
-            "role": "user", "content": message
-        })
-        sessions[session_id]["messages"].append({
-            "role": "assistant", "content": content, "images": new_plots
-        })
-        
-        return {
-            "response": content,
-            "session_id": session_id,
-            "images": [os.path.basename(p) for p in new_plots],
-            "elapsed_time": elapsed,
-            "iterations": iterations
-        }
-        
-    except Exception as e:
-        elapsed = time.time() - start_time
-        logger.error(f"Chat error: {e}\n{traceback.format_exc()}")
-        return {
-            "response": f"❌ Error: {str(e)[:500]}",
-            "session_id": session_id,
-            "images": [],
-            "elapsed_time": elapsed,
-            "iterations": 0
-        }
+
+    # Get or create session with thread-safe manager
+    session = await session_manager.get_or_create(session_id)
+
+    # Use per-session lock to prevent concurrent access to same session
+    async with session.lock:
+        start_time = time.time()
+
+        # Track existing plots
+        existing_plots = set(glob.glob(os.path.join(PLOTS_DIR, "*.png")))
+
+        try:
+            # Async agent invocation with increased recursion limit and model selection
+            config_with_limit = {
+                **session.config,
+                "recursion_limit": 100,
+                "configurable": {
+                    **session.config.get("configurable", {}),
+                    "model": model
+                }
+            }
+
+            result = await _agent_graph.ainvoke(
+                {
+                    "messages": [_HumanMessage(content=message)],
+                    "iteration_count": 0,
+                    "max_iterations": _MAX_ITERATIONS
+                },
+                config_with_limit
+            )
+
+            elapsed = time.time() - start_time
+
+            # Extract response
+            messages = result.get("messages", [])
+            if messages:
+                final = messages[-1]
+                content = getattr(final, 'content', None)
+                # Handle list-type content (newer LangChain format)
+                if isinstance(content, list):
+                    text_parts = []
+                    for part in content:
+                        if isinstance(part, dict) and part.get('type') == 'text':
+                            text_parts.append(part.get('text', ''))
+                        elif isinstance(part, str):
+                            text_parts.append(part)
+                    content = '\n'.join(text_parts) if text_parts else str(content)
+                elif content is None:
+                    content = str(final)
+                elif not isinstance(content, str):
+                    content = str(content)
+                content = content or "Processing complete."
+            else:
+                content = "No response generated."
+
+            iterations = result.get("iteration_count", 0)
+
+            # Find new plots
+            await asyncio.sleep(0.3)  # Async sleep
+            new_plots = list(set(glob.glob(os.path.join(PLOTS_DIR, "*.png"))) - existing_plots)
+            new_plots.sort(key=os.path.getmtime, reverse=True)
+
+            # Store in session
+            session.messages.append({
+                "role": "user", "content": message
+            })
+            session.messages.append({
+                "role": "assistant", "content": content, "images": new_plots
+            })
+
+            return {
+                "response": content,
+                "session_id": session.session_id,
+                "images": [os.path.basename(p) for p in new_plots],
+                "elapsed_time": elapsed,
+                "iterations": iterations
+            }
+
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.error(f"Chat error: {e}\n{traceback.format_exc()}")
+            return {
+                "response": f"❌ Error: {str(e)[:500]}",
+                "session_id": session.session_id,
+                "images": [],
+                "elapsed_time": elapsed,
+                "iterations": 0
+            }
 
 def get_system_status() -> dict:
     """Get system status."""
@@ -351,18 +353,41 @@ async def lifespan(app: FastAPI):
     logger.info("="*60)
     logger.info("🧪 POLYMER SOLUBILITY ANALYSIS SERVER")
     logger.info("="*60)
-    
+
     # Pre-load agent
     load_agent()
-    
+
     logger.info(f"📁 Data directory: {DATA_DIR}")
     logger.info(f"📊 Plots directory: {PLOTS_DIR}")
     logger.info(f"🌐 Frontend directory: {FRONTEND_DIR}")
     logger.info("="*60)
-    
+
+    # Start export cleanup task
+    async def cleanup_exports_periodically():
+        """Periodically clean up expired exports."""
+        from export_manager import export_manager
+        while True:
+            try:
+                await asyncio.sleep(300)  # Every 5 minutes
+                count = export_manager.cleanup_expired()
+                if count > 0:
+                    logger.info(f"🗑️  Cleaned up {count} expired export(s)")
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error during export cleanup: {e}")
+
+    cleanup_task = asyncio.create_task(cleanup_exports_periodically())
+
     yield
-    
+
+    # Shutdown
     logger.info("Shutting down...")
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     gc.collect()
 
 app = FastAPI(
@@ -395,8 +420,8 @@ async def api_chat(request: ChatRequest):
     """Chat with the agent."""
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
-    
-    result = chat_with_agent(request.message, request.session_id)
+
+    result = await chat_with_agent(request.message, request.session_id, request.model)
     return result
 
 @app.get("/api/tables")
@@ -407,7 +432,7 @@ async def api_tables():
 @app.post("/api/reindex")
 async def api_reindex():
     """Reindex all CSV files."""
-    result = reindex_data()
+    result = await run_in_thread(reindex_data)
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error", "Reindex failed"))
     return result
@@ -439,10 +464,8 @@ async def api_upload(file: UploadFile = File(...)):
 @app.delete("/api/session/{session_id}")
 async def api_clear_session(session_id: str):
     """Clear a chat session."""
-    if session_id in sessions:
-        del sessions[session_id]
-        return {"success": True}
-    return {"success": False}
+    success = await session_manager.delete(session_id)
+    return {"success": success}
 
 @app.get("/api/plots")
 async def api_list_plots():
@@ -470,6 +493,131 @@ async def api_clear_plots():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/export/{export_id}")
+async def api_download_export(export_id: str):
+    """Download CSV export by ID."""
+    try:
+        from export_manager import export_manager
+
+        filepath = export_manager.get_export_path(export_id)
+
+        if not filepath:
+            raise HTTPException(
+                status_code=404,
+                detail="Export not found or expired. Exports are available for 30 minutes after creation."
+            )
+
+        return FileResponse(
+            filepath,
+            media_type="text/csv",
+            filename=os.path.basename(filepath)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving export {export_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to serve export: {str(e)}")
+
+# ============================================================
+# ML Polymer Types Endpoint
+# ============================================================
+
+@app.get("/api/ml/polymer-types")
+async def api_ml_polymer_types():
+    """Get polymer types from POLYMER-HSPs-FINAL.csv with counts."""
+    try:
+        import pandas as pd
+
+        csv_path = os.path.join(DATA_DIR, "POLYMER-HSPs-FINAL.csv")
+
+        if not os.path.exists(csv_path):
+            raise HTTPException(
+                status_code=404,
+                detail="POLYMER-HSPs-FINAL.csv not found in data directory"
+            )
+
+        df = pd.read_csv(csv_path)
+
+        # Group by Type and count
+        type_counts = df.groupby('Type').size().reset_index(name='count')
+        type_counts = type_counts.sort_values('count', ascending=False)
+
+        # Convert to list of dicts
+        polymer_types = [
+            {
+                "type": row['Type'],
+                "count": int(row['count'])
+            }
+            for _, row in type_counts.iterrows()
+        ]
+
+        return {
+            "total_types": len(polymer_types),
+            "total_polymers": len(df),
+            "polymer_types": polymer_types
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting polymer types: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get polymer types: {str(e)}")
+
+
+@app.get("/api/ml/polymers-by-type/{polymer_type}")
+async def api_ml_polymers_by_type(polymer_type: str):
+    """Get polymers of a specific type from POLYMER-HSPs-FINAL.csv."""
+    try:
+        import pandas as pd
+        from urllib.parse import unquote
+
+        # Decode URL-encoded type name
+        polymer_type = unquote(polymer_type)
+
+        csv_path = os.path.join(DATA_DIR, "POLYMER-HSPs-FINAL.csv")
+
+        if not os.path.exists(csv_path):
+            raise HTTPException(
+                status_code=404,
+                detail="POLYMER-HSPs-FINAL.csv not found in data directory"
+            )
+
+        df = pd.read_csv(csv_path)
+
+        # Filter by type
+        polymers = df[df['Type'] == polymer_type]
+
+        if len(polymers) == 0:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No polymers found for type: {polymer_type}"
+            )
+
+        # Convert to list of dicts
+        polymer_list = [
+            {
+                "number": int(row['Number']),
+                "polymer": row['Polymer'],
+                "dispersion": float(row['Dispersion']),
+                "polar": float(row['Polar']),
+                "hydrogen_bonding": float(row['Hydrogen Bonding']),
+                "interaction_radius": float(row['Interaction Radius'])
+            }
+            for _, row in polymers.iterrows()
+        ]
+
+        return {
+            "type": polymer_type,
+            "count": len(polymer_list),
+            "polymers": polymer_list
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting polymers by type: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get polymers: {str(e)}")
+
 # ============================================================
 # Static Files & Frontend
 # ============================================================
@@ -478,18 +626,25 @@ async def api_clear_plots():
 if os.path.exists(PLOTS_DIR):
     app.mount("/plots", StaticFiles(directory=PLOTS_DIR), name="plots")
 
+# Mount React build static files
+build_static_dir = os.path.join(FRONTEND_DIR, "build", "static")
+if os.path.exists(build_static_dir):
+    app.mount("/static", StaticFiles(directory=build_static_dir), name="static")
+
 # Serve frontend
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
     """Serve the frontend HTML."""
-    # Try to find frontend file
+    # Try to find frontend file (prioritize React build)
     frontend_paths = [
+        os.path.join(FRONTEND_DIR, "build", "index.html"),
         os.path.join(FRONTEND_DIR, "index.html"),
+        "./frontend/build/index.html",
         "./frontend/index.html",
         "./index.html",
         "../frontend/index.html",
     ]
-    
+
     for path in frontend_paths:
         if os.path.exists(path):
             with open(path, 'r') as f:
