@@ -2353,6 +2353,244 @@ def plot_solubility_vs_temperature(
 
 @tool
 @safe_tool_wrapper
+def plot_solubility_vs_temperature_interactive(
+    table_name: str,
+    polymer_column: str,
+    solvent_column: str,
+    temperature_column: str,
+    solubility_column: str,
+    polymers: str,
+    solvents: str,
+    plot_title: Optional[str] = None,
+    temperature_min: Optional[float] = None,
+    temperature_max: Optional[float] = None
+) -> str:
+    """
+    Create INTERACTIVE temperature vs solubility curves with sliders and toggleable lines.
+
+    Features:
+    - Interactive hover tooltips showing exact values
+    - Range slider to zoom into temperature ranges
+    - Clickable legend to show/hide individual solvent/polymer combinations
+    - Zoom, pan, and screenshot tools
+    - Opens in new tab as HTML file
+
+    Args:
+        table_name: Database table name
+        polymer_column: Column containing polymer names
+        solvent_column: Column containing solvent names
+        temperature_column: Column containing temperature values
+        solubility_column: Column containing solubility values
+        polymers: Comma-separated list of polymers
+        solvents: Comma-separated list of solvents
+        plot_title: Optional custom plot title
+        temperature_min: Minimum temperature to plot (optional)
+        temperature_max: Maximum temperature to plot (optional)
+
+    Returns:
+        Link to interactive HTML visualization
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    polymer_list = [p.strip() for p in polymers.split(',')]
+    solvent_list = [s.strip() for s in solvents.split(',')]
+
+    is_valid, msg = verify_inputs(
+        table_name,
+        {
+            "polymer": polymer_column,
+            "solvent": solvent_column,
+            "temperature": temperature_column,
+            "solubility": solubility_column
+        },
+        {polymer_column: polymer_list, solvent_column: solvent_list}
+    )
+
+    if not is_valid:
+        return f"❌ Validation failed:\n{msg}"
+
+    polymer_filter = "', '".join(polymer_list)
+    solvent_filter = "', '".join(solvent_list)
+
+    # Build temperature filter if specified
+    temp_filter = ""
+    if temperature_min is not None and temperature_max is not None:
+        temp_filter = f"AND {temperature_column} BETWEEN {temperature_min} AND {temperature_max}"
+    elif temperature_min is not None:
+        temp_filter = f"AND {temperature_column} >= {temperature_min}"
+    elif temperature_max is not None:
+        temp_filter = f"AND {temperature_column} <= {temperature_max}"
+
+    query = f"""
+    SELECT {polymer_column}, {solvent_column}, {temperature_column},
+           AVG({solubility_column}) as avg_sol,
+           STDDEV({solubility_column}) as std_sol,
+           COUNT(*) as n
+    FROM {table_name}
+    WHERE {polymer_column} IN ('{polymer_filter}')
+    AND {solvent_column} IN ('{solvent_filter}')
+    {temp_filter}
+    GROUP BY {polymer_column}, {solvent_column}, {temperature_column}
+    ORDER BY {polymer_column}, {solvent_column}, {temperature_column}
+    """
+
+    result = sql_db.execute_query(query, limit=10000)
+    if not result["success"] or result["rows"] == 0:
+        return f"❌ No data found. Error: {result.get('error', 'No matching rows')}"
+
+    df = result["dataframe"]
+
+    # Create interactive Plotly figure
+    fig = go.Figure()
+
+    # Use a nice color palette
+    colors = px.colors.qualitative.Plotly
+    color_idx = 0
+
+    for polymer in polymer_list:
+        for solvent in solvent_list:
+            mask = (df[polymer_column] == polymer) & (df[solvent_column] == solvent)
+            data = df[mask].sort_values(temperature_column)
+
+            if len(data) > 0:
+                temps = data[temperature_column]
+                sols = data['avg_sol']
+
+                # Add main line trace
+                fig.add_trace(go.Scatter(
+                    x=temps,
+                    y=sols,
+                    mode='lines+markers',
+                    name=f"{polymer} in {solvent}",
+                    line=dict(width=3, color=colors[color_idx % len(colors)]),
+                    marker=dict(size=8, symbol='circle'),
+                    hovertemplate=(
+                        f"<b>{polymer} in {solvent}</b><br>" +
+                        "Temperature: %{x:.1f}°C<br>" +
+                        "Solubility: %{y:.2f}<br>" +
+                        "<extra></extra>"
+                    )
+                ))
+
+                # Add confidence band if available
+                if 'std_sol' in data.columns:
+                    std = data['std_sol'].fillna(0)
+                    n = data['n']
+                    se = std / np.sqrt(n.replace(0, 1))
+                    upper = sols + 1.96*se
+                    lower = sols - 1.96*se
+
+                    # Upper bound
+                    fig.add_trace(go.Scatter(
+                        x=temps,
+                        y=upper,
+                        mode='lines',
+                        line=dict(width=0),
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+
+                    # Lower bound with fill
+                    fig.add_trace(go.Scatter(
+                        x=temps,
+                        y=lower,
+                        mode='lines',
+                        line=dict(width=0),
+                        fillcolor=colors[color_idx % len(colors)],
+                        fill='tonexty',
+                        opacity=0.2,
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+
+                color_idx += 1
+
+    # Update layout with interactive features
+    title = plot_title or 'Interactive Solubility vs Temperature'
+    fig.update_layout(
+        title=dict(
+            text=title,
+            font=dict(size=20, family='Arial Black'),
+            x=0.5,
+            xanchor='center'
+        ),
+        xaxis=dict(
+            title='Temperature (°C)',
+            titlefont=dict(size=16, family='Arial'),
+            rangeslider=dict(visible=True, thickness=0.05),  # Interactive range slider!
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        yaxis=dict(
+            title='Solubility',
+            titlefont=dict(size=16, family='Arial'),
+            showgrid=True,
+            gridcolor='lightgray'
+        ),
+        hovermode='closest',
+        height=700,
+        template='plotly_white',
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            font=dict(size=12)
+        )
+    )
+
+    # Add interactive tools config
+    config = {
+        'toImageButtonOptions': {
+            'format': 'png',
+            'filename': 'solubility_vs_temp',
+            'height': 700,
+            'width': 1200,
+            'scale': 2
+        },
+        'modeBarButtonsToAdd': ['drawline', 'drawopenpath', 'eraseshape'],
+        'displaylogo': False
+    }
+
+    # Save as HTML
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"interactive_solubility_temp_{timestamp}.html"
+    filepath = os.path.join(PLOTS_DIR, filename)
+
+    fig.write_html(filepath, config=config)
+
+    # Create output message
+    output = f"✅ **Interactive Solubility vs Temperature Visualization Created**\n\n"
+    output += f"Polymers: {', '.join(polymer_list)}\n"
+    output += f"Solvents: {', '.join(solvent_list)}\n"
+    if temperature_min is not None and temperature_max is not None:
+        output += f"Temperature range: {temperature_min}°C - {temperature_max}°C\n"
+    elif temperature_min is not None:
+        output += f"Temperature range: {temperature_min}°C and above\n"
+    elif temperature_max is not None:
+        output += f"Temperature range: up to {temperature_max}°C\n"
+    output += f"Data points: {result['rows']}\n\n"
+
+    output += f"## 🎮 Interactive Features:\n"
+    output += f"- **Click legend items** to show/hide individual curves\n"
+    output += f"- **Drag the range slider** below the plot to zoom into temperature ranges\n"
+    output += f"- **Hover over points** to see exact values\n"
+    output += f"- **Use toolbar** to zoom, pan, reset, or download as PNG\n"
+    output += f"- **Double-click legend** to isolate a single curve\n\n"
+
+    html_url = f"/plots/{filename}"
+    output += f"**[Click here to open the interactive plot]({html_url})**\n"
+    output += f"(Opens in a new tab with full interactivity)\n"
+
+    del df
+    gc.collect()
+    return output
+
+
+@tool
+@safe_tool_wrapper
 def plot_selectivity_heatmap(
     table_name: str,
     polymer_column: str,
@@ -5085,6 +5323,7 @@ SQL_AGENT_TOOLS = [
 
     # Visualization tools
     plot_solubility_vs_temperature,
+    plot_solubility_vs_temperature_interactive,
     plot_selectivity_heatmap,
     plot_multi_panel_analysis,
     plot_comparison_dashboard,
