@@ -12,9 +12,9 @@ const API_BASE = process.env.REACT_APP_API_URL || window.location.origin;
 
 // Default configuration
 const DEFAULT_CONFIG = {
-  maxRetries: 3,
-  timeout: 60000, // 60 seconds
-  retryDelay: 1000, // Initial delay: 1 second
+  maxRetries: 1,      // Reduced from 3 - don't retry complex queries
+  timeout: 300000,    // 300 seconds (5 min) for complex multi-tool queries
+  retryDelay: 1000,   // Initial delay: 1 second
 };
 
 /**

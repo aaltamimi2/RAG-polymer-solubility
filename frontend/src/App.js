@@ -21,9 +21,13 @@ import {
   Sun,
   Layers,
   Shield,
-  Activity,
-  Droplet,
-  Brain
+  Brain,
+  Search,
+  Zap,
+  BarChart3,
+  Calculator,
+  Leaf,
+  Rocket
 } from 'lucide-react';
 import api, { API_BASE } from './api';
 
@@ -105,7 +109,20 @@ function Message({ message, isUser, onDownloadCSV }) {
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <div className="markdown-content">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  a: ({ node, ...props }) => (
+                    <a
+                      {...props}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: 'var(--primary)', textDecoration: 'underline' }}
+                    />
+                  )
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </div>
           )}
         </div>
@@ -177,7 +194,7 @@ function TypingIndicator() {
   );
 }
 
-// Quick Action Button
+// Quick Action Button (simple version)
 function QuickAction({ icon: Icon, label, onClick }) {
   return (
     <button
@@ -200,6 +217,62 @@ function QuickAction({ icon: Icon, label, onClick }) {
     >
       <Icon size={16} aria-hidden="true" />
       {label}
+    </button>
+  );
+}
+
+// Enhanced Quick Action with Multiple Examples (persists counter in localStorage)
+function QuickActionWithExamples({ icon: Icon, label, examples, onSelectExample, currentInput }) {
+  const storageKey = `example-index-${label.replace(/\s+/g, '-').toLowerCase()}`;
+
+  const [exampleIndex, setExampleIndex] = useState(() => {
+    // Initialize from localStorage
+    const saved = localStorage.getItem(storageKey);
+    return saved ? Math.min(parseInt(saved, 10), examples.length - 1) : 0;
+  });
+  const [isHovered, setIsHovered] = useState(false);
+
+  const currentExample = examples[exampleIndex];
+
+  const handleClick = () => {
+    // If current input matches an example, cycle to next
+    const matchIndex = examples.findIndex(ex => ex === currentInput);
+    let nextIndex;
+    if (matchIndex !== -1) {
+      nextIndex = (matchIndex + 1) % examples.length;
+    } else {
+      nextIndex = (exampleIndex + 1) % examples.length;
+    }
+    setExampleIndex(nextIndex);
+    localStorage.setItem(storageKey, nextIndex.toString());
+    onSelectExample(examples[nextIndex]);
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all font-headline"
+      style={{
+        backgroundColor: isHovered ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+        color: isHovered ? 'var(--text-primary)' : 'var(--text-secondary)',
+        border: '1px solid var(--border-color)'
+      }}
+      aria-label={`Quick action: ${label}`}
+    >
+      <Icon size={16} aria-hidden="true" style={{ color: 'var(--primary)' }} />
+      <span className="font-semibold">{label}</span>
+      <span
+        className="ml-auto text-xs px-1.5 py-0.5 rounded"
+        style={{
+          backgroundColor: 'var(--primary)',
+          color: 'white',
+          opacity: 0.9
+        }}
+      >
+        {exampleIndex + 1}/{examples.length}
+      </span>
     </button>
   );
 }
@@ -511,6 +584,14 @@ function App() {
     }
   }, [isLoading]);
 
+  // Auto-resize textarea when input changes (e.g., from quick actions)
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [input]);
+
   const loadStatus = async () => {
     try {
       const data = await api.getStatus();
@@ -778,12 +859,9 @@ function App() {
               <FlaskConical size={22} style={{ color: 'white' }} />
             </div>
             <div>
-              <h1 className="font-semibold text-lg font-headline" style={{ color: 'var(--text-primary)' }}>
+              <h1 className="font-semibold text-xl font-headline" style={{ color: 'var(--text-primary)' }}>
                 DISSOLVE Agent
               </h1>
-              <p className="text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
-                AI-powered solvent selection & separation analysis
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1106,56 +1184,163 @@ function App() {
                     <FlaskConical size={32} style={{ color: 'white' }} />
                   </div>
                   <h2 className="text-2xl font-semibold mb-2 font-headline" style={{ color: 'var(--text-primary)' }}>
-                    Welcome to DISSOLVE Agent
+                    DISSOLVE Agent
                   </h2>
                   <p className="max-w-md mb-8 font-body" style={{ color: 'var(--text-secondary)' }}>
-                    AI-powered analysis for polymer-solvent systems. Ask questions about solubility,
-                    separation strategies, and solvent properties.
+                    Ask questions about polymer solubility, separation strategies, and solvent properties.
                   </p>
 
-                  {/* Quick Actions */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full max-w-4xl">
-                <QuickAction
-                  icon={Beaker}
-                  label="List Polymers"
-                  onClick={() => handleQuickAction("List all available polymers in the database")}
-                />
-                <QuickAction
-                  icon={Droplet}
-                  label="List Solvents"
-                  onClick={() => handleQuickAction("List all available solvents in the database")}
-                />
-                <QuickAction
-                  icon={Layers}
-                  label="Three-Layer Film"
-                  onClick={() => handleQuickAction("Analyze separation for a three-layer film: LDPE/EVOH/PET at 120°C")}
-                />
-                <QuickAction
-                  icon={Shield}
-                  label="Safety Ranking"
-                  onClick={() => handleQuickAction("Rank common solvents by safety (G-score and LogP) for EVOH")}
-                />
-                <QuickAction
-                  icon={DollarSign}
-                  label="Cost Ranking"
-                  onClick={() => handleQuickAction("Rank solvents by energy cost (cheapest first)")}
-                />
-                <QuickAction
-                  icon={Thermometer}
-                  label="Boiling Point"
-                  onClick={() => handleQuickAction("Show common solvents ranked by boiling point")}
-                />
-                <QuickAction
-                  icon={Activity}
-                  label="Integrated Analysis"
-                  onClick={() => handleQuickAction("Perform integrated analysis across selectivity, safety, cost, and boiling point for LDPE and EVOH separation")}
-                />
-                <QuickAction
-                  icon={Brain}
-                  label="ML Prediction"
-                  onClick={loadMlPolymerTypes}
-                />
-              </div>
+                  {/* Quick Actions - Enhanced with Multiple Examples */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-5xl">
+                    <QuickActionWithExamples
+                      icon={Beaker}
+                      label="Polymer Dissolution"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "What solvents dissolve PS at 120°C? Rank by safety and show boiling points",
+                        "Find the best solvents for LDPE dissolution at 100°C, prioritize low toxicity (LogP)",
+                        "Which solvents dissolve PET at 140°C? Include G-scores and energy costs"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Search}
+                      label="Solvent Properties"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Compare safety profiles (G-score, LogP, toxicity) of chloroform, toluene, and acetone",
+                        "List all solvents with boiling point below 100°C and G-score above 5",
+                        "What are the full properties of xylene? Include cost, safety, and boiling point"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Layers}
+                      label="Multilayer Separation"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Design separation strategy for 3-layer packaging film: LDPE/EVOH/PET at 120°C",
+                        "Find optimal temperatures to separate HDPE, PP, and PS from mixed plastic waste",
+                        "Analyze separation process for PVC/LDPE/HDPE multilayer film"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Shield}
+                      label="Safety Analysis"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Rank solvents for EVOH dissolution at 120°C by GSK G-score (safest first)",
+                        "Which safe solvents (G-score > 5) dissolve PS at 140°C?",
+                        "Find safer alternatives to dichloromethane for PVC dissolution at 100°C"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={DollarSign}
+                      label="Cost Analysis"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Find the cheapest solvents that dissolve LDPE at 120°C",
+                        "Rank HDPE-selective solvents by energy cost for industrial-scale recycling",
+                        "Which low-cost solvents work for PP dissolution at 140°C?"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Thermometer}
+                      label="Boiling Point"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Find solvents for PET dissolution at 140°C with BP between 100-180°C for easy recovery",
+                        "Which low-boiling solvents dissolve PS at 120°C? Include safety data",
+                        "Rank solvents for PP separation at 140°C by boiling point"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Zap}
+                      label="Integrated Analysis"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Full integrated analysis for LDPE/EVOH/PET separation: find optimal temp per layer, rank by safety",
+                        "Find the best overall solvent for separating HDPE from PP considering selectivity, safety, cost, and BP",
+                        "Compare complete profiles of top 5 solvents for PVC/LDPE separation at 100°C"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={BarChart3}
+                      label="Visualizations"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Plot solubility vs temperature for PS in toluene, xylene, and benzene from 25°C to 160°C",
+                        "Create a bar chart comparing G-scores of the top 10 safest solvents for LDPE",
+                        "Visualize the separation selectivity of HDPE vs PP at 120°C",
+                        "Create a heatmap of solubility for PS at 120°C",
+                        "Show a scatter plot of LogP vs G-score for solvents that dissolve PET at 140°C",
+                        "Plot the boiling points and energy costs of solvents that dissolve PVC at 100°C"
+                      ]}
+                    />
+                    <QuickAction
+                      icon={Brain}
+                      label="HSP ML Prediction"
+                      onClick={loadMlPolymerTypes}
+                    />
+                    <QuickActionWithExamples
+                      icon={FlaskConical}
+                      label="PubChem Safety"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Get PubChem safety data for toluene - show GHS hazards and molecular properties",
+                        "What are the safety hazards for dichloromethane (DCM)?",
+                        "Compare safety profiles of benzene, toluene, and xylene using PubChem data",
+                        "Which is safer according to PubChem: acetone or MEK?",
+                        "Create a PubChem safety chart comparing ethanol, methanol, and isopropanol",
+                        "What's the LD50 and environmental toxicity of toluene, benzene, and acetone?",
+                        "Is acetone biodegradable? Compare with DCM and chloroform",
+                        "Get aquatic toxicity data for hexane, heptane, and cyclohexane",
+                        "PubChem safety comparison: DMF vs DMSO vs NMP",
+                        "Is benzene carcinogenic? Get full PubChem safety profile"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Calculator}
+                      label="TEA/LCA Analysis"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "Run TEA for toluene recovery at 100 kg/hr polymer throughput",
+                        "What's the capital cost and payback period for solvent recovery with acetone?",
+                        "LCA analysis: What's the carbon footprint of using DMF for polymer separation?",
+                        "Compare toluene, acetone, and ethanol on cost and environmental impact",
+                        "Which solvent has the lowest operating cost for LDPE separation at 95% recovery?",
+                        "Calculate CO2 emissions for cyclohexane solvent recovery",
+                        "TEA/LCA comparison: DMF vs DMSO vs NMP - which is cheapest and greenest?",
+                        "What's the energy consumption for recovering xylene at 80°C?",
+                        "Full techno-economic analysis for ethanol at 200 kg/hr with 98% recovery",
+                        "Compare the environmental impact of chloroform vs dichloromethane recovery"
+                      ]}
+                    />
+                    <QuickActionWithExamples
+                      icon={Rocket}
+                      label="Advanced Analysis"
+                      currentInput={input}
+                      onSelectExample={handleQuickAction}
+                      examples={[
+                        "I have a mixed plastic waste stream containing PE, PET, PS, and EVOH. Plan an optimal separation sequence that prioritizes safety (G-score), then analyze the techno-economics for the top solvent choices at 5,000 kg/hr throughput. Include LCA comparison to virgin polymer production and show me the GWP breakdown. Explain your reasoning and which tools you are using at each step.",
+                        "Compare the full separation workflows for two scenarios: (1) LDPE/HDPE/PP mixed polyolefins and (2) PET/PVC/PS mixed engineering plastics. For each, find the optimal separation sequence, identify the best solvents ranked by safety, calculate TEA at 1000 kg/hr, and generate visualizations. Explain your tool selection and reasoning throughout.",
+                        "Perform a comprehensive solvent screening for EVOH dissolution: first find all solvents that dissolve EVOH above 80% at 120°C, then rank them by G-score safety, get PubChem toxicity data for the top 5, run TEA/LCA comparison, and create a summary visualization. Walk me through your analysis step by step.",
+                        "Design a complete recycling process for multilayer food packaging (LDPE outer/EVOH barrier/PET inner): determine the optimal dissolution sequence and temperatures, identify selective solvents for each layer with safety data, calculate energy requirements and costs at industrial scale (5000 kg/hr), and compare environmental impact to virgin production. Explain each tool call and your reasoning.",
+                        "I need to separate a 4-polymer mixture of HDPE, LDPE, PP, and PS. First analyze selectivity between all pairs, then plan the optimal separation sequence considering both selectivity and safety. For each step, provide the recommended solvent with full properties (BP, G-score, LogP, energy), run TEA at 2000 kg/hr throughput, and generate comparison visualizations. Document your reasoning and tool usage throughout the analysis."
+                      ]}
+                    />
+                  </div>
+                  <p className="text-xs mt-3 font-body" style={{ color: 'var(--text-tertiary)' }}>
+                    Click buttons to cycle through examples (1/3 indicator shows current example).
+                  </p>
                 </>
               )}
             </div>
@@ -1200,17 +1385,23 @@ function App() {
               <textarea
                 ref={inputRef}
                 value={input}
-                onChange={(e) => setInput(e.target.value)}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  // Auto-resize textarea
+                  e.target.style.height = 'auto';
+                  e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about polymer solubility, separation strategies, solvent properties..."
                 rows={1}
-                className="w-full rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none font-body"
+                className="w-full rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none font-body overflow-y-auto"
                 style={{
                   minHeight: '48px',
                   maxHeight: '200px',
                   backgroundColor: 'var(--bg-primary)',
                   border: '1px solid var(--border-color)',
-                  color: 'var(--text-primary)'
+                  color: 'var(--text-primary)',
+                  transition: 'height 0.1s ease'
                 }}
                 disabled={isLoading}
                 aria-label="Chat message input"
