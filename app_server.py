@@ -212,9 +212,17 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
 
             # Extract response
             messages = result.get("messages", [])
+            logger.info(f"Agent returned {len(messages)} messages")
+            for i, msg in enumerate(messages):
+                msg_content = getattr(msg, 'content', None)
+                msg_type = type(msg).__name__
+                preview = str(msg_content)[:100] if msg_content else 'EMPTY'
+                logger.info(f"  Message {i}: {msg_type} -> {preview}")
             if messages:
                 final = messages[-1]
+                logger.info(f"Final message type: {type(final).__name__}")
                 content = getattr(final, 'content', None)
+                logger.info(f"Content type: {type(content).__name__ if content else 'NoneType'}, value: {repr(content)[:200]}")
                 # Handle list-type content (newer LangChain format)
                 if isinstance(content, list):
                     text_parts = []
@@ -228,6 +236,19 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                     content = str(final)
                 elif not isinstance(content, str):
                     content = str(content)
+
+                # FALLBACK: If final AIMessage is empty, use the last ToolMessage content
+                if not content or content.strip() in ('', 'None', 'content=""'):
+                    logger.info("Final AIMessage empty, checking for ToolMessage fallback")
+                    for msg in reversed(messages[:-1]):  # Check messages before the final one
+                        msg_type = type(msg).__name__
+                        if msg_type == 'ToolMessage':
+                            tool_content = getattr(msg, 'content', None)
+                            if tool_content and isinstance(tool_content, str) and tool_content.strip():
+                                logger.info(f"Using ToolMessage content as fallback: {tool_content[:100]}...")
+                                content = tool_content
+                                break
+
                 content = content or "Processing complete."
             else:
                 content = "No response generated."
@@ -622,9 +643,9 @@ async def api_ml_polymers_by_type(polymer_type: str):
 # Static Files & Frontend
 # ============================================================
 
-# Mount plots directory
+# Mount plots directory (html=True allows serving HTML files directly)
 if os.path.exists(PLOTS_DIR):
-    app.mount("/plots", StaticFiles(directory=PLOTS_DIR), name="plots")
+    app.mount("/plots", StaticFiles(directory=PLOTS_DIR, html=True), name="plots")
 
 # Mount React build static files
 build_static_dir = os.path.join(FRONTEND_DIR, "build", "static")

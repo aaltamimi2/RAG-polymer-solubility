@@ -100,6 +100,9 @@ from async_db import AsyncDuckDBWrapper
 
 from langchain_core.tools import tool
 
+# TEA/LCA Module - standalone file for easy editing by TEA/LCA specialists
+import tea_lca_module as tea_lca
+
 # ============================================================
 # Configuration
 # ============================================================
@@ -110,7 +113,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 # Memory management constants
-MAX_ITERATIONS = 50
+MAX_ITERATIONS = 15  # Reduced from 50 to prevent endless loops
 MAX_MESSAGE_HISTORY = 50
 MAX_TOOL_OUTPUT_LENGTH = 50000
 MAX_PLOTS_TO_KEEP = 50
@@ -187,12 +190,12 @@ def safe_tool_wrapper(func):
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
                 return (
-                    f"**❌ Error in {func.__name__}:**\n"
-                    f"```\n{str(e)[:500]}\n```\n\n"
-                    f"**Suggestions:**\n"
-                    f"- Verify input parameters with `describe_table()`\n"
-                    f"- Check values with `check_column_values()`\n"
-                    f"- Use `verify_data_accuracy()` to confirm data exists"
+                    f"ERROR in {func.__name__}:\n"
+                    f"{str(e)[:500]}\n\n"
+                    f"Suggestions:\n"
+                    f"- Verify input parameters with describe_table()\n"
+                    f"- Check values with check_column_values()\n"
+                    f"- Use verify_data_accuracy() to confirm data exists"
                 )
             finally:
                 gc.collect()
@@ -218,12 +221,12 @@ def safe_tool_wrapper(func):
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
                 return (
-                    f"**❌ Error in {func.__name__}:**\n"
-                    f"```\n{str(e)[:500]}\n```\n\n"
-                    f"**Suggestions:**\n"
-                    f"- Verify input parameters with `describe_table()`\n"
-                    f"- Check values with `check_column_values()`\n"
-                    f"- Use `verify_data_accuracy()` to confirm data exists"
+                    f"ERROR in {func.__name__}:\n"
+                    f"{str(e)[:500]}\n\n"
+                    f"Suggestions:\n"
+                    f"- Verify input parameters with describe_table()\n"
+                    f"- Check values with check_column_values()\n"
+                    f"- Use verify_data_accuracy() to confirm data exists"
                 )
             finally:
                 gc.collect()
@@ -318,30 +321,124 @@ def fuzzy_match_solvent_name(solvent_name: str, dataset: str = "all", threshold:
         return None
 
 
-def get_all_solvent_aliases(solvent_name: str) -> List[str]:
+# ============================================================
+# Static Solvent Name Mapping (Cross-Database Normalization)
+# ============================================================
+
+# Maps solubility database names -> (property database name, GSK database name)
+# None means the solvent is not in that database
+SOLVENT_NAME_MAP = {
+    '1,2-dimethylbenzene': ('o-Xylene', 'o-Xylene'),
+    '1,4-dimethylbenzene': ('p-Xylene', 'p-Xylene'),
+    '2,3-dihydropyran': (None, None),
+    '2-propanol': ('2-Propanol', '2-Propanol'),
+    'acetylacetone': ('2,4-Pentanedione', None),
+    'benzene': ('Benzene', 'Benzene'),
+    'butanone': ('Methyl ethyl ketone', '2-Butanone'),
+    'ch2cl2': ('Dichloromethane', 'Dichloromethane'),
+    'chcl3': ('Chloroform', 'Chloroform'),
+    'cyclohexane': ('Cyclohexane', 'Cyclohexane'),
+    'cyclohexanol': ('Cyclohexanol', 'Cyclohexanol'),
+    'dimethylformamide': ('N,N-Dimethylformamide', 'DMF'),
+    'dimethylsulfoxide': ('Dimethyl sulfoxide', 'Dimethyl sulfoxide'),
+    'diphenylether': ('Diphenyl ether', None),
+    'dodecane': ('Dodecane', 'Dodecane'),
+    'ethanol': ('Ethanol', 'Ethanol'),
+    'ethylacetate': ('Ethyl acetate', 'Ethyl acetate'),
+    'glycol': ('Ethylene glycol', 'Ethylene glycol'),
+    'h2o': ('Water', 'Water'),
+    'hexane': ('Hexane', 'n-Hexane'),
+    'isopropylamine': ('Isopropylamine', None),
+    'methanol': ('Methanol', 'Methanol'),
+    'methylacetate': ('Methyl acetate', 'Methyl acetate'),
+    'n-heptane': ('Heptane', 'n-Heptane'),
+    'propanol': ('1-Propanol', '1-Propanol'),
+    'propanone': ('Acetone', 'Acetone'),
+    'propyleneglycol': ('Propylene glycol', '1,2-Propanediol'),
+    'tert-butanol': ('tert-Butanol', 'tert-Butanol'),
+    'thf': ('Tetrahydrofuran (THF)', 'THF'),
+    'thp': ('Tetrahydropyran', None),
+    'toluene': ('Toluene', 'Toluene'),
+    'triethylamine': ('Triethylamine', 'Triethylamine'),
+}
+
+
+def normalize_solvent_name(solvent_name: str, target_database: str = "property") -> Optional[str]:
     """
-    Get all known aliases for a solvent across all datasets.
+    Normalize a solvent name from the solubility database to match property or GSK databases.
 
-    Returns a list of unique names that match the given solvent.
+    Args:
+        solvent_name: The solvent name from common_solvents_database
+        target_database: "property" for solvent_data, "gsk" for gsk_dataset
+
+    Returns:
+        The normalized name for the target database, or None if no mapping exists
     """
-    aliases = set()
+    name_lower = solvent_name.strip().lower()
 
-    # Add the original name
-    aliases.add(solvent_name.strip())
+    if name_lower in SOLVENT_NAME_MAP:
+        prop_name, gsk_name = SOLVENT_NAME_MAP[name_lower]
+        if target_database == "property":
+            return prop_name
+        elif target_database == "gsk":
+            return gsk_name
 
-    # Try fuzzy matching in all datasets
-    match_result = fuzzy_match_solvent_name(solvent_name, dataset="all", threshold=90)
+    # If not in static map, try to return as-is (might work for some names)
+    return solvent_name
 
-    if match_result:
-        aliases.add(match_result["matched_name"])
 
-        # Try to find variations in each dataset
-        for dataset in ["gsk", "solvent_data", "common_solvents"]:
-            dataset_match = fuzzy_match_solvent_name(solvent_name, dataset=dataset, threshold=85)
-            if dataset_match:
-                aliases.add(dataset_match["matched_name"])
+def get_cross_database_properties(solvent_name: str, conn) -> Dict[str, Any]:
+    """
+    Get properties for a solvent from solubility DB by looking up in property and GSK databases.
 
-    return list(aliases)
+    Returns dict with: bp, logp, energy, cp, g_score, gsk_class (or None for missing)
+    """
+    props = {
+        'bp': None, 'logp': None, 'energy': None, 'cp': None,
+        'g_score': None, 'gsk_class': None
+    }
+
+    # Get property database name
+    prop_name = normalize_solvent_name(solvent_name, "property")
+    if prop_name:
+        try:
+            query = f"""
+            SELECT bp__oc_, logp, energy__j_g_, cp__j_g_k_
+            FROM solvent_data
+            WHERE LOWER(solvent_name) = LOWER('{prop_name}')
+            OR LOWER(solvent_name) LIKE '%{prop_name.lower()}%'
+            LIMIT 1
+            """
+            result = conn.execute(query).fetchdf()
+            if len(result) > 0:
+                row = result.iloc[0]
+                props['bp'] = row.get('bp__oc_')
+                props['logp'] = row.get('logp')
+                props['energy'] = row.get('energy__j_g_')
+                props['cp'] = row.get('cp__j_g_k_')
+        except Exception as e:
+            logger.debug(f"Property lookup failed for {solvent_name}: {e}")
+
+    # Get GSK database name
+    gsk_name = normalize_solvent_name(solvent_name, "gsk")
+    if gsk_name:
+        try:
+            query = f"""
+            SELECT g_score, classification
+            FROM gsk_dataset
+            WHERE LOWER(solvent_common_name) = LOWER('{gsk_name}')
+            OR LOWER(solvent_common_name) LIKE '%{gsk_name.lower()}%'
+            LIMIT 1
+            """
+            result = conn.execute(query).fetchdf()
+            if len(result) > 0:
+                row = result.iloc[0]
+                props['g_score'] = row.get('g_score')
+                props['gsk_class'] = row.get('classification')
+        except Exception as e:
+            logger.debug(f"GSK lookup failed for {solvent_name}: {e}")
+
+    return props
 
 
 # ============================================================
@@ -1196,6 +1293,99 @@ def get_plot_url(filepath: str) -> str:
     return f"📊 Plot saved: `{filepath}`"
 
 
+# Solvent name normalization mapping (common names → database names)
+SOLVENT_NAME_MAPPING = {
+    # Xylene variants - expand to both isomers
+    'xylene': ['1,2-dimethylbenzene', '1,4-dimethylbenzene'],
+    'xylenes': ['1,2-dimethylbenzene', '1,4-dimethylbenzene'],
+    'o-xylene': ['1,2-dimethylbenzene'],
+    'p-xylene': ['1,4-dimethylbenzene'],
+    'm-xylene': ['1,4-dimethylbenzene'],  # closest available
+    'ortho-xylene': ['1,2-dimethylbenzene'],
+    'para-xylene': ['1,4-dimethylbenzene'],
+
+    # Alkanes - common names to database names
+    'heptane': ['n-heptane'],
+    'n-heptane': ['n-heptane'],
+    'hexane': ['hexane'],
+    'n-hexane': ['hexane'],
+    'pentane': ['pentane'],
+    'n-pentane': ['pentane'],
+    'octane': ['octane'],
+    'n-octane': ['octane'],
+
+    # Polar aprotic solvents - common abbreviations
+    'dmso': ['dimethylsulfoxide'],
+    'dimethyl sulfoxide': ['dimethylsulfoxide'],
+    'dmf': ['dimethylformamide'],
+    'dimethyl formamide': ['dimethylformamide'],
+    'nmp': ['n-methylpyrrolidone'],
+    'n-methyl-2-pyrrolidone': ['n-methylpyrrolidone'],
+
+    # Ketones
+    'acetone': ['propanone'],
+    '2-propanone': ['propanone'],
+    'mek': ['butanone'],
+    'methyl ethyl ketone': ['butanone'],
+
+    # Alcohols
+    'ipa': ['2-propanol'],
+    'isopropanol': ['2-propanol'],
+    'isopropyl alcohol': ['2-propanol'],
+    'n-propanol': ['propanol'],
+    '1-propanol': ['propanol'],
+    'meoh': ['methanol'],
+    'etoh': ['ethanol'],
+
+    # Ethers
+    'tetrahydrofuran': ['thf'],
+    'tetrahydropyran': ['thp'],
+    'dihydropyran': ['2,3-dihydropyran'],
+
+    # Halogenated
+    'dcm': ['ch2cl2'],
+    'dichloromethane': ['ch2cl2'],
+    'methylene chloride': ['ch2cl2'],
+    'chloroform': ['chcl3'],
+    'trichloromethane': ['chcl3'],
+
+    # Others
+    'dmf': ['dimethylformamide'],
+    'dmso': ['dimethylsulfoxide'],
+    'ethyl acetate': ['ethylacetate'],
+    'methyl acetate': ['methylacetate'],
+    'water': ['h2o'],
+    'n-hexane': ['hexane'],
+    'n-heptane': ['n-heptane'],
+    'ethylene glycol': ['glycol'],
+    'propylene glycol': ['propyleneglycol'],
+}
+
+
+def normalize_solvent_names(solvents: List[str]) -> List[str]:
+    """
+    Normalize solvent names to match database entries.
+    Expands common names like 'xylene' to actual database names.
+    Also converts to lowercase since database uses lowercase names.
+
+    Args:
+        solvents: List of solvent names (may include common names)
+
+    Returns:
+        List of normalized solvent names matching database entries (lowercase)
+    """
+    normalized = []
+    for solvent in solvents:
+        solvent_lower = solvent.strip().lower()
+        if solvent_lower in SOLVENT_NAME_MAPPING:
+            # Expand to mapped name(s) - already lowercase in mapping
+            normalized.extend(SOLVENT_NAME_MAPPING[solvent_lower])
+        else:
+            # Convert to lowercase to match database
+            normalized.append(solvent_lower)
+    return normalized
+
+
 def verify_inputs(table_name: str, columns: Dict[str, str],
                   values: Optional[Dict[str, List[str]]] = None) -> Tuple[bool, str]:
     """Comprehensive input verification."""
@@ -1463,24 +1653,34 @@ def validate_and_query(
 @tool
 @safe_tool_wrapper
 def find_optimal_separation_conditions(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
     target_polymer: str,
     comparison_polymers: str,
     start_temperature: float = 25.0,
     initial_selectivity: float = 30.0,
-    export_csv: bool = False
+    export_csv: bool = False,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
-    """Find optimal conditions to separate target polymer from comparison polymers.
+    """
+    Find optimal solvent and temperature to separate target polymer from others.
 
-    Note: Selectivity is in percentage points (0-100 scale). A selectivity of 30 means
-    the target polymer has 30% higher solubility than the max competing polymer.
+    Searches for solvents that selectively dissolve the target polymer while leaving
+    comparison polymers undissolved. Uses adaptive temperature sweeps.
 
-    Args:
-        export_csv: If True, creates a CSV export of separation results (default: False)
+    Parameters:
+    - target_polymer: The polymer you want to dissolve (e.g., "LDPE", "PP")
+    - comparison_polymers: Polymers to NOT dissolve, comma-separated (e.g., "HDPE,PP,PS")
+    - start_temperature: Starting temperature for search in °C (default: 25.0)
+    - initial_selectivity: Required selectivity in percentage points (default: 30.0)
+    - export_csv: If True, export detailed results to CSV (default: False)
+
+    WHEN TO USE:
+    - "Find optimal conditions to separate LDPE from HDPE and PP"
+    - "What solvent and temperature selectively dissolves PS?"
+    - "Optimal separation conditions for PET from mixed plastics"
     """
     
     # Safely parse comparison_polymers
@@ -1595,17 +1795,32 @@ def find_optimal_separation_conditions(
 @tool
 @safe_tool_wrapper
 def adaptive_threshold_search(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
     target_polymer: str,
     comparison_polymers: Optional[str] = None,
     temperature: float = 25.0,
-    start_threshold: float = 0.5
+    start_threshold: float = 0.5,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
-    """Search for selective solvents using adaptive thresholds."""
+    """
+    Search for selective solvents using adaptive thresholds.
+
+    Automatically adjusts selectivity thresholds to find the best solvents
+    that dissolve target polymer while avoiding others.
+
+    Parameters:
+    - target_polymer: The polymer you want to dissolve (e.g., "LDPE")
+    - comparison_polymers: Polymers to avoid, comma-separated (optional)
+    - temperature: Target temperature in °C (default: 25.0)
+    - start_threshold: Starting selectivity threshold (default: 0.5)
+
+    WHEN TO USE:
+    - "Find selective solvents for LDPE using adaptive search"
+    - "Search for solvents that dissolve PP selectively"
+    """
     
     # Ensure comp_list is always a list
     comp_list = []
@@ -1703,18 +1918,44 @@ def adaptive_threshold_search(
 @tool
 @safe_tool_wrapper
 def analyze_selective_solubility_enhanced(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
     target_polymer: str,
     comparison_polymers: Optional[str] = None,
     temperature_range: str = "25-120",
-    auto_threshold: bool = True
+    auto_threshold: bool = True,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
-    """Enhanced selective solubility analysis with adaptive thresholds."""
-    temp_min, temp_max = map(float, temperature_range.split('-'))
+    """
+    Enhanced selective solubility analysis with adaptive thresholds.
+
+    Find solvents that selectively dissolve the target polymer while NOT dissolving others.
+
+    Parameters:
+    - target_polymer: The polymer you want to dissolve (e.g., "LDPE", "PP", "PET")
+    - comparison_polymers: Polymers to avoid dissolving, comma-separated (e.g., "HDPE,PP,PS")
+                          If not provided, compares against ALL other polymers
+    - temperature_range: Temperature range as "min-max" or single temperature (e.g., "100" or "80-120")
+    - auto_threshold: Whether to use adaptive thresholds (default: True)
+
+    WHEN TO USE:
+    - "Find a solvent that dissolves LDPE but not HDPE"
+    - "What solvent is selective for PP over PET at 100°C?"
+    - "Find selective solvents for PS separation from mixed plastics"
+    """
+    # Handle single temperature or range
+    if '-' in str(temperature_range):
+        parts = str(temperature_range).split('-')
+        if len(parts) >= 2:
+            temp_min, temp_max = float(parts[0]), float(parts[1])
+        else:
+            temp_min = temp_max = float(parts[0])
+    else:
+        # Single temperature - use as both min and max (±5°C range)
+        temp = float(temperature_range)
+        temp_min, temp_max = temp - 5, temp + 5
 
     # Safely build comp_list
     comp_list = []
@@ -2241,6 +2482,9 @@ def plot_solubility_vs_temperature(
     polymer_list = [p.strip() for p in polymers.split(',')]
     solvent_list = [s.strip() for s in solvents.split(',')]
 
+    # Normalize solvent names (e.g., "xylene" → "1,2-dimethylbenzene", "1,4-dimethylbenzene")
+    solvent_list = normalize_solvent_names(solvent_list)
+
     is_valid, msg = verify_inputs(
         table_name,
         {
@@ -2396,6 +2640,9 @@ def plot_solubility_vs_temperature_interactive(
     polymer_list = [p.strip() for p in polymers.split(',')]
     solvent_list = [s.strip() for s in solvents.split(',')]
 
+    # Normalize solvent names (e.g., "xylene" → "1,2-dimethylbenzene", "1,4-dimethylbenzene")
+    solvent_list = normalize_solvent_names(solvent_list)
+
     is_valid, msg = verify_inputs(
         table_name,
         {
@@ -2516,15 +2763,13 @@ def plot_solubility_vs_temperature_interactive(
             xanchor='center'
         ),
         xaxis=dict(
-            title='Temperature (°C)',
-            titlefont=dict(size=16, family='Arial'),
+            title=dict(text='Temperature (°C)', font=dict(size=16, family='Arial')),
             rangeslider=dict(visible=True, thickness=0.05),  # Interactive range slider!
             showgrid=True,
             gridcolor='lightgray'
         ),
         yaxis=dict(
-            title='Solubility',
-            titlefont=dict(size=16, family='Arial'),
+            title=dict(text='Solubility', font=dict(size=16, family='Arial')),
             showgrid=True,
             gridcolor='lightgray'
         ),
@@ -2598,18 +2843,46 @@ def plot_selectivity_heatmap(
     temperature_column: str,
     solubility_column: str,
     target_polymer: Optional[str] = None,
-    temperature: float = 25.0,
-    temperature_tolerance: float = 5.0
+    temperature: float = 120.0,
+    temperature_tolerance: float = 10.0,
+    show_selectivity: bool = False,
+    max_solvents: int = 30
 ) -> str:
-    """Create heatmap showing solubility across all polymer-solvent combinations."""
+    """
+    Create heatmap showing solubility across polymer-solvent combinations.
+
+    Args:
+        table_name: Database table name
+        polymer_column: Column with polymer names
+        solvent_column: Column with solvent names
+        temperature_column: Column with temperature values
+        solubility_column: Column with solubility values
+        target_polymer: Optional - filter to show only this polymer's data
+        temperature: Target temperature (default: 120°C for better polymer dissolution)
+        temperature_tolerance: Temperature range ± (default: 10°C)
+        show_selectivity: If True and target_polymer set, show selectivity view instead
+        max_solvents: Maximum solvents to show (default: 30 for readability)
+
+    Returns:
+        Heatmap visualization with solubility data
+    """
+    from matplotlib.colors import LinearSegmentedColormap
+
+    # Build query - optionally filter to target polymer
+    if target_polymer:
+        polymer_filter = f"AND UPPER({polymer_column}) = '{target_polymer.upper()}'"
+    else:
+        polymer_filter = ""
+
     query = f"""
     SELECT {polymer_column}, {solvent_column},
            AVG({solubility_column}) as avg_solubility
     FROM {table_name}
     WHERE {temperature_column} BETWEEN {temperature - temperature_tolerance}
           AND {temperature + temperature_tolerance}
+    {polymer_filter}
     GROUP BY {polymer_column}, {solvent_column}
-    ORDER BY {polymer_column}, {solvent_column}
+    ORDER BY avg_solubility DESC
     """
 
     result = sql_db.execute_query(query, limit=10000)
@@ -2617,70 +2890,80 @@ def plot_selectivity_heatmap(
         return f"❌ Query failed: {result.get('error')}"
 
     df = result["dataframe"]
+
+    if len(df) == 0:
+        return f"❌ No data found at {temperature}°C ± {temperature_tolerance}°C. Try a different temperature."
+
     pivot_df = df.pivot(index=polymer_column, columns=solvent_column, values='avg_solubility')
+
+    # Limit solvents for readability - keep top ones by average solubility
+    if len(pivot_df.columns) > max_solvents:
+        top_solvents = df.groupby(solvent_column)['avg_solubility'].mean().nlargest(max_solvents).index
+        pivot_df = pivot_df[top_solvents]
 
     # Determine if we should show annotations based on size
     n_cells = pivot_df.shape[0] * pivot_df.shape[1]
-    show_annot = n_cells <= 100  # Only annotate if not too many cells
-    annot_fontsize = 10 if n_cells <= 30 else 8 if n_cells <= 60 else 6
+    show_annot = n_cells <= 150
+    annot_fontsize = 10 if n_cells <= 50 else 8 if n_cells <= 100 else 6
 
-    fig, axes = plt.subplots(1, 2 if target_polymer else 1,
-                            figsize=(20 if target_polymer else 14, 10))
+    # Create custom colormap that emphasizes 0-20% range
+    # More color variation in 0-20% range, then gradual to high values
+    colors_low = ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6']  # Blues for 0-20%
+    colors_high = ['#4292c6', '#2171b5', '#08519c', '#08306b']  # Darker blues for >20%
 
-    if target_polymer:
-        axes = [axes[0], axes[1]]
+    # Custom colormap with emphasis on low values
+    cmap = LinearSegmentedColormap.from_list('solubility_emphasis',
+        colors_low + colors_high, N=256)
+
+    # Single clean figure
+    fig, ax = plt.subplots(figsize=(max(14, len(pivot_df.columns) * 0.5),
+                                     max(8, len(pivot_df) * 0.8)))
+
+    # Use logarithmic-like normalization to emphasize low values
+    from matplotlib.colors import PowerNorm
+    vmax = pivot_df.max().max()
+    if vmax > 20:
+        # Power norm with gamma < 1 emphasizes lower values
+        norm = PowerNorm(gamma=0.5, vmin=0, vmax=vmax)
     else:
-        axes = [axes]
+        norm = None
 
-    # Main heatmap with improved formatting
-    sns.heatmap(pivot_df, annot=show_annot, fmt='.1f', cmap='YlGnBu',
+    sns.heatmap(pivot_df, annot=show_annot, fmt='.1f', cmap=cmap,
                cbar_kws={'label': 'Solubility (%)', 'shrink': 0.8},
-               linewidths=0.5, ax=axes[0], annot_kws={'size': annot_fontsize})
-    axes[0].set_title(f'Solubility Heatmap ({temperature}°C ± {temperature_tolerance}°C)',
-                     fontsize=16, fontweight='bold', pad=15)
-    axes[0].set_xlabel('Solvent', fontsize=14, fontweight='bold')
-    axes[0].set_ylabel('Polymer', fontsize=14, fontweight='bold')
-    # Rotate x-axis labels for readability
-    axes[0].set_xticklabels(axes[0].get_xticklabels(), rotation=45, ha='right', fontsize=10)
-    axes[0].set_yticklabels(axes[0].get_yticklabels(), fontsize=11)
+               linewidths=0.3, ax=ax, annot_kws={'size': annot_fontsize},
+               norm=norm)
 
-    if target_polymer and target_polymer in pivot_df.index:
-        target_row = pivot_df.loc[target_polymer]
-        selectivity_df = pd.DataFrame()
-
-        for col in pivot_df.columns:
-            selectivity_df[col] = target_row[col] - pivot_df[col]
-
-        selectivity_df.index = [f"{p} vs {target_polymer}" for p in pivot_df.index]
-
-        sns.heatmap(selectivity_df, annot=show_annot, fmt='.1f', cmap='RdYlGn',
-                   center=0, cbar_kws={'label': 'Selectivity (%)', 'shrink': 0.8},
-                   linewidths=0.5, ax=axes[1], annot_kws={'size': annot_fontsize})
-        axes[1].set_title(f'Selectivity for {target_polymer}',
-                         fontsize=16, fontweight='bold', pad=15)
-        axes[1].set_xlabel('Solvent', fontsize=14, fontweight='bold')
-        axes[1].set_ylabel('Comparison', fontsize=14, fontweight='bold')
-        axes[1].set_xticklabels(axes[1].get_xticklabels(), rotation=45, ha='right', fontsize=10)
-        axes[1].set_yticklabels(axes[1].get_yticklabels(), fontsize=11)
+    title = f'Solubility Heatmap at {temperature}°C'
+    if target_polymer:
+        title = f'{target_polymer} Solubility at {temperature}°C'
+    ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
+    ax.set_xlabel('Solvent', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Polymer', fontsize=14, fontweight='bold')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+    ax.set_yticklabels(ax.get_yticklabels(), fontsize=11)
 
     plt.tight_layout()
-    filepath = save_plot(fig, "selectivity_heatmap", "matplotlib")
+    filepath = save_plot(fig, "solubility_heatmap", "matplotlib")
 
     output = f"✅ **Heatmap Created**\n\n"
     output += f"Temperature: {temperature}°C ± {temperature_tolerance}°C\n"
     output += f"Polymers: {len(pivot_df)}\n"
     output += f"Solvents: {len(pivot_df.columns)}\n"
 
-    if target_polymer and target_polymer in pivot_df.index:
-        output += f"\n**Selectivity Summary for {target_polymer}:**\n"
-        for solvent in list(pivot_df.columns)[:10]:
-            target_sol = pivot_df.loc[target_polymer, solvent]
-            max_other = pivot_df.drop(target_polymer)[solvent].max()
-            selectivity = target_sol - max_other
-            symbol = "✅" if selectivity > 10 else "⚠️" if selectivity > 0 else "❌"
-            output += f"  {symbol} {solvent}: selectivity = {selectivity:.4f}\n"
+    # Show top solvents summary
+    if target_polymer and target_polymer.upper() in [p.upper() for p in pivot_df.index]:
+        idx = [p for p in pivot_df.index if p.upper() == target_polymer.upper()][0]
+        row = pivot_df.loc[idx].sort_values(ascending=False)
+        output += f"\n**Top solvents for {target_polymer}:**\n"
+        for solvent, sol in list(row.items())[:10]:
+            if pd.notna(sol):
+                symbol = "✅" if sol > 20 else "⚠️" if sol > 5 else "❌"
+                output += f"  {symbol} {solvent}: {sol:.1f}%\n"
 
     output += f"\n{get_plot_url(filepath)}"
+
+    # Note about color scale
+    output += f"\n\n💡 *Color scale emphasizes 0-20% range for better differentiation of low-solubility solvents.*"
 
     del df
     return output
@@ -3162,38 +3445,36 @@ async def plot_solvent_properties(
 @tool
 @safe_tool_wrapper
 async def plan_sequential_separation(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
     polymers: str,
+    temperature: float = 120.0,
     top_k_solvents: int = 5,
-    temperature: float = 25.0,
-    create_decision_tree: bool = True
+    create_decision_tree: bool = True,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
     """
-    Plan all possible sequential separation sequences for multiple polymers (ASYNC).
+    Plan all possible sequential separation sequences for multiple polymers.
 
-    Enumerates all n! permutations and finds top-k solvents for each separation step.
-    Once a polymer is removed, it's no longer considered in subsequent steps.
-    Optionally creates a decision tree visualization.
+    Enumerates all n! permutations and finds optimal solvents for each separation step.
+    Creates a decision tree visualization showing all possible separation paths.
+    Enforces solvent diversity - each step uses a DIFFERENT solvent for physical feasibility.
 
-    PERFORMANCE: Parallelizes sequence analysis for up to 50-80x speedup!
+    Parameters:
+    - polymers: Comma-separated list of polymers to separate (e.g., "LDPE,HDPE,PP,PS")
+    - temperature: Target temperature in °C (default: 120.0 - typical for polymer dissolution)
+    - top_k_solvents: Number of top solvents to show per step (default: 5)
+    - create_decision_tree: Whether to generate decision tree plot (default: True)
 
-    Args:
-        table_name: Database table name
-        polymer_column: Column containing polymer names
-        solvent_column: Column containing solvent names
-        temperature_column: Column containing temperature values
-        solubility_column: Column containing solubility values
-        polymers: Comma-separated list of polymers to separate (e.g., "PP,PET,LDPE,PVC")
-        top_k_solvents: Number of top solvents to report per separation step (default: 5)
-        temperature: Target temperature in °C (default: 25.0)
-        create_decision_tree: Whether to create a decision tree plot (default: True)
+    WHEN TO USE:
+    - "Plan sequential separation for LDPE, HDPE, PP, and PS"
+    - "What's the best order to separate mixed plastics?"
+    - "Design a multi-step polymer separation process"
+    - "Create a separation decision tree for 4 polymers"
 
-    Returns:
-        Comprehensive separation plan with all sequences, top solvents, and decision tree
+    Returns: Comprehensive separation plan with rankings and decision tree visualization
     """
     from itertools import permutations
 
@@ -3225,9 +3506,18 @@ async def plan_sequential_separation(
         output.append(f"{i}. {' → '.join(seq)}")
     output.append("")
 
+    # Minimum selectivity threshold for viable separation
+    MIN_SELECTIVITY = 5.0
+
     # Async function to find top-k solvents for separating target from remaining polymers
-    async def find_top_solvents(target: str, remaining: list, k: int = 5) -> list:
-        """Find top-k solvents for separating target from remaining polymers (ASYNC)."""
+    async def find_top_solvents(target: str, remaining: list, k: int = 5, used_solvents: set = None) -> list:
+        """Find top-k solvents for separating target from remaining polymers (ASYNC).
+
+        Enforces solvent diversity by excluding solvents already used in previous steps.
+        """
+        if used_solvents is None:
+            used_solvents = set()
+
         if not remaining:
             return [{"solvent": "N/A", "selectivity": float('inf'), "target_sol": 100, "max_other": 0, "note": "Last polymer - no separation needed"}]
 
@@ -3245,10 +3535,10 @@ async def plan_sequential_separation(
         try:
             df = await async_db.execute_async(query)
         except Exception as e:
-            return [{"solvent": "Error", "selectivity": 0, "error": str(e)}]
+            return [{"solvent": "Error", "selectivity": 0, "target_sol": 0, "max_other": 0, "error": str(e)}]
 
         if len(df) == 0:
-            return [{"solvent": "No data", "selectivity": 0}]
+            return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
 
         results = []
         for solvent in df[solvent_column].unique():
@@ -3276,6 +3566,23 @@ async def plan_sequential_separation(
         # Sort by selectivity (descending)
         results.sort(key=lambda x: x["selectivity"], reverse=True)
 
+        # CRITICAL: Filter out solvents already used in previous steps to ensure diversity
+        if used_solvents:
+            used_lower = {s.lower() for s in used_solvents}
+            unused_results = [r for r in results if r["solvent"].lower() not in used_lower]
+            if unused_results:
+                results = unused_results
+            else:
+                # Mark reused solvents if no alternatives
+                for r in results:
+                    if r["solvent"].lower() in used_lower:
+                        r["reused"] = True
+
+        # Filter by minimum selectivity threshold
+        viable_results = [r for r in results if r.get("selectivity", 0) >= MIN_SELECTIVITY]
+        if viable_results:
+            results = viable_results
+
         # Add solvent properties if available (ASYNC)
         solvent_table = get_solvent_table_name()
         if solvent_table and results:
@@ -3291,30 +3598,31 @@ async def plan_sequential_separation(
             except Exception as e:
                 logger.debug(f"Could not fetch solvent properties: {e}")
 
-        return results[:k] if results else [{"solvent": "None found", "selectivity": 0}]
+        return results[:k] if results else [{"solvent": "None found", "selectivity": 0, "target_sol": 0, "max_other": 0}]
 
-    # Async function to analyze a single sequence with parallel step execution
+    # Async function to analyze a single sequence with solvent diversity tracking
     async def analyze_sequence(sequence, seq_idx):
-        """Analyze a single sequence with all steps in parallel."""
+        """Analyze a single sequence, enforcing different solvents for each step."""
         seq_output = []
         seq_output.append(f"### Sequence {seq_idx}: {' → '.join(sequence)}\n")
 
-        # Build tasks for all steps in parallel
-        step_tasks = []
-        step_info = []
-        for step, target in enumerate(sequence[:-1], 1):
-            remaining = list(sequence[step:])  # Polymers after this one
-            step_tasks.append(find_top_solvents(target, remaining, top_k_solvents))
-            step_info.append((step, target, remaining))
+        # Track solvents used in previous steps for diversity
+        used_solvents = set()
 
-        # Execute all steps in parallel
-        all_step_results = await asyncio.gather(*step_tasks)
-
-        # Process results and build output
+        # Process steps SEQUENTIALLY to track used solvents
         total_min_selectivity = float('inf')
         seq_steps = []
 
-        for (step, target, remaining), top_solvents in zip(step_info, all_step_results):
+        for step, target in enumerate(sequence[:-1], 1):
+            remaining = list(sequence[step:])  # Polymers after this one
+
+            # Find top solvents, excluding those already used
+            top_solvents = await find_top_solvents(target, remaining, top_k_solvents, used_solvents)
+
+            # Track the best solvent for this step (first in list)
+            if top_solvents and top_solvents[0].get("solvent") not in ["N/A", "No data", "None found", "Error"]:
+                used_solvents.add(top_solvents[0]["solvent"])
+
             seq_output.append(f"**Step {step}: Separate {target} from {{{', '.join(remaining)}}}**")
 
             step_data = {
@@ -3328,11 +3636,15 @@ async def plan_sequential_separation(
             for rank, sol_info in enumerate(top_solvents, 1):
                 if "error" in sol_info:
                     seq_output.append(f"  {rank}. Error: {sol_info['error']}")
-                elif sol_info["solvent"] == "No data":
+                elif sol_info.get("solvent") in ["No data", "None found", "No viable solvent"]:
                     seq_output.append(f"  {rank}. No data available")
                 else:
-                    symbol = "✅" if sol_info["selectivity"] > 10 else "⚠️" if sol_info["selectivity"] > 0 else "❌"
-                    line = f"  {rank}. {symbol} **{sol_info['solvent']}**: selectivity={sol_info['selectivity']:.1f}% (target={sol_info['target_sol']:.1f}%, max_other={sol_info['max_other']:.1f}%)"
+                    sel = sol_info.get("selectivity", 0)
+                    symbol = "✅" if sel > 10 else "⚠️" if sel > 0 else "❌"
+                    reused_marker = " *(REUSED)*" if sol_info.get("reused") else ""
+                    target_sol = sol_info.get('target_sol', 0)
+                    max_other = sol_info.get('max_other', 0)
+                    line = f"  {rank}. {symbol} **{sol_info['solvent']}**{reused_marker}: selectivity={sel:.1f}% (target={target_sol:.1f}%, max_other={max_other:.1f}%)"
 
                     # Add properties if available
                     props = []
@@ -3358,13 +3670,24 @@ async def plan_sequential_separation(
 
         # Final polymer
         seq_output.append(f"**Step {len(sequence)}: {sequence[-1]} is isolated** ✅\n")
+
+        # Solvent diversity summary
+        best_solvents = [s["solvents"][0]["solvent"] for s in seq_steps
+                        if s["solvents"] and s["solvents"][0].get("solvent") not in ["N/A", "No data", "None found", "Error"]]
+        unique_solvents = set(best_solvents)
+        if len(best_solvents) > len(unique_solvents):
+            seq_output.append(f"⚠️ **Solvent Diversity:** {len(unique_solvents)} unique solvents for {len(best_solvents)} steps (some reused)\n")
+        else:
+            seq_output.append(f"✅ **Solvent Diversity:** {len(unique_solvents)} unique solvents for {len(best_solvents)} steps\n")
+
         seq_output.append("---\n")
 
         return {
             "sequence": sequence,
             "min_selectivity": total_min_selectivity,
             "steps": seq_steps,
-            "output": seq_output
+            "output": seq_output,
+            "unique_solvents": len(unique_solvents)
         }
 
     # Analyze all sequences in parallel with limited concurrency
@@ -3557,45 +3880,865 @@ async def plan_sequential_separation(
 
 @tool
 @safe_tool_wrapper
+async def analyze_integrated_separation(
+    polymers: str,
+    rank_by: str = "selectivity",
+    top_k: int = 10,
+    temperature_min: float = 25.0,
+    temperature_max: float = 160.0,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
+) -> str:
+    """
+    Comprehensive multi-polymer separation analysis with optimal temperatures and integrated properties.
+
+    Analyzes ALL possible separation sequences for multiple polymers, finding the OPTIMAL
+    TEMPERATURE for each separation step. Includes selectivity, safety (G-score),
+    cost (energy), toxicity (LogP), and boiling point for each recommended solvent.
+
+    Key Features:
+    - Searches across ALL temperatures (25-160°C) for each step
+    - Finds optimal temp-solvent combination per separation
+    - Includes GSK safety scores, energy costs, toxicity, boiling points
+    - Ranks by selectivity, cost, safety, or boiling point
+    - Creates visualization showing different temps per step
+
+    Args:
+        polymers: Comma-separated list of polymers to separate (e.g., "LDPE,EVOH,PET,PVC")
+        rank_by: How to rank solvents - 'selectivity', 'cost'/'energy', 'safety'/'gscore', 'toxicity'/'logp', 'bp'/'boiling'
+        top_k: Number of top solvents to show per step (default: 10)
+        temperature_min: Minimum temperature to search (default: 25°C)
+        temperature_max: Maximum temperature to search (default: 160°C)
+        table_name: Solubility data table (default: common_solvents_database)
+        polymer_column: Column with polymer names (default: polymer)
+        solvent_column: Column with solvent names (default: solvent)
+        temperature_column: Column with temperature values (default: temperature___c_)
+        solubility_column: Column with solubility values (default: solubility____)
+
+    Returns:
+        Comprehensive separation plan with optimal temps, solvents, and all properties
+    """
+    from itertools import permutations
+
+    async_db = get_async_db()
+
+    # Parse polymers
+    polymer_list = [p.strip().upper() for p in polymers.split(',') if p.strip()]
+    n_polymers = len(polymer_list)
+
+    if n_polymers < 2:
+        return "❌ Need at least 2 polymers for separation analysis."
+
+    if n_polymers > 6:
+        return f"❌ Too many polymers ({n_polymers}). Maximum 6 for computational feasibility."
+
+    # Get available temperatures from database
+    temp_query = f"""
+    SELECT DISTINCT {temperature_column} as temp
+    FROM {table_name}
+    WHERE {temperature_column} BETWEEN {temperature_min} AND {temperature_max}
+    ORDER BY temp
+    """
+    try:
+        temp_df = await async_db.execute_async(temp_query)
+        available_temps = sorted(temp_df['temp'].unique())
+    except Exception as e:
+        return f"❌ Error getting temperatures: {e}"
+
+    if not available_temps:
+        return f"❌ No temperature data found between {temperature_min}°C and {temperature_max}°C"
+
+    output = [f"# 🔬 Integrated Multi-Polymer Separation Analysis\n"]
+    output.append(f"**Polymers:** {', '.join(polymer_list)}")
+    output.append(f"**Temperature Range:** {temperature_min}°C - {temperature_max}°C ({len(available_temps)} temperatures)")
+    output.append(f"**Ranking Criterion:** {rank_by}")
+    output.append(f"**Number of Sequences:** {n_polymers}! = {len(list(permutations(polymer_list)))}\n")
+
+    # Helper to get solvent properties including GSK G-score
+    async def get_full_properties(solvent_names: list) -> dict:
+        """Get all properties for solvents including GSK G-scores."""
+        prop_lookup = {}
+
+        # Get basic properties from solvent_data
+        solvent_table = get_solvent_table_name()
+        if solvent_table:
+            try:
+                prop_dict = await lookup_solvent_properties(solvent_names, solvent_table)
+                if prop_dict:
+                    prop_lookup.update(prop_dict)
+            except Exception:
+                pass
+
+        # Get GSK G-scores
+        try:
+            solvent_filter = "', '".join(solvent_names)
+            gscore_query = f"""
+            SELECT solvent_common_name, g_score, classification
+            FROM gsk_dataset
+            WHERE LOWER(solvent_common_name) IN ('{solvent_filter.lower()}')
+            """
+            gscore_df = await async_db.execute_async(gscore_query)
+            if len(gscore_df) > 0:
+                for _, row in gscore_df.iterrows():
+                    name = row['solvent_common_name']
+                    # Match by lowercase
+                    for orig_name in solvent_names:
+                        if orig_name.lower() == name.lower():
+                            if orig_name not in prop_lookup:
+                                prop_lookup[orig_name] = {}
+                            prop_lookup[orig_name]['g_score'] = row['g_score']
+                            prop_lookup[orig_name]['gsk_class'] = row['classification']
+                            break
+        except Exception:
+            pass
+
+        return prop_lookup
+
+    # Minimum selectivity threshold - solvents with lower selectivity are not practical
+    MIN_SELECTIVITY_THRESHOLD = 5.0  # At least 5% selectivity required
+
+    # Find optimal separation for target polymer from remaining at ANY temperature
+    async def find_optimal_separation(target: str, remaining: list, used_solvents: set = None) -> dict:
+        """Find the best temperature-solvent combination for separating target from remaining.
+
+        Args:
+            target: Polymer to dissolve/separate
+            remaining: List of polymers that should NOT dissolve
+            used_solvents: Set of solvents already used in previous steps (to enforce diversity)
+        """
+        if used_solvents is None:
+            used_solvents = set()
+
+        if not remaining:
+            return {
+                "solvent": "N/A",
+                "temperature": 0,
+                "selectivity": float('inf'),
+                "target_sol": 100,
+                "max_other": 0,
+                "note": "Last polymer - no separation needed"
+            }
+
+        all_polymers = [target] + remaining
+        polymer_filter = "', '".join(all_polymers)
+
+        # Query across ALL temperatures
+        query = f"""
+        SELECT {solvent_column}, {polymer_column}, {temperature_column} as temp,
+               AVG({solubility_column}) as avg_sol
+        FROM {table_name}
+        WHERE {polymer_column} IN ('{polymer_filter}')
+        AND {temperature_column} BETWEEN {temperature_min} AND {temperature_max}
+        GROUP BY {solvent_column}, {polymer_column}, {temperature_column}
+        """
+
+        try:
+            df = await async_db.execute_async(query)
+        except Exception as e:
+            return {"solvent": "Error", "temperature": 0, "selectivity": 0, "error": str(e)}
+
+        if len(df) == 0:
+            return {"solvent": "No data", "temperature": 0, "selectivity": 0}
+
+        # Analyze each temperature-solvent combination
+        results = []
+        for temp in df['temp'].unique():
+            temp_df = df[df['temp'] == temp]
+
+            for solvent in temp_df[solvent_column].unique():
+                solvent_data = temp_df[temp_df[solvent_column] == solvent]
+
+                target_data = solvent_data[solvent_data[polymer_column] == target]
+                if len(target_data) == 0:
+                    continue
+                target_sol = target_data['avg_sol'].values[0]
+
+                other_data = solvent_data[solvent_data[polymer_column].isin(remaining)]
+                if len(other_data) == 0:
+                    max_other = 0
+                else:
+                    max_other = other_data['avg_sol'].max()
+
+                selectivity = target_sol - max_other
+
+                results.append({
+                    "solvent": solvent,
+                    "temperature": temp,
+                    "selectivity": selectivity,
+                    "target_sol": target_sol,
+                    "max_other": max_other
+                })
+
+        if not results:
+            return {"solvent": "None found", "temperature": 0, "selectivity": 0}
+
+        # CRITICAL: Filter out solvents already used in previous steps to ensure diversity
+        # This prevents the physically-impossible scenario of using the same solvent for all steps
+        if used_solvents:
+            # First try: exclude used solvents entirely
+            unused_results = [r for r in results if r["solvent"].lower() not in {s.lower() for s in used_solvents}]
+            if unused_results:
+                results = unused_results
+            else:
+                # Fallback: if all good solvents are used, keep results but mark as reused
+                for r in results:
+                    if r["solvent"].lower() in {s.lower() for s in used_solvents}:
+                        r["reused_solvent"] = True
+
+        # Filter by minimum selectivity threshold
+        results = [r for r in results if r.get('selectivity', 0) >= MIN_SELECTIVITY_THRESHOLD]
+        if not results:
+            return {"solvent": "No viable solvent", "temperature": 0, "selectivity": 0,
+                    "note": f"No solvent found with selectivity >= {MIN_SELECTIVITY_THRESHOLD}%"}
+
+        # Get properties for all solvents found
+        solvent_names = list(set(r["solvent"] for r in results))
+        prop_lookup = await get_full_properties(solvent_names)
+
+        # Add properties to results
+        for r in results:
+            if r["solvent"] in prop_lookup:
+                r.update(prop_lookup[r["solvent"]])
+
+        # Sort based on rank_by criterion
+        rank_lower = rank_by.lower()
+        if rank_lower in ['cost', 'energy']:
+            # Filter to positive selectivity, then sort by energy (lower = better)
+            valid = [r for r in results if r.get('selectivity', 0) > 0 and r.get('energy') is not None]
+            if valid:
+                valid.sort(key=lambda x: x['energy'])
+                return valid[0]
+        elif rank_lower in ['safety', 'gscore', 'g_score']:
+            # Filter to positive selectivity, sort by G-score (higher = safer)
+            valid = [r for r in results if r.get('selectivity', 0) > 0 and r.get('g_score') is not None]
+            if valid:
+                valid.sort(key=lambda x: x['g_score'], reverse=True)
+                return valid[0]
+        elif rank_lower in ['toxicity', 'logp']:
+            # Filter to positive selectivity, sort by LogP (lower = less toxic)
+            valid = [r for r in results if r.get('selectivity', 0) > 0 and r.get('logp') is not None]
+            if valid:
+                valid.sort(key=lambda x: x['logp'])
+                return valid[0]
+        elif rank_lower in ['bp', 'boiling', 'boiling_point']:
+            # Filter to positive selectivity, sort by boiling point
+            valid = [r for r in results if r.get('selectivity', 0) > 0 and r.get('bp') is not None]
+            if valid:
+                valid.sort(key=lambda x: x['bp'])
+                return valid[0]
+
+        # Default: sort by selectivity (higher = better)
+        results.sort(key=lambda x: x.get('selectivity', 0), reverse=True)
+        return results[0]
+
+    # Analyze a single sequence
+    async def analyze_sequence(sequence: tuple) -> dict:
+        """Analyze one separation sequence finding optimal temp for each step.
+
+        Tracks used solvents to ensure each step uses a DIFFERENT solvent,
+        which is required for physically feasible sequential separation.
+        """
+        steps = []
+        total_score = 0
+        used_solvents = set()  # Track solvents used in previous steps
+
+        for step_idx, target in enumerate(sequence[:-1]):
+            remaining = list(sequence[step_idx + 1:])
+            best = await find_optimal_separation(target, remaining, used_solvents)
+
+            # Track the solvent used in this step (if valid)
+            if best.get('solvent') and best['solvent'] not in ['None found', 'No data', 'Error', 'N/A', 'No viable solvent']:
+                used_solvents.add(best['solvent'])
+
+            step_data = {
+                "step": step_idx + 1,
+                "target": target,
+                "remaining": remaining,
+                "best": best
+            }
+            steps.append(step_data)
+
+            # Score based on selectivity (or other criteria)
+            sel = best.get('selectivity', 0)
+            if sel != float('inf'):
+                total_score += sel
+
+        # Add final polymer
+        steps.append({
+            "step": len(sequence),
+            "target": sequence[-1],
+            "remaining": [],
+            "best": {"solvent": "N/A", "temperature": 0, "selectivity": float('inf'), "note": "Isolated"}
+        })
+
+        # Calculate minimum selectivity (bottleneck)
+        min_sel = min(
+            s["best"].get("selectivity", 0)
+            for s in steps[:-1]
+            if s["best"].get("selectivity", 0) != float('inf')
+        ) if len(steps) > 1 else 0
+
+        return {
+            "sequence": sequence,
+            "steps": steps,
+            "total_score": total_score,
+            "min_selectivity": min_sel
+        }
+
+    # Generate all permutations and analyze in parallel
+    all_sequences = list(permutations(polymer_list))
+
+    output.append("## 📋 Analyzing All Sequences...\n")
+
+    # Analyze all sequences with limited concurrency
+    semaphore = asyncio.Semaphore(5)
+
+    async def analyze_with_limit(seq):
+        async with semaphore:
+            return await analyze_sequence(seq)
+
+    all_results = await asyncio.gather(*[analyze_with_limit(seq) for seq in all_sequences])
+
+    # Sort by minimum selectivity (bottleneck approach)
+    all_results.sort(key=lambda x: x["min_selectivity"], reverse=True)
+
+    # Show top 3 sequences in detail
+    output.append("## 🏆 Top 3 Recommended Separation Sequences\n")
+
+    for rank, result in enumerate(all_results[:3], 1):
+        seq = result["sequence"]
+        medal = "🥇" if rank == 1 else "🥈" if rank == 2 else "🥉"
+
+        output.append(f"### {medal} Rank #{rank}: {' → '.join(seq)}")
+        output.append(f"**Minimum Selectivity (Bottleneck):** {result['min_selectivity']:.1f}%\n")
+
+        for step in result["steps"][:-1]:  # Exclude final "isolated" step
+            best = step["best"]
+            target = step["target"]
+            remaining = step["remaining"]
+
+            sel = best.get('selectivity', 0)
+            symbol = "✅" if sel > 30 else "🟡" if sel > 10 else "⚠️" if sel > 0 else "❌"
+
+            output.append(f"**Step {step['step']}: Separate {target} from {{{', '.join(remaining)}}}**")
+
+            # Check for warnings
+            solvent_name = best.get('solvent', 'N/A')
+            if best.get('reused_solvent'):
+                output.append(f"  ⚠️ **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f}°C** *(REUSED - limited options)*")
+            elif best.get('note'):
+                output.append(f"  ❌ **Solvent:** {solvent_name} - {best.get('note')}")
+            else:
+                output.append(f"  {symbol} **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f}°C**")
+            output.append(f"  - Selectivity: {sel:.1f}% (target: {best.get('target_sol', 0):.1f}%, max_other: {best.get('max_other', 0):.1f}%)")
+
+            # Properties
+            props = []
+            if best.get('g_score') is not None:
+                gs = best['g_score']
+                rating = "✅ Excellent" if gs >= 8 else "🟢 Good" if gs >= 6 else "🟡 Problematic" if gs >= 4 else "🔴 Hazardous"
+                props.append(f"G-Score: {gs:.1f}/10 ({rating})")
+            if best.get('logp') is not None:
+                lp = best['logp']
+                tox = "Low" if lp < 0 else "Medium" if lp < 2 else "High"
+                props.append(f"LogP: {lp:.2f} ({tox} toxicity)")
+            if best.get('energy') is not None:
+                props.append(f"Energy: {best['energy']:.1f} J/g")
+            if best.get('bp') is not None:
+                props.append(f"BP: {best['bp']:.0f}°C")
+
+            if props:
+                output.append(f"  - Properties: {' | '.join(props)}")
+            output.append("")
+
+        # Final polymer
+        output.append(f"**Step {len(seq)}: {seq[-1]} is isolated** ✅\n")
+
+        # Summary: check for solvent diversity
+        solvents_used = [s["best"].get("solvent", "N/A") for s in result["steps"][:-1]
+                        if s["best"].get("solvent") not in ["N/A", "None found", "No data", "Error", "No viable solvent"]]
+        unique_solvents = set(solvents_used)
+        if len(solvents_used) > len(unique_solvents):
+            duplicates = [s for s in unique_solvents if solvents_used.count(s) > 1]
+            output.append(f"⚠️ **Warning:** Solvent(s) {duplicates} used multiple times. This may indicate limited data or challenging separation.\n")
+        else:
+            output.append(f"✅ **Solvent Diversity:** {len(unique_solvents)} unique solvents for {len(solvents_used)} steps\n")
+
+        output.append("---\n")
+
+    # Create visualization for top sequence
+    try:
+        best_result = all_results[0]
+        seq = best_result["sequence"]
+        steps = best_result["steps"][:-1]  # Exclude final step
+
+        n_steps = len(steps)
+        fig_height = max(5 + n_steps * 3.5, 12)
+        fig, ax = plt.subplots(figsize=(16, fig_height), dpi=150)
+
+        ax.set_title(
+            f'OPTIMAL SEPARATION SEQUENCE: {" → ".join(seq)}\n' +
+            f'Ranked by: {rank_by} | Min Selectivity: {best_result["min_selectivity"]:.1f}%',
+            fontsize=18, fontweight='bold', pad=25
+        )
+
+        ax.set_xlim(0, 14)
+        ax.set_ylim(-1.5, n_steps + 3.5)
+        ax.axis('off')
+
+        def get_color(selectivity):
+            if selectivity > 30:
+                return '#2ecc71'  # Green
+            elif selectivity > 10:
+                return '#f1c40f'  # Yellow
+            elif selectivity > 0:
+                return '#e67e22'  # Orange
+            else:
+                return '#e74c3c'  # Red
+
+        # Starting mixture
+        y_pos = n_steps + 2
+        ax.add_patch(plt.Rectangle((1.5, y_pos - 0.5), 11, 1.0,
+                                   facecolor='#3498db', edgecolor='black', linewidth=2.5))
+        ax.text(7, y_pos, f'MIXTURE: {", ".join(polymer_list)}',
+               ha='center', va='center', fontsize=16, fontweight='bold', color='white')
+
+        # Draw each step
+        for idx, step in enumerate(steps):
+            y_pos = n_steps + 1 - idx
+            best = step["best"]
+            target = step["target"]
+            remaining = step["remaining"]
+            sel = best.get('selectivity', 0)
+            temp = best.get('temperature', 0)
+            color = get_color(sel)
+
+            # Arrow
+            ax.annotate('', xy=(3.5, y_pos + 0.4), xytext=(3.5, y_pos + 0.9),
+                       arrowprops=dict(arrowstyle='->', lw=3.5, color=color))
+
+            # Step box (left side)
+            ax.add_patch(plt.Rectangle((1, y_pos - 0.6), 5.5, 1.2,
+                                      facecolor=color, edgecolor='black', linewidth=2.5, alpha=0.25))
+
+            # Step number circle
+            ax.add_patch(plt.Circle((1.6, y_pos), 0.35, facecolor=color, edgecolor='black', linewidth=2.5))
+            ax.text(1.6, y_pos, str(idx + 1), ha='center', va='center',
+                   fontsize=15, fontweight='bold', color='white')
+
+            # Target polymer
+            ax.text(2.4, y_pos + 0.25, f'SEPARATE: {target}',
+                   ha='left', va='center', fontsize=14, fontweight='bold')
+            ax.text(2.4, y_pos - 0.25, f'From: {", ".join(remaining)}',
+                   ha='left', va='center', fontsize=12, color='#333')
+
+            # Solvent & Temperature box (right side) - LARGER for better readability
+            ax.add_patch(plt.Rectangle((7, y_pos - 0.6), 5.5, 1.2,
+                                      facecolor='white', edgecolor=color, linewidth=2.5))
+            ax.text(9.75, y_pos + 0.25, f'{best.get("solvent", "N/A")}',
+                   ha='center', va='center', fontsize=14, fontweight='bold')
+            ax.text(9.75, y_pos - 0.15, f'{temp:.0f}°C  |  Selectivity: {sel:.1f}%',
+                   ha='center', va='center', fontsize=13, color=color, fontweight='bold')
+
+            # Properties below - LARGER AND BOLDER for publication quality
+            props_text = []
+            if best.get('g_score') is not None:
+                props_text.append(f"G-Score: {best['g_score']:.0f}")
+            if best.get('energy') is not None:
+                props_text.append(f"Energy: {best['energy']:.0f} J/g")
+            if best.get('bp') is not None:
+                props_text.append(f"BP: {best['bp']:.0f}°C")
+            if props_text:
+                ax.text(9.75, y_pos - 0.52, '  |  '.join(props_text),
+                       ha='center', va='top', fontsize=12, fontweight='semibold', color='#222')
+
+        # Final result
+        ax.add_patch(plt.Rectangle((1.5, -0.5), 11, 1.0,
+                                  facecolor='#2ecc71', edgecolor='black', linewidth=2.5))
+        ax.text(7, 0, f'✓ ALL POLYMERS SEPARATED',
+               ha='center', va='center', fontsize=16, fontweight='bold', color='white')
+
+        # Legend - larger and more readable
+        legend_elements = [
+            plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#2ecc71',
+                      markersize=14, label='Excellent (>30%)'),
+            plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#f1c40f',
+                      markersize=14, label='Good (10-30%)'),
+            plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#e67e22',
+                      markersize=14, label='Marginal (0-10%)'),
+            plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#e74c3c',
+                      markersize=14, label='Poor (<0%)'),
+        ]
+        ax.legend(handles=legend_elements, loc='upper right', fontsize=12,
+                 framealpha=0.95, edgecolor='#333', fancybox=True)
+
+        plt.tight_layout(pad=2.0)
+        filepath = save_plot(fig, "integrated_separation_analysis")
+        plt.close(fig)
+
+        output.append(f"## 📊 Visualization\n")
+        output.append(f"![Separation Sequence]({get_plot_url(filepath)})\n")
+
+    except Exception as e:
+        logger.error(f"Visualization error: {e}", exc_info=True)
+        output.append(f"⚠️ Could not create visualization: {e}\n")
+
+    # Summary and recommendations
+    output.append("## 📝 Summary & Recommendations\n")
+
+    best = all_results[0]
+    output.append(f"**Best Sequence:** {' → '.join(best['sequence'])}")
+    output.append(f"**Bottleneck Selectivity:** {best['min_selectivity']:.1f}%\n")
+
+    output.append("**Optimal Conditions per Step:**")
+    for step in best["steps"][:-1]:
+        b = step["best"]
+        output.append(f"  - Step {step['step']}: {step['target']} → {b.get('solvent', 'N/A')} @ {b.get('temperature', 0):.0f}°C")
+
+    # Alternative ranking recommendations
+    if rank_by.lower() == 'selectivity':
+        output.append("\n💡 **Tip:** Re-run with `rank_by='cost'` for cheapest solvents, `rank_by='safety'` for safest (highest G-score), or `rank_by='toxicity'` for least toxic (lowest LogP).")
+
+    return "\n".join(output)
+
+
+@tool
+@safe_tool_wrapper
+async def get_solubility_for_solvents(
+    polymer: str,
+    solvents: str,
+    temperature: float = 90.0,
+    temperature_range: float = 10.0
+) -> str:
+    """
+    Get solubility data for SPECIFIC solvents with a given polymer.
+
+    Use this when the user asks to compare specific solvents by name,
+    rather than searching for the best solvents.
+
+    Parameters:
+    - polymer: The polymer name (e.g., "EVOH", "LDPE", "PET")
+    - solvents: Comma-separated list of specific solvents (e.g., "DMSO,DMF,NMP,ethylene glycol")
+    - temperature: Target temperature in °C (default: 90)
+    - temperature_range: Temperature tolerance +/- (default: 10°C)
+
+    WHEN TO USE:
+    - "Get solubility of EVOH in DMSO, DMF, and NMP at 90°C"
+    - "Compare these 5 solvents for PET: toluene, xylene, benzene, acetone, ethanol"
+    - "What's the solubility of LDPE in heptane and hexane?"
+
+    Returns: Solubility data for each specified solvent
+    """
+    async_db = get_async_db()
+    polymer_upper = polymer.strip().upper()
+    solvent_list = [s.strip().lower() for s in solvents.split(',')]
+
+    output = [f"SOLUBILITY DATA: {polymer_upper} in specific solvents at {temperature}°C\n"]
+
+    results = []
+    missing_solvents = []
+
+    for solvent in solvent_list:
+        # Try exact match first
+        query = f"""
+        SELECT solvent, AVG(solubility____) as avg_solubility,
+               MIN(solubility____) as min_sol, MAX(solubility____) as max_sol,
+               COUNT(*) as data_points
+        FROM common_solvents_database
+        WHERE UPPER(polymer) = '{polymer_upper}'
+        AND LOWER(solvent) LIKE '%{solvent}%'
+        AND temperature___c_ BETWEEN {temperature - temperature_range} AND {temperature + temperature_range}
+        GROUP BY solvent
+        """
+
+        try:
+            df = await async_db.execute_async(query)
+            if len(df) > 0:
+                for _, row in df.iterrows():
+                    results.append({
+                        'solvent': row['solvent'],
+                        'solubility': row['avg_solubility'],
+                        'min_sol': row['min_sol'],
+                        'max_sol': row['max_sol'],
+                        'data_points': row['data_points']
+                    })
+            else:
+                missing_solvents.append(solvent)
+        except Exception as e:
+            logger.warning(f"Error querying {solvent}: {e}")
+            missing_solvents.append(solvent)
+
+    if results:
+        output.append("RESULTS:")
+        for r in sorted(results, key=lambda x: x['solubility'], reverse=True):
+            output.append(f"{r['solvent']}: {r['solubility']:.1f}% (range: {r['min_sol']:.1f}-{r['max_sol']:.1f}%, n={r['data_points']})")
+    else:
+        output.append("No solubility data found for any of the specified solvents.")
+
+    if missing_solvents:
+        output.append(f"\nNO DATA for: {', '.join(missing_solvents)}")
+        output.append("(These solvents may not have solubility data for this polymer at this temperature)")
+
+    return "\n".join(output)
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_polymer_dissolution(
+    polymer: str,
+    temperature: float = 120.0,
+    min_solubility: float = 5.0,
+    rank_by: str = "solubility",
+    top_k: int = 15,
+    temperature_range: float = 10.0,
+    adaptive: bool = True
+) -> str:
+    """
+    Find solvents that dissolve a polymer at a given temperature AND show their properties.
+
+    This is the PRIMARY tool for questions like:
+    - "What solvents dissolve PET at 120°C?"
+    - "Find solvents for LDPE ranked by boiling point"
+    - "What are the safest solvents for PS dissolution?"
+    - "Cheapest solvents for dissolving HDPE"
+
+    Automatically includes: boiling point, cost (energy), toxicity (LogP), G-score safety rating.
+
+    Args:
+        polymer: The polymer to dissolve (e.g., "PET", "LDPE", "PS", "HDPE")
+        temperature: Target temperature in °C (default: 120 - most polymers need elevated temps)
+        min_solubility: Minimum solubility % to include (default: 5% - adaptive mode will adjust if needed)
+        rank_by: How to rank - 'solubility', 'bp'/'boiling', 'cost'/'energy', 'safety'/'gscore', 'toxicity'/'logp'
+        top_k: Number of results (default: 15)
+        temperature_range: Temperature tolerance +/- (default: 10°C)
+        adaptive: If True, automatically searches higher temps and lower thresholds if needed (default: True)
+
+    Returns:
+        Ranked list of solvents with solubility AND all properties (BP, cost, safety, toxicity)
+    """
+    async_db = get_async_db()
+    polymer_upper = polymer.strip().upper()
+
+    # Query for solvents that dissolve the polymer
+    query = f"""
+    SELECT solvent, AVG(solubility____) as avg_solubility,
+           MIN(solubility____) as min_sol, MAX(solubility____) as max_sol,
+           COUNT(*) as data_points
+    FROM common_solvents_database
+    WHERE UPPER(polymer) = '{polymer_upper}'
+    AND temperature___c_ BETWEEN {temperature - temperature_range} AND {temperature + temperature_range}
+    GROUP BY solvent
+    HAVING avg_solubility >= {min_solubility}
+    ORDER BY avg_solubility DESC
+    """
+
+    try:
+        df = await async_db.execute_async(query)
+    except Exception as e:
+        return f"❌ Query error: {e}"
+
+    if len(df) == 0 and adaptive:
+        # ADAPTIVE MODE: Try higher temperatures and lower thresholds
+        adaptive_note = f"⚠️ No solvents found with >{min_solubility}% solubility for {polymer_upper} at {temperature}°C.\n\n"
+        adaptive_note += "**Adaptive search engaged** - trying higher temperatures...\n\n"
+
+        # Try higher temperatures (up to 160°C)
+        for try_temp in [140, 150, 160]:
+            if try_temp <= temperature:
+                continue
+            adaptive_query = f"""
+            SELECT solvent, AVG(solubility____) as avg_solubility,
+                   MIN(solubility____) as min_sol, MAX(solubility____) as max_sol,
+                   COUNT(*) as data_points
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = '{polymer_upper}'
+            AND temperature___c_ BETWEEN {try_temp - 5} AND {try_temp + 5}
+            GROUP BY solvent
+            HAVING avg_solubility >= 1.0
+            ORDER BY avg_solubility DESC
+            LIMIT {top_k}
+            """
+            try:
+                adaptive_df = await async_db.execute_async(adaptive_query)
+                if len(adaptive_df) > 0:
+                    df = adaptive_df
+                    temperature = try_temp
+                    adaptive_note += f"✅ Found results at **{try_temp}°C**\n\n"
+                    break
+            except:
+                pass
+
+        if len(df) == 0:
+            # Still nothing - get whatever is available
+            fallback_query = f"""
+            SELECT solvent, temperature___c_ as temp, AVG(solubility____) as avg_solubility
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = '{polymer_upper}'
+            GROUP BY solvent, temperature___c_
+            ORDER BY avg_solubility DESC
+            LIMIT 10
+            """
+            try:
+                fallback_df = await async_db.execute_async(fallback_query)
+                if len(fallback_df) > 0:
+                    best = fallback_df.iloc[0]
+                    return (
+                        f"❌ No high-solubility solvents found for {polymer_upper}.\n\n"
+                        f"**Best available:** {best['solvent']} at {best['avg_solubility']:.1f}% "
+                        f"solubility at {best['temp']}°C.\n\n"
+                        f"💡 **Suggestions:**\n"
+                        f"- This polymer may have limited solubility in common solvents\n"
+                        f"- Try ML prediction for specialized solvents\n"
+                        f"- Check structurally similar polymers"
+                    )
+            except:
+                pass
+
+            return (
+                f"❌ No solubility data found for {polymer_upper}.\n\n"
+                f"💡 This polymer may not be in the database. Try:\n"
+                f"- `list_available_polymers()` to see available polymers\n"
+                f"- ML prediction for polymers not in database"
+            )
+    elif len(df) == 0:
+        return (
+            f"❌ No solvents found with >{min_solubility}% solubility for {polymer_upper} at {temperature}°C.\n\n"
+            f"💡 Try setting `adaptive=True` or increasing temperature."
+        )
+
+    # Get properties for each solvent using cross-database lookup
+    results = []
+    for _, row in df.iterrows():
+        solvent_name = row['solvent']
+        avg_sol = row['avg_solubility']
+
+        # Get cross-database properties
+        props = get_cross_database_properties(solvent_name, sql_db.conn)
+
+        results.append({
+            'solvent': solvent_name,
+            'solubility': avg_sol,
+            'min_sol': row['min_sol'],
+            'max_sol': row['max_sol'],
+            'data_points': row['data_points'],
+            **props
+        })
+
+    # Sort based on rank_by criterion
+    rank_lower = rank_by.lower()
+    if rank_lower in ['bp', 'boiling', 'boiling_point']:
+        # Sort by BP (lower first = easier recovery), put None at end
+        results.sort(key=lambda x: (x['bp'] is None, x['bp'] if x['bp'] is not None else float('inf')))
+    elif rank_lower in ['cost', 'energy']:
+        # Sort by energy (lower = cheaper)
+        results.sort(key=lambda x: (x['energy'] is None, x['energy'] if x['energy'] is not None else float('inf')))
+    elif rank_lower in ['safety', 'gscore', 'g_score']:
+        # Sort by G-score (higher = safer)
+        results.sort(key=lambda x: (x['g_score'] is None, -(x['g_score'] if x['g_score'] is not None else -float('inf'))))
+    elif rank_lower in ['toxicity', 'logp']:
+        # Sort by LogP (lower = less toxic)
+        results.sort(key=lambda x: (x['logp'] is None, x['logp'] if x['logp'] is not None else float('inf')))
+    else:
+        # Default: sort by solubility (higher = better)
+        results.sort(key=lambda x: -x['solubility'])
+
+    # Build output
+    output = [f"# 🧪 Solvents for {polymer_upper} Dissolution\n"]
+    output.append(f"**Temperature:** {temperature}°C (±{temperature_range}°C)")
+    output.append(f"**Minimum Solubility:** {min_solubility}%")
+    output.append(f"**Ranked By:** {rank_by}")
+    output.append(f"**Results:** {len(results)} solvents found\n")
+
+    output.append("## Results\n")
+    output.append("| # | Solvent | Solubility | BP (°C) | G-Score | LogP | Energy (J/g) |")
+    output.append("|---|---------|------------|---------|---------|------|--------------|")
+
+    for i, r in enumerate(results[:top_k], 1):
+        sol = r['solubility']
+        bp = f"{r['bp']:.0f}" if r['bp'] is not None else "—"
+        gs = f"{r['g_score']:.1f}" if r['g_score'] is not None else "—"
+        lp = f"{r['logp']:.2f}" if r['logp'] is not None else "—"
+        en = f"{r['energy']:.0f}" if r['energy'] is not None else "—"
+
+        # Add quality indicators
+        sol_icon = "✅" if sol > 80 else "🟡" if sol > 50 else "⚠️"
+        gs_icon = ""
+        if r['g_score'] is not None:
+            gs_icon = "✅" if r['g_score'] >= 7 else "🟡" if r['g_score'] >= 5 else "🔴"
+
+        output.append(f"| {i} | **{r['solvent']}** | {sol_icon} {sol:.1f}% | {bp} | {gs_icon}{gs} | {lp} | {en} |")
+
+    # Add recommendations
+    output.append("\n## 📝 Recommendations\n")
+
+    # Best by different criteria
+    if results:
+        best_sol = max(results, key=lambda x: x['solubility'])
+        output.append(f"**Best Solubility:** {best_sol['solvent']} ({best_sol['solubility']:.1f}%)")
+
+        with_bp = [r for r in results if r['bp'] is not None]
+        if with_bp:
+            lowest_bp = min(with_bp, key=lambda x: x['bp'])
+            output.append(f"**Lowest Boiling Point:** {lowest_bp['solvent']} ({lowest_bp['bp']:.0f}°C) - easiest recovery")
+
+        with_gs = [r for r in results if r['g_score'] is not None]
+        if with_gs:
+            safest = max(with_gs, key=lambda x: x['g_score'])
+            output.append(f"**Safest (G-Score):** {safest['solvent']} (G={safest['g_score']:.1f}/10)")
+
+        with_energy = [r for r in results if r['energy'] is not None]
+        if with_energy:
+            cheapest = min(with_energy, key=lambda x: x['energy'])
+            output.append(f"**Cheapest (Energy):** {cheapest['solvent']} ({cheapest['energy']:.0f} J/g)")
+
+        with_logp = [r for r in results if r['logp'] is not None]
+        if with_logp:
+            least_toxic = min(with_logp, key=lambda x: x['logp'])
+            output.append(f"**Least Toxic (LogP):** {least_toxic['solvent']} (LogP={least_toxic['logp']:.2f})")
+
+    # Legend
+    output.append("\n## Legend")
+    output.append("- **G-Score:** 1-10 scale (higher = safer). ✅≥7, 🟡5-7, 🔴<5")
+    output.append("- **LogP:** Lower/negative = less toxic, more water soluble")
+    output.append("- **Energy:** Lower = cheaper operating cost")
+    output.append("- **BP:** Lower = easier solvent recovery")
+
+    return "\n".join(output)
+
+
+@tool
+@safe_tool_wrapper
 async def view_alternative_separation_sequence(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
     polymers: str,
     sequence_rank: Optional[int] = None,
     starting_polymer: Optional[str] = None,
     top_k_solvents: int = 5,
-    temperature: float = 25.0
+    temperature: float = 25.0,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
     """
     View a specific alternative separation sequence with clear visualization.
 
-    This tool is used when the user asks to see alternative sequences after
-    running plan_sequential_separation. The user can specify either:
-    - A rank number (e.g., 2nd best, 3rd best)
-    - A starting polymer (e.g., "PET-first" or "starting with LDPE")
+    Use after plan_sequential_separation to explore different sequence options.
 
-    Args:
-        table_name: Database table name
-        polymer_column: Column containing polymer names
-        solvent_column: Column containing solvent names
-        temperature_column: Column containing temperature values
-        solubility_column: Column containing solubility values
-        polymers: Comma-separated list of polymers (same as original query)
-        sequence_rank: Rank of sequence to view (1=best, 2=2nd best, etc.)
-        starting_polymer: Name of polymer to start with (alternative to rank)
-        top_k_solvents: Number of top solvents to show per step (default: 5)
-        temperature: Target temperature in °C (default: 25.0)
+    Parameters:
+    - polymers: Comma-separated list of polymers (e.g., "LDPE,HDPE,PP,PS")
+    - sequence_rank: Rank of sequence to view (1=best, 2=2nd best, etc.)
+    - starting_polymer: Name of polymer to start with (alternative to rank)
+    - top_k_solvents: Number of top solvents to show per step (default: 5)
+    - temperature: Target temperature in °C (default: 25.0)
 
-    Returns:
-        Visualization and details of the requested separation sequence
-
-    Examples:
-        - "Show me the 2nd best sequence" → sequence_rank=2
-        - "Show me PET-first separation" → starting_polymer="PET"
-        - "What if we start with LDPE instead?" → starting_polymer="LDPE"
+    WHEN TO USE:
+    - "Show me the 2nd best separation sequence"
+    - "What if we start with PET instead?"
+    - "View LDPE-first separation option"
     """
     from itertools import permutations
 
@@ -3631,10 +4774,10 @@ async def view_alternative_separation_sequence(
         try:
             df = await async_db.execute_async(query)
         except Exception as e:
-            return [{"solvent": "Error", "selectivity": 0, "error": str(e)}]
+            return [{"solvent": "Error", "selectivity": 0, "target_sol": 0, "max_other": 0, "error": str(e)}]
 
         if len(df) == 0:
-            return [{"solvent": "No data", "selectivity": 0}]
+            return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
 
         results = []
         for solvent in df[solvent_column].unique():
@@ -4326,36 +5469,36 @@ def rank_solvents_by_property(
 
 @tool
 @safe_tool_wrapper
-def analyze_separation_with_properties(
-    table_name: str,
-    polymer_column: str,
-    solvent_column: str,
-    temperature_column: str,
-    solubility_column: str,
+async def analyze_separation_with_properties(
     target_polymer: str,
     comparison_polymers: str,
-    temperature: float = 25.0,
+    temperature: float = 120.0,
     rank_by: str = "selectivity",
-    top_k: int = 10
+    top_k: int = 10,
+    table_name: str = "common_solvents_database",
+    polymer_column: str = "polymer",
+    solvent_column: str = "solvent",
+    temperature_column: str = "temperature___c_",
+    solubility_column: str = "solubility____"
 ) -> str:
     """
     Find selective solvents AND include their physical/economic properties.
-    
+
     Combines separation analysis with solvent property data to help choose
     solvents based on both selectivity AND practical considerations.
-    
+
     Args:
-        table_name: Solubility data table
-        polymer_column: Column with polymer names
-        solvent_column: Column with solvent names
-        temperature_column: Column with temperature values
-        solubility_column: Column with solubility values
         target_polymer: Polymer to dissolve
         comparison_polymers: Comma-separated polymers to separate from
-        temperature: Target temperature (default 25°C)
+        temperature: Target temperature (default 120°C - polymers need elevated temps)
         rank_by: How to rank results - 'selectivity', 'energy' (cost), 'logp' (toxicity), 'bp'
         top_k: Number of top results to return
-    
+        table_name: Solubility data table (default: common_solvents_database)
+        polymer_column: Column with polymer names (default: polymer)
+        solvent_column: Column with solvent names (default: solvent)
+        temperature_column: Column with temperature values (default: temperature___c_)
+        solubility_column: Column with solubility values (default: solubility____)
+
     Returns:
         Ranked solvents with selectivity AND properties (cost, toxicity, bp)
     """
@@ -4422,7 +5565,7 @@ def analyze_separation_with_properties(
 
     if solvent_table:
         solvent_names = [r["solvent"] for r in results]
-        prop_lookup = lookup_solvent_properties(solvent_names, solvent_table)
+        prop_lookup = await lookup_solvent_properties(solvent_names, solvent_table)
 
         if prop_lookup:
             properties_available = True
@@ -4755,7 +5898,8 @@ async def visualize_gscores(
     family: Optional[str] = None,
     solvent_list: Optional[str] = None,
     min_score: Optional[float] = None,
-    plot_type: str = "bar"
+    plot_type: str = "bar",
+    top_k: int = 10
 ) -> str:
     """
     Visualize GSK G-scores for solvents.
@@ -4766,6 +5910,7 @@ async def visualize_gscores(
         solvent_list: If filter_by="list", comma-separated solvent names
         min_score: Minimum G-score to include (0-10)
         plot_type: Type of plot ("bar", "scatter", or "box" for family comparison)
+        top_k: Maximum number of solvents to show (default: 10)
 
     Returns:
         Path to the saved plot
@@ -4793,6 +5938,7 @@ async def visualize_gscores(
         FROM gsk_dataset
         WHERE {where_clause}
         ORDER BY g_score DESC
+        LIMIT {top_k}
         """
 
         df = await async_db.execute_async(query)
@@ -4905,6 +6051,190 @@ async def visualize_gscores(
     except Exception as e:
         logger.error(f"Error in visualize_gscores: {e}")
         return f"❌ Error creating visualization: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def plot_solvent_properties_for_polymer(
+    polymer: str,
+    temperature: float = 120.0,
+    min_solubility: float = 1.0,
+    x_property: str = "logp",
+    y_property: str = "g_score",
+    top_k: int = 20
+) -> str:
+    """
+    Create scatter plot of solvent properties (LogP, G-score, BP, energy) for solvents that dissolve a specific polymer.
+
+    This is a MULTI-STEP tool that:
+    1. Finds solvents that dissolve the specified polymer at the given temperature
+    2. Retrieves their properties from both solvent_data and gsk_dataset tables
+    3. Creates a scatter plot comparing two properties (e.g., LogP vs G-score)
+
+    Use this for questions like:
+    - "Show a scatter plot of LogP vs G-score for solvents that dissolve PET at 140°C"
+    - "Plot boiling point vs safety for LDPE solvents"
+    - "Compare toxicity vs cost for solvents that work with PS"
+
+    Args:
+        polymer: The polymer to analyze (e.g., "PET", "LDPE", "PS")
+        temperature: Target temperature (default: 120°C)
+        min_solubility: Minimum solubility % to include a solvent (default: 1%)
+        x_property: Property for X-axis - "logp", "bp", "energy", "g_score" (default: "logp")
+        y_property: Property for Y-axis - "logp", "bp", "energy", "g_score" (default: "g_score")
+        top_k: Maximum solvents to include (default: 20)
+
+    Returns:
+        Scatter plot with solvent properties and summary statistics
+    """
+    async_db = get_async_db()
+    polymer_upper = polymer.strip().upper()
+
+    # Step 1: Find solvents that dissolve this polymer
+    sol_query = f"""
+    SELECT solvent, AVG(solubility____) as avg_solubility
+    FROM common_solvents_database
+    WHERE UPPER(polymer) = '{polymer_upper}'
+    AND temperature___c_ BETWEEN {temperature - 10} AND {temperature + 10}
+    GROUP BY solvent
+    HAVING avg_solubility >= {min_solubility}
+    ORDER BY avg_solubility DESC
+    LIMIT {top_k}
+    """
+
+    try:
+        sol_df = await async_db.execute_async(sol_query)
+    except Exception as e:
+        return f"❌ Error finding solvents: {e}"
+
+    if len(sol_df) == 0:
+        return f"❌ No solvents found that dissolve {polymer_upper} with >{min_solubility}% solubility at {temperature}°C. Try lowering min_solubility or trying a different temperature."
+
+    solvents_found = sol_df['solvent'].tolist()
+    solubility_map = dict(zip(sol_df['solvent'], sol_df['avg_solubility']))
+
+    # Step 2: Get properties from solvent_data
+    solvent_table = get_solvent_table_name()
+    prop_data = []
+
+    if solvent_table:
+        for solvent in solvents_found:
+            props = get_cross_database_properties(solvent, sql_db.conn)
+            if props:
+                prop_data.append({
+                    'solvent': solvent,
+                    'solubility': solubility_map.get(solvent, 0),
+                    'logp': props.get('logp'),
+                    'bp': props.get('bp'),
+                    'energy': props.get('energy'),
+                    'g_score': props.get('g_score'),
+                    'gsk_class': props.get('gsk_class')
+                })
+
+    if not prop_data:
+        return f"❌ Found {len(solvents_found)} solvents but couldn't retrieve properties. The solvent names may not match across databases."
+
+    df = pd.DataFrame(prop_data)
+
+    # Filter to solvents that have both requested properties
+    x_col = x_property.lower()
+    y_col = y_property.lower()
+
+    df_valid = df.dropna(subset=[x_col, y_col])
+
+    if len(df_valid) == 0:
+        available_props = []
+        if df['logp'].notna().any(): available_props.append('logp')
+        if df['bp'].notna().any(): available_props.append('bp')
+        if df['energy'].notna().any(): available_props.append('energy')
+        if df['g_score'].notna().any(): available_props.append('g_score')
+        return f"❌ No solvents have both {x_property} and {y_property} data. Available properties: {', '.join(available_props)}"
+
+    # Step 3: Create scatter plot
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Color by solubility
+    scatter = ax.scatter(
+        df_valid[x_col],
+        df_valid[y_col],
+        c=df_valid['solubility'],
+        cmap='YlOrRd',
+        s=150,
+        alpha=0.7,
+        edgecolors='black',
+        linewidths=1
+    )
+
+    # Add colorbar for solubility
+    cbar = plt.colorbar(scatter)
+    cbar.set_label(f'Solubility in {polymer_upper} (%)', fontsize=12)
+
+    # Add solvent labels
+    for _, row in df_valid.iterrows():
+        ax.annotate(
+            row['solvent'],
+            (row[x_col], row[y_col]),
+            xytext=(5, 5),
+            textcoords='offset points',
+            fontsize=9,
+            alpha=0.8
+        )
+
+    # Labels and styling
+    x_labels = {
+        'logp': 'LogP (Toxicity - lower is better)',
+        'bp': 'Boiling Point (°C)',
+        'energy': 'Energy Cost (J/g - lower is cheaper)',
+        'g_score': 'G-Score (Safety - higher is safer)'
+    }
+    y_labels = x_labels.copy()
+
+    ax.set_xlabel(x_labels.get(x_col, x_col), fontsize=14, fontweight='bold')
+    ax.set_ylabel(y_labels.get(y_col, y_col), fontsize=14, fontweight='bold')
+    ax.set_title(f'{x_property.upper()} vs {y_property.upper()} for {polymer_upper} Solvents at {temperature}°C',
+                fontsize=16, fontweight='bold')
+    ax.grid(True, alpha=0.3)
+
+    # Add reference lines for G-score thresholds
+    if y_col == 'g_score':
+        ax.axhline(y=6.0, color='orange', linestyle='--', alpha=0.5, label='Good threshold (6.0)')
+        ax.axhline(y=8.0, color='green', linestyle='--', alpha=0.5, label='Excellent threshold (8.0)')
+        ax.legend()
+    elif x_col == 'g_score':
+        ax.axvline(x=6.0, color='orange', linestyle='--', alpha=0.5, label='Good threshold (6.0)')
+        ax.axvline(x=8.0, color='green', linestyle='--', alpha=0.5, label='Excellent threshold (8.0)')
+        ax.legend()
+
+    plt.tight_layout()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"solvent_properties_{polymer_upper}_{x_col}_vs_{y_col}_{timestamp}.png"
+    filepath = os.path.join(PLOTS_DIR, filename)
+    fig.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+
+    # Build output
+    output = [f"✅ **{x_property.upper()} vs {y_property.upper()} Scatter Plot for {polymer_upper}**\n"]
+    output.append(f"Temperature: {temperature}°C")
+    output.append(f"Solvents with data: {len(df_valid)} (of {len(solvents_found)} found)")
+    output.append(f"Min solubility filter: {min_solubility}%\n")
+
+    # Best solvents summary
+    output.append("**Top Solvents (by solubility):**")
+    for _, row in df_valid.nlargest(5, 'solubility').iterrows():
+        line = f"  • **{row['solvent']}**: {row['solubility']:.1f}% solubility"
+        if pd.notna(row.get('logp')):
+            line += f", LogP={row['logp']:.2f}"
+        if pd.notna(row.get('g_score')):
+            line += f", G-score={row['g_score']:.1f}"
+        if pd.notna(row.get('bp')):
+            line += f", BP={row['bp']:.0f}°C"
+        output.append(line)
+
+    output.append(f"\n{get_plot_url(filepath)}")
+
+    del df, df_valid
+    gc.collect()
+    return "\n".join(output)
 
 
 # ============================================================
@@ -5275,11 +6605,16 @@ async def predict_solubility_ml(
                     shutil.copy(gauge_src, gauge_dest)
 
                 # Add link to 3D sphere (opens in new tab)
+                # Use URL-safe folder name
+                import urllib.parse
                 viz_folder = f"{polymer_name}_{solvent_name}".replace(" ", "_")
+                viz_folder_encoded = urllib.parse.quote(viz_folder, safe='')
                 sphere_path = viz_paths.get('3D Sphere (Interactive HTML)')
                 if sphere_path:
-                    sphere_url = f"/plots/{viz_folder}/{os.path.basename(sphere_path)}"
-                    output.append(f"\n**Interactive 3D Visualization:** <a href=\"{sphere_url}\" target=\"_blank\">Click to open Hansen Sphere 🌐</a>")
+                    sphere_filename = urllib.parse.quote(os.path.basename(sphere_path), safe='')
+                    sphere_url = f"/plots/{viz_folder_encoded}/{sphere_filename}"
+                    # Use markdown link syntax (not HTML) for proper rendering
+                    output.append(f"\n**Interactive 3D Visualization:** [Click to open Hansen Sphere 🌐]({sphere_url})")
                     output.append(f"\n💡 **Tip:** The 3D sphere opens in a new tab - you can rotate, zoom, and explore the Hansen space!")
 
             except Exception as viz_error:
@@ -5291,6 +6626,1518 @@ async def predict_solubility_ml(
     except Exception as e:
         logger.error(f"Error in predict_solubility_ml: {e}")
         return f"❌ Error making ML prediction: {str(e)}"
+
+
+# ============================================================
+# PubChem Safety Data Tools
+# ============================================================
+
+import urllib.request
+import urllib.error
+
+def fetch_pubchem_cid(compound_name: str) -> Optional[int]:
+    """Fetch PubChem CID (Compound ID) for a given compound name."""
+    try:
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{urllib.parse.quote(compound_name)}/cids/JSON"
+        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            if 'IdentifierList' in data and 'CID' in data['IdentifierList']:
+                return data['IdentifierList']['CID'][0]
+    except Exception as e:
+        logger.warning(f"Could not fetch CID for {compound_name}: {e}")
+    return None
+
+
+def fetch_pubchem_properties(cid: int) -> Optional[Dict]:
+    """Fetch compound properties from PubChem."""
+    try:
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/MolecularFormula,MolecularWeight,XLogP,TPSA,HBondDonorCount,HBondAcceptorCount/JSON"
+        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            if 'PropertyTable' in data and 'Properties' in data['PropertyTable']:
+                return data['PropertyTable']['Properties'][0]
+    except Exception as e:
+        logger.warning(f"Could not fetch properties for CID {cid}: {e}")
+    return None
+
+
+def fetch_pubchem_ghs_data(cid: int) -> Optional[Dict]:
+    """Fetch GHS safety classification data from PubChem."""
+    try:
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
+        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read().decode())
+
+            result = {
+                'cid': cid,
+                'pictograms': [],
+                'signal_word': None,
+                'hazard_statements': [],
+                'precautionary_codes': []
+            }
+
+            # Parse the nested JSON structure for GHS data
+            def extract_ghs_info(obj):
+                if isinstance(obj, dict):
+                    name = obj.get('Name', '')
+
+                    if name == 'Signal':
+                        value = obj.get('Value', {})
+                        if 'StringWithMarkup' in value:
+                            for item in value['StringWithMarkup']:
+                                if 'String' in item:
+                                    result['signal_word'] = item['String']
+
+                    elif name == 'Pictogram(s)':
+                        value = obj.get('Value', {})
+                        if 'StringWithMarkup' in value:
+                            for item in value['StringWithMarkup']:
+                                if 'Markup' in item:
+                                    for markup in item['Markup']:
+                                        if 'Extra' in markup:
+                                            result['pictograms'].append(markup['Extra'])
+
+                    elif name == 'GHS Hazard Statements':
+                        value = obj.get('Value', {})
+                        if 'StringWithMarkup' in value:
+                            for item in value['StringWithMarkup']:
+                                if 'String' in item:
+                                    result['hazard_statements'].append(item['String'])
+
+                    elif name == 'Precautionary Statement Codes':
+                        value = obj.get('Value', {})
+                        if 'StringWithMarkup' in value:
+                            for item in value['StringWithMarkup']:
+                                if 'String' in item:
+                                    result['precautionary_codes'].append(item['String'])
+
+                    # Recurse into nested structures
+                    for key, val in obj.items():
+                        extract_ghs_info(val)
+
+                elif isinstance(obj, list):
+                    for item in obj:
+                        extract_ghs_info(item)
+
+            extract_ghs_info(data)
+
+            # Remove duplicates
+            result['pictograms'] = list(set(result['pictograms']))
+            result['hazard_statements'] = list(set(result['hazard_statements']))
+
+            return result
+
+    except Exception as e:
+        logger.warning(f"Could not fetch GHS data for CID {cid}: {e}")
+    return None
+
+
+def calculate_safety_score(ghs_data: Dict) -> float:
+    """
+    Calculate a safety score (0-10) based on GHS data.
+    Higher score = safer compound.
+    """
+    score = 10.0  # Start with perfect score
+
+    # Deduct points for hazard pictograms
+    pictogram_penalties = {
+        'Flammable': 1.5,
+        'Oxidizer': 2.0,
+        'Explosive': 3.0,
+        'Corrosive': 2.0,
+        'Acute Toxic': 3.0,
+        'Health Hazard': 2.5,
+        'Irritant': 1.0,
+        'Environmental Hazard': 1.0,
+        'Compressed Gas': 0.5
+    }
+
+    for pictogram in ghs_data.get('pictograms', []):
+        penalty = pictogram_penalties.get(pictogram, 1.0)
+        score -= penalty
+
+    # Deduct for "Danger" signal word
+    if ghs_data.get('signal_word') == 'Danger':
+        score -= 1.5
+    elif ghs_data.get('signal_word') == 'Warning':
+        score -= 0.5
+
+    # Deduct for number of hazard statements
+    n_hazards = len(ghs_data.get('hazard_statements', []))
+    score -= min(n_hazards * 0.3, 2.0)
+
+    return max(0.0, min(10.0, score))
+
+
+@tool
+@safe_tool_wrapper
+async def get_pubchem_safety_info(compound_name: str) -> str:
+    """
+    Fetch official GHS safety information for a compound from PubChem database.
+
+    This tool queries the PubChem API to retrieve:
+    - GHS (Globally Harmonized System) hazard classification
+    - Safety pictograms (Flammable, Toxic, Corrosive, etc.)
+    - Signal words (Danger/Warning)
+    - Hazard statements (H-codes like H225, H302)
+    - Molecular properties (formula, weight, LogP, TPSA)
+
+    Use this for questions like:
+    - "What are the safety hazards for toluene?"
+    - "Is dichloromethane dangerous?"
+    - "Get PubChem safety data for acetone"
+    - "What are the GHS hazards of benzene?"
+
+    Args:
+        compound_name: Name of the compound (e.g., "toluene", "ethanol", "dichloromethane")
+
+    Returns:
+        Official GHS hazard data including pictograms and hazard statements
+    """
+    output = []
+
+    # Normalize common solvent names
+    name_mapping = {
+        'dcm': 'dichloromethane',
+        'dmf': 'dimethylformamide',
+        'dmso': 'dimethyl sulfoxide',
+        'thf': 'tetrahydrofuran',
+        'mek': 'methyl ethyl ketone',
+        'mibk': 'methyl isobutyl ketone',
+        'ipa': 'isopropanol',
+        'etoh': 'ethanol',
+        'meoh': 'methanol',
+        'acn': 'acetonitrile'
+    }
+
+    search_name = name_mapping.get(compound_name.lower().strip(), compound_name)
+
+    # Step 1: Get CID
+    cid = fetch_pubchem_cid(search_name)
+    if not cid:
+        return f"❌ Compound '{compound_name}' not found in PubChem. Try using the full chemical name or check spelling."
+
+    output.append(f"# 🧪 PubChem Safety Profile: {compound_name.title()}\n")
+    output.append(f"**PubChem CID:** [{cid}](https://pubchem.ncbi.nlm.nih.gov/compound/{cid})\n")
+
+    # Step 2: Get molecular properties
+    props = fetch_pubchem_properties(cid)
+    if props:
+        output.append("## 📊 Molecular Properties\n")
+        output.append(f"| Property | Value |")
+        output.append(f"|----------|-------|")
+        if 'MolecularFormula' in props:
+            output.append(f"| Formula | {props['MolecularFormula']} |")
+        if 'MolecularWeight' in props:
+            try:
+                mw = float(props['MolecularWeight'])
+                output.append(f"| Molecular Weight | {mw:.2f} g/mol |")
+            except (ValueError, TypeError):
+                output.append(f"| Molecular Weight | {props['MolecularWeight']} g/mol |")
+        if 'XLogP' in props:
+            try:
+                xlogp = float(props['XLogP'])
+                output.append(f"| XLogP | {xlogp:.2f} |")
+            except (ValueError, TypeError):
+                output.append(f"| XLogP | {props['XLogP']} |")
+        if 'TPSA' in props:
+            try:
+                tpsa = float(props['TPSA'])
+                output.append(f"| TPSA | {tpsa:.1f} Ų |")
+            except (ValueError, TypeError):
+                output.append(f"| TPSA | {props['TPSA']} Ų |")
+        if 'HBondDonorCount' in props:
+            output.append(f"| H-Bond Donors | {props['HBondDonorCount']} |")
+        if 'HBondAcceptorCount' in props:
+            output.append(f"| H-Bond Acceptors | {props['HBondAcceptorCount']} |")
+        output.append("")
+
+    # Step 3: Get GHS safety data
+    ghs_data = fetch_pubchem_ghs_data(cid)
+    if ghs_data:
+        output.append("## ⚠️ GHS Hazard Classification\n")
+
+        # Signal word
+        if ghs_data.get('signal_word'):
+            signal = ghs_data['signal_word']
+            signal_emoji = "🔴" if signal == "Danger" else "🟡" if signal == "Warning" else "🟢"
+            output.append(f"**Signal Word:** {signal_emoji} {signal}\n")
+
+        # Pictograms
+        if ghs_data.get('pictograms'):
+            output.append("**Hazard Pictograms:**")
+            pictogram_emojis = {
+                'Flammable': '🔥',
+                'Oxidizer': '⭕',
+                'Explosive': '💥',
+                'Corrosive': '⚗️',
+                'Acute Toxic': '☠️',
+                'Health Hazard': '⚕️',
+                'Irritant': '⚠️',
+                'Environmental Hazard': '🌍',
+                'Compressed Gas': '🔵'
+            }
+            for pic in ghs_data['pictograms']:
+                emoji = pictogram_emojis.get(pic, '⚠️')
+                output.append(f"- {emoji} {pic}")
+            output.append("")
+
+        # Hazard statements
+        if ghs_data.get('hazard_statements'):
+            output.append("**Hazard Statements:**")
+            for stmt in ghs_data['hazard_statements'][:5]:  # Limit to top 5
+                output.append(f"- {stmt}")
+            if len(ghs_data['hazard_statements']) > 5:
+                output.append(f"- *...and {len(ghs_data['hazard_statements']) - 5} more*")
+            output.append("")
+    else:
+        output.append("## ⚠️ GHS Hazard Classification\n")
+        output.append("*No GHS classification data available for this compound.*\n")
+
+    # Add link to full PubChem page
+    output.append(f"\n📖 **Full Safety Data:** [View on PubChem](https://pubchem.ncbi.nlm.nih.gov/compound/{cid}#section=Safety-and-Hazards)")
+
+    return "\n".join(output)
+
+
+@tool
+@safe_tool_wrapper
+async def compare_pubchem_safety(compounds: List[str]) -> str:
+    """
+    Compare GHS hazard profiles of multiple compounds using PubChem data.
+
+    This tool fetches official GHS safety data for multiple compounds and shows
+    their hazard pictograms, signal words, and key hazard statements.
+
+    Use this for questions like:
+    - "Compare the safety of toluene, benzene, and ethanol"
+    - "Which is safer: DCM or chloroform?"
+    - "PubChem safety comparison of common solvents"
+
+    Args:
+        compounds: List of compound names to compare (2-5 compounds max)
+
+    Returns:
+        Comparison of GHS hazards with recommendation summary
+    """
+    if len(compounds) < 2:
+        return "❌ Please provide at least 2 compounds to compare."
+    if len(compounds) > 5:
+        compounds = compounds[:5]
+
+    output = [f"# 🔬 PubChem GHS Hazard Comparison\n"]
+
+    # Collect data for all compounds
+    compound_data = []
+    for name in compounds:
+        cid = fetch_pubchem_cid(name)
+        if cid:
+            ghs = fetch_pubchem_ghs_data(cid)
+            props = fetch_pubchem_properties(cid)
+
+            compound_data.append({
+                'name': name.title(),
+                'cid': cid,
+                'signal_word': ghs.get('signal_word') if ghs else None,
+                'pictograms': ghs.get('pictograms', []) if ghs else [],
+                'hazard_statements': ghs.get('hazard_statements', []) if ghs else [],
+                'xlogp': props.get('XLogP') if props else None,
+            })
+        else:
+            compound_data.append({
+                'name': name.title(),
+                'cid': None,
+                'signal_word': None,
+                'pictograms': [],
+                'hazard_statements': [],
+                'xlogp': None,
+            })
+
+    # Display each compound's hazards
+    for comp in compound_data:
+        if comp['cid'] is None:
+            output.append(f"### ❌ {comp['name']}\n*Not found in PubChem*\n")
+            continue
+
+        signal = comp['signal_word'] or "None"
+        signal_emoji = "🔴" if signal == "Danger" else "🟡" if signal == "Warning" else "🟢"
+
+        output.append(f"### {comp['name']}")
+        output.append(f"**Signal Word:** {signal_emoji} {signal}")
+
+        if comp['pictograms']:
+            pictogram_emojis = {
+                'Flammable': '🔥', 'Oxidizer': '⭕', 'Explosive': '💥',
+                'Corrosive': '⚗️', 'Acute Toxic': '☠️', 'Health Hazard': '⚕️',
+                'Irritant': '⚠️', 'Environmental Hazard': '🌍', 'Compressed Gas': '🔵'
+            }
+            hazard_list = [f"{pictogram_emojis.get(p, '⚠️')} {p}" for p in comp['pictograms']]
+            output.append(f"**Hazards:** {', '.join(hazard_list)}")
+        else:
+            output.append("**Hazards:** None listed")
+
+        if comp['hazard_statements']:
+            output.append(f"**Key Statements:** {comp['hazard_statements'][0][:80]}...")
+        output.append("")
+
+    # Generate contextual recommendation
+    output.append("## 📋 Recommendation\n")
+
+    valid_data = [c for c in compound_data if c['cid'] is not None]
+    if valid_data:
+        # Rank by: no Danger signal > Warning > Danger, then fewer pictograms
+        def hazard_rank(c):
+            signal_rank = 0 if c['signal_word'] is None else (1 if c['signal_word'] == 'Warning' else 2)
+            has_toxic = 1 if 'Acute Toxic' in c['pictograms'] or 'Health Hazard' in c['pictograms'] else 0
+            has_flammable = 1 if 'Flammable' in c['pictograms'] else 0
+            return (signal_rank, has_toxic, has_flammable, len(c['pictograms']))
+
+        ranked = sorted(valid_data, key=hazard_rank)
+        best = ranked[0]
+        worst = ranked[-1]
+
+        # Build contextual summary
+        if best['signal_word'] is None or best['signal_word'] == 'Warning':
+            if worst['signal_word'] == 'Danger':
+                output.append(f"**{best['name']}** appears to be the safer choice - it has a '{best['signal_word'] or 'no'}' signal word compared to **{worst['name']}**'s 'Danger' classification.")
+            else:
+                output.append(f"All compounds have similar hazard levels. **{best['name']}** has the fewest hazard categories ({len(best['pictograms'])}).")
+        else:
+            output.append(f"⚠️ All compounds carry 'Danger' signal words. **{best['name']}** has fewer hazard categories ({len(best['pictograms'])} vs {len(worst['pictograms'])} for {worst['name']}).")
+
+        # Specific warnings
+        for comp in valid_data:
+            if 'Acute Toxic' in comp['pictograms']:
+                output.append(f"\n⚠️ **{comp['name']}** is classified as acutely toxic - requires special handling.")
+            if 'Health Hazard' in comp['pictograms']:
+                output.append(f"\n⚠️ **{comp['name']}** has serious health hazards (may be carcinogenic or cause organ damage).")
+
+    output.append("\n*Data sourced from PubChem GHS Classification*")
+
+    return "\n".join(output)
+
+
+@tool
+@safe_tool_wrapper
+async def visualize_pubchem_safety(
+    compounds: List[str],
+    chart_type: str = "hazards"
+) -> str:
+    """
+    Create visualization comparing GHS hazard data from PubChem for multiple compounds.
+
+    This tool fetches PubChem GHS data and creates visual charts showing:
+    - Hazard pictogram counts per compound (bar chart)
+    - Signal word comparison
+
+    Use this for questions like:
+    - "Create a safety comparison chart for toluene, benzene, and xylene"
+    - "Visualize PubChem hazard data for common solvents"
+    - "Show a bar chart comparing hazards of DCM, chloroform, and ethanol"
+
+    Args:
+        compounds: List of compound names (2-5 compounds max)
+        chart_type: "hazards" for hazard count bar chart (default)
+
+    Returns:
+        Hazard visualization chart with summary
+    """
+    if len(compounds) < 2:
+        return "❌ Please provide at least 2 compounds to visualize."
+    if len(compounds) > 5:
+        compounds = compounds[:5]
+
+    # Collect data
+    compound_data = []
+    for name in compounds:
+        cid = fetch_pubchem_cid(name)
+        if cid:
+            ghs = fetch_pubchem_ghs_data(cid)
+
+            compound_data.append({
+                'name': name.title(),
+                'cid': cid,
+                'signal_word': ghs.get('signal_word') if ghs else None,
+                'pictograms': ghs.get('pictograms', []) if ghs else [],
+                'n_pictograms': len(ghs.get('pictograms', [])) if ghs else 0,
+            })
+
+    if len(compound_data) < 2:
+        return "❌ Could not fetch safety data for enough compounds. Try different compound names."
+
+    # Sort by number of hazards (fewer = better)
+    compound_data.sort(key=lambda x: x['n_pictograms'])
+
+    # Create visualization - stacked bar showing hazard types
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    names = [c['name'] for c in compound_data]
+
+    # Define hazard categories and colors
+    hazard_types = ['Flammable', 'Irritant', 'Health Hazard', 'Acute Toxic', 'Corrosive', 'Environmental Hazard', 'Oxidizer', 'Explosive']
+    hazard_colors = ['#e74c3c', '#f39c12', '#9b59b6', '#2c3e50', '#1abc9c', '#27ae60', '#e67e22', '#c0392b']
+
+    # Build data matrix
+    y_pos = range(len(names))
+    bar_data = {h: [] for h in hazard_types}
+
+    for comp in compound_data:
+        for hazard in hazard_types:
+            bar_data[hazard].append(1 if hazard in comp['pictograms'] else 0)
+
+    # Create stacked horizontal bars
+    left = [0] * len(names)
+    for hazard, color in zip(hazard_types, hazard_colors):
+        values = bar_data[hazard]
+        if sum(values) > 0:  # Only show hazards that exist
+            ax.barh(y_pos, values, left=left, label=hazard, color=color, edgecolor='white', linewidth=0.5)
+            left = [l + v for l, v in zip(left, values)]
+
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(names, fontsize=12, fontweight='bold')
+    ax.set_xlabel('Number of GHS Hazard Categories', fontsize=14, fontweight='bold')
+    ax.set_title('PubChem GHS Hazard Comparison', fontsize=16, fontweight='bold')
+    ax.legend(loc='lower right', fontsize=9)
+
+    # Add signal word annotations
+    for i, comp in enumerate(compound_data):
+        signal = comp['signal_word'] or "None"
+        color = '#e74c3c' if signal == 'Danger' else '#f39c12' if signal == 'Warning' else '#27ae60'
+        ax.annotate(f"  {signal}", (comp['n_pictograms'], i), va='center', fontsize=10, color=color, fontweight='bold')
+
+    ax.set_xlim(0, max(c['n_pictograms'] for c in compound_data) + 2)
+    ax.grid(True, alpha=0.3, axis='x')
+    plt.tight_layout()
+
+    # Save
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"pubchem_hazards_{timestamp}.png"
+    filepath = os.path.join(PLOTS_DIR, filename)
+    fig.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+
+    # Build output
+    output = [f"✅ **PubChem GHS Hazard Chart**\n"]
+
+    # Summary for each compound
+    output.append("**Hazard Summary:**")
+    for comp in compound_data:
+        signal_emoji = "🔴" if comp['signal_word'] == 'Danger' else "🟡" if comp['signal_word'] == 'Warning' else "🟢"
+        hazards = ", ".join(comp['pictograms']) if comp['pictograms'] else "None"
+        output.append(f"- **{comp['name']}**: {signal_emoji} {comp['signal_word'] or 'No signal'} | {hazards}")
+
+    output.append(f"\n{get_plot_url(filepath)}")
+
+    gc.collect()
+    return "\n".join(output)
+
+
+def fetch_pubchem_toxicity_data(cid: int) -> Optional[Dict]:
+    """Fetch toxicity and environmental data from PubChem."""
+    try:
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=Toxicity"
+        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
+        with urllib.request.urlopen(req, timeout=20) as response:
+            data = json.loads(response.read().decode())
+
+            result = {
+                'cid': cid,
+                'ld50_values': [],
+                'lc50_values': [],
+                'biodegradation': [],
+                'aquatic_toxicity': [],
+                'ecological_info': []
+            }
+
+            def extract_toxicity_info(obj, current_heading=''):
+                if isinstance(obj, dict):
+                    heading = obj.get('TOCHeading', current_heading)
+
+                    # Check for toxicity values in Information sections
+                    if 'Information' in obj:
+                        for info in obj['Information']:
+                            value = info.get('Value', {})
+                            string_value = ''
+
+                            if 'StringWithMarkup' in value:
+                                for item in value['StringWithMarkup']:
+                                    if 'String' in item:
+                                        string_value = item['String']
+                                        break
+                            elif 'Number' in value:
+                                string_value = str(value['Number'])
+
+                            if string_value:
+                                # Categorize by heading
+                                heading_lower = heading.lower()
+                                if 'ld50' in heading_lower or 'lethal dose' in heading_lower:
+                                    if len(result['ld50_values']) < 5:
+                                        result['ld50_values'].append(string_value[:200])
+                                elif 'lc50' in heading_lower or 'lethal concentration' in heading_lower:
+                                    if len(result['lc50_values']) < 3:
+                                        result['lc50_values'].append(string_value[:200])
+                                elif 'biodegradation' in heading_lower or 'biodegradability' in heading_lower:
+                                    if len(result['biodegradation']) < 3:
+                                        result['biodegradation'].append(string_value[:200])
+                                elif 'aquatic' in heading_lower or 'fish' in heading_lower or 'daphnia' in heading_lower:
+                                    if len(result['aquatic_toxicity']) < 3:
+                                        result['aquatic_toxicity'].append(string_value[:200])
+                                elif 'ecological' in heading_lower or 'environmental' in heading_lower:
+                                    if len(result['ecological_info']) < 3:
+                                        result['ecological_info'].append(string_value[:200])
+
+                    # Recurse into sections
+                    if 'Section' in obj:
+                        for section in obj['Section']:
+                            extract_toxicity_info(section, heading)
+
+                    for key, val in obj.items():
+                        if key not in ['Section', 'Information']:
+                            extract_toxicity_info(val, heading)
+
+                elif isinstance(obj, list):
+                    for item in obj:
+                        extract_toxicity_info(item, current_heading)
+
+            extract_toxicity_info(data)
+            return result
+
+    except Exception as e:
+        logger.warning(f"Could not fetch toxicity data for CID {cid}: {e}")
+    return None
+
+
+@tool
+@safe_tool_wrapper
+async def get_pubchem_toxicity(compounds: List[str]) -> str:
+    """
+    Fetch environmental and toxicity data from PubChem for up to 5 compounds.
+
+    This tool retrieves:
+    - LD50 values (lethal dose for 50% of test animals)
+    - LC50 values (lethal concentration)
+    - Biodegradation information
+    - Aquatic toxicity (fish, daphnia)
+    - Ecological/environmental fate
+
+    Use this for questions like:
+    - "What's the LD50 of toluene and benzene?"
+    - "Is acetone biodegradable?"
+    - "Compare the environmental toxicity of DCM vs chloroform"
+    - "Get aquatic toxicity data for common solvents"
+
+    Args:
+        compounds: List of compound names (1-5 compounds)
+
+    Returns:
+        Toxicity and environmental data with comparison summary
+    """
+    if len(compounds) > 5:
+        compounds = compounds[:5]
+
+    output = [f"# 🧫 PubChem Toxicity & Environmental Data\n"]
+
+    compound_data = []
+    for name in compounds:
+        cid = fetch_pubchem_cid(name)
+        if cid:
+            tox = fetch_pubchem_toxicity_data(cid)
+            compound_data.append({
+                'name': name.title(),
+                'cid': cid,
+                'toxicity': tox
+            })
+        else:
+            compound_data.append({
+                'name': name.title(),
+                'cid': None,
+                'toxicity': None
+            })
+
+    # Display each compound's data
+    for comp in compound_data:
+        if comp['cid'] is None:
+            output.append(f"### ❌ {comp['name']}\n*Not found in PubChem*\n")
+            continue
+
+        output.append(f"### {comp['name']}")
+        output.append(f"[PubChem CID: {comp['cid']}](https://pubchem.ncbi.nlm.nih.gov/compound/{comp['cid']}#section=Toxicity)\n")
+
+        tox = comp['toxicity']
+        if not tox:
+            output.append("*No toxicity data available*\n")
+            continue
+
+        # LD50 Values
+        if tox.get('ld50_values'):
+            output.append("**LD50 (Lethal Dose):**")
+            for val in tox['ld50_values'][:3]:
+                output.append(f"- {val}")
+            output.append("")
+
+        # LC50 Values
+        if tox.get('lc50_values'):
+            output.append("**LC50 (Lethal Concentration):**")
+            for val in tox['lc50_values'][:2]:
+                output.append(f"- {val}")
+            output.append("")
+
+        # Biodegradation
+        if tox.get('biodegradation'):
+            output.append("**Biodegradation:**")
+            for val in tox['biodegradation'][:2]:
+                output.append(f"- {val}")
+            output.append("")
+
+        # Aquatic Toxicity
+        if tox.get('aquatic_toxicity'):
+            output.append("**Aquatic Toxicity:**")
+            for val in tox['aquatic_toxicity'][:2]:
+                output.append(f"- {val}")
+            output.append("")
+
+        # Check if no data found
+        has_data = any([tox.get('ld50_values'), tox.get('lc50_values'),
+                       tox.get('biodegradation'), tox.get('aquatic_toxicity')])
+        if not has_data:
+            output.append("*Limited toxicity data available for this compound*\n")
+
+    # Summary comparison if multiple compounds
+    if len(compound_data) > 1:
+        output.append("## 📋 Summary\n")
+
+        # Find compounds with LD50 data for comparison
+        with_ld50 = [c for c in compound_data if c['toxicity'] and c['toxicity'].get('ld50_values')]
+
+        if with_ld50:
+            output.append("**Toxicity Comparison:**")
+            for comp in with_ld50:
+                ld50_sample = comp['toxicity']['ld50_values'][0][:100] if comp['toxicity']['ld50_values'] else "N/A"
+                output.append(f"- **{comp['name']}**: {ld50_sample}...")
+
+        # Biodegradation summary
+        with_biodeg = [c for c in compound_data if c['toxicity'] and c['toxicity'].get('biodegradation')]
+        if with_biodeg:
+            output.append("\n**Biodegradability:**")
+            for comp in with_biodeg:
+                biodeg = comp['toxicity']['biodegradation'][0][:80] if comp['toxicity']['biodegradation'] else "Unknown"
+                output.append(f"- **{comp['name']}**: {biodeg}...")
+
+    output.append("\n*Data sourced from PubChem Toxicity database*")
+
+    return "\n".join(output)
+
+
+# ============================================================
+# TEA/LCA Tools (Techno-Economic Analysis / Life Cycle Assessment)
+# ============================================================
+# These tools wrap the standalone tea_lca_module.py
+# TEA/LCA specialists can modify that file without touching agent code
+
+@tool
+@safe_tool_wrapper
+async def analyze_solvent_recovery_tea(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Run Techno-Economic Analysis (TEA) for solvent recovery in polymer separation.
+
+    Calculates:
+    - Capital costs (equipment, installation)
+    - Operating costs (energy, labor, solvent makeup)
+    - Economic metrics (cost per kg, payback period)
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone', 'ethanol')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95 = 95%)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "What's the cost of recovering toluene?"
+    - "TEA for LDPE separation at 100 kg/hr"
+    - "Calculate payback period for solvent recovery"
+    - "How much does solvent recovery cost per kg polymer?"
+    """
+    results = tea_lca.run_full_tea_analysis(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+    return tea_lca.format_tea_results(results)
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_solvent_recovery_lca(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Run Life Cycle Assessment (LCA) for solvent recovery in polymer separation.
+
+    Calculates:
+    - Greenhouse gas emissions (CO2 equivalent)
+    - Energy consumption and sources
+    - Comparison to no-recovery baseline
+    - Environmental impact per kg polymer
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone', 'ethanol')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95 = 95%)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "What's the carbon footprint of using toluene?"
+    - "LCA for solvent recovery"
+    - "How much CO2 does the separation process emit?"
+    - "Environmental impact of LDPE separation"
+    """
+    results = tea_lca.run_full_lca_analysis(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+    return tea_lca.format_lca_results(results)
+
+
+@tool
+@safe_tool_wrapper
+async def compare_solvents_tea_lca(
+    solvents: List[str],
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Compare multiple solvents on both TEA (cost) and LCA (environmental) metrics.
+
+    Provides:
+    - Side-by-side comparison table
+    - Rankings by cost, emissions, and overall
+    - Best solvent recommendations
+
+    Parameters:
+    - solvents: List of solvents to compare (e.g., ['toluene', 'acetone', 'ethanol'])
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95 = 95%)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "Compare toluene vs acetone for cost and emissions"
+    - "Which solvent is cheapest and greenest?"
+    - "TEA/LCA comparison for LDPE solvents"
+    - "Rank solvents by cost and carbon footprint"
+    """
+    results = tea_lca.compare_solvents_tea_lca(
+        solvents=solvents,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+    return tea_lca.format_comparison_results(results)
+
+
+@tool
+@safe_tool_wrapper
+async def generate_tea_visualizations(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Generate all TEA (Techno-Economic Analysis) visualizations for a solvent.
+
+    Creates the following plots:
+    - Capital cost breakdown (pie chart)
+    - Operating cost breakdown (horizontal bar chart)
+    - Cost waterfall chart
+    - Cashflow diagram (cumulative over project lifetime)
+    - Sensitivity tornado chart
+    - Energy flow diagram
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone', 'ethanol')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95 = 95%)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "Show TEA charts for toluene"
+    - "Visualize capital costs for solvent recovery"
+    - "Generate cashflow diagram for DMF"
+    - "Show cost breakdown visualizations"
+    - "Plot sensitivity analysis for acetone recovery"
+    """
+    plots = tea_lca.generate_all_tea_visualizations(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+
+    result = f"## TEA Visualizations for {solvent.title()} Recovery\n\n"
+    result += f"Generated {len(plots)} visualizations:\n\n"
+    for name, path in plots.items():
+        result += f"- **{name.replace('_', ' ').title()}**: `{path}`\n"
+
+    return result
+
+
+@tool
+@safe_tool_wrapper
+async def generate_lca_visualizations(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Generate all LCA (Life Cycle Assessment) visualizations for a solvent.
+
+    Creates the following plots:
+    - Emissions breakdown (pie chart by source)
+    - Emissions comparison bar chart (recovery vs baseline)
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone', 'ethanol')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95 = 95%)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "Show LCA charts for toluene"
+    - "Visualize emissions breakdown for DMF"
+    - "Generate carbon footprint visualizations"
+    - "Plot CO2 emissions comparison for ethanol"
+    """
+    plots = tea_lca.generate_all_lca_visualizations(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+
+    result = f"## LCA Visualizations for {solvent.title()} Recovery\n\n"
+    result += f"Generated {len(plots)} visualizations:\n\n"
+    for name, path in plots.items():
+        result += f"- **{name.replace('_', ' ').title()}**: `{path}`\n"
+
+    return result
+
+
+@tool
+@safe_tool_wrapper
+async def generate_solvent_comparison_visualization(
+    solvents: List[str],
+    polymer_throughput_kg_hr: float = 100.0
+) -> str:
+    """
+    Generate comparison visualization for multiple solvents showing cost vs emissions.
+
+    Creates a grouped bar chart with:
+    - Cost per kg polymer (left axis)
+    - CO2 emissions per kg polymer (right axis)
+    - Best overall solvent highlighted
+
+    Parameters:
+    - solvents: List of solvents to compare (e.g., ['toluene', 'acetone', 'ethanol'])
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+
+    WHEN TO USE:
+    - "Compare toluene and acetone visually"
+    - "Plot cost vs emissions for multiple solvents"
+    - "Show comparison chart for TEA/LCA"
+    - "Visualize which solvent is best for cost and environment"
+    """
+    plots = tea_lca.generate_comparison_visualizations(
+        solvents=solvents,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr
+    )
+
+    result = f"## Solvent Comparison Visualizations\n\n"
+    result += f"Comparing: {', '.join([s.title() for s in solvents])}\n\n"
+    result += f"Generated {len(plots)} visualizations:\n\n"
+    for name, path in plots.items():
+        result += f"- **{name.replace('_', ' ').title()}**: `{path}`\n"
+
+    return result
+
+
+@tool
+@safe_tool_wrapper
+async def plot_tea_sensitivity_tornado(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0
+) -> str:
+    """
+    Generate a sensitivity analysis tornado chart showing how parameters affect cost.
+
+    Shows the impact of varying each parameter by ±20%:
+    - Solvent-to-polymer ratio
+    - Recovery fraction
+    - Process temperature
+    - Energy cost
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+
+    WHEN TO USE:
+    - "Show sensitivity analysis for toluene"
+    - "What parameters most affect cost?"
+    - "Generate tornado chart for TEA"
+    - "Which factors have biggest impact on economics?"
+    """
+    path = tea_lca.plot_sensitivity_tornado(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr
+    )
+
+    return f"## Sensitivity Analysis (Tornado Chart)\n\nSolvent: {solvent.title()}\n\nVisualization saved to: `{path}`\n\nThis chart shows how ±20% changes in each parameter affect the cost per kg polymer."
+
+
+@tool
+@safe_tool_wrapper
+async def plot_tea_cashflow(
+    solvent: str,
+    polymer_throughput_kg_hr: float = 100.0,
+    solvent_to_polymer_ratio: float = 10.0,
+    recovery_fraction: float = 0.95,
+    process_temp_c: float = 80.0
+) -> str:
+    """
+    Generate a cashflow diagram showing cumulative cash position over project lifetime.
+
+    Shows:
+    - Construction period (negative cashflow)
+    - Payback point
+    - Cumulative profits over 20-year project life
+
+    Parameters:
+    - solvent: Solvent name (e.g., 'toluene', 'acetone')
+    - polymer_throughput_kg_hr: Polymer processing rate in kg/hr (default: 100)
+    - solvent_to_polymer_ratio: Mass ratio of solvent to polymer (default: 10:1)
+    - recovery_fraction: Solvent recovery efficiency 0-1 (default: 0.95)
+    - process_temp_c: Process temperature in Celsius (default: 80)
+
+    WHEN TO USE:
+    - "Show cashflow diagram for toluene"
+    - "When does solvent recovery break even?"
+    - "Plot investment returns over time"
+    - "Generate cumulative profit chart"
+    """
+    tea_results = tea_lca.run_full_tea_analysis(
+        solvent=solvent,
+        polymer_throughput_kg_hr=polymer_throughput_kg_hr,
+        solvent_to_polymer_ratio=solvent_to_polymer_ratio,
+        recovery_fraction=recovery_fraction,
+        process_temp_c=process_temp_c
+    )
+
+    path = tea_lca.plot_cashflow_diagram(tea_results)
+
+    payback = tea_results['economics']['simple_payback_years']
+    return f"## Cashflow Diagram\n\nSolvent: {solvent.title()}\nSimple Payback: {payback:.2f} years\n\nVisualization saved to: `{path}`"
+
+
+# ============================================================
+# STRAP Process Tools (Solvent-Targeted Recovery and Precipitation)
+# ============================================================
+
+@tool
+@safe_tool_wrapper
+async def analyze_strap_process(
+    polymers: List[str],
+    feedstock_composition: Dict[str, float] = None,
+    capacity_mt_yr: float = 10000.0
+) -> str:
+    """
+    Run full STRAP (Solvent-Targeted Recovery and Precipitation) TEA/LCA analysis.
+
+    This is a comprehensive analysis for multi-polymer recovery from plastic waste,
+    aligned with STRAP methodology from biopharmaceutical SUT recycling research.
+
+    Provides:
+    - Complete TEA: Capital costs, operating costs, unit economics, payback period
+    - Complete LCA: All 8 environmental indicators (GWP, FFC, water, toxicity, etc.)
+    - Comparison to virgin polymer production
+    - Minimum Selling Price (MSP) calculation
+
+    Parameters:
+    - polymers: List of polymers to recover (e.g., ['PE', 'PET', 'EVOH'])
+    - feedstock_composition: Polymer fractions (e.g., {'PE': 0.8, 'PET': 0.1, 'EVOH': 0.1})
+                            If not provided, equal distribution assumed
+    - capacity_mt_yr: Plant capacity in metric tons/year (default: 10000)
+
+    WHEN TO USE:
+    - "Run STRAP analysis for PE/EVOH at 10,000 mt/yr"
+    - "What's the economics of STRAP recycling for multilayer film?"
+    - "Analyze STRAP process for PE, PET, and EVOH recovery"
+    - "Full TEA/LCA for polymer recovery from plastic waste"
+    - "Cost and carbon footprint for STRAP polymer separation"
+    """
+    # Build feedstock composition if not provided
+    if feedstock_composition is None:
+        n = len(polymers)
+        feedstock_composition = {p: 1.0 / n for p in polymers}
+
+    # Normalize composition
+    total = sum(feedstock_composition.values())
+    feedstock_composition = {k: v / total for k, v in feedstock_composition.items()}
+
+    # Auto-select solvents for each polymer using POLYMER_PROPERTIES
+    recovery_steps = []
+    for polymer in polymers:
+        if polymer.upper() in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[polymer.upper()]
+            solvent = compatible[0] if compatible else 'xylene'
+        else:
+            solvent = 'xylene'  # Default solvent
+
+        recovery_steps.append({
+            'polymer': polymer.upper(),
+            'solvent': solvent,
+            'recover': True
+        })
+
+    # Run full analysis
+    results = tea_lca.run_full_strap_analysis(
+        feedstock_composition=feedstock_composition,
+        recovery_steps=recovery_steps,
+        capacity_mt_yr=capacity_mt_yr,
+        scenario_name=f"STRAP-{'-'.join(polymers)}"
+    )
+
+    # Format output - clean simple format
+    scenario_name = results.get('scenario', {}).get('name', f"STRAP-{'-'.join(polymers)}")
+
+    output = "STRAP PROCESS ANALYSIS\n\n"
+    output += f"Scenario: {scenario_name}\n"
+    output += f"Capacity: {capacity_mt_yr:,.0f} metric tons/year\n\n"
+
+    # Feedstock composition
+    output += "FEEDSTOCK COMPOSITION\n"
+    for p, frac in feedstock_composition.items():
+        output += f"{p}: {frac*100:.1f}%\n"
+    output += "\n"
+
+    # Recovery steps
+    output += "RECOVERY STEPS\n"
+    for step in recovery_steps:
+        output += f"{step['polymer']} -> {step['solvent'].title()}\n"
+    output += "\n"
+
+    # TEA Results
+    tea_econ = results['tea'].get('economics', results['tea'])
+    tci_millions = tea_econ.get('tci_millions', tea_econ.get('total_capital_investment_usd', 0) / 1e6)
+    capital = results['tea'].get('capital', {})
+
+    output += "CAPITAL COSTS\n"
+    output += f"Total Capital (TCI): ${tci_millions:.2f}M\n"
+    output += f"Equipment Cost: ${capital.get('total_equipment_cost_usd', 0)/1e6:.2f}M\n\n"
+
+    output += "OPERATING ECONOMICS\n"
+    output += f"Unit Operating Cost (UOC): ${tea_econ.get('unit_operating_cost_usd_kg', 0):.4f}/kg\n"
+    output += f"Annual Operating Cost: ${tea_econ.get('annual_operating_cost_usd', 0)/1e6:.2f}M/yr\n"
+    output += f"Annual Revenue: ${tea_econ.get('annual_revenue_usd', 0)/1e6:.2f}M/yr\n"
+    output += f"Net Annual Profit: ${tea_econ.get('net_annual_profit_usd', 0)/1e6:.2f}M/yr\n"
+    output += f"Simple Payback: {tea_econ.get('simple_payback_years', 0):.2f} years\n"
+    output += f"ROI: {tea_econ.get('return_on_investment_pct', 0):.1f}%\n\n"
+
+    # MSP Results
+    msp_data = results.get('msp', {})
+    msp_by_polymer = msp_data.get('msp_by_polymer_usd_kg', msp_data)
+    output += "MINIMUM SELLING PRICE (NPV=0 @ 15% IRR)\n"
+    for polymer, price in msp_by_polymer.items():
+        output += f"{polymer}: ${price:.4f}/kg\n"
+    if 'msp_weighted_avg_usd_kg' in msp_data:
+        output += f"Weighted Avg: ${msp_data['msp_weighted_avg_usd_kg']:.4f}/kg\n"
+    output += "\n"
+
+    # LCA Results
+    lca_data = results.get('lca', {})
+    lca_by_polymer = lca_data.get('by_polymer', {})
+    virgin_comp = lca_data.get('virgin_comparison', {})
+
+    output += "LIFE CYCLE ASSESSMENT (GWP kg CO2eq/kg)\n"
+    for polymer in polymers:
+        pu = polymer.upper()
+        if pu in lca_by_polymer:
+            strap_gwp = lca_by_polymer[pu].get('gwp_kg_co2eq', 0)
+            virgin_gwp = tea_lca.LCA_EMISSION_FACTORS['virgin_gwp'].get(pu, 2.0)
+            reduction = virgin_comp.get(pu, {}).get('gwp_reduction_pct', 0)
+            output += f"{pu}: STRAP={strap_gwp:.3f}, Virgin={virgin_gwp:.3f}, Reduction={reduction:.1f}%\n"
+    output += "\n"
+
+    # GWP Breakdown
+    gwp_breakdown = lca_data.get('gwp_breakdown', {})
+    if gwp_breakdown:
+        output += "GWP BREAKDOWN BY SOURCE (kg CO2eq/kg)\n"
+        for polymer, breakdown in gwp_breakdown.items():
+            sources = ", ".join([f"{k.replace('_', ' ').title()}={v:.3f}" for k, v in breakdown.items()])
+            output += f"{polymer}: {sources}\n"
+
+    return output
+
+
+@tool
+@safe_tool_wrapper
+async def calculate_strap_msp(
+    polymers: List[str],
+    feedstock_composition: Dict[str, float] = None,
+    capacity_mt_yr: float = 10000.0,
+    target_irr: float = 0.15
+) -> str:
+    """
+    Calculate Minimum Selling Price (MSP) for STRAP recovered polymers.
+
+    MSP is the price at which NPV = 0 at the target IRR.
+    This is the break-even selling price for economic viability.
+
+    Parameters:
+    - polymers: List of polymers to recover (e.g., ['PE', 'EVOH'])
+    - feedstock_composition: Polymer fractions (optional)
+    - capacity_mt_yr: Plant capacity in metric tons/year (default: 10000)
+    - target_irr: Target internal rate of return (default: 0.15 = 15%)
+
+    WHEN TO USE:
+    - "What's the minimum selling price for STRAP recovered PE?"
+    - "Calculate MSP at 15% IRR for polymer recovery"
+    - "Break-even price for STRAP recycled EVOH"
+    - "What price do we need for profitable STRAP operation?"
+    """
+    # Build feedstock composition
+    if feedstock_composition is None:
+        n = len(polymers)
+        feedstock_composition = {p.upper(): 1.0 / n for p in polymers}
+
+    # Normalize
+    total = sum(feedstock_composition.values())
+    feedstock_composition = {k: v / total for k, v in feedstock_composition.items()}
+
+    # Auto-select solvents
+    recovery_steps = []
+    for polymer in polymers:
+        pu = polymer.upper()
+        if pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[pu]
+            solvent = compatible[0] if compatible else 'xylene'
+        else:
+            solvent = 'xylene'
+        recovery_steps.append({'polymer': pu, 'solvent': solvent, 'recover': True})
+
+    # Calculate MSP
+    msp_results = tea_lca.calculate_msp(
+        capacity_mt_yr=capacity_mt_yr,
+        feedstock_composition=feedstock_composition,
+        recovery_steps=recovery_steps,
+        target_irr=target_irr
+    )
+
+    # Get market prices for comparison
+    market_prices = tea_lca.DEFAULT_POLYMER_PROPS.recovered_prices
+
+    # Extract MSP by polymer from nested structure
+    msp_by_polymer = msp_results.get('msp_by_polymer_usd_kg', msp_results)
+
+    output = "# Minimum Selling Price (MSP) Analysis\n\n"
+    output += f"**Target IRR:** {target_irr*100:.0f}%\n"
+    output += f"**Capacity:** {capacity_mt_yr:,.0f} mt/yr\n\n"
+
+    output += "| Polymer | MSP ($/kg) | Market Price ($/kg) | Margin |\n"
+    output += "|---------|------------|---------------------|--------|\n"
+    for polymer in polymers:
+        pu = polymer.upper()
+        msp = msp_by_polymer.get(pu, 0)
+        market = market_prices.get(pu, 1.0)
+        margin = market - msp
+        margin_pct = (margin / msp * 100) if msp > 0 else 0
+        output += f"| {pu} | ${msp:.4f} | ${market:.2f} | ${margin:.2f} ({margin_pct:+.1f}%) |\n"
+
+    if 'msp_weighted_avg_usd_kg' in msp_results:
+        output += f"\n**Weighted Average MSP:** ${msp_results['msp_weighted_avg_usd_kg']:.4f}/kg\n"
+
+    output += "\n### Interpretation\n"
+    output += "- MSP < Market Price: Project is economically viable\n"
+    output += "- Positive margin indicates potential profit at market prices\n"
+    output += f"- Calculated at {target_irr*100:.0f}% IRR over 20-year project life\n"
+
+    return output
+
+
+@tool
+@safe_tool_wrapper
+async def plot_strap_scale_economics(
+    polymers: List[str],
+    feedstock_composition: Dict[str, float] = None,
+    capacity_range: str = "2500-25000"
+) -> str:
+    """
+    Generate scale economics curves showing UOC and TCI vs plant capacity.
+
+    Creates a dual-axis plot showing how:
+    - Unit Operating Cost ($/kg) decreases with scale (left axis)
+    - Total Capital Investment ($M) increases with scale (right axis)
+
+    This helps identify optimal plant capacity for STRAP operations.
+
+    Parameters:
+    - polymers: List of polymers to recover (e.g., ['PE', 'EVOH'])
+    - feedstock_composition: Polymer fractions (optional)
+    - capacity_range: Capacity range as "min-max" in mt/yr (default: "2500-25000")
+
+    WHEN TO USE:
+    - "Show scale economics for STRAP PE/EVOH recovery"
+    - "Plot UOC vs capacity for polymer recycling"
+    - "How does plant size affect STRAP economics?"
+    - "Optimal capacity for STRAP plant"
+    - "Generate TCI curve for STRAP analysis"
+    """
+    # Parse capacity range
+    try:
+        cap_min, cap_max = map(float, capacity_range.split('-'))
+    except:
+        cap_min, cap_max = 2500, 25000
+
+    # Build feedstock composition
+    if feedstock_composition is None:
+        n = len(polymers)
+        feedstock_composition = {p.upper(): 1.0 / n for p in polymers}
+
+    # Normalize
+    total = sum(feedstock_composition.values())
+    feedstock_composition = {k: v / total for k, v in feedstock_composition.items()}
+
+    # Auto-select solvents
+    recovery_steps = []
+    for polymer in polymers:
+        pu = polymer.upper()
+        if pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[pu]
+            solvent = compatible[0] if compatible else 'xylene'
+        else:
+            solvent = 'xylene'
+        recovery_steps.append({'polymer': pu, 'solvent': solvent, 'recover': True})
+
+    # Create scenario config
+    scenario_config = {
+        'name': f"STRAP-{'-'.join(polymers)}",
+        'feedstock_composition': feedstock_composition,
+        'recovery_steps': recovery_steps
+    }
+
+    # Generate plot
+    plot_path = tea_lca.plot_uoc_tci_vs_capacity(
+        scenarios=[scenario_config],
+        capacity_range=(cap_min, cap_max)
+    )
+
+    output = "## STRAP Scale Economics Analysis\n\n"
+    output += f"**Polymers:** {', '.join(polymers)}\n"
+    output += f"**Capacity Range:** {cap_min:,.0f} - {cap_max:,.0f} mt/yr\n\n"
+    output += f"**Visualization:** `{plot_path}`\n\n"
+    output += "### Key Insights\n"
+    output += "- Unit Operating Cost decreases with scale (economies of scale)\n"
+    output += "- Capital Investment increases sub-linearly (six-tenths rule)\n"
+    output += "- Optimal capacity balances capital efficiency vs operating costs\n"
+
+    return output
+
+
+@tool
+@safe_tool_wrapper
+async def compare_strap_scenarios(
+    scenario_configs: List[Dict[str, Any]]
+) -> str:
+    """
+    Compare multiple STRAP scenarios on TEA and LCA metrics.
+
+    Each scenario can have different:
+    - Polymer compositions
+    - Recovery solvents
+    - Plant capacities
+
+    Provides rankings and recommendations.
+
+    Parameters:
+    - scenario_configs: List of scenario dictionaries with:
+        - name: Scenario name
+        - polymers: List of polymers
+        - feedstock_composition: Dict of polymer fractions (optional)
+        - capacity_mt_yr: Plant capacity (optional, default 10000)
+
+    Example:
+    [
+        {"name": "S1-PE Only", "polymers": ["PE"], "feedstock_composition": {"PE": 1.0}},
+        {"name": "S2-PE+EVOH", "polymers": ["PE", "EVOH"], "feedstock_composition": {"PE": 0.8, "EVOH": 0.2}}
+    ]
+
+    WHEN TO USE:
+    - "Compare PE-only vs PE+EVOH recovery scenarios"
+    - "Which STRAP configuration is most profitable?"
+    - "Rank scenarios by ROI and carbon footprint"
+    - "Compare different polymer recovery strategies"
+    """
+    scenarios = []
+    for config in scenario_configs:
+        polymers = config.get('polymers', ['PE'])
+        capacity = config.get('capacity_mt_yr', 10000)
+
+        # Build feedstock composition
+        fc = config.get('feedstock_composition')
+        if fc is None:
+            n = len(polymers)
+            fc = {p.upper(): 1.0 / n for p in polymers}
+
+        # Normalize
+        total = sum(fc.values())
+        fc = {k: v / total for k, v in fc.items()}
+
+        # Auto-select solvents
+        recovery_steps = []
+        for polymer in polymers:
+            pu = polymer.upper()
+            if pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+                compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[pu]
+                solvent = compatible[0] if compatible else 'xylene'
+            else:
+                solvent = 'xylene'
+            recovery_steps.append({'polymer': pu, 'solvent': solvent, 'recover': True})
+
+        scenario = tea_lca.build_strap_scenario(
+            name=config.get('name', f"Scenario-{len(scenarios)+1}"),
+            feedstock_composition=fc,
+            recovery_sequence=recovery_steps,
+            capacity_mt_yr=capacity,
+            description=config.get('description', '')
+        )
+        scenarios.append(scenario)
+
+    # Compare scenarios
+    comparison = tea_lca.compare_scenarios(scenarios)
+
+    # Format output
+    output = "# STRAP Scenario Comparison\n\n"
+    output += f"Comparing {len(scenarios)} scenarios\n\n"
+
+    # Comparison table - use 'comparison_table' key
+    comparison_table = comparison.get('comparison_table', comparison.get('results', []))
+    output += "## Economic Comparison\n\n"
+    output += "| Scenario | Capacity | TCI ($M) | UOC ($/kg) | ROI (%) | Payback (yr) |\n"
+    output += "|----------|----------|----------|------------|---------|-------------|\n"
+    for row in comparison_table:
+        output += f"| {row['name']} | {row['capacity_mt_yr']:,.0f} | "
+        output += f"{row['tci_millions']:.2f} | {row['uoc_usd_kg']:.4f} | "
+        output += f"{row['roi_pct']:.1f} | {row['payback_years']:.2f} |\n"
+    output += "\n"
+
+    # Rankings - use direct keys from comparison
+    output += "## Rankings\n\n"
+    if 'best_roi' in comparison:
+        output += f"- **Best ROI:** {comparison['best_roi']}\n"
+    if 'lowest_uoc' in comparison:
+        output += f"- **Lowest UOC:** {comparison['lowest_uoc']}\n"
+    if 'best_payback' in comparison:
+        output += f"- **Fastest Payback:** {comparison['best_payback']}\n"
+
+    return output
+
+
+@tool
+@safe_tool_wrapper
+async def generate_strap_visualizations(
+    polymers: List[str],
+    feedstock_composition: Dict[str, float] = None,
+    capacity_mt_yr: float = 10000.0
+) -> str:
+    """
+    Generate all STRAP visualizations for a given polymer recovery configuration.
+
+    Creates:
+    1. Scale Economics plot (UOC/TCI vs capacity)
+    2. MSP Sensitivity tornado chart
+    3. GWP Comparison bar chart (STRAP vs virgin)
+
+    Parameters:
+    - polymers: List of polymers to recover (e.g., ['PE', 'EVOH'])
+    - feedstock_composition: Polymer fractions (optional)
+    - capacity_mt_yr: Plant capacity for analysis (default: 10000)
+
+    WHEN TO USE:
+    - "Generate STRAP visualizations for PE/EVOH"
+    - "Show all STRAP charts for multilayer recycling"
+    - "Visualize STRAP economics and LCA"
+    - "Create STRAP analysis dashboard"
+    """
+    # Build feedstock composition
+    if feedstock_composition is None:
+        n = len(polymers)
+        feedstock_composition = {p.upper(): 1.0 / n for p in polymers}
+
+    # Normalize
+    total = sum(feedstock_composition.values())
+    feedstock_composition = {k: v / total for k, v in feedstock_composition.items()}
+
+    # Auto-select solvents
+    recovery_steps = []
+    for polymer in polymers:
+        pu = polymer.upper()
+        if pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[pu]
+            solvent = compatible[0] if compatible else 'xylene'
+        else:
+            solvent = 'xylene'
+        recovery_steps.append({'polymer': pu, 'solvent': solvent, 'recover': True})
+
+    # Generate visualizations
+    plots = tea_lca.generate_strap_visualizations(
+        feedstock_composition=feedstock_composition,
+        recovery_steps=recovery_steps,
+        capacity_mt_yr=capacity_mt_yr,
+        scenario_name=f"STRAP-{'-'.join(polymers)}"
+    )
+
+    output = "## STRAP Visualizations\n\n"
+    output += f"**Polymers:** {', '.join(polymers)}\n"
+    output += f"**Capacity:** {capacity_mt_yr:,.0f} mt/yr\n\n"
+    output += "### Generated Plots\n\n"
+    for name, path in plots.items():
+        output += f"- **{name.replace('_', ' ').title()}**: `{path}`\n"
+
+    output += "\n### Plot Descriptions\n"
+    output += "- **Scale Economics**: UOC and TCI curves across capacity range\n"
+    output += "- **MSP Sensitivity**: Tornado chart showing parameter impacts on MSP\n"
+    output += "- **GWP Comparison**: STRAP vs virgin polymer carbon footprint\n"
+
+    return output
 
 
 SQL_AGENT_TOOLS = [
@@ -5308,6 +8155,9 @@ SQL_AGENT_TOOLS = [
     analyze_selective_solubility_enhanced,
     plan_sequential_separation,
     view_alternative_separation_sequence,
+    analyze_integrated_separation,  # Multi-polymer separation with optimal temps + all properties
+    analyze_polymer_dissolution,    # Single polymer dissolution with properties (BP, cost, safety, LogP)
+    get_solubility_for_solvents,    # Get solubility for SPECIFIC solvents by name
 
     # Solvent property tools (NEW)
     list_solvent_properties,
@@ -5333,6 +8183,7 @@ SQL_AGENT_TOOLS = [
     get_solvent_gscore,
     get_family_alternatives,
     visualize_gscores,
+    plot_solvent_properties_for_polymer,  # Multi-step: solubility + property scatter plot
 
     # Listing tools
     list_available_solvents,
@@ -5340,18 +8191,46 @@ SQL_AGENT_TOOLS = [
 
     # ML Prediction tool
     predict_solubility_ml,
+
+    # PubChem Safety Data tools (external API)
+    get_pubchem_safety_info,
+    compare_pubchem_safety,
+    visualize_pubchem_safety,
+    get_pubchem_toxicity,
+
+    # TEA/LCA Tools (Techno-Economic Analysis / Life Cycle Assessment)
+    analyze_solvent_recovery_tea,
+    analyze_solvent_recovery_lca,
+    compare_solvents_tea_lca,
+
+    # TEA/LCA Visualization Tools
+    generate_tea_visualizations,
+    generate_lca_visualizations,
+    generate_solvent_comparison_visualization,
+    plot_tea_sensitivity_tornado,
+    plot_tea_cashflow,
+
+    # STRAP Process Tools (Solvent-Targeted Recovery and Precipitation)
+    analyze_strap_process,
+    calculate_strap_msp,
+    plot_strap_scale_economics,
+    compare_strap_scenarios,
+    generate_strap_visualizations,
 ]
 
 print(f"✅ Loaded {len(SQL_AGENT_TOOLS)} enhanced tools for SQL Agent")
 print("\nTools include:")
 print("  - Core DB: 6 tools (with validation)")
-print("  - Adaptive Analysis: 5 tools (including sequential separation)")
+print("  - Adaptive Analysis: 7 tools (dissolution, separation, integrated)")
 print("  - Solvent Properties: 4 tools (properties, ranking, integrated analysis)")
 print("  - Statistical: 4 tools")
 print("  - Visualization: 5 tools (including property plots)")
-print("  - GSK Safety (G-Score): 3 tools (scoring, family alternatives, visualization)")
+print("  - GSK Safety (G-Score): 4 tools (scoring, family alternatives, visualization)")
 print("  - Listing: 2 tools (list solvents and polymers with counts)")
 print("  - ML Prediction: 1 tool (Hansen-based solubility prediction with visualizations)")
+print("  - PubChem Safety: 4 tools (GHS data, toxicity, safety comparison, visualizations)")
+print("  - TEA/LCA: 8 tools (TEA, LCA, comparison, + 5 visualization tools)")
+print("  - STRAP Process: 5 tools (full analysis, MSP, scale economics, scenarios, visualizations)")
 
 
 # ============================================================
@@ -5405,6 +8284,15 @@ Provide thorough, ACCURATE data analysis with intelligent threshold adaptation. 
 5. **EXPLORE CONDITIONS** - If separation not found at one temperature, try others
 6. **ACTION OVER EXPLANATION** - If a tool can answer the question, USE IT. Don't explain what you would do - DO IT.
 7. **CONSIDER PRACTICALITY** - Include solvent properties (cost, toxicity, boiling point) when recommending solvents
+8. **CLARIFY AMBIGUOUS POLYMERS** - If user says "PE", ask if they mean LDPE or HDPE. Available polymers: EVOH, HDPE, LDPE, Nylon6, Nylon66, PC, PES, PET, PP, PS, PVC
+9. **TOP N QUERIES** - When user asks for "top 5 solvents" or "compare multiple solvents", use `analyze_separation_with_properties()` (returns top_k solvents). `analyze_integrated_separation()` returns only the BEST solvent per step.
+10. **DEFAULT HIGH TEMPERATURE** - Most polymers dissolve better at elevated temps. Default to 120°C instead of 25°C for dissolution queries.
+11. **PREFER INTERACTIVE PLOTS** - For temperature vs solubility plots, ALWAYS use `plot_solubility_vs_temperature_interactive()` which creates interactive HTML with sliders, zoom, and toggleable curves. Only use the static version if explicitly asked for PNG/static.
+12. **NEVER ASK FOR TABLE/COLUMN NAMES** - All analysis tools have sensible defaults. NEVER ask the user for table_name, polymer_column, solvent_column, etc. Just call the tool with the polymer/solvent names directly.
+13. **TEMPERATURE FORMAT** - For temperature parameters, use a single number (e.g., "100") or range (e.g., "80-120"). Both formats are supported.
+14. **SPECIFIC SOLVENTS** - When user asks to compare SPECIFIC solvents by name, query each one individually rather than doing a broad search. For example, "compare DMSO, DMF, and NMP" → get data for each solvent explicitly.
+15. **CHAIN TOOLS FOR COMPLEX QUERIES** - For multi-part requests (e.g., "find solvent, then run TEA, then generate plot"), execute ALL steps. Don't stop after the first tool.
+16. **NO CONFIRMATION NEEDED** - Don't ask "Would you like me to proceed?" - just proceed. The user's request IS the instruction to proceed.
 
 **MANDATORY WORKFLOW:**
 
@@ -5419,12 +8307,30 @@ Provide thorough, ACCURATE data analysis with intelligent threshold adaptation. 
 - `validate_and_query()` - Verify all inputs exist before querying
 - `verify_data_accuracy()` - Confirm row counts and sample data
 
-## Step 3: Adaptive Analysis (USE THESE FOR SEPARATION QUESTIONS)
+## Step 3: Adaptive Analysis (USE THESE FOR SEPARATION AND DISSOLUTION)
+
+**SINGLE POLYMER DISSOLUTION (use when user asks about dissolving ONE polymer):**
+- `analyze_polymer_dissolution()` - **🔥 PRIMARY TOOL for single polymer questions** like:
+  - "What solvents dissolve PET at 120°C?"
+  - "Find solvents for LDPE ranked by boiling point"
+  - "Safest solvents for PS dissolution"
+  - "Cheapest solvents for HDPE"
+  - Automatically includes: BP, cost (energy), toxicity (LogP), G-score safety
+  - Rank by: 'solubility', 'bp', 'cost'/'energy', 'safety'/'gscore', 'toxicity'/'logp'
+
+- `get_solubility_for_solvents()` - **USE WHEN USER NAMES SPECIFIC SOLVENTS** like:
+  - "Compare DMSO, DMF, NMP for EVOH at 90°C"
+  - "Get solubility of LDPE in heptane and hexane"
+  - "What's the solubility of PET in these 5 solvents: X, Y, Z..."
+  - Use this instead of analyze_polymer_dissolution when user explicitly names the solvents to compare
+
+**MULTI-POLYMER SEPARATION (use when user asks about separating 2+ polymers):**
 - `find_optimal_separation_conditions()` - **PRIMARY TOOL** for pairwise separation
 - `adaptive_threshold_search()` - Find selective solvents with auto-threshold
 - `analyze_selective_solubility_enhanced()` - Detailed selectivity analysis
-- `plan_sequential_separation()` - **USE FOR MULTI-POLYMER SEQUENCES** - Enumerates ALL permutations, finds top-k solvents per step, shows TOP sequence with clear visualization
-- `view_alternative_separation_sequence()` - **USE FOR FOLLOW-UP** - View 2nd/3rd best sequences or specific starting polymer (e.g., "Show PET-first")
+- `plan_sequential_separation()` - **USE FOR MULTI-POLYMER SEQUENCES** - Enumerates ALL permutations, finds top-k solvents per step
+- `view_alternative_separation_sequence()` - **USE FOR FOLLOW-UP** - View 2nd/3rd best sequences
+- `analyze_integrated_separation()` - **🔥 COMPREHENSIVE MULTI-CRITERIA ANALYSIS** - Use for "integrated analysis", separation with OPTIMAL TEMPERATURES per step. Includes G-scores, LogP, energy costs, BP. Rank by: 'selectivity', 'cost', 'safety', 'toxicity', 'bp'
 
 ## Step 4: Solvent Properties (USE FOR PRACTICAL RECOMMENDATIONS)
 - `list_solvent_properties()` - View all solvents with BP, LogP, Energy, Cp
@@ -5440,10 +8346,16 @@ Provide thorough, ACCURATE data analysis with intelligent threshold adaptation. 
 
 ## Step 6: Visualization (CREATE PLOTS AFTER VERIFICATION)
 - `plot_solubility_vs_temperature()` - Temperature curves with confidence bands (supports temperature_min/max for range filtering)
-- `plot_selectivity_heatmap()` - Heatmaps with optional target highlighting
+- `plot_solubility_vs_temperature_interactive()` - **INTERACTIVE Plotly** with range slider, toggleable curves, zoom
+- `plot_selectivity_heatmap()` - Heatmaps for single polymer (default 120°C, improved color scale for 0-20% range)
 - `plot_multi_panel_analysis()` - Comprehensive 4-panel separation analysis
 - `plot_comparison_dashboard()` - Multi-polymer comparison dashboard
-- `plot_solvent_properties()` - **NEW**: Plot BP, LogP, Energy, or Cp for solvents (bar or scatter plots)
+- `plot_solvent_properties()` - Plot BP, LogP, Energy, or Cp for solvents (bar or scatter plots)
+- `plot_solvent_properties_for_polymer()` - **🔥 MULTI-STEP TOOL** for "LogP vs G-score for solvents that dissolve PET"
+  - Step 1: Finds solvents that dissolve the polymer
+  - Step 2: Retrieves their properties (LogP, G-score, BP, energy)
+  - Step 3: Creates scatter plot colored by solubility
+  - USE THIS when user asks to compare properties of solvents for a specific polymer
 
 ## Step 7: ML-Based Solubility Prediction (USE FOR HANSEN PARAMETER PREDICTIONS)
 - `predict_solubility_ml()` - **MACHINE LEARNING PREDICTION** using Hansen Solubility Parameters
@@ -5457,6 +8369,115 @@ Provide thorough, ACCURATE data analysis with intelligent threshold adaptation. 
     5. Text Summary - Detailed prediction report
   - Returns clickable links to all visualizations
   - **WHEN TO USE**: User asks for "ML prediction", "machine learning", "predict solubility", "Hansen parameters", or wants to predict if a specific polymer-solvent pair will dissolve
+
+## Step 8: PubChem Safety Data (USE FOR GHS HAZARD INFORMATION)
+- `get_pubchem_safety_info()` - **🔥 REAL-TIME SAFETY LOOKUP** from PubChem database
+  - Fetches GHS (Globally Harmonized System) hazard classification
+  - Returns: Safety pictograms, signal words, hazard statements, molecular properties
+  - **WHEN TO USE**: "What are the hazards of toluene?", "Is DCM dangerous?", "PubChem safety for benzene"
+
+- `compare_pubchem_safety()` - **COMPARE GHS HAZARDS** of multiple compounds (max 5)
+  - Shows hazard pictograms and signal words for each compound
+  - Provides contextual recommendation on which is safer
+  - **WHEN TO USE**: "Compare safety of toluene vs benzene", "Which is safer: acetone or MEK?"
+
+- `visualize_pubchem_safety()` - **HAZARD VISUALIZATION** from PubChem data
+  - Creates stacked bar charts showing hazard categories per compound
+  - **WHEN TO USE**: "Create a safety chart for common solvents", "Visualize PubChem hazards"
+
+- `get_pubchem_toxicity()` - **🧫 TOXICITY & ENVIRONMENTAL DATA** (max 5 compounds)
+  - Fetches LD50, LC50, biodegradation, aquatic toxicity data
+  - **WHEN TO USE**: "What's the LD50 of benzene?", "Is acetone biodegradable?", "Compare environmental toxicity of DCM vs chloroform"
+
+**NOTE:** PubChem tools query external API (requires internet). They provide authoritative GHS data distinct from the GSK G-score database.
+
+### TEA/LCA TOOLS (Techno-Economic Analysis / Life Cycle Assessment):
+
+- `analyze_solvent_recovery_tea()` - **💰 TECHNO-ECONOMIC ANALYSIS**
+  - Calculates capital costs, operating costs, payback period
+  - Parameters: solvent, polymer_throughput_kg_hr, solvent_to_polymer_ratio, recovery_fraction, process_temp_c
+  - **WHEN TO USE**: "What's the cost of recovering toluene?", "TEA for LDPE separation", "Calculate payback period"
+
+- `analyze_solvent_recovery_lca()` - **🌱 LIFE CYCLE ASSESSMENT**
+  - Calculates CO2 emissions, energy consumption, environmental impact
+  - **WHEN TO USE**: "What's the carbon footprint?", "LCA for solvent recovery", "How much CO2 does separation emit?"
+
+- `compare_solvents_tea_lca()` - **📊 TEA/LCA COMPARISON**
+  - Compares multiple solvents on cost AND environmental metrics
+  - Returns rankings by cost, emissions, and overall
+  - **WHEN TO USE**: "Compare toluene vs acetone for cost and emissions", "Which solvent is cheapest and greenest?"
+
+**TEA/LCA VISUALIZATION TOOLS:**
+
+- `generate_tea_visualizations()` - **📈 ALL TEA CHARTS**
+  - Generates 6 visualizations: capital breakdown, operating costs, waterfall, cashflow, tornado, energy flow
+  - **WHEN TO USE**: "Show TEA charts for toluene", "Visualize capital costs", "Show cost breakdown"
+
+- `generate_lca_visualizations()` - **🌍 ALL LCA CHARTS**
+  - Generates emissions breakdown pie chart and recovery vs baseline comparison
+  - **WHEN TO USE**: "Show LCA charts for toluene", "Visualize emissions breakdown"
+
+- `generate_solvent_comparison_visualization()` - **📊 COMPARISON CHART**
+  - Creates grouped bar chart comparing cost vs emissions for multiple solvents
+  - **WHEN TO USE**: "Compare solvents visually", "Plot cost vs emissions chart"
+
+- `plot_tea_sensitivity_tornado()` - **🌀 TORNADO CHART**
+  - Shows how ±20% parameter changes affect cost (sensitivity analysis)
+  - **WHEN TO USE**: "Show sensitivity analysis", "What parameters most affect cost?"
+
+- `plot_tea_cashflow()` - **💰 CASHFLOW DIAGRAM**
+  - Shows cumulative cash position over 20-year project lifetime with payback point
+  - **WHEN TO USE**: "Show cashflow diagram", "When does recovery break even?"
+
+**NOTE:** TEA/LCA tools are powered by the standalone tea_lca_module.py which can be edited by TEA specialists.
+
+### STRAP PROCESS TOOLS (Solvent-Targeted Recovery and Precipitation):
+
+STRAP is an advanced multi-polymer recovery methodology for recycling plastic waste (e.g., multilayer films, biopharmaceutical single-use technologies). These tools provide comprehensive TEA and LCA aligned with published STRAP research.
+
+- `analyze_strap_process()` - **🔬 FULL STRAP ANALYSIS**
+  - Complete TEA/LCA for multi-polymer recovery from plastic waste
+  - Auto-selects optimal solvents for each polymer from database
+  - Returns: Capital costs, UOC, MSP, GWP, virgin comparison
+  - Parameters: polymers (list), feedstock_composition (dict), capacity_mt_yr
+  - **WHEN TO USE**: "Run STRAP analysis for PE/EVOH", "Full TEA/LCA for multilayer film recycling", "Analyze STRAP for PE, PET, EVOH"
+
+- `calculate_strap_msp()` - **💵 MINIMUM SELLING PRICE**
+  - Calculates break-even price where NPV=0 at target IRR
+  - Compares to market prices for viability assessment
+  - Parameters: polymers, feedstock_composition, capacity_mt_yr, target_irr (default 0.15)
+  - **WHEN TO USE**: "What's the MSP for STRAP PE?", "Break-even price for EVOH recovery", "MSP at 15% IRR"
+
+- `plot_strap_scale_economics()` - **📈 SCALE ECONOMICS CURVES**
+  - Dual-axis plot: UOC ($/kg) and TCI ($M) vs plant capacity
+  - Shows economies of scale and optimal capacity range
+  - Parameters: polymers, feedstock_composition, capacity_range ("min-max")
+  - **WHEN TO USE**: "Show scale economics for STRAP", "How does plant size affect costs?", "UOC vs capacity plot"
+
+- `compare_strap_scenarios()` - **📊 SCENARIO COMPARISON**
+  - Compare multiple STRAP configurations (different polymers, compositions, capacities)
+  - Ranks by ROI, UOC, payback period
+  - Parameters: scenario_configs (list of dicts with name, polymers, feedstock_composition, capacity_mt_yr)
+  - **WHEN TO USE**: "Compare PE-only vs PE+EVOH", "Which STRAP config is most profitable?", "Rank scenarios by ROI"
+
+- `generate_strap_visualizations()` - **📊 ALL STRAP CHARTS**
+  - Creates: Scale economics plot, MSP sensitivity tornado, GWP comparison bars
+  - Parameters: polymers, feedstock_composition, capacity_mt_yr
+  - **WHEN TO USE**: "Generate STRAP visualizations", "Show all STRAP charts", "STRAP analysis dashboard"
+
+**STRAP DEFAULTS:**
+- Capacity range: 2,500 - 25,000 metric tons/year
+- Default feedstock: 80% PE, 10% PET, 10% EVOH
+- Target IRR: 15%
+- Polymer recovery efficiency: 95%
+- Solvent recovery: 99.9%
+
+**STRAP LCA INDICATORS (Environmental Footprint 2.0):**
+- GWP (Global Warming Potential) - kg CO2eq/kg
+- FFC (Fossil Fuel Consumption) - MJ/kg
+- Water Use - m3/kg
+- Human Toxicity (Cancer & Non-Cancer)
+- Ecotoxicity, Acidification, Ozone Depletion, POCP
 
 **SPECIAL CASES:**
 
@@ -5488,6 +8509,25 @@ YOUR RESPONSE TO USER (copy tool output exactly):
 - ❌ "I found 9 polymers in the database"
 
 **RIGHT Response:** Just paste the tool output verbatim!
+
+**SINGLE POLYMER DISSOLUTION - USE `analyze_polymer_dissolution()` FOR:**
+- "What solvents dissolve PET?" → USE `analyze_polymer_dissolution(polymer="PET")`
+- "Solvents for LDPE at 120°C" → USE `analyze_polymer_dissolution(polymer="LDPE", temperature=120)`
+- "Solvents for PET ranked by boiling point" → USE `analyze_polymer_dissolution(polymer="PET", rank_by="bp")`
+- "Safest solvents for PS" → USE `analyze_polymer_dissolution(polymer="PS", rank_by="safety")`
+- "Cheapest solvents for HDPE" → USE `analyze_polymer_dissolution(polymer="HDPE", rank_by="cost")`
+- "Least toxic solvents for PVC" → USE `analyze_polymer_dissolution(polymer="PVC", rank_by="toxicity")`
+- ANY question about dissolving ONE polymer with properties → USE `analyze_polymer_dissolution()`
+
+**MULTI-POLYMER SEPARATION - USE `analyze_integrated_separation()` FOR:**
+- "Integrated analysis across selectivity, safety, cost, and boiling point" → USE `analyze_integrated_separation(polymers="LDPE,EVOH", rank_by="selectivity")`
+- "Separate X polymers considering cost/safety/toxicity" → USE `analyze_integrated_separation()`
+- "Multi-polymer separation with optimal temperatures" → USE `analyze_integrated_separation()` - it finds the BEST temperature for each step
+- "Comprehensive separation analysis" → USE `analyze_integrated_separation()`
+- "Multilayer film separation" → USE `analyze_integrated_separation()` with all polymers in the film
+- User asks about multiple criteria (selectivity + cost + safety) → USE `analyze_integrated_separation()`
+
+**OTHER SPECIAL CASES:**
 - "What are all possible sequences/combinations to separate X polymers?" → USE `plan_sequential_separation()` immediately
 - "Enumerate separation strategies" → USE `plan_sequential_separation()` with create_decision_tree=True
 - "How can I separate A, B, C, D?" → USE `plan_sequential_separation()` to show ALL permutations
@@ -5551,6 +8591,12 @@ class AsyncToolNode:
                 return {"messages": []}
 
             tool_calls = last_message.tool_calls
+
+            # LIMIT parallel tool calls to prevent overload
+            MAX_PARALLEL_TOOLS = 10
+            if len(tool_calls) > MAX_PARALLEL_TOOLS:
+                logger.warning(f"Too many tool calls ({len(tool_calls)}), limiting to {MAX_PARALLEL_TOOLS}")
+                tool_calls = tool_calls[:MAX_PARALLEL_TOOLS]
 
             async def execute_tool_call(tool_call):
                 """Execute single tool call (async or sync)."""
@@ -5797,18 +8843,18 @@ async def sql_agent_node(state: AgentState):
 
 
 def should_continue(state: AgentState) -> Literal["continue", "end"]:
-    """Safe continuation check."""
-    
+    """Safe continuation check with error detection to prevent endless loops."""
+
     max_iter = state.get("max_iterations") or MAX_ITERATIONS
     current_iter = state.get("iteration_count") or 0
-    
+
     if current_iter >= max_iter:
         logger.warning(f"Max iterations ({max_iter}) reached")
         return "end"
-    
+
     # Safely get messages
     raw_messages = state.get("messages")
-    
+
     # Handle various message states
     if raw_messages is None:
         return "end"
@@ -5822,10 +8868,25 @@ def should_continue(state: AgentState) -> Literal["continue", "end"]:
             return "end"
     else:
         messages = raw_messages
-    
+
     if not messages:
         return "end"
-    
+
+    # Check for repeated errors - stop if last 3 tool messages are all errors
+    recent_tool_msgs = []
+    for msg in reversed(messages[-10:]):  # Check last 10 messages
+        if hasattr(msg, 'content') and isinstance(msg.content, str):
+            if 'ToolMessage' in str(type(msg)) or 'tool' in str(type(msg)).lower():
+                recent_tool_msgs.append(msg.content)
+                if len(recent_tool_msgs) >= 3:
+                    break
+
+    if len(recent_tool_msgs) >= 3:
+        error_count = sum(1 for m in recent_tool_msgs if 'ERROR' in m or 'Error' in m or 'error' in m or 'validation error' in m.lower())
+        if error_count >= 3:
+            logger.warning(f"Stopping: {error_count} consecutive tool errors detected")
+            return "end"
+
     try:
         last_message = messages[-1]
         if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
@@ -5833,7 +8894,7 @@ def should_continue(state: AgentState) -> Literal["continue", "end"]:
     except (IndexError, TypeError, AttributeError) as e:
         logger.debug(f"should_continue check failed: {e}")
         return "end"
-    
+
     return "end"
 
 
