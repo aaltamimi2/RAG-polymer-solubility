@@ -24,6 +24,10 @@ from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 # Async utilities
 from async_utils import run_in_thread
 from session_manager import session_manager
@@ -48,10 +52,12 @@ logger = logging.getLogger(__name__)
 
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 PLOTS_DIR = os.environ.get("PLOTS_DIR", "./plots")
+EXPORTS_DIR = os.environ.get("EXPORTS_DIR", "./exports")
 FRONTEND_DIR = os.environ.get("FRONTEND_DIR", "./frontend")
 
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
+os.makedirs(EXPORTS_DIR, exist_ok=True)
 
 # ============================================================
 # Pydantic Models
@@ -538,6 +544,194 @@ async def api_download_export(export_id: str):
     except Exception as e:
         logger.error(f"Error serving export {export_id}: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to serve export: {str(e)}")
+
+
+@app.post("/api/export/session/{session_id}")
+async def api_export_session(session_id: str):
+    """Export session conversation as CSV with intelligent structuring."""
+    try:
+        from session_manager import session_manager
+        import pandas as pd
+        import re
+        from io import StringIO
+
+        # Get session
+        session = await session_manager.get(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        if len(session.messages) == 0:
+            raise HTTPException(status_code=400, detail="No messages to export")
+
+        # Parse messages and extract structured data
+        csv_data = []
+        current_query = None
+
+        for i, msg in enumerate(session.messages):
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            timestamp = msg.get('timestamp', '')
+            elapsed = msg.get('elapsed', '')
+            iterations = msg.get('iterations', '')
+
+            # Store user query for context
+            if role == 'user':
+                current_query = content
+                csv_data.append({
+                    'Message_Number': i + 1,
+                    'Timestamp': timestamp,
+                    'Type': 'Query',
+                    'Query': content,
+                    'Elapsed_Time': elapsed
+                })
+                continue
+
+            # Try to extract Google Scholar results
+            scholar_match = re.search(r'📚 Google Scholar Results: (.+?)\n.*?Found: (\d+) articles', content, re.DOTALL)
+            if scholar_match:
+                search_query = scholar_match.group(1).strip()
+                article_count = scholar_match.group(2)
+
+                # Extract individual articles
+                articles = re.findall(
+                    r'(\d+)\.\s+(.+?)\n\s*Authors?: (.+?)\s+Year: (\d+).*?Citations: (\d+).*?(?:📄 PDF Available)?\s*(?:\d+ days ago)?\s*-?\s*…?\s*(.+?)(?=\n\n\d+\.|🔍 Search Query:|$)',
+                    content,
+                    re.DOTALL
+                )
+
+                for article in articles:
+                    csv_data.append({
+                        'Message_Number': i + 1,
+                        'Timestamp': timestamp,
+                        'Type': 'Google_Scholar_Result',
+                        'Search_Query': search_query,
+                        'Article_Number': article[0],
+                        'Title': article[1].strip(),
+                        'Authors': article[2].strip(),
+                        'Year': article[3],
+                        'Citations': article[4],
+                        'Abstract_Snippet': article[5].strip().replace('…', '').replace('\n', ' ')[:500],
+                        'Query_Context': current_query,
+                        'Elapsed_Time': elapsed
+                    })
+                continue
+
+            # Try to extract markdown tables from content
+            tables = re.findall(r'\|[^\n]+\|\n\|[-:\s|]+\|\n(?:\|[^\n]+\|\n)+', content)
+
+            if tables:
+                # If content contains tables, extract them as structured data
+                for table_idx, table in enumerate(tables):
+                    try:
+                        # Parse markdown table
+                        lines = [line.strip() for line in table.strip().split('\n') if line.strip()]
+                        if len(lines) >= 3:  # Header + separator + at least one row
+                            # Extract headers
+                            headers = [h.strip() for h in lines[0].split('|') if h.strip()]
+
+                            # Extract data rows (skip separator line)
+                            for row_idx, line in enumerate(lines[2:], 1):
+                                values = [v.strip() for v in line.split('|') if v.strip()]
+                                if len(values) == len(headers):
+                                    row_data = {
+                                        'Message_Number': i + 1,
+                                        'Timestamp': timestamp,
+                                        'Type': 'Table_Data',
+                                        'Table_Number': table_idx + 1,
+                                        'Row_Number': row_idx,
+                                        'Query_Context': current_query,
+                                        'Iterations': iterations,
+                                        'Elapsed_Time': elapsed
+                                    }
+                                    # Add table columns
+                                    for header, value in zip(headers, values):
+                                        row_data[header] = value
+                                    csv_data.append(row_data)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse table in message {i}: {e}")
+                        continue
+
+            # Try to extract key-value pairs (e.g., "Temperature: 120°C")
+            kv_pairs = re.findall(r'\*\*(.+?)\*\*:\s*(.+?)(?:\n|$)', content)
+            if kv_pairs and len(kv_pairs) >= 3:
+                for key, value in kv_pairs:
+                    csv_data.append({
+                        'Message_Number': i + 1,
+                        'Timestamp': timestamp,
+                        'Type': 'Property',
+                        'Property_Name': key.strip(),
+                        'Property_Value': value.strip(),
+                        'Query_Context': current_query,
+                        'Elapsed_Time': elapsed
+                    })
+                continue
+
+            # Try to extract numbered lists
+            list_items = re.findall(r'^\s*\d+\.\s+(.+?)$', content, re.MULTILINE)
+            if list_items and len(list_items) >= 3:
+                for idx, item in enumerate(list_items, 1):
+                    csv_data.append({
+                        'Message_Number': i + 1,
+                        'Timestamp': timestamp,
+                        'Type': 'List_Item',
+                        'Item_Number': idx,
+                        'Item_Content': item.strip(),
+                        'Query_Context': current_query,
+                        'Elapsed_Time': elapsed
+                    })
+                continue
+
+            # Fallback: general response format
+            if not tables:
+                # Clean content for CSV (remove excess whitespace)
+                clean_content = re.sub(r'\s+', ' ', content).strip()
+
+                # For long responses, create a summary
+                if len(clean_content) > 500:
+                    clean_content = clean_content[:500] + '... (truncated)'
+
+                csv_data.append({
+                    'Message_Number': i + 1,
+                    'Timestamp': timestamp,
+                    'Type': 'General_Response',
+                    'Response': clean_content,
+                    'Query_Context': current_query,
+                    'Iterations': iterations,
+                    'Elapsed_Time': elapsed,
+                    'Images': len(msg.get('images', []))
+                })
+
+        if not csv_data:
+            raise HTTPException(status_code=400, detail="No data to export")
+
+        # Create DataFrame and save to CSV
+        df = pd.DataFrame(csv_data)
+
+        # Generate filename
+        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"conversation_{session_id}_{timestamp_str}.csv"
+        filepath = os.path.join(EXPORTS_DIR, filename)
+
+        # Ensure exports directory exists
+        os.makedirs(EXPORTS_DIR, exist_ok=True)
+
+        # Save CSV
+        df.to_csv(filepath, index=False)
+
+        logger.info(f"Exported session {session_id} to {filename} ({len(df)} rows)")
+
+        # Return file
+        return FileResponse(
+            filepath,
+            media_type="text/csv",
+            filename=filename
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error exporting session {session_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to export session: {str(e)}")
 
 # ============================================================
 # ML Polymer Types Endpoint

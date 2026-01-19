@@ -6574,7 +6574,9 @@ async def predict_solubility_ml(
                 import shutil
 
                 # Create subdirectory for full viz set
-                viz_dir = os.path.join(PLOTS_DIR, f"{polymer_name}_{solvent_name}".replace(" ", "_"))
+                import re
+                safe_dirname = re.sub(r'[^\w\-]', '_', f"{polymer_name}_{solvent_name}")
+                viz_dir = os.path.join(PLOTS_DIR, safe_dirname)
                 os.makedirs(viz_dir, exist_ok=True)
 
                 # Generate all visualizations in subdirectory
@@ -6591,7 +6593,7 @@ async def predict_solubility_ml(
 
                 # Copy radar plot and RED gauge to root plots directory (so they auto-display)
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                safe_name = f"{polymer_name}_{solvent_name}".replace(" ", "_")[:30]
+                safe_name = re.sub(r'[^\w\-]', '_', f"{polymer_name}_{solvent_name}")[:30]
 
                 radar_src = viz_paths.get('Radar Plot')
                 gauge_src = viz_paths.get('RED Gauge')
@@ -6604,15 +6606,16 @@ async def predict_solubility_ml(
                     gauge_dest = os.path.join(PLOTS_DIR, f"ml_gauge_{safe_name}_{timestamp}.png")
                     shutil.copy(gauge_src, gauge_dest)
 
-                # Add link to 3D sphere (opens in new tab)
-                # Use URL-safe folder name
-                import urllib.parse
-                viz_folder = f"{polymer_name}_{solvent_name}".replace(" ", "_")
-                viz_folder_encoded = urllib.parse.quote(viz_folder, safe='')
-                sphere_path = viz_paths.get('3D Sphere (Interactive HTML)')
-                if sphere_path:
-                    sphere_filename = urllib.parse.quote(os.path.basename(sphere_path), safe='')
-                    sphere_url = f"/plots/{viz_folder_encoded}/{sphere_filename}"
+                # Copy 3D sphere HTML to root plots directory for easy access
+                sphere_src = viz_paths.get('3D Sphere (Interactive HTML)')
+                if sphere_src and os.path.exists(sphere_src):
+                    sphere_dest = os.path.join(PLOTS_DIR, f"ml_sphere_{safe_name}_{timestamp}.html")
+                    shutil.copy(sphere_src, sphere_dest)
+
+                    # Add link to 3D sphere (opens in new tab)
+                    import urllib.parse
+                    sphere_filename = os.path.basename(sphere_dest)
+                    sphere_url = f"/plots/{sphere_filename}"
                     # Use markdown link syntax (not HTML) for proper rendering
                     output.append(f"\n**Interactive 3D Visualization:** [Click to open Hansen Sphere 🌐]({sphere_url})")
                     output.append(f"\n💡 **Tip:** The 3D sphere opens in a new tab - you can rotate, zoom, and explore the Hansen space!")
@@ -8140,6 +8143,290 @@ async def generate_strap_visualizations(
     return output
 
 
+# ============================================================
+# Google Scholar Literature Search (SerpAPI Integration)
+# ============================================================
+
+@tool
+def search_google_scholar(
+    query: str,
+    max_results: int = 10,
+    year_low: Optional[int] = None,
+    year_high: Optional[int] = None
+) -> str:
+    """
+    Search Google Scholar for academic research articles using SerpAPI.
+
+    **When to use**: For broad literature searches, preprints, dissertations, and when you need
+    maximum coverage across all academic sources. Good for emerging topics or interdisciplinary searches.
+
+    **BETA FEATURE**: Limited to 100 searches/month. Use wisely!
+
+    Args:
+        query: Natural language search query (e.g., "polymer dissolution", "Hansen solubility parameters polyethylene")
+        max_results: Maximum number of results to return (default: 10, max: 20)
+        year_low: Minimum publication year (optional)
+        year_high: Maximum publication year (optional)
+
+    Returns:
+        Formatted list of research articles with titles, authors, years, and clickable links
+
+    Examples:
+        - "Search Google Scholar for recent articles on polymer dissolution"
+        - "Find Google Scholar papers on Hansen solubility parameters"
+        - "What publications on solvent-based polymer recycling are in Google Scholar?"
+
+    **Note**: Uses simple keyword matching. For peer-reviewed articles with citation metrics,
+    consider using Web of Science instead.
+    """
+    try:
+        from serpapi_scholar_client import GoogleScholarClient
+
+        # Initialize client (uses SERPAPI_KEY from environment)
+        client = GoogleScholarClient()
+
+        # Perform search
+        results = client.search(
+            query=query,
+            num_results=min(max_results, 20),  # Cap at 20
+            year_low=year_low,
+            year_high=year_high,
+            sort_by='date'  # Get most recent articles
+        )
+
+        # Parse results
+        organic_results = results.get('organic_results', [])
+
+        if not organic_results:
+            return f"No results found for query: '{query}'\n\nTry:\n- Using simpler search terms\n- Removing year filters\n- Checking spelling"
+
+        # Format output
+        output = [f"# 📚 Google Scholar Results: {query}\n"]
+        output.append(f"**Found:** {len(organic_results)} articles\n")
+
+        if year_low or year_high:
+            year_range = f"{year_low or '...'}-{year_high or '...'}"
+            output.append(f"**Year Range:** {year_range}\n")
+
+        output.append("\n## Articles\n")
+
+        for i, result in enumerate(organic_results, 1):
+            article = client._parse_article(result)
+
+            # Title with link
+            title = article.get('title', 'N/A')
+            link = article.get('link', '#')
+            output.append(f"\n### {i}. [{title}]({link})")
+
+            # Authors
+            authors = article.get('authors', [])
+            if authors:
+                author_str = ', '.join(authors[:3])
+                if len(authors) > 3:
+                    author_str += f" et al. ({len(authors)} total)"
+                output.append(f"**Authors:** {author_str}")
+
+            # Year and citations
+            year = article.get('year', 'N/A')
+            citations = article.get('cited_by_count', 0)
+            output.append(f"**Year:** {year} | **Citations:** {citations}")
+
+            # PDF link if available
+            pdf_link = article.get('pdf_link')
+            if pdf_link:
+                output.append(f"📄 **[PDF Available]({pdf_link})**")
+
+            # Snippet
+            snippet = article.get('snippet', '')
+            if snippet:
+                # Truncate long snippets
+                if len(snippet) > 200:
+                    snippet = snippet[:200] + "..."
+                output.append(f"*{snippet}*")
+
+        # Footer
+        output.append(f"\n\n---")
+        output.append(f"**🔍 Search Query:** `{query}`")
+        output.append(f"**📊 Results Shown:** {len(organic_results)} of {results.get('search_metadata', {}).get('total_results', 'many')}")
+        output.append(f"\n⚠️ **Beta Feature:** This uses SerpAPI with limited monthly searches. Use wisely!")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Google Scholar search is not available. The `serpapi_scholar_client` module is not installed.\n\n"
+                "This is a BETA feature that requires SerpAPI integration.")
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return ("❌ Google Scholar search requires a SerpAPI key.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://serpapi.com/\n"
+                    "2. Set environment variable: `SERPAPI_KEY=your-key`\n"
+                    "3. Restart the application")
+        else:
+            return f"❌ Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Google Scholar search error: {e}")
+        return f"❌ Search failed: {str(e)}\n\nPlease try again or simplify your query."
+
+
+# ============================================================
+# Web of Science Literature Search (Starter API)
+# ============================================================
+
+@tool
+def search_web_of_science(
+    query: str,
+    polymer_name: Optional[str] = None,
+    solvent_name: Optional[str] = None,
+    year_low: Optional[int] = None,
+    year_high: Optional[int] = None,
+    max_results: int = 10
+) -> str:
+    """
+    Search Web of Science for peer-reviewed research articles using Clarivate API.
+
+    **When to use**: For high-quality peer-reviewed articles from journals, with citation counts
+    and impact metrics. Best for established research topics in polymer science and chemistry.
+    Use this for queries about specific polymers, solvents, or well-defined scientific topics.
+
+    Args:
+        query: General search query (e.g., "polymer dissolution mechanisms", "selective PET separation")
+        polymer_name: Specific polymer name to search for (e.g., "polyethylene", "PET", "nylon")
+        solvent_name: Specific solvent name (e.g., "toluene", "NMP", "o-dichlorobenzene")
+        year_low: Minimum publication year (optional)
+        year_high: Maximum publication year (optional)
+        max_results: Maximum number of results to return (default: 10, max: 50)
+
+    Returns:
+        Formatted list of peer-reviewed articles with titles, authors, journals, years, DOIs, and links
+
+    Examples:
+        - "Search Web of Science for articles on PET dissolution"
+        - "Find WoS papers about polyethylene solubility"
+        - "What are recent Web of Science articles on Hansen solubility parameters?"
+        - "Search for peer-reviewed articles about selective dissolution of mixed plastics"
+
+    **Note**: Uses Web of Science Starter API. Returns peer-reviewed journal articles with
+    citation metrics and DOI links. More focused on high-quality sources than Google Scholar.
+    """
+    try:
+        from wos_starter_client import WebOfScienceStarterClient
+
+        # Initialize client (uses WOS_STARTER_API_KEY from environment)
+        client = WebOfScienceStarterClient()
+
+        # Determine search strategy
+        if polymer_name or solvent_name:
+            # Use specialized polymer search
+            articles = client.search_polymer_articles(
+                polymer_name=polymer_name,
+                solvent_name=solvent_name,
+                year_low=year_low,
+                year_high=year_high,
+                max_results=max_results
+            )
+        elif "hansen" in query.lower():
+            # Hansen-specific search
+            articles = client.search_hansen_parameters(
+                year_low=year_low,
+                year_high=year_high,
+                max_results=max_results
+            )
+        else:
+            # Build WoS query from natural language
+            wos_query = f'TS=({query})'
+            if year_low or year_high:
+                year_start = year_low or 1900
+                year_end = year_high or 2030
+                wos_query += f' AND PY=({year_start}-{year_end})'
+
+            results = client.search_documents(
+                query=wos_query,
+                limit=max_results,
+                sort_field='PY+D'
+            )
+
+            # Parse results
+            articles = []
+            for record in results.get('hits', []):
+                articles.append(client._parse_article(record))
+
+        if not articles:
+            return f"No Web of Science articles found for: '{query}'\n\n**Suggestions:**\n- Try broader search terms\n- Remove year restrictions\n- Check spelling of polymer/solvent names"
+
+        # Format output
+        output = [f"# 📚 Web of Science Results: {query}\n"]
+        output.append(f"**Found:** {len(articles)} peer-reviewed articles\n")
+
+        if year_low or year_high:
+            year_range = f"{year_low or '...'}-{year_high or '...'}"
+            output.append(f"**Year Range:** {year_range}\n")
+
+        output.append("\n## Articles\n")
+
+        for i, article in enumerate(articles, 1):
+            # Title with WoS link
+            title = article.get('title', 'N/A')
+            link = article.get('link', '#')
+            output.append(f"\n### {i}. [{title}]({link})")
+
+            # Authors
+            authors = article.get('authors', [])
+            if authors:
+                author_str = ', '.join(authors[:3])
+                if len(authors) > 3:
+                    author_str += f" et al. ({len(authors)} total)"
+                output.append(f"**Authors:** {author_str}")
+
+            # Journal and year
+            journal = article.get('journal', 'N/A')
+            year = article.get('year', 'N/A')
+            output.append(f"**Journal:** {journal}")
+            output.append(f"**Year:** {year}")
+
+            # DOI
+            doi = article.get('doi', 'N/A')
+            if doi != 'N/A':
+                output.append(f"**DOI:** [{doi}](https://doi.org/{doi})")
+
+            # Citations
+            times_cited = article.get('times_cited', 0)
+            if times_cited > 0:
+                output.append(f"**Times Cited:** {times_cited}")
+
+            # Abstract snippet
+            abstract = article.get('abstract', '')
+            if abstract and abstract != 'N/A':
+                # Truncate long abstracts
+                if len(abstract) > 200:
+                    abstract = abstract[:200] + "..."
+                output.append(f"*{abstract}*")
+
+        # Footer
+        output.append(f"\n\n---")
+        output.append(f"**🔍 Search Query:** `{query}`")
+        output.append(f"**📊 Results:** {len(articles)} peer-reviewed articles from Web of Science")
+        output.append(f"**🏛️ Source:** Clarivate Web of Science Starter API")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Web of Science search is not available. The `wos_starter_client` module is not installed.\n\n"
+                "Please ensure the WoS client is properly configured.")
+    except ValueError as e:
+        if "WOS_STARTER_API_KEY" in str(e):
+            return ("❌ Web of Science search requires an API key.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://developer.clarivate.com/\n"
+                    "2. Set environment variable: `WOS_STARTER_API_KEY=your-key`\n"
+                    "3. Restart the application")
+        else:
+            return f"❌ Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Web of Science search error: {e}")
+        return f"❌ Search failed: {str(e)}\n\nPlease try again or simplify your query."
+
+
 SQL_AGENT_TOOLS = [
     # Core database tools
     list_tables,
@@ -8198,6 +8485,10 @@ SQL_AGENT_TOOLS = [
     visualize_pubchem_safety,
     get_pubchem_toxicity,
 
+    # Literature Search Tools (external APIs)
+    search_google_scholar,      # Google Scholar via SerpAPI (broad coverage, 100/month limit)
+    search_web_of_science,      # Web of Science via Clarivate (peer-reviewed, citation metrics)
+
     # TEA/LCA Tools (Techno-Economic Analysis / Life Cycle Assessment)
     analyze_solvent_recovery_tea,
     analyze_solvent_recovery_lca,
@@ -8229,6 +8520,7 @@ print("  - GSK Safety (G-Score): 4 tools (scoring, family alternatives, visualiz
 print("  - Listing: 2 tools (list solvents and polymers with counts)")
 print("  - ML Prediction: 1 tool (Hansen-based solubility prediction with visualizations)")
 print("  - PubChem Safety: 4 tools (GHS data, toxicity, safety comparison, visualizations)")
+print("  - Literature Search: 2 tools (Web of Science + Google Scholar with clickable links)")
 print("  - TEA/LCA: 8 tools (TEA, LCA, comparison, + 5 visualization tools)")
 print("  - STRAP Process: 5 tools (full analysis, MSP, scale economics, scenarios, visualizations)")
 
