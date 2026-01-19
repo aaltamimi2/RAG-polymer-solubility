@@ -230,6 +230,32 @@ const api = {
 
     return response.blob();
   },
+
+  /**
+   * Export session conversation as CSV
+   * @param {string} sessionId - Session ID to export
+   * @returns {Promise<Blob>} - CSV file blob
+   */
+  async exportSessionAsCSV(sessionId) {
+    const response = await fetchWithRetry(`${API_BASE}/api/export/session/${sessionId}`, {
+      method: 'POST'
+    });
+
+    if (response.status === 404) {
+      throw new Error('Session not found');
+    }
+
+    if (response.status === 400) {
+      const error = await response.json();
+      throw new Error(error.detail || 'No messages to export');
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to export session: ${response.statusText}`);
+    }
+
+    return response.blob();
+  },
 };
 
 export default api;

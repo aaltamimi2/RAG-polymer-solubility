@@ -13,21 +13,16 @@ import {
   FlaskConical,
   Table,
   Beaker,
-  Thermometer,
-  DollarSign,
   AlertTriangle,
   Download,
   Moon,
   Sun,
   Layers,
-  Shield,
   Brain,
   Search,
-  Zap,
-  BarChart3,
   Calculator,
-  Leaf,
-  Rocket
+  Rocket,
+  BookOpen
 } from 'lucide-react';
 import api, { API_BASE } from './api';
 
@@ -796,44 +791,37 @@ function App() {
     downloadCSV(exportId, showNotification);
   };
 
-  const handleExportConversation = () => {
+  const handleExportConversation = async () => {
     if (messages.length === 0) {
       showNotification('No conversation to export', 'error');
       return;
     }
 
+    if (!sessionId) {
+      showNotification('No active session to export', 'error');
+      return;
+    }
+
     try {
-      const conversationData = {
-        session_id: sessionId,
-        exported_at: new Date().toISOString(),
-        message_count: messages.length,
-        messages: messages.map(msg => ({
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp || new Date().toISOString(),
-          elapsed_time: msg.elapsed,
-          iterations: msg.iterations,
-          images: msg.images || [],
-        })),
-      };
+      showNotification('Generating CSV export...', 'info');
 
-      const blob = new Blob([JSON.stringify(conversationData, null, 2)], {
-        type: 'application/json',
-      });
+      // Call backend API to export session as CSV
+      const blob = await api.exportSessionAsCSV(sessionId);
 
+      // Download the CSV file
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `dissolve_conversation_${sessionId || 'unknown'}_${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `conversation_${sessionId}_${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      showNotification('Conversation exported successfully', 'success');
+      showNotification('Conversation exported as CSV successfully', 'success');
     } catch (error) {
       console.error('Export error:', error);
-      showNotification('Failed to export conversation', 'error');
+      showNotification(error.message || 'Failed to export conversation', 'error');
     }
   };
 
@@ -902,7 +890,7 @@ function App() {
                   backgroundColor: 'var(--bg-tertiary)',
                   color: 'var(--text-primary)'
                 }}
-                title="Export conversation as JSON"
+                title="Export conversation as CSV"
               >
                 <Download size={16} />
                 <span className="hidden sm:inline">Export</span>
@@ -1190,156 +1178,127 @@ function App() {
                     Ask questions about polymer solubility, separation strategies, and solvent properties.
                   </p>
 
-                  {/* Quick Actions - Enhanced with Multiple Examples */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-5xl">
-                    <QuickActionWithExamples
-                      icon={Beaker}
-                      label="Polymer Dissolution"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "What solvents dissolve PS at 120°C? Rank by safety and show boiling points",
-                        "Find the best solvents for LDPE dissolution at 100°C, prioritize low toxicity (LogP)",
-                        "Which solvents dissolve PET at 140°C? Include G-scores and energy costs"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Search}
-                      label="Solvent Properties"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Compare safety profiles (G-score, LogP, toxicity) of chloroform, toluene, and acetone",
-                        "List all solvents with boiling point below 100°C and G-score above 5",
-                        "What are the full properties of xylene? Include cost, safety, and boiling point"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Layers}
-                      label="Multilayer Separation"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Design separation strategy for 3-layer packaging film: LDPE/EVOH/PET at 120°C",
-                        "Find optimal temperatures to separate HDPE, PP, and PS from mixed plastic waste",
-                        "Analyze separation process for PVC/LDPE/HDPE multilayer film"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Shield}
-                      label="Safety Analysis"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Rank solvents for EVOH dissolution at 120°C by GSK G-score (safest first)",
-                        "Which safe solvents (G-score > 5) dissolve PS at 140°C?",
-                        "Find safer alternatives to dichloromethane for PVC dissolution at 100°C"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={DollarSign}
-                      label="Cost Analysis"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Find the cheapest solvents that dissolve LDPE at 120°C",
-                        "Rank HDPE-selective solvents by energy cost for industrial-scale recycling",
-                        "Which low-cost solvents work for PP dissolution at 140°C?"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Thermometer}
-                      label="Boiling Point"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Find solvents for PET dissolution at 140°C with BP between 100-180°C for easy recovery",
-                        "Which low-boiling solvents dissolve PS at 120°C? Include safety data",
-                        "Rank solvents for PP separation at 140°C by boiling point"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Zap}
-                      label="Integrated Analysis"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Full integrated analysis for LDPE/EVOH/PET separation: find optimal temp per layer, rank by safety",
-                        "Find the best overall solvent for separating HDPE from PP considering selectivity, safety, cost, and BP",
-                        "Compare complete profiles of top 5 solvents for PVC/LDPE separation at 100°C"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={BarChart3}
-                      label="Visualizations"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Plot solubility vs temperature for PS in toluene, xylene, and benzene from 25°C to 160°C",
-                        "Create a bar chart comparing G-scores of the top 10 safest solvents for LDPE",
-                        "Visualize the separation selectivity of HDPE vs PP at 120°C",
-                        "Create a heatmap of solubility for PS at 120°C",
-                        "Show a scatter plot of LogP vs G-score for solvents that dissolve PET at 140°C",
-                        "Plot the boiling points and energy costs of solvents that dissolve PVC at 100°C"
-                      ]}
-                    />
-                    <QuickAction
-                      icon={Brain}
-                      label="HSP ML Prediction"
-                      onClick={loadMlPolymerTypes}
-                    />
-                    <QuickActionWithExamples
-                      icon={FlaskConical}
-                      label="PubChem Safety"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Get PubChem safety data for toluene - show GHS hazards and molecular properties",
-                        "What are the safety hazards for dichloromethane (DCM)?",
-                        "Compare safety profiles of benzene, toluene, and xylene using PubChem data",
-                        "Which is safer according to PubChem: acetone or MEK?",
-                        "Create a PubChem safety chart comparing ethanol, methanol, and isopropanol",
-                        "What's the LD50 and environmental toxicity of toluene, benzene, and acetone?",
-                        "Is acetone biodegradable? Compare with DCM and chloroform",
-                        "Get aquatic toxicity data for hexane, heptane, and cyclohexane",
-                        "PubChem safety comparison: DMF vs DMSO vs NMP",
-                        "Is benzene carcinogenic? Get full PubChem safety profile"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Calculator}
-                      label="TEA/LCA Analysis"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "Run TEA for toluene recovery at 100 kg/hr polymer throughput",
-                        "What's the capital cost and payback period for solvent recovery with acetone?",
-                        "LCA analysis: What's the carbon footprint of using DMF for polymer separation?",
-                        "Compare toluene, acetone, and ethanol on cost and environmental impact",
-                        "Which solvent has the lowest operating cost for LDPE separation at 95% recovery?",
-                        "Calculate CO2 emissions for cyclohexane solvent recovery",
-                        "TEA/LCA comparison: DMF vs DMSO vs NMP - which is cheapest and greenest?",
-                        "What's the energy consumption for recovering xylene at 80°C?",
-                        "Full techno-economic analysis for ethanol at 200 kg/hr with 98% recovery",
-                        "Compare the environmental impact of chloroform vs dichloromethane recovery"
-                      ]}
-                    />
-                    <QuickActionWithExamples
-                      icon={Rocket}
-                      label="Advanced Analysis"
-                      currentInput={input}
-                      onSelectExample={handleQuickAction}
-                      examples={[
-                        "I have a mixed plastic waste stream containing PE, PET, PS, and EVOH. Plan an optimal separation sequence that prioritizes safety (G-score), then analyze the techno-economics for the top solvent choices at 5,000 kg/hr throughput. Include LCA comparison to virgin polymer production and show me the GWP breakdown. Explain your reasoning and which tools you are using at each step.",
-                        "Compare the full separation workflows for two scenarios: (1) LDPE/HDPE/PP mixed polyolefins and (2) PET/PVC/PS mixed engineering plastics. For each, find the optimal separation sequence, identify the best solvents ranked by safety, calculate TEA at 1000 kg/hr, and generate visualizations. Explain your tool selection and reasoning throughout.",
-                        "Perform a comprehensive solvent screening for EVOH dissolution: first find all solvents that dissolve EVOH above 80% at 120°C, then rank them by G-score safety, get PubChem toxicity data for the top 5, run TEA/LCA comparison, and create a summary visualization. Walk me through your analysis step by step.",
-                        "Design a complete recycling process for multilayer food packaging (LDPE outer/EVOH barrier/PET inner): determine the optimal dissolution sequence and temperatures, identify selective solvents for each layer with safety data, calculate energy requirements and costs at industrial scale (5000 kg/hr), and compare environmental impact to virgin production. Explain each tool call and your reasoning.",
-                        "I need to separate a 4-polymer mixture of HDPE, LDPE, PP, and PS. First analyze selectivity between all pairs, then plan the optimal separation sequence considering both selectivity and safety. For each step, provide the recommended solvent with full properties (BP, G-score, LogP, energy), run TEA at 2000 kg/hr throughput, and generate comparison visualizations. Document your reasoning and tool usage throughout the analysis."
-                      ]}
-                    />
+                  {/* Quick Actions - 8 Tools in 2 Rows */}
+                  <div className="w-full max-w-5xl space-y-3">
+                    {/* Top Row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <QuickActionWithExamples
+                        icon={Beaker}
+                        label="Polymer Dissolution"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "What solvents dissolve PS at 120°C? Rank by safety and show boiling points",
+                          "Find the best solvents for LDPE dissolution at 100°C, prioritize low toxicity (LogP)",
+                          "Which solvents dissolve PET at 140°C? Include G-scores and energy costs"
+                        ]}
+                      />
+                      <QuickActionWithExamples
+                        icon={Search}
+                        label="Solvent Properties"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Compare safety profiles (G-score, LogP, toxicity) of chloroform, toluene, and acetone",
+                          "List all solvents with boiling point below 100°C and G-score above 5",
+                          "What are the full properties of xylene? Include cost, safety, and boiling point",
+                          "Find the cheapest solvents with G-score above 5 and BP between 80-120°C",
+                          "Show me solvents with low toxicity (LogP < 3) and their boiling points",
+                          "Compare cost per kg for acetone, toluene, ethanol, and DMF",
+                          "Which solvents have BP > 150°C and are considered safe (G-score > 6)?",
+                          "Create a heatmap of solubility for PS at 120°C",
+                          "Find solvents with high boiling points (>180°C) and low environmental impact",
+                          "What's the cost-benefit analysis of using toluene vs xylene for industrial processes?"
+                        ]}
+                      />
+                      <QuickActionWithExamples
+                        icon={Layers}
+                        label="Multilayer Separation"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Design separation strategy for 3-layer packaging film: LDPE/EVOH/PET at 120°C",
+                          "Find optimal temperatures to separate HDPE, PP, and PS from mixed plastic waste",
+                          "Analyze separation process for PVC/LDPE/HDPE multilayer film"
+                        ]}
+                      />
+                      <QuickActionWithExamples
+                        icon={Rocket}
+                        label="Advanced Analysis"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Full integrated analysis for LDPE/EVOH/PET separation: find optimal temp per layer, rank by safety",
+                          "Find the best overall solvent for separating HDPE from PP considering selectivity, safety, cost, and BP",
+                          "Compare complete profiles of top 5 solvents for PVC/LDPE separation at 100°C",
+                          "I have a mixed plastic waste stream containing PE, PET, PS, and EVOH. Plan an optimal separation sequence that prioritizes safety (G-score), then analyze the techno-economics for the top solvent choices at 5,000 kg/hr throughput. Include LCA comparison to virgin polymer production and show me the GWP breakdown. Explain your reasoning and which tools you are using at each step.",
+                          "Compare the full separation workflows for two scenarios: (1) LDPE/HDPE/PP mixed polyolefins and (2) PET/PVC/PS mixed engineering plastics. For each, find the optimal separation sequence, identify the best solvents ranked by safety, calculate TEA at 1000 kg/hr, and generate visualizations. Explain your tool selection and reasoning throughout.",
+                          "Perform a comprehensive solvent screening for EVOH dissolution: first find all solvents that dissolve EVOH above 80% at 120°C, then rank them by G-score safety, get PubChem toxicity data for the top 5, run TEA/LCA comparison, and create a summary visualization. Walk me through your analysis step by step.",
+                          "Design a complete recycling process for multilayer food packaging (LDPE outer/EVOH barrier/PET inner): determine the optimal dissolution sequence and temperatures, identify selective solvents for each layer with safety data, calculate energy requirements and costs at industrial scale (5000 kg/hr), and compare environmental impact to virgin production. Explain each tool call and your reasoning.",
+                          "I need to separate a 4-polymer mixture of HDPE, LDPE, PP, and PS. First analyze selectivity between all pairs, then plan the optimal separation sequence considering both selectivity and safety. For each step, provide the recommended solvent with full properties (BP, G-score, LogP, energy), run TEA at 2000 kg/hr throughput, and generate comparison visualizations. Document your reasoning and tool usage throughout the analysis."
+                        ]}
+                      />
+                    </div>
+                    {/* Bottom Row */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <QuickActionWithExamples
+                        icon={Calculator}
+                        label="TEA/LCA Analysis"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Run TEA for toluene recovery at 100 kg/hr polymer throughput",
+                          "What's the capital cost and payback period for solvent recovery with acetone?",
+                          "LCA analysis: What's the carbon footprint of using DMF for polymer separation?",
+                          "Compare toluene, acetone, and ethanol on cost and environmental impact",
+                          "Which solvent has the lowest operating cost for LDPE separation at 95% recovery?",
+                          "Calculate CO2 emissions for cyclohexane solvent recovery",
+                          "TEA/LCA comparison: DMF vs DMSO vs NMP - which is cheapest and greenest?",
+                          "What's the energy consumption for recovering xylene at 80°C?",
+                          "Full techno-economic analysis for ethanol at 200 kg/hr with 98% recovery",
+                          "Compare the environmental impact of chloroform vs dichloromethane recovery"
+                        ]}
+                      />
+                      <QuickAction
+                        icon={Brain}
+                        label="HSP ML Prediction"
+                        onClick={loadMlPolymerTypes}
+                      />
+                      <QuickActionWithExamples
+                        icon={FlaskConical}
+                        label="PubChem Safety"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Get PubChem safety data for toluene - show GHS hazards and molecular properties",
+                          "What are the safety hazards for dichloromethane (DCM)?",
+                          "Compare safety profiles of benzene, toluene, and xylene using PubChem data",
+                          "Which is safer according to PubChem: acetone or MEK?",
+                          "Create a PubChem safety chart comparing ethanol, methanol, and isopropanol",
+                          "What's the LD50 and environmental toxicity of toluene, benzene, and acetone?",
+                          "Is acetone biodegradable? Compare with DCM and chloroform",
+                          "Get aquatic toxicity data for hexane, heptane, and cyclohexane",
+                          "PubChem safety comparison: DMF vs DMSO vs NMP",
+                          "Is benzene carcinogenic? Get full PubChem safety profile"
+                        ]}
+                      />
+                      <QuickActionWithExamples
+                        icon={BookOpen}
+                        label="Literature Search"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Search Web of Science for peer-reviewed articles on PET dissolution",
+                          "Find Google Scholar papers on Hansen solubility parameters",
+                          "What are recent WoS publications on selective polymer separation?",
+                          "Search for articles about polyethylene solubility in the last 5 years",
+                          "Find research on green solvents for polymer recycling"
+                        ]}
+                      />
+                    </div>
                   </div>
                   <p className="text-xs mt-3 font-body" style={{ color: 'var(--text-tertiary)' }}>
-                    Click buttons to cycle through examples (1/3 indicator shows current example).
+                    Click buttons to cycle through examples. Number shows current example (e.g., 3/10).
                   </p>
                 </>
               )}
