@@ -106,13 +106,15 @@ function Message({ message, isUser, onDownloadCSV }) {
             <div className="markdown-content">
               <ReactMarkdown
                 components={{
-                  a: ({ node, ...props }) => (
+                  a: ({ node, children, ...props }) => (
                     <a
                       {...props}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: 'var(--primary)', textDecoration: 'underline' }}
-                    />
+                    >
+                      {children}
+                    </a>
                   )
                 }}
               >
@@ -226,8 +228,6 @@ function QuickActionWithExamples({ icon: Icon, label, examples, onSelectExample,
     return saved ? Math.min(parseInt(saved, 10), examples.length - 1) : 0;
   });
   const [isHovered, setIsHovered] = useState(false);
-
-  const currentExample = examples[exampleIndex];
 
   const handleClick = () => {
     // If current input matches an example, cycle to next
