@@ -981,22 +981,15 @@ class SQLDatabase:
                 table_name = Path(csv_path).stem.lower()
                 table_name = re.sub(r'[^a-z0-9_]', '_', table_name)
 
-                # Read CSV using duckdb's native reader (more robust)
+                # Read CSV
+                df = pd.read_csv(csv_path, encoding='utf-8')
+                df.columns = [re.sub(r'[^a-z0-9_]', '_', col.lower().strip()) for col in df.columns]
+                df = df.loc[:, ~df.columns.duplicated()]
+
                 self.conn.execute(f"DROP TABLE IF EXISTS {table_name}")
-                self.conn.execute(f"""
-                    CREATE TABLE {table_name} AS
-                    SELECT * FROM read_csv_auto('{csv_path}', header=true)
-                """)
-
-                # Normalize column names
-                schema_df_temp = self.conn.execute(f"DESCRIBE {table_name}").fetchdf()
-                old_cols = list(schema_df_temp["column_name"])
-                new_cols = [re.sub(r'[^a-z0-9_]', '_', col.lower().strip()) for col in old_cols]
-
-                # Rename columns if needed
-                for old_col, new_col in zip(old_cols, new_cols):
-                    if old_col != new_col:
-                        self.conn.execute(f'ALTER TABLE {table_name} RENAME COLUMN "{old_col}" TO "{new_col}"')
+                self.conn.register(f'{table_name}_temp', df)
+                self.conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM {table_name}_temp")
+                self.conn.unregister(f'{table_name}_temp')
 
                 schema_query = f"DESCRIBE {table_name}"
                 schema_df = self.conn.execute(schema_query).fetchdf()
