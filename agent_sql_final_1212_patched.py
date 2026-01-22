@@ -9232,3 +9232,46 @@ logger.info(f"📊 Plots Directory: {PLOTS_DIR}")
 logger.info("="*70)
 logger.info("✅ Agent module ready for import by FastAPI/other frameworks")
 logger.info("="*70 + "\n")
+
+
+# Auto-generated fix
+    def get_full_schema_description_for_llm(self) -> str:
+        """
+        Generates a comprehensive, LLM-friendly description of the database schema,
+        including tables, columns, and inferred foreign key relationships,
+        suitable for guiding SQL query generation.
+        """
+        schema_parts = []
+        try:
+            tables_df = self.conn.execute("SHOW TABLES").fetchdf()
+            for table_name in tables_df['name'].tolist():
+                schema_df = self._get_cached_schema(table_name)
+                if schema_df is not None:
+                    columns_info = []
+                    for _, row in schema_df.iterrows():
+                        col_name = row['column_name']
+                        col_type = row['column_type']
+                        columns_info.append(f"`{col_name}` ({col_type})")
+                    
+                    schema_parts.append(f"Table `{table_name}`:")
+                    schema_parts.append(f"  Columns: {', '.join(columns_info)}")
+                    
+                    # Explicitly state primary/foreign key relationships and important columns
+                    if table_name == "solvent_data":
+                        schema_parts.append("  - Contains core solvent properties. Primary key: `solvent_id`.")
+                    elif table_name == "safety_data": # Assuming 'safety_data' exists and contains 'g_score'
+                        schema_parts.append("  - Contains safety ratings. Foreign key: `solvent_id` (links to `solvent_data.solvent_id`).")
+                        schema_parts.append("  - Important column: `g_score` (safety rating).")
+                        schema_parts.append("  - To query `g_score` alongside `solvent_data` properties, a JOIN on `solvent_id` is required.")
+                    # Add descriptions for other tables and their relationships as needed
+                else:
+                    schema_parts.append(f"Could not retrieve schema for table `{table_name}`.")
+        except Exception as e:
+            logger.error(f"Error generating full schema description: {e}")
+            return f"Error retrieving database schema: {e}"
+        
+        return "\n".join(schema_parts)
+
+# The agent's main loop or SQL generation tool (e.g., validate_and_query) 
+# will need to be updated to call this method and include its output 
+# in the prompt provided to the LLM for SQL query generation.
