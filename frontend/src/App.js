@@ -80,7 +80,7 @@ function StatusBadge({ status }) {
 }
 
 // Message Component
-function Message({ message, isUser, onDownloadCSV }) {
+function Message({ message, isUser, onDownloadCSV, onReportIssue }) {
   const exportId = !isUser ? extractExportId(message.content) : null;
 
   return (
@@ -163,9 +163,24 @@ function Message({ message, isUser, onDownloadCSV }) {
           </div>
         )}
         {message.elapsed && (
-          <p className="text-xs mt-1 font-mono" style={{ color: 'var(--text-tertiary)' }}>
-            {message.elapsed.toFixed(1)}s • {message.iterations} iterations
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
+              {message.elapsed.toFixed(1)}s • {message.iterations} iterations
+            </p>
+            {!isUser && onReportIssue && (
+              <button
+                onClick={() => onReportIssue(message)}
+                className="flex items-center gap-1 text-xs transition-colors"
+                style={{ color: 'var(--text-tertiary)' }}
+                onMouseOver={(e) => e.currentTarget.style.color = 'var(--warning)'}
+                onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-tertiary)'}
+                title="Report an issue with this response"
+              >
+                <AlertTriangle size={12} />
+                Report
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -190,6 +205,250 @@ function TypingIndicator() {
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
           <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Issue Report Modal
+function IssueReportModal({ isOpen, onClose, message, userQuestion, onSubmit }) {
+  const [description, setDescription] = useState('');
+  const [issueType, setIssueType] = useState('incorrect_response');
+  const [severity, setSeverity] = useState('medium');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const issueTypes = [
+    { value: 'incorrect_response', label: 'Incorrect Response' },
+    { value: 'ui_bug', label: 'UI Bug' },
+    { value: 'api_error', label: 'API Error' },
+    { value: 'performance', label: 'Performance Issue' },
+    { value: 'data_issue', label: 'Data Issue' },
+    { value: 'other', label: 'Other' },
+  ];
+
+  const severities = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+    { value: 'critical', label: 'Critical' },
+  ];
+
+  const handleSubmit = async () => {
+    if (!description.trim()) return;
+
+    setIsSubmitting(true);
+    setResult(null);
+
+    try {
+      const report = {
+        user_question: userQuestion || '',
+        assistant_response: message?.content || '',
+        elapsed_time: message?.elapsed || 0,
+        iterations: message?.iterations || 0,
+        images: (message?.images || []).map(img => ({
+          filename: img,
+          base64: ''
+        })),
+        user_description: description,
+        issue_type: issueType,
+        severity: severity,
+      };
+
+      const response = await onSubmit(report);
+      setResult(response);
+    } catch (error) {
+      setResult({ success: false, error: error.message });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleClose = () => {
+    setDescription('');
+    setIssueType('incorrect_response');
+    setSeverity('medium');
+    setResult(null);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.6)' }}>
+      <div className="rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+        <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <h2 className="font-semibold text-lg flex items-center gap-2 font-headline" style={{ color: 'var(--text-primary)' }}>
+            <AlertTriangle size={20} style={{ color: 'var(--warning)' }} />
+            Report Issue
+          </h2>
+          <button
+            onClick={handleClose}
+            className="p-1 rounded transition-colors"
+            style={{ color: 'var(--text-primary)' }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-tertiary)'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {!result ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-2 font-body" style={{ color: 'var(--text-secondary)' }}>
+                  Issue Type
+                </label>
+                <select
+                  value={issueType}
+                  onChange={(e) => setIssueType(e.target.value)}
+                  className="w-full rounded-lg px-3 py-2 font-body focus:outline-none"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)'
+                  }}
+                >
+                  {issueTypes.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 font-body" style={{ color: 'var(--text-secondary)' }}>
+                  Severity
+                </label>
+                <div className="flex gap-2">
+                  {severities.map(sev => (
+                    <button
+                      key={sev.value}
+                      onClick={() => setSeverity(sev.value)}
+                      className="px-3 py-1.5 rounded-lg text-sm transition-colors font-headline"
+                      style={{
+                        backgroundColor: severity === sev.value ? 'var(--primary)' : 'var(--bg-tertiary)',
+                        color: severity === sev.value ? 'white' : 'var(--text-secondary)'
+                      }}
+                    >
+                      {sev.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2 font-body" style={{ color: 'var(--text-secondary)' }}>
+                  Describe the Issue *
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="What went wrong? What did you expect to happen?"
+                  rows={4}
+                  className="w-full rounded-lg px-3 py-2 font-body resize-none focus:outline-none"
+                  style={{
+                    backgroundColor: 'var(--bg-primary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)'
+                  }}
+                />
+              </div>
+
+              <div className="rounded-lg p-3 text-sm font-body" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                <p className="font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>What happens when you submit:</p>
+                <ul className="list-disc list-inside space-y-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <li>AI analyzes the issue against the codebase</li>
+                  <li>A diagnosis with root cause is generated</li>
+                  <li>If fixable, a GitHub PR is automatically created</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={handleClose}
+                  className="px-4 py-2 transition-colors font-headline"
+                  style={{ color: 'var(--text-secondary)' }}
+                  onMouseOver={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={!description.trim() || isSubmitting}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-headline"
+                  style={{
+                    backgroundColor: (!description.trim() || isSubmitting) ? 'var(--bg-tertiary)' : 'var(--primary)',
+                    color: (!description.trim() || isSubmitting) ? 'var(--text-tertiary)' : 'white',
+                    cursor: (!description.trim() || isSubmitting) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      Submit Report
+                    </>
+                  )}
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-lg" style={{
+                backgroundColor: result.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'
+              }}>
+                {result.success ? (
+                  <CheckCircle className="flex-shrink-0 mt-0.5" size={20} style={{ color: 'var(--success)' }} />
+                ) : (
+                  <AlertCircle className="flex-shrink-0 mt-0.5" size={20} style={{ color: 'var(--error)' }} />
+                )}
+                <div>
+                  <p className="font-medium font-headline" style={{ color: result.success ? 'var(--success)' : 'var(--error)' }}>
+                    {result.success ? 'Issue Reported Successfully' : 'Failed to Submit Report'}
+                  </p>
+                  {result.success && result.issue_url && (
+                    <a
+                      href={result.issue_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm underline mt-1 block"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      View GitHub Issue
+                    </a>
+                  )}
+                  {result.success && result.pr_url && (
+                    <a
+                      href={result.pr_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm underline mt-1 block"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      View Pull Request
+                    </a>
+                  )}
+                  {!result.success && result.error && (
+                    <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>{result.error}</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleClose}
+                className="w-full px-4 py-2 rounded-lg font-headline"
+                style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+              >
+                Close
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -546,6 +805,11 @@ function App() {
   const [selectedPolymers, setSelectedPolymers] = useState([]);
   const [solventInput, setSolventInput] = useState('');
 
+  // Issue Report Modal state
+  const [issueModalOpen, setIssueModalOpen] = useState(false);
+  const [issueMessage, setIssueMessage] = useState(null);
+  const [issueContext, setIssueContext] = useState({ userQuestion: '' });
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -796,6 +1060,35 @@ function App() {
 
   const handleDownloadCSV = (exportId) => {
     downloadCSV(exportId, showNotification);
+  };
+
+  const handleReportIssue = (message) => {
+    // Find the preceding user message for context
+    const msgIndex = messages.findIndex(m => m === message);
+    let userQuestion = '';
+    if (msgIndex > 0) {
+      for (let i = msgIndex - 1; i >= 0; i--) {
+        if (messages[i].role === 'user') {
+          userQuestion = messages[i].content;
+          break;
+        }
+      }
+    }
+    setIssueMessage(message);
+    setIssueContext({ userQuestion });
+    setIssueModalOpen(true);
+  };
+
+  const handleSubmitIssue = async (report) => {
+    try {
+      const response = await api.reportIssue({
+        ...report,
+        session_id: sessionId,
+      });
+      return response;
+    } catch (error) {
+      throw error;
+    }
   };
 
   const handleExportConversation = async () => {
@@ -1313,7 +1606,13 @@ function App() {
           ) : (
             <>
               {messages.map((msg, i) => (
-                <Message key={i} message={msg} isUser={msg.role === 'user'} onDownloadCSV={handleDownloadCSV} />
+                <Message
+                  key={i}
+                  message={msg}
+                  isUser={msg.role === 'user'}
+                  onDownloadCSV={handleDownloadCSV}
+                  onReportIssue={msg.role === 'assistant' ? handleReportIssue : undefined}
+                />
               ))}
               {isLoading && <TypingIndicator />}
               <div ref={messagesEndRef} />
@@ -1409,6 +1708,15 @@ function App() {
         onReindex={handleReindex}
         onUpload={handleUpload}
         onClearPlots={handleClearPlots}
+      />
+
+      {/* Issue Report Modal */}
+      <IssueReportModal
+        isOpen={issueModalOpen}
+        onClose={() => setIssueModalOpen(false)}
+        message={issueMessage}
+        userQuestion={issueContext.userQuestion}
+        onSubmit={handleSubmitIssue}
       />
     </div>
   );
