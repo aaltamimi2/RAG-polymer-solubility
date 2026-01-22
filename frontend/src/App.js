@@ -108,13 +108,13 @@ function Message({ message, isUser, onDownloadCSV }) {
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
-                  a: ({ node, ...props }) => (
+                  a: ({ node, children, ...props }) => (
                     <a
                       {...props}
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{ color: 'var(--primary)', textDecoration: 'underline' }}
-                    />
+                    >{children}</a>
                   ),
                   table: ({ node, ...props }) => (
                     <div style={{ overflowX: 'auto', margin: '1rem 0' }}>
@@ -234,7 +234,7 @@ function QuickActionWithExamples({ icon: Icon, label, examples, onSelectExample,
   });
   const [isHovered, setIsHovered] = useState(false);
 
-  const currentExample = examples[exampleIndex];
+  // examples[exampleIndex] available if needed for display
 
   const handleClick = () => {
     // If current input matches an example, cycle to next
