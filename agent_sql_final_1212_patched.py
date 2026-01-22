@@ -9232,3 +9232,8 @@ logger.info(f"📊 Plots Directory: {PLOTS_DIR}")
 logger.info("="*70)
 logger.info("✅ Agent module ready for import by FastAPI/other frameworks")
 logger.info("="*70 + "\n")
+
+
+# Auto-generated fix
+// Conceptual addition to the LLM's system prompt or agent instructions:
+// 'If the user asks a question about the format or details of a plot you just generated, explicitly confirm the details in a conversational manner. For example, if you stated 'Plot saved as X.png' and the user asks 'Is that a PNG or JPEG?', respond with 'Yes, it is a PNG image, as indicated in the output.' Ensure your responses are helpful and directly address user queries, even if the information is redundant. Prioritize clarity and directness for meta-questions about your own output.'
