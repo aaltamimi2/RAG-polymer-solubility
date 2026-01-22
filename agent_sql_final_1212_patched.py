@@ -986,6 +986,11 @@ class SQLDatabase:
                 df.columns = [re.sub(r'[^a-z0-9_]', '_', col.lower().strip()) for col in df.columns]
                 df = df.loc[:, ~df.columns.duplicated()]
 
+                # Convert string dtypes to object for duckdb compatibility
+                for col in df.columns:
+                    if df[col].dtype.name == 'string' or str(df[col].dtype) == 'string':
+                        df[col] = df[col].astype('object')
+
                 self.conn.execute(f"DROP TABLE IF EXISTS {table_name}")
                 self.conn.register(f'{table_name}_temp', df)
                 self.conn.execute(f"CREATE TABLE {table_name} AS SELECT * FROM {table_name}_temp")
