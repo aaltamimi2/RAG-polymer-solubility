@@ -485,7 +485,7 @@ class ThresholdSearchResult:
 
 
 # ============================================================
-# Data Validator Class (PATCHED with caching)
+# Data Validator Class (with caching)
 # ============================================================
 
 class DataValidator:
@@ -927,7 +927,7 @@ class AdaptiveAnalyzer:
 
 
 # ============================================================
-# Enhanced SQLDatabase (PATCHED)
+# Enhanced SQLDatabase
 # ============================================================
 
 class SQLDatabase:
@@ -8218,18 +8218,28 @@ def search_google_scholar(
             link = article.get('link', '#')
             output.append(f"\n### {i}. [{title}]({link})")
 
-            # Authors
+            # Authors - always show
             authors = article.get('authors', [])
             if authors:
-                author_str = ', '.join(authors[:3])
-                if len(authors) > 3:
+                author_str = ', '.join(authors[:5])
+                if len(authors) > 5:
                     author_str += f" et al. ({len(authors)} total)"
-                output.append(f"**Authors:** {author_str}")
+            else:
+                author_str = "Not available"
+            output.append(f"**Authors:** {author_str}")
 
-            # Year and citations
+            # Publication info
+            publication = article.get('publication_info', '')
+            if publication:
+                output.append(f"**Publication:** {publication}")
+
+            # Year - always show
             year = article.get('year', 'N/A')
+            output.append(f"**Year:** {year}")
+
+            # Citations - always show
             citations = article.get('cited_by_count', 0)
-            output.append(f"**Year:** {year} | **Citations:** {citations}")
+            output.append(f"**Citations:** {citations}")
 
             # PDF link if available
             pdf_link = article.get('pdf_link')
@@ -8240,8 +8250,8 @@ def search_google_scholar(
             snippet = article.get('snippet', '')
             if snippet:
                 # Truncate long snippets
-                if len(snippet) > 200:
-                    snippet = snippet[:200] + "..."
+                if len(snippet) > 300:
+                    snippet = snippet[:300] + "..."
                 output.append(f"*{snippet}*")
 
         # Footer
@@ -8370,36 +8380,50 @@ def search_web_of_science(
             link = article.get('link', '#')
             output.append(f"\n### {i}. [{title}]({link})")
 
-            # Authors
+            # Authors - always show, even if empty
             authors = article.get('authors', [])
             if authors:
-                author_str = ', '.join(authors[:3])
-                if len(authors) > 3:
+                author_str = ', '.join(authors[:5])
+                if len(authors) > 5:
                     author_str += f" et al. ({len(authors)} total)"
-                output.append(f"**Authors:** {author_str}")
+            else:
+                author_str = "Not available"
+            output.append(f"**Authors:** {author_str}")
 
-            # Journal and year
+            # Journal and year - always show
             journal = article.get('journal', 'N/A')
             year = article.get('year', 'N/A')
             output.append(f"**Journal:** {journal}")
             output.append(f"**Year:** {year}")
 
-            # DOI
-            doi = article.get('doi', 'N/A')
-            if doi != 'N/A':
-                output.append(f"**DOI:** [{doi}](https://doi.org/{doi})")
+            # Volume and pages if available
+            volume = article.get('volume', '')
+            pages = article.get('pages', '')
+            if volume or pages:
+                vol_page = []
+                if volume:
+                    vol_page.append(f"Vol. {volume}")
+                if pages:
+                    vol_page.append(f"pp. {pages}")
+                output.append(f"**Volume/Pages:** {', '.join(vol_page)}")
 
-            # Citations
+            # DOI - always show
+            doi = article.get('doi', 'N/A')
+            if doi and doi != 'N/A':
+                output.append(f"**DOI:** [{doi}](https://doi.org/{doi})")
+            else:
+                output.append(f"**DOI:** Not available")
+
+            # Citations - always show
             times_cited = article.get('times_cited', 0)
-            if times_cited > 0:
-                output.append(f"**Times Cited:** {times_cited}")
+            output.append(f"**Times Cited:** {times_cited}")
 
             # Abstract snippet
             abstract = article.get('abstract', '')
             if abstract and abstract != 'N/A':
                 # Truncate long abstracts
-                if len(abstract) > 200:
-                    abstract = abstract[:200] + "..."
+                if len(abstract) > 300:
+                    abstract = abstract[:300] + "..."
                 output.append(f"*{abstract}*")
 
         # Footer

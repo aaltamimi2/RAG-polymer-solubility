@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Send,
   Upload,
@@ -105,6 +106,7 @@ function Message({ message, isUser, onDownloadCSV }) {
           ) : (
             <div className="markdown-content">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   a: ({ node, ...props }) => (
                     <a
@@ -113,6 +115,11 @@ function Message({ message, isUser, onDownloadCSV }) {
                       rel="noopener noreferrer"
                       style={{ color: 'var(--primary)', textDecoration: 'underline' }}
                     />
+                  ),
+                  table: ({ node, ...props }) => (
+                    <div style={{ overflowX: 'auto', margin: '1rem 0' }}>
+                      <table {...props} />
+                    </div>
                   )
                 }}
               >

@@ -67,8 +67,8 @@ ITERATION 1:
   OBSERVE: [All 3 results return simultaneously]
 
 ITERATION 2:
-  THINK: "I have all the data I need. Synthesize and respond."
-  ACT:   [Returns comprehensive answer]
+  THINK: "I have all data. Synthesize comprehensive response."
+  ACT: Return final answer with integrated analysis
 ```
 
 **Performance gain**: 3 tools in 1 iteration = ~3x faster than 3 sequential iterations
@@ -102,25 +102,28 @@ ITERATION 2:
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
 │  │                    LLM (Google Gemini)                             │ │
-│  │  - gemini-2.5-flash-lite (default: fast + cheap)                   │ │
-│  │  - gemini-2.5-flash (balanced)                                     │ │
-│  │  - gemini-2.5-pro (most capable)                                   │ │
+│  │  - gemini-2.5-flash (default: fast + capable)                      │ │
+│  │  - gemini-2.5-pro (most capable, for complex queries)              │ │
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                              ▲ ▼                                         │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
-│  │              Tool Execution Layer (38 tools)                       │ │
+│  │              Tool Execution Layer (54 tools)                       │ │
 │  │                                                                    │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
 │  │  │  Database   │ │  Adaptive   │ │   Solvent   │ │ Statistical │ │ │
-│  │  │   (6)       │ │ Analysis(7) │ │ Props (4)   │ │    (4)      │ │ │
+│  │  │   (6)       │ │ Analysis(8) │ │ Props (4)   │ │    (4)      │ │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │ │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
 │  │  │Visualization│ │ GSK Safety  │ │  Listing    │ │ ML Predict  │ │ │
-│  │  │    (5)      │ │    (4)      │ │    (2)      │ │    (1)      │ │ │
+│  │  │    (6)      │ │    (4)      │ │    (2)      │ │    (1)      │ │ │
+│  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │ │
+│  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │ │
+│  │  │  PubChem    │ │ Literature  │ │  TEA/LCA    │ │TEA/LCA Viz  │ │ │
+│  │  │   (4)       │ │ Search (2)  │ │    (3)      │ │    (5)      │ │ │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ │ │
 │  │  ┌─────────────────────────────────────────────────────────────┐ │ │
-│  │  │              PubChem External API (4 tools)                 │ │ │
-│  │  │  - GHS hazard lookup, toxicity, safety comparison           │ │ │
+│  │  │              STRAP Process Tools (5)                        │ │ │
+│  │  │  - Process analysis, MSP, scale economics, scenarios        │ │ │
 │  │  └─────────────────────────────────────────────────────────────┘ │ │
 │  │                                                                    │ │
 │  │  Execution: asyncio.gather() for parallel tool calls               │ │
@@ -146,6 +149,8 @@ ITERATION 2:
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │              External APIs (with timeouts)                        │   │
 │  │  - PubChem: GHS hazards, toxicity, biodegradation data           │   │
+│  │  - Web of Science: Peer-reviewed literature search               │   │
+│  │  - Google Scholar (via SerpAPI): Broad academic search           │   │
 │  │  - 10-20 second timeouts to prevent hanging                       │   │
 │  └──────────────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -265,29 +270,38 @@ Agent ITERATION 2:
 
 ---
 
-## Tool Categories (38 Total)
+## Tool Categories (54 Total)
 
 | Category | Count | Purpose |
 |----------|-------|---------|
 | Core Database | 6 | Query, validate, explore SQL data |
-| Adaptive Analysis | 7 | Separation with intelligent threshold adaptation |
+| Adaptive Analysis | 8 | Separation with intelligent threshold adaptation |
 | Solvent Properties | 4 | Cost, toxicity, boiling point analysis |
 | Statistical | 4 | Correlation, regression, hypothesis testing |
-| Visualization | 5 | Static PNG and interactive HTML plots |
+| Visualization | 6 | Static PNG and interactive HTML plots |
 | GSK Safety (G-Score) | 4 | Industrial safety scoring |
-| PubChem External | 4 | GHS hazards, LD50, biodegradation |
 | Listing | 2 | Enumerate polymers and solvents |
 | ML Prediction | 1 | Hansen-based solubility prediction |
-| **Total** | **38** | |
+| PubChem External | 4 | GHS hazards, LD50, biodegradation |
+| Literature Search | 2 | Web of Science + Google Scholar |
+| TEA/LCA Analysis | 3 | Techno-economic and life cycle assessment |
+| TEA/LCA Visualization | 5 | Economic and environmental charts |
+| STRAP Process | 5 | Solvent-targeted recovery process analysis |
+| **Total** | **54** | |
 
-### NEW: PubChem External API Tools
+### External API Tools
 
-The agent can now query **live external data** from PubChem:
+The agent can query **live external data** from multiple sources:
 
-1. **get_pubchem_safety_info()** - GHS hazard pictograms, statements
-2. **compare_pubchem_safety()** - Side-by-side safety comparison (max 5 solvents)
-3. **visualize_pubchem_safety()** - Visual safety chart
-4. **get_pubchem_toxicity()** - LD50, LC50, biodegradation, aquatic toxicity
+**PubChem (4 tools)**:
+- `get_pubchem_safety_info()` - GHS hazard pictograms, statements
+- `compare_pubchem_safety()` - Side-by-side safety comparison (max 5 solvents)
+- `visualize_pubchem_safety()` - Visual safety chart
+- `get_pubchem_toxicity()` - LD50, LC50, biodegradation, aquatic toxicity
+
+**Literature Search (2 tools)**:
+- `search_web_of_science()` - Peer-reviewed articles with citation metrics
+- `search_google_scholar()` - Broad academic search (100/month limit)
 
 All external API calls have **10-20 second timeouts** to prevent hanging.
 
@@ -337,6 +351,8 @@ This is a form of **agent reasoning**—the tool itself adapts based on data ava
 | Source | Data Type | Timeout |
 |--------|-----------|---------|
 | PubChem REST API | GHS hazards, toxicity | 10-20s |
+| Web of Science Starter API | Peer-reviewed articles | 30s |
+| SerpAPI (Google Scholar) | Academic papers | 30s |
 
 ---
 
@@ -383,7 +399,7 @@ def my_tool(...):
 | Database | DuckDB | In-memory SQL analytics |
 | ML Framework | scikit-learn | Random Forest classifier |
 | Visualization | Matplotlib, Plotly, Seaborn | Static + interactive plots |
-| External APIs | PubChem REST | Safety and toxicity data |
+| External APIs | PubChem, Web of Science, SerpAPI | Safety, literature data |
 | Deployment | Render | Cloud hosting |
 
 ---
@@ -414,7 +430,7 @@ class SessionManager:
 | Complex analysis | 3-6 iterations |
 | Parallel tools/iteration | Up to 5+ tools |
 | Tool execution speedup | 4-6x with parallel |
-| External API timeout | 10-20 seconds |
+| External API timeout | 10-30 seconds |
 
 ---
 
@@ -424,7 +440,7 @@ class SessionManager:
 2. **Multi-step iteration**: Thinks → Acts → Observes → Repeats
 3. **Parallel execution**: Optimizes performance by running independent tools concurrently
 4. **Adaptive behavior**: Relaxes thresholds when data is sparse
-5. **External integration**: Fetches live data from PubChem APIs
+5. **External integration**: Fetches live data from PubChem, WoS, and Scholar APIs
 6. **Error recovery**: Gracefully handles failures and provides useful feedback
 
 The DISSOLVE Agent doesn't just answer questions—it **reasons about how to answer them**.

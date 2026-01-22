@@ -82,6 +82,25 @@ class SystemStatus(BaseModel):
     tables: List[str]
     missing_files: List[str]
 
+class IssueReportRequest(BaseModel):
+    user_question: str
+    assistant_response: str
+    elapsed_time: float = 0.0
+    iterations: int = 0
+    images: List[Dict[str, str]] = []  # [{filename, base64}]
+    user_description: str
+    issue_type: str = "incorrect_response"  # incorrect_response, ui_bug, api_error, feature_request
+    severity: str = "medium"  # low, medium, high, critical
+    session_id: Optional[str] = None
+
+class IssueReportResponse(BaseModel):
+    success: bool
+    diagnosis: Optional[Dict[str, Any]] = None
+    pr_result: Optional[Dict[str, Any]] = None
+    issue_result: Optional[Dict[str, Any]] = None  # For GitHub Issues (non-PR reports)
+    message: str = ""
+    error: Optional[str] = None
+
 # ============================================================
 # Agent Module (Inline Import with Error Handling)
 # ============================================================
@@ -520,6 +539,49 @@ async def api_clear_plots():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/report-issue", response_model=IssueReportResponse)
+async def api_report_issue(request: IssueReportRequest):
+    """
+    Report an issue with AI-powered diagnosis and optional PR creation.
+
+    This endpoint:
+    1. Analyzes the issue using AI (Gemini 2.5 Pro)
+    2. Diagnoses the root cause
+    3. Optionally creates a GitHub PR with proposed fixes
+    """
+    try:
+        from services.issue_reporter import get_issue_reporter
+
+        reporter = get_issue_reporter()
+        result = await reporter.process_report(
+            user_question=request.user_question,
+            assistant_response=request.assistant_response,
+            elapsed_time=request.elapsed_time,
+            iterations=request.iterations,
+            images=request.images,
+            user_description=request.user_description,
+            issue_type=request.issue_type,
+            severity=request.severity,
+            session_id=request.session_id,
+        )
+
+        return IssueReportResponse(
+            success=result.success,
+            diagnosis=result.diagnosis,
+            pr_result=result.pr_result,
+            issue_result=result.issue_result,
+            message=result.message,
+            error=result.error,
+        )
+
+    except Exception as e:
+        logger.error(f"Error processing issue report: {e}\n{traceback.format_exc()}")
+        return IssueReportResponse(
+            success=False,
+            error=str(e),
+            message="Failed to process issue report",
+        )
+
 @app.get("/api/export/{export_id}")
 async def api_download_export(export_id: str):
     """Download CSV export by ID."""
@@ -555,6 +617,54 @@ async def api_export_session(session_id: str):
         import re
         from io import StringIO
 
+        # Helper function to clean CSV values (remove emojis, markdown formatting)
+        def clean_csv_value(value):
+            """Remove emojis and markdown formatting from CSV values."""
+            if not isinstance(value, str):
+                return value
+
+            # Remove emojis (common Unicode ranges)
+            emoji_pattern = re.compile(
+                "["
+                "\U0001F600-\U0001F64F"  # emoticons
+                "\U0001F300-\U0001F5FF"  # symbols & pictographs
+                "\U0001F680-\U0001F6FF"  # transport & map symbols
+                "\U0001F700-\U0001F77F"  # alchemical symbols
+                "\U0001F780-\U0001F7FF"  # Geometric Shapes Extended
+                "\U0001F800-\U0001F8FF"  # Supplemental Arrows-C
+                "\U0001F900-\U0001F9FF"  # Supplemental Symbols and Pictographs
+                "\U0001FA00-\U0001FA6F"  # Chess Symbols
+                "\U0001FA70-\U0001FAFF"  # Symbols and Pictographs Extended-A
+                "\U00002702-\U000027B0"  # Dingbats
+                "\U000024C2-\U0001F251"  # Enclosed characters
+                "\U0001F004-\U0001F0CF"  # Playing cards/mahjong
+                "\U00002600-\U000026FF"  # Misc symbols (sun, stars, etc)
+                "\U00002700-\U000027BF"  # Dingbats
+                "\U0000FE00-\U0000FE0F"  # Variation selectors
+                "\U0001F1E0-\U0001F1FF"  # Flags
+                "]+",
+                flags=re.UNICODE
+            )
+            value = emoji_pattern.sub('', value)
+
+            # Remove markdown bold (**text** -> text)
+            value = re.sub(r'\*\*([^*]+)\*\*', r'\1', value)
+
+            # Remove markdown italic (*text* -> text)
+            value = re.sub(r'\*([^*]+)\*', r'\1', value)
+
+            # Remove markdown links [text](url) -> text
+            value = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', value)
+
+            # Clean up extra whitespace
+            value = re.sub(r'\s+', ' ', value).strip()
+
+            return value
+
+        def clean_csv_row(row_dict):
+            """Clean all string values in a row dictionary."""
+            return {k: clean_csv_value(v) for k, v in row_dict.items()}
+
         # Get session
         session = await session_manager.get(session_id)
         if not session:
@@ -587,34 +697,81 @@ async def api_export_session(session_id: str):
                 continue
 
             # Try to extract Google Scholar results
-            scholar_match = re.search(r'📚 Google Scholar Results: (.+?)\n.*?Found: (\d+) articles', content, re.DOTALL)
+            scholar_match = re.search(r'📚 Google Scholar Results: (.+?)\n.*?\*\*Found:\*\* (\d+) articles', content, re.DOTALL)
             if scholar_match:
                 search_query = scholar_match.group(1).strip()
                 article_count = scholar_match.group(2)
 
-                # Extract individual articles
-                articles = re.findall(
-                    r'(\d+)\.\s+(.+?)\n\s*Authors?: (.+?)\s+Year: (\d+).*?Citations: (\d+).*?(?:📄 PDF Available)?\s*(?:\d+ days ago)?\s*-?\s*…?\s*(.+?)(?=\n\n\d+\.|🔍 Search Query:|$)',
+                # Extract individual articles - matches the updated markdown format
+                gs_articles = re.findall(
+                    r'###\s*(\d+)\.\s*\[([^\]]+)\]\(([^)]+)\)\s*\n'
+                    r'(?:\*\*Authors:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*Publication:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*Year:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*Citations:\*\*\s*(\d+))?',
                     content,
                     re.DOTALL
                 )
 
-                for article in articles:
+                for article in gs_articles:
                     csv_data.append({
                         'Message_Number': i + 1,
                         'Timestamp': timestamp,
                         'Type': 'Google_Scholar_Result',
                         'Search_Query': search_query,
                         'Article_Number': article[0],
-                        'Title': article[1].strip(),
-                        'Authors': article[2].strip(),
-                        'Year': article[3],
-                        'Citations': article[4],
-                        'Abstract_Snippet': article[5].strip().replace('…', '').replace('\n', ' ')[:500],
+                        'Title': article[1].strip() if article[1] else '',
+                        'Link': article[2].strip() if article[2] else '',
+                        'Authors': article[3].strip() if article[3] else '',
+                        'Publication': article[4].strip() if article[4] else '',
+                        'Year': article[5].strip() if article[5] else '',
+                        'Citations': article[6] if article[6] else '0',
                         'Query_Context': current_query,
                         'Elapsed_Time': elapsed
                     })
-                continue
+
+                if gs_articles:
+                    continue
+
+            # Try to extract Web of Science results
+            wos_match = re.search(r'📚 Web of Science Results: (.+?)\n.*?\*\*Found:\*\* (\d+) peer-reviewed articles', content, re.DOTALL)
+            if wos_match:
+                search_query = wos_match.group(1).strip()
+                article_count = wos_match.group(2)
+
+                # Extract individual WoS articles - more flexible pattern
+                # Pattern matches: ### N. [Title](link)\n**Authors:** ...\n**Journal:** ...\n**Year:** ...\n
+                wos_articles = re.findall(
+                    r'###\s*(\d+)\.\s*\[([^\]]+)\]\(([^)]+)\)\s*\n'
+                    r'(?:\*\*Authors:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*Journal:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*Year:\*\*\s*(.+?)(?:\n|$))?'
+                    r'(?:\*\*DOI:\*\*\s*(?:\[)?([^\]\n]+)(?:\])?.*?(?:\n|$))?'
+                    r'(?:\*\*Times Cited:\*\*\s*(\d+))?',
+                    content,
+                    re.DOTALL
+                )
+
+                for article in wos_articles:
+                    csv_data.append({
+                        'Message_Number': i + 1,
+                        'Timestamp': timestamp,
+                        'Type': 'Web_of_Science_Result',
+                        'Search_Query': search_query,
+                        'Article_Number': article[0],
+                        'Title': article[1].strip() if article[1] else '',
+                        'Link': article[2].strip() if article[2] else '',
+                        'Authors': article[3].strip() if article[3] else '',
+                        'Journal': article[4].strip() if article[4] else '',
+                        'Year': article[5].strip() if article[5] else '',
+                        'DOI': article[6].strip() if article[6] else '',
+                        'Times_Cited': article[7] if article[7] else '0',
+                        'Query_Context': current_query,
+                        'Elapsed_Time': elapsed
+                    })
+
+                if wos_articles:
+                    continue
 
             # Try to extract markdown tables from content
             tables = re.findall(r'\|[^\n]+\|\n\|[-:\s|]+\|\n(?:\|[^\n]+\|\n)+', content)
@@ -704,6 +861,9 @@ async def api_export_session(session_id: str):
         if not csv_data:
             raise HTTPException(status_code=400, detail="No data to export")
 
+        # Clean all data (remove emojis, markdown formatting)
+        csv_data = [clean_csv_row(row) for row in csv_data]
+
         # Create DataFrame and save to CSV
         df = pd.DataFrame(csv_data)
 
@@ -715,8 +875,8 @@ async def api_export_session(session_id: str):
         # Ensure exports directory exists
         os.makedirs(EXPORTS_DIR, exist_ok=True)
 
-        # Save CSV
-        df.to_csv(filepath, index=False)
+        # Save CSV with UTF-8 encoding (with BOM for Excel compatibility)
+        df.to_csv(filepath, index=False, encoding='utf-8-sig')
 
         logger.info(f"Exported session {session_id} to {filename} ({len(df)} rows)")
 

@@ -262,30 +262,53 @@ class WebOfScienceStarterClient:
             uid = record.get('uid', 'N/A')
             title = record.get('title', 'N/A')
 
-            # Authors
-            authors_data = record.get('authors', [])
-            if isinstance(authors_data, list):
-                authors = [a.get('displayName', '') for a in authors_data if isinstance(a, dict)]
-            else:
-                authors = []
+            # Authors - WoS Starter API puts authors under names.authors
+            authors = []
+            names_data = record.get('names', {})
+            if isinstance(names_data, dict):
+                authors_data = names_data.get('authors', [])
+                if isinstance(authors_data, list):
+                    authors = [a.get('displayName', '') for a in authors_data if isinstance(a, dict) and a.get('displayName')]
 
             # Publication info
             source = record.get('source', {})
             if isinstance(source, dict):
                 journal = source.get('sourceTitle', 'N/A')
                 pub_year = source.get('publishYear', 'N/A')
+                volume = source.get('volume', '')
+                pages = source.get('pages', {})
+                page_range = pages.get('range', '') if isinstance(pages, dict) else ''
             else:
                 journal = 'N/A'
                 pub_year = 'N/A'
+                volume = ''
+                page_range = ''
 
-            # DOI
-            doi = record.get('doi', 'N/A')
+            # DOI - WoS Starter API puts DOI under identifiers.doi
+            identifiers = record.get('identifiers', {})
+            if isinstance(identifiers, dict):
+                doi = identifiers.get('doi', 'N/A')
+            else:
+                doi = record.get('doi', 'N/A')
 
             # Abstract
             abstract = record.get('abstract', 'N/A')
 
-            # Citations
-            times_cited = record.get('timesCited', 0)
+            # Citations - WoS Starter API puts citations in a list with db and count
+            times_cited = 0
+            citations = record.get('citations', [])
+            if isinstance(citations, list) and citations:
+                for citation in citations:
+                    if isinstance(citation, dict):
+                        times_cited = citation.get('count', 0)
+                        break
+
+            # Links - get the direct record link
+            links = record.get('links', {})
+            if isinstance(links, dict):
+                link = links.get('record', f"https://www.webofscience.com/wos/woscc/full-record/{uid}")
+            else:
+                link = f"https://www.webofscience.com/wos/woscc/full-record/{uid}" if uid != 'N/A' else 'N/A'
 
             return {
                 'uid': uid,
@@ -293,10 +316,12 @@ class WebOfScienceStarterClient:
                 'authors': authors,
                 'year': pub_year,
                 'journal': journal,
+                'volume': volume,
+                'pages': page_range,
                 'doi': doi,
                 'abstract': abstract,
                 'times_cited': times_cited,
-                'link': f"https://www.webofscience.com/wos/woscc/full-record/{uid}" if uid != 'N/A' else 'N/A'
+                'link': link
             }
 
         except Exception as e:
@@ -307,6 +332,8 @@ class WebOfScienceStarterClient:
                 'authors': [],
                 'year': 'N/A',
                 'journal': 'N/A',
+                'volume': '',
+                'pages': '',
                 'doi': 'N/A',
                 'abstract': 'N/A',
                 'times_cited': 0,

@@ -135,3 +135,82 @@ code, pre, .font-mono {
   background-color: transparent;
   padding: 0;
 }
+
+/* Table styling for markdown content */
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: var(--bg-tertiary);
+  font-weight: 600;
+  font-family: var(--font-headline);
+}
+
+.markdown-content tr:nth-child(even) {
+  background-color: var(--bg-secondary);
+}
+
+.markdown-content tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Make tables responsive */
+.markdown-content .table-container {
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+/* Improve list styling */
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-content li {
+  margin: 0.25rem 0;
+}
+
+/* Strong/bold styling */
+.markdown-content strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Link styling */
+.markdown-content a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.markdown-content a:hover {
+  color: var(--primary-hover);
+}
+
+/* Blockquote styling */
+.markdown-content blockquote {
+  border-left: 4px solid var(--primary);
+  padding-left: 1rem;
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+/* Horizontal rule */
+.markdown-content hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1.5rem 0;
+}

@@ -256,6 +256,30 @@ const api = {
 
     return response.blob();
   },
+
+  /**
+   * Report an issue with AI diagnosis and PR creation
+   * @param {object} report - Issue report data
+   * @returns {Promise<object>} - Report result with diagnosis and PR info
+   */
+  async reportIssue(report) {
+    const response = await fetchWithRetry(
+      `${API_BASE}/api/report-issue`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(report),
+      },
+      { timeout: 180000 } // 3 minutes for AI diagnosis
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || 'Issue report failed');
+    }
+
+    return response.json();
+  },
 };
 
 export default api;

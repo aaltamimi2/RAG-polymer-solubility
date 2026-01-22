@@ -95,6 +95,55 @@ class StatisticalResult(BaseModel):
         }
 
 
+class LiteratureArticle(BaseModel):
+    """Single article from literature search"""
+    title: str
+    authors: List[str] = Field(default_factory=list)
+    year: Optional[str] = None
+    journal: Optional[str] = None
+    volume: Optional[str] = None
+    pages: Optional[str] = None
+    doi: Optional[str] = None
+    abstract: Optional[str] = None
+    times_cited: int = 0
+    link: Optional[str] = None
+    source: str = "unknown"  # "wos" or "google_scholar"
+
+
+class LiteratureSearchResult(BaseModel):
+    """Structured output for literature search"""
+    success: bool
+    search_query: str
+    source: str  # "Web of Science" or "Google Scholar"
+    total_results: int
+    articles: List[LiteratureArticle]
+    export_id: Optional[str] = None
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "search_query": "polymer solubility",
+                "source": "Web of Science",
+                "total_results": 10,
+                "articles": [
+                    {
+                        "title": "Polymer solubility study",
+                        "authors": ["Smith, J", "Doe, A"],
+                        "year": "2024",
+                        "journal": "Journal of Polymer Science",
+                        "doi": "10.1000/example",
+                        "times_cited": 15,
+                        "source": "wos"
+                    }
+                ],
+                "export_id": "d4e5f6g7",
+                "timestamp": "2025-01-15T10:45:00.000Z"
+            }
+        }
+
+
 class ExportMetadata(BaseModel):
     """Metadata for CSV exports"""
     export_id: str

@@ -1,12 +1,12 @@
 # DISSOLVE Agent - Complete Tools Reference
 
-This document provides a comprehensive guide to all **38 tools** available to the DISSOLVE Agent, organized by how the agent uses them to solve polymer-solvent separation problems.
+This document provides a comprehensive guide to all **54 tools** available to the DISSOLVE Agent, organized by how the agent uses them to solve polymer-solvent separation problems.
 
 ---
 
 ## How the Agent Uses Tools
 
-The agent follows the **ReAct pattern** (Reasoning + Acting) to determine which tools to call:
+The agent operates using the **ReAct pattern** (Reasoning + Acting) to determine which tools to call:
 
 ```
 User Query → Agent Reasoning → Tool Selection → Execution → Observation → (Repeat or Respond)
@@ -39,15 +39,19 @@ SEQUENTIAL (multiple iterations):
 ## Table of Contents
 
 1. [Core Database Tools (6)](#1-core-database-tools)
-2. [Adaptive Analysis Tools (7)](#2-adaptive-analysis-tools)
+2. [Adaptive Analysis Tools (8)](#2-adaptive-analysis-tools)
 3. [Solvent Property Tools (4)](#3-solvent-property-tools)
 4. [Statistical Analysis Tools (4)](#4-statistical-analysis-tools)
-5. [Visualization Tools (5)](#5-visualization-tools)
+5. [Visualization Tools (6)](#5-visualization-tools)
 6. [GSK Safety Tools (4)](#6-gsk-safety-g-score-tools)
-7. [PubChem External API Tools (4)](#7-pubchem-external-api-tools)
-8. [Listing Tools (2)](#8-listing-tools)
-9. [ML Prediction Tools (1)](#9-ml-prediction-tools)
-10. [Query Examples](#query-examples)
+7. [Listing Tools (2)](#7-listing-tools)
+8. [ML Prediction Tools (1)](#8-ml-prediction-tools)
+9. [PubChem External API Tools (4)](#9-pubchem-external-api-tools)
+10. [Literature Search Tools (2)](#10-literature-search-tools)
+11. [TEA/LCA Analysis Tools (3)](#11-tealca-analysis-tools)
+12. [TEA/LCA Visualization Tools (5)](#12-tealca-visualization-tools)
+13. [STRAP Process Tools (5)](#13-strap-process-tools)
+14. [Query Examples](#query-examples)
 
 ---
 
@@ -214,15 +218,21 @@ Rank #2: PET → LDPE → PP (Min Selectivity: 32.8%)
 
 ---
 
-### 2.6 `find_optimal_separation_integrated(...)`
+### 2.6 `analyze_integrated_separation(...)`
 
-**When agent uses it**: Separation analysis with property considerations
+**When agent uses it**: Multi-polymer separation analysis with optimal temperatures and all solvent properties
 
 ---
 
-### 2.7 `analyze_separation_selectivity(...)`
+### 2.7 `analyze_polymer_dissolution(...)`
 
-**When agent uses it**: Detailed selectivity metrics for specific combinations
+**When agent uses it**: Single polymer dissolution analysis with properties (BP, cost, safety, LogP)
+
+---
+
+### 2.8 `get_solubility_for_solvents(...)`
+
+**When agent uses it**: Get solubility for SPECIFIC solvents by name
 
 ---
 
@@ -333,7 +343,13 @@ Integrate practical considerations: cost, toxicity, boiling point.
 
 ---
 
-### 5.5 `plot_solvent_properties(...)`
+### 5.5 `plot_comparison_dashboard(...)`
+
+**When agent uses it**: Side-by-side comparison of multiple scenarios
+
+---
+
+### 5.6 `plot_solvent_properties(...)`
 
 **When agent uses it**: Visualize BP, LogP, energy for solvents
 
@@ -375,17 +391,78 @@ Industry-standard safety scoring from GlaxoSmithKline.
 
 ---
 
-### 6.4 `get_gscore_classification(solvent_name: str)`
+### 6.4 `plot_solvent_properties_for_polymer(...)`
 
-**When agent uses it**: Quick safety classification lookup
+**When agent uses it**: Multi-step analysis combining solubility with property scatter plots
 
 ---
 
-## 7. PubChem External API Tools
+## 7. Listing Tools
 
-**NEW**: Live data from PubChem's REST API with timeout protection.
+Quick overview tools that the agent often calls first.
 
-### 7.1 `get_pubchem_safety_info(compound: str)`
+### 7.1 `list_available_polymers()`
+
+**When agent uses it**: User asks "What polymers are available?"
+
+**Returns**:
+```
+**Common Solvents Database:** 15 unique polymers
+- EVOH, HDPE, LDPE, LLDPE, Nylon6, Nylon66, PC, PES, PET, PMMA, PP, PS, PTFE, PVC, PVDF
+
+**Hansen Parameters Database:** 466 polymers with HSP data
+```
+
+---
+
+### 7.2 `list_available_solvents()`
+
+**When agent uses it**: User asks "What solvents are available?"
+
+**Returns**: Counts and examples from each database
+
+---
+
+## 8. ML Prediction Tools
+
+### 8.1 `predict_solubility_ml(polymer: str, solvent: str)`
+
+**When agent uses it**: User asks for ML/Hansen-based prediction
+
+**Algorithm**: Random Forest (99.998% accuracy)
+
+**Returns**:
+```
+ML Solubility Prediction
+
+Polymer: HDPE
+Solvent: Toluene
+
+PREDICTION: ✅ SOLUBLE
+Confidence: 97.5%
+
+Hansen Parameters:
+  HDPE:    δD=18.0, δP=0.0, δH=2.0 MPa^0.5
+  Toluene: δD=18.0, δP=1.4, δH=2.0 MPa^0.5
+
+RED Value: 0.24 (< 1.0 = soluble)
+
+Visualizations Generated:
+1. 3D Interactive Sphere (HTML)
+2. Radar Plot (PNG)
+3. RED Gauge (PNG)
+4. HSP Comparison Bars (PNG)
+```
+
+**User favorite**: The 3D interactive sphere lets users rotate and explore the Hansen space.
+
+---
+
+## 9. PubChem External API Tools
+
+Live data from PubChem's REST API with timeout protection.
+
+### 9.1 `get_pubchem_safety_info(compound: str)`
 
 **When agent uses it**: User asks for GHS hazard data
 
@@ -416,7 +493,7 @@ Industry-standard safety scoring from GlaxoSmithKline.
 
 ---
 
-### 7.2 `compare_pubchem_safety(compounds: List[str])`
+### 9.2 `compare_pubchem_safety(compounds: List[str])`
 
 **When agent uses it**: User wants safety comparison across solvents
 
@@ -428,7 +505,7 @@ Industry-standard safety scoring from GlaxoSmithKline.
 
 ---
 
-### 7.3 `visualize_pubchem_safety(compounds: List[str])`
+### 9.3 `visualize_pubchem_safety(compounds: List[str])`
 
 **When agent uses it**: Visual safety chart needed
 
@@ -436,7 +513,7 @@ Industry-standard safety scoring from GlaxoSmithKline.
 
 ---
 
-### 7.4 `get_pubchem_toxicity(compounds: List[str])`
+### 9.4 `get_pubchem_toxicity(compounds: List[str])`
 
 **When agent uses it**: User asks about LD50, biodegradation, aquatic toxicity
 
@@ -467,64 +544,207 @@ Industry-standard safety scoring from GlaxoSmithKline.
 
 ---
 
-## 8. Listing Tools
+## 10. Literature Search Tools
 
-Quick overview tools that the agent often calls first.
+Search academic databases for peer-reviewed research.
 
-### 8.1 `list_available_polymers()`
+### 10.1 `search_google_scholar(query, max_results, year_low, year_high)`
 
-**When agent uses it**: User asks "What polymers are available?"
+**When agent uses it**: User asks for academic papers, broad literature search
+
+**External API**: SerpAPI (Google Scholar)
+
+**Limit**: 100 searches/month (beta feature)
 
 **Returns**:
 ```
-**Common Solvents Database:** 15 unique polymers
-- EVOH, HDPE, LDPE, LLDPE, Nylon6, Nylon66, PC, PES, PET, PMMA, PP, PS, PTFE, PVC, PVDF
+# Google Scholar Results: polymer dissolution
 
-**Hansen Parameters Database:** 466 polymers with HSP data
+**Found:** 10 articles
+
+### 1. [Article Title](link)
+**Authors:** Smith, J, Doe, A et al.
+**Publication:** Journal of Polymer Science
+**Year:** 2024
+**Citations:** 45
+*Abstract snippet...*
 ```
 
 ---
 
-### 8.2 `list_available_solvents()`
+### 10.2 `search_web_of_science(query, polymer_name, solvent_name, year_low, year_high, max_results)`
 
-**When agent uses it**: User asks "What solvents are available?"
+**When agent uses it**: User wants peer-reviewed articles with citation metrics
 
-**Returns**: Counts and examples from each database
-
----
-
-## 9. ML Prediction Tools
-
-### 9.1 `predict_solubility_ml(polymer: str, solvent: str)`
-
-**When agent uses it**: User asks for ML/Hansen-based prediction
-
-**Algorithm**: Random Forest (99.998% accuracy)
+**External API**: Clarivate Web of Science Starter API
 
 **Returns**:
 ```
-ML Solubility Prediction
+# Web of Science Results: polymer solubility
 
-Polymer: HDPE
-Solvent: Toluene
+**Found:** 10 peer-reviewed articles
 
-PREDICTION: ✅ SOLUBLE
-Confidence: 97.5%
-
-Hansen Parameters:
-  HDPE:    δD=18.0, δP=0.0, δH=2.0 MPa^0.5
-  Toluene: δD=18.0, δP=1.4, δH=2.0 MPa^0.5
-
-RED Value: 0.24 (< 1.0 = soluble)
-
-Visualizations Generated:
-1. 3D Interactive Sphere (HTML)
-2. Radar Plot (PNG)
-3. RED Gauge (PNG)
-4. HSP Comparison Bars (PNG)
+### 1. [Article Title](link)
+**Authors:** Meyer, KH, van der Wyk, A
+**Journal:** HELVETICA CHIMICA ACTA
+**Year:** 2024
+**Volume/Pages:** Vol. 107, pp. 123-130
+**DOI:** 10.1000/example
+**Times Cited:** 39
 ```
 
-**User favorite**: The 3D interactive sphere lets users rotate and explore the Hansen space.
+**Key difference from Google Scholar**: Returns peer-reviewed journal articles only, with citation counts and DOI links.
+
+---
+
+## 11. TEA/LCA Analysis Tools
+
+Techno-Economic Analysis and Life Cycle Assessment for process evaluation.
+
+### 11.1 `analyze_solvent_recovery_tea(solvent, polymer_throughput_kg_hr, ...)`
+
+**When agent uses it**: User asks about capital costs, operating costs, payback period
+
+**Returns**:
+```
+# Techno-Economic Analysis Results
+
+## Capital Costs
+| Equipment | Cost (USD) |
+|-----------|------------|
+| Distillation column | $1,352,175 |
+| Heat exchanger | $606,866 |
+| **Fixed Capital Investment** | **$2,741,392** |
+
+## Economic Metrics
+- Cost per kg polymer: $1.43/kg
+- Simple payback: 0.52 years
+```
+
+---
+
+### 11.2 `analyze_solvent_recovery_lca(solvent, polymer_throughput_kg_hr, ...)`
+
+**When agent uses it**: User asks about carbon footprint, emissions, environmental impact
+
+**Returns**:
+```
+# Life Cycle Assessment Results
+
+## Annual Greenhouse Gas Emissions
+| Source | Emissions (kg CO2eq/yr) |
+|--------|-------------------------|
+| Electricity | 107,027 |
+| Steam | 149,838 |
+| Solvent makeup | 475,200 |
+| **Total** | **732,065** |
+
+## Comparison to Baseline
+- Emission reduction: 92.3%
+```
+
+---
+
+### 11.3 `compare_solvents_tea_lca(solvents: List[str], ...)`
+
+**When agent uses it**: User wants to compare multiple solvents on cost AND environmental metrics
+
+**Returns**:
+```
+# Solvent Comparison: TEA & LCA
+
+| Solvent | FCI ($) | $/kg | CO2 (t/yr) | Rank |
+|---------|---------|------|------------|------|
+| toluene | 2.7M | 1.43 | 732 | 1 |
+| ethanol | 2.7M | 1.42 | 1126 | 2 |
+
+## Rankings
+- Best Overall: toluene
+- Lowest Cost: ethanol
+- Lowest Emissions: toluene
+```
+
+---
+
+## 12. TEA/LCA Visualization Tools
+
+Generate charts and graphs for economic and environmental analysis.
+
+### 12.1 `generate_tea_visualizations(tea_results)`
+
+**Returns**: Cost breakdown pie charts, equipment cost bars
+
+---
+
+### 12.2 `generate_lca_visualizations(lca_results)`
+
+**Returns**: Emissions breakdown, comparison to baseline
+
+---
+
+### 12.3 `generate_solvent_comparison_visualization(comparison_results)`
+
+**Returns**: Multi-solvent comparison charts
+
+---
+
+### 12.4 `plot_tea_sensitivity_tornado(tea_results, parameters)`
+
+**When agent uses it**: User wants to see which parameters most affect costs
+
+**Returns**: Tornado chart showing sensitivity analysis
+
+---
+
+### 12.5 `plot_tea_cashflow(tea_results, years)`
+
+**When agent uses it**: User wants to see projected cash flows
+
+**Returns**: Cash flow diagram over project lifetime
+
+---
+
+## 13. STRAP Process Tools
+
+Solvent-Targeted Recovery and Precipitation process analysis.
+
+### 13.1 `analyze_strap_process(polymers, solvent, ...)`
+
+**When agent uses it**: Full STRAP process analysis for polymer mixture separation
+
+**Returns**: Complete process analysis with mass balances, energy requirements
+
+---
+
+### 13.2 `calculate_strap_msp(process_results)`
+
+**When agent uses it**: Calculate Minimum Selling Price for recovered polymers
+
+**Returns**: MSP breakdown with cost components
+
+---
+
+### 13.3 `plot_strap_scale_economics(process_results, scales)`
+
+**When agent uses it**: User wants to see how costs change with scale
+
+**Returns**: Scale vs. cost curves showing economies of scale
+
+---
+
+### 13.4 `compare_strap_scenarios(scenarios: List[Dict])`
+
+**When agent uses it**: Compare different process configurations
+
+**Returns**: Side-by-side scenario comparison
+
+---
+
+### 13.5 `generate_strap_visualizations(process_results)`
+
+**When agent uses it**: Generate all STRAP-related visualizations
+
+**Returns**: Process flow diagram, mass balance Sankey, cost breakdowns
 
 ---
 
@@ -566,6 +786,27 @@ Visualizations Generated:
 ```
 "Predict solubility of HDPE in toluene using machine learning"
 "Will Nylon6 dissolve in DMF?"
+```
+
+### Literature Search (1-2 iterations)
+```
+"Search Web of Science for polymer dissolution mechanisms"
+"Find Google Scholar articles on Hansen solubility parameters"
+"What are recent publications on selective PET separation?"
+```
+
+### TEA/LCA Analysis (2-3 iterations)
+```
+"Run TEA for toluene recovery at 100 kg/hr"
+"What's the carbon footprint of using DMF?"
+"Compare toluene, acetone, and ethanol on cost and emissions"
+```
+
+### STRAP Process Analysis (2-4 iterations)
+```
+"Analyze STRAP process for LDPE/PET separation"
+"Calculate minimum selling price for recovered HDPE"
+"How do costs change with scale for STRAP process?"
 ```
 
 ### Complex Multi-Factor Analysis (3-6 iterations)
@@ -612,23 +853,28 @@ Bad: "Find solvents with exactly 50% selectivity" (might find nothing)
 | "No separation found" | Too stringent threshold | Agent will auto-relax |
 | "PubChem timeout" | API slow | Retry or try fewer compounds |
 | "Tool output too long" | Too many rows | Use `limit` parameter |
+| "Literature search limited" | API quotas | Use WoS for more results |
 
 ---
 
 ## Summary
 
-The DISSOLVE Agent has **38 tools** organized into 9 categories:
+The DISSOLVE Agent has **54 tools** organized into 13 categories:
 
 | Category | Tools | Key Capability |
 |----------|-------|----------------|
 | Core Database | 6 | Query, validate, explore |
-| Adaptive Analysis | 7 | Intelligent separation with auto-relaxing thresholds |
+| Adaptive Analysis | 8 | Intelligent separation with auto-relaxing thresholds |
 | Solvent Properties | 4 | Cost, toxicity, BP integration |
 | Statistical | 4 | Rigorous statistical analysis |
-| Visualization | 5 | Static PNG + interactive HTML |
+| Visualization | 6 | Static PNG + interactive HTML |
 | GSK Safety | 4 | Industrial safety scoring |
-| PubChem External | 4 | Live GHS/toxicity data |
 | Listing | 2 | Quick overviews |
-| ML Prediction | 1 | Hansen-based prediction with 5 visualizations |
+| ML Prediction | 1 | Hansen-based prediction with visualizations |
+| PubChem External | 4 | Live GHS/toxicity data |
+| Literature Search | 2 | Web of Science + Google Scholar |
+| TEA/LCA Analysis | 3 | Cost and environmental analysis |
+| TEA/LCA Visualization | 5 | Economic and LCA charts |
+| STRAP Process | 5 | Process-specific analysis |
 
 The agent autonomously selects tools based on user queries, executes them in parallel when possible, and iterates until it has enough information to provide a comprehensive answer.
