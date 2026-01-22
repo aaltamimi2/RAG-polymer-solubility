@@ -9232,3 +9232,21 @@ logger.info(f"📊 Plots Directory: {PLOTS_DIR}")
 logger.info("="*70)
 logger.info("✅ Agent module ready for import by FastAPI/other frameworks")
 logger.info("="*70 + "\n")
+
+
+# Auto-generated fix
+        # Locate the section of code that generates the markdown list of articles.
+        # It will likely be within a loop that processes each 'article' dictionary.
+        # Find the existing lines that format 'Journal' and 'Year', for example:
+        # response_str += f"**Journal:** {article['journal']}\n"
+        # response_str += f"**Year:** {article['year']}\n\n"
+
+        # Insert the following conceptual logic before or after the 'Journal' line:
+        # if 'authors' in article and article['authors']:
+        #     # Assuming 'authors' can be a list of strings or a single string
+        #     authors_display = ', '.join(article['authors']) if isinstance(article['authors'], list) else str(article['authors'])
+        #     response_str += f"**Authors:** {authors_display}\n"
+
+        # If the 'authors' field is consistently missing from the 'article' dictionary,
+        # the `validate_and_query` tool (or its underlying API call to Clarivate Web of Science)
+        # will need to be updated to fetch this information.
