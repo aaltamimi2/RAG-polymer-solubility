@@ -1,0 +1,7 @@
+{
+  "response": "The feedstock composition for biocontainer multilayer films studied in the STRAP papers is approximately 90% Polyethylene (PE) and 8% Ethylene Vinyl Alcohol (EVOH).\n\nBased on this composition and a capacity of 5000 kg/hr, the STRAP process analysis indicates the following:\n\n**Separation Strategy:**\n*   Polyethylene (PE) is recovered using Heptane.\n*   Ethylene Vinyl Alcohol (EVOH) is recovered using DMSO.\n\n**Techno-Economic Analysis (TEA) at 5000 kg/hr:**\n*   **Total Capital Investment (TCI):** $26.08M\n*   **Unit Operating Cost (UOC):** $0.6494/kg\n*   **Net Annual Profit:** $2.59M/yr\n*   **Simple Payback Period:** 10.09 years\n*   **Return on Investment (ROI):** 9.9%\n*   **Minimum Selling Price (MSP) at 15% IRR:**\n    *   PE: $1.1509/kg\n    *   EVOH: $5.7544/kg\n    *   Weighted Average: $1.5267/kg\n\n**Life Cycle Assessment (LCA):**\n*   **Global Warming Potential (GWP):**\n    *   PE: 0.879 kg CO2eq/kg (57.9% reduction compared to virgin)\n    *   EVOH: 1.086 kg CO2eq/kg (85.1% reduction compared to virgin)",
+  "session_id": "3d51eb93-3c8c-4ee0-b3f1-5ae1babefa47",
+  "images": [],
+  "elapsed_time": 27.98549747467041,
+  "iterations": 3
+}

@@ -1,0 +1,7 @@
+{
+  "response": "I found a relevant passage about a study on plastic recycling, but it doesn't contain the specific details about polypropylene recovery conditions, purity, or yield from face mask recycling. The passage discusses a computational framework for solvent-based recycling and mentions a multilayer film with LDPE, EVOH, PET, and N6, but not polypropylene from face masks.\n\nTo proceed, I need more specific information from the study. Could you please provide more details or a different source that directly addresses face mask recycling and polypropylene recovery? If you have the document, I can try to search within it using the `search_literature_rag` tool again with more targeted queries.",
+  "session_id": "80c620bf-4817-465f-969d-d77bd4ea0ffd",
+  "images": [],
+  "elapsed_time": 33.617191553115845,
+  "iterations": 2
+}
