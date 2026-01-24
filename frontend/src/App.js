@@ -25,7 +25,8 @@ import {
   Rocket,
   BookOpen,
   Library,
-  FileText
+  FileText,
+  Scale
 } from 'lucide-react';
 import api, { API_BASE } from './api';
 
@@ -165,10 +166,26 @@ function Message({ message, isUser, onDownloadCSV, onReportIssue }) {
           </div>
         )}
         {message.elapsed && (
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <p className="text-xs font-mono" style={{ color: 'var(--text-tertiary)' }}>
               {message.elapsed.toFixed(1)}s • {message.iterations} iterations
             </p>
+            {message.complexity && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  backgroundColor: message.complexity.score <= 2 ? 'rgba(16, 185, 129, 0.2)' :
+                                   message.complexity.score <= 3 ? 'rgba(245, 158, 11, 0.2)' :
+                                   'rgba(239, 68, 68, 0.2)',
+                  color: message.complexity.score <= 2 ? 'var(--success)' :
+                         message.complexity.score <= 3 ? 'var(--warning)' :
+                         'var(--error)'
+                }}
+                title={`${message.complexity.reasoning} (~${message.complexity.estimated_tools} tools, ${message.complexity.elapsed_ms}ms)`}
+              >
+                ⚖️ {message.complexity.label} ({message.complexity.score}/5)
+              </span>
+            )}
             {!isUser && onReportIssue && (
               <button
                 onClick={() => onReportIssue(message)}
@@ -190,7 +207,7 @@ function Message({ message, isUser, onDownloadCSV, onReportIssue }) {
 }
 
 // Typing Indicator
-function TypingIndicator() {
+function TypingIndicator({ complexity }) {
   return (
     <div className="flex gap-3">
       <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{
@@ -199,15 +216,35 @@ function TypingIndicator() {
       }}>
         <FlaskConical size={16} />
       </div>
-      <div className="rounded-2xl px-4 py-3" style={{
-        backgroundColor: 'var(--bg-secondary)',
-        border: '1px solid var(--border-color)'
-      }}>
-        <div className="typing-indicator flex gap-1">
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
-          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+      <div>
+        <div className="rounded-2xl px-4 py-3" style={{
+          backgroundColor: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)'
+        }}>
+          <div className="typing-indicator flex gap-1">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--text-tertiary)' }}></span>
+          </div>
         </div>
+        {complexity && (
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{
+                backgroundColor: complexity.score <= 2 ? 'rgba(16, 185, 129, 0.2)' :
+                                 complexity.score <= 3 ? 'rgba(245, 158, 11, 0.2)' :
+                                 'rgba(239, 68, 68, 0.2)',
+                color: complexity.score <= 2 ? 'var(--success)' :
+                       complexity.score <= 3 ? 'var(--warning)' :
+                       'var(--error)'
+              }}
+              title={complexity.reasoning}
+            >
+              ⚖️ {complexity.label} ({complexity.score}/5) • ~{complexity.estimated_tools} tools
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -797,6 +834,8 @@ function App() {
   const [notification, setNotification] = useState(null);
   const [theme, setTheme] = useState('light'); // Light mode as default
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite'); // Gemini model selection
+  const [complexityJudgeEnabled, setComplexityJudgeEnabled] = useState(false); // LLM complexity judge
+  const [currentComplexity, setCurrentComplexity] = useState(null); // Current query complexity
   const [mlPolymerTypes, setMlPolymerTypes] = useState(null); // ML polymer types data
   const [showMlTypes, setShowMlTypes] = useState(false); // Show ML types view
 
@@ -829,6 +868,12 @@ function App() {
   useEffect(() => {
     const savedModel = localStorage.getItem('dissolve-model') || 'gemini-2.5-flash-lite';
     setSelectedModel(savedModel);
+  }, []);
+
+  // Initialize complexity judge from localStorage
+  useEffect(() => {
+    const savedComplexityJudge = localStorage.getItem('dissolve-complexity-judge') === 'true';
+    setComplexityJudgeEnabled(savedComplexityJudge);
   }, []);
 
   // Save model to localStorage when changed
@@ -1015,10 +1060,20 @@ function App() {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setCurrentComplexity(null);
 
     try {
+      // Evaluate complexity if judge is enabled
+      let complexity = null;
+      if (complexityJudgeEnabled) {
+        complexity = await evaluateComplexity(userMessage.content);
+        if (complexity) {
+          setCurrentComplexity(complexity);
+        }
+      }
+
       const response = await api.chat(userMessage.content, sessionId, selectedModel);
-      
+
       if (!sessionId && response.session_id) {
         setSessionId(response.session_id);
       }
@@ -1029,6 +1084,7 @@ function App() {
         images: response.images,
         elapsed: response.elapsed_time,
         iterations: response.iterations,
+        complexity: complexity, // Include complexity in message
         timestamp: new Date().toISOString()
       };
 
@@ -1042,6 +1098,7 @@ function App() {
       }]);
     } finally {
       setIsLoading(false);
+      setCurrentComplexity(null);
     }
   };
 
@@ -1168,6 +1225,33 @@ function App() {
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
+  const toggleComplexityJudge = () => {
+    const newValue = !complexityJudgeEnabled;
+    setComplexityJudgeEnabled(newValue);
+    localStorage.setItem('dissolve-complexity-judge', newValue.toString());
+    showNotification(
+      newValue ? 'Complexity Judge enabled' : 'Complexity Judge disabled',
+      'info'
+    );
+  };
+
+  const evaluateComplexity = async (query) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/evaluate-complexity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query })
+      });
+      if (response.ok) {
+        return await response.json();
+      }
+      return null;
+    } catch (e) {
+      console.error('Complexity evaluation failed:', e);
+      return null;
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
@@ -1226,6 +1310,18 @@ function App() {
               <option value="gemini-2.5-flash">Flash</option>
               <option value="gemini-2.5-pro">Pro (Most Capable)</option>
             </select>
+            <button
+              onClick={toggleComplexityJudge}
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                backgroundColor: complexityJudgeEnabled ? 'rgba(16, 185, 129, 0.2)' : 'var(--bg-tertiary)',
+                color: complexityJudgeEnabled ? 'var(--success)' : 'var(--text-tertiary)'
+              }}
+              aria-label={`${complexityJudgeEnabled ? 'Disable' : 'Enable'} complexity judge`}
+              title={`Complexity Judge: ${complexityJudgeEnabled ? 'ON' : 'OFF'} - Evaluates query complexity before processing`}
+            >
+              <Scale size={18} />
+            </button>
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg transition-colors"
@@ -1677,13 +1773,13 @@ function App() {
                         examples={[
                           "Search the indexed literature for polystyrene dissolution",
                           "Ask literature: What solvents are best for PET recycling?",
-                          "Run full RAG diagnostics",
+                          "Search RAG for PE dissolution temperatures, solvent ratios, and recovery yields from STRAP studies. Use those parameters to run TEA at 5000 kg/hr.",
+                          "Search RAG for GHG emissions benchmarks from LCA studies. Use those values to compare recycled vs virgin polymer impact.",
                           "Visualize my document embeddings using t-SNE",
-                          "Analyze search scores for 'polymer dissolution'",
-                          "Which documents are most similar in my collection?",
-                          "Compare dense vs sparse retrieval performance",
-                          "How much does reranking improve my results?",
-                          "Analyze query expansion effectiveness",
+                          "What process conditions does the literature recommend for multilayer film separation?",
+                          "Search RAG for experimental validation data on PE recovery yields and purity",
+                          "Which documents discuss solvent selection criteria for STRAP?",
+                          "Find literature values for energy consumption in solvent recovery",
                           "Download open-access papers on polymer recycling to RAG"
                         ]}
                       />
@@ -1706,7 +1802,7 @@ function App() {
                   onReportIssue={msg.role === 'assistant' ? handleReportIssue : undefined}
                 />
               ))}
-              {isLoading && <TypingIndicator />}
+              {isLoading && <TypingIndicator complexity={currentComplexity} />}
               <div ref={messagesEndRef} />
             </>
           )}

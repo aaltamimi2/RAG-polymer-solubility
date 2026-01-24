@@ -93,6 +93,16 @@ class IssueReportRequest(BaseModel):
     severity: str = "medium"  # low, medium, high, critical
     session_id: Optional[str] = None
 
+class ComplexityRequest(BaseModel):
+    query: str
+
+class ComplexityResponse(BaseModel):
+    score: int  # 1-5 complexity score
+    label: str  # e.g., "Basic", "Moderate", "Complex", etc.
+    reasoning: str  # Brief explanation
+    estimated_tools: int  # Estimated number of tool calls
+    elapsed_ms: float  # Time taken to evaluate
+
 class IssueReportResponse(BaseModel):
     success: bool
     diagnosis: Optional[Dict[str, Any]] = None
@@ -536,6 +546,91 @@ async def api_chat(request: ChatRequest):
 
     result = await chat_with_agent(request.message, request.session_id, request.model)
     return result
+
+@app.post("/api/evaluate-complexity")
+async def api_evaluate_complexity(request: ComplexityRequest):
+    """
+    Evaluate query complexity using LLM-as-a-judge (Gemini Flash Lite).
+    Returns a 1-5 complexity score based on estimated tool calls and reasoning required.
+    """
+    import time
+    start_time = time.time()
+
+    try:
+        import google.generativeai as genai
+
+        # Configure Gemini with API key
+        api_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise HTTPException(status_code=500, detail="GOOGLE_API_KEY not configured")
+
+        genai.configure(api_key=api_key)
+
+        # Use Flash Lite for fastest/cheapest evaluation
+        model = genai.GenerativeModel('gemini-2.0-flash-lite')
+
+        complexity_prompt = f"""You are a query complexity evaluator for a polymer solubility analysis system.
+The system has these tools: polymer dissolution lookup, solvent properties, safety data (G-score, PubChem),
+TEA/LCA analysis, multilayer separation, ML predictions, literature search (WoS, Scholar), patent search,
+RAG knowledge base, and visualization generation.
+
+Evaluate this query's complexity on a 1-5 scale:
+- 1 (Basic): Single tool lookup, 1-2 API calls. Example: "What solvents dissolve LDPE?"
+- 2 (Simple): 2-3 tool calls with basic chaining. Example: "Find solvents for LDPE with G-score > 5"
+- 3 (Moderate): 3-5 tools, data integration needed. Example: "Compare TEA and LCA for heptane vs dodecane"
+- 4 (Complex): 5-10 tools, multi-step analysis. Example: "Full STRAP analysis with TEA, LCA, visualizations"
+- 5 (Research): 10+ tools, comprehensive study. Example: "Design complete recycling process for 3-layer film with economics and literature review"
+
+USER QUERY: "{request.query}"
+
+Respond in exactly this JSON format (no markdown, just JSON):
+{{"score": <1-5>, "label": "<Basic|Simple|Moderate|Complex|Research>", "reasoning": "<brief 10-15 word explanation>", "estimated_tools": <number>}}"""
+
+        # Generate response with minimal tokens
+        response = model.generate_content(
+            complexity_prompt,
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 150,
+            }
+        )
+
+        # Parse the response
+        import json
+        response_text = response.text.strip()
+
+        # Handle potential markdown wrapping
+        if response_text.startswith("```"):
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
+            response_text = response_text.strip()
+
+        result = json.loads(response_text)
+
+        elapsed_ms = (time.time() - start_time) * 1000
+
+        return ComplexityResponse(
+            score=min(5, max(1, result.get("score", 3))),
+            label=result.get("label", "Moderate"),
+            reasoning=result.get("reasoning", "Unable to determine"),
+            estimated_tools=result.get("estimated_tools", 3),
+            elapsed_ms=round(elapsed_ms, 1)
+        )
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Failed to parse complexity response: {e}")
+        elapsed_ms = (time.time() - start_time) * 1000
+        return ComplexityResponse(
+            score=3,
+            label="Moderate",
+            reasoning="Could not parse LLM response",
+            estimated_tools=3,
+            elapsed_ms=round(elapsed_ms, 1)
+        )
+    except Exception as e:
+        logger.error(f"Complexity evaluation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/tables")
 async def api_tables():
