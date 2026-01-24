@@ -3,117 +3,97 @@
 **Date:** 2026-01-24
 **Purpose:** Evaluate RAG retrieval of specific polymer-solvent-temperature data from STRAP literature
 
-## Query Results
+## Ground Truth: Actual 10-Polymer Separation Sequence
 
-### Query 1: List of Polymers Studied
-**Query:** "Search RAG for the complete list of 10 polymers studied in the mixed plastic waste STRAP separation study"
+From the paper "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste":
 
-**RAG Retrieved:**
-- Polyurethane (PU)
-- Polycarbonate (PC)
-- Polyethylene (PE)
-- Polypropylene (PP)
-- Polystyrene (PS)
-- Polyvinyl chloride (PVC)
-
-**Note:** Initial query found 6 polymers; follow-up needed for complete list.
-
----
-
-### Query 2: Polymer-Solvent-Temperature Data (Key Result)
-**Query:** "Search RAG for polymer dissolution data including HDPE, LDPE, PP, PS, PET, PVC, Nylon, PC, EVOH, PMMA"
-
-**RAG Successfully Retrieved:**
-
-| # | Polymer | Solvent | Temperature |
-|---|---------|---------|-------------|
-| 1 | PVC | THF | 68°C |
-| 2 | LDPE | Toluene | 85°C |
-| 3 | PP | THP (Tetrahydropyran) | 90°C |
-| 4 | HDPE | Toluene | 110°C |
-| 5 | PET | GVL (gamma-Valerolactone) | 160°C |
-| 6 | Nylon 6,6,6 | 1,2-propanediol | 135°C |
-| 7 | Nylon 6 | DMSO | 145°C |
-| 8 | Nylon 6,6 | Formic acid | 65°C |
-| 9 | PS | Ethyl acetate | 77°C |
-| 10 | PC | Methanol (antisolvent) | Not specified |
-
-**Additional Info Retrieved:**
-- EVOH: DMSO or THF (temperature not specified)
-- PMMA: Data not found in passages
-- Precipitation methods: Temperature reduction or antisolvent (water, methanol)
-- Selection methods: Hansen Solubility Parameters (HSPs), molecular dynamics simulations
+| Step | Solvent | Temp (°C) | Target Polymer | Solubility (wt%) |
+|------|---------|-----------|----------------|------------------|
+| 1 | Toluene | 35 | **PS** | 5.72 |
+| 2 | THF | 67 | **PVC** | 19.10 |
+| 3 | o-Xylene | 80 | **LDPE** | 3.43 |
+| 4 | o-Xylene | 95 | **HDPE** | 5.04 |
+| 5 | o-Xylene | 115 | **PP** | 9.65 |
+| 6 | DMSO/water | 95 | **EVOH** | 7.67 |
+| 7 | 1,2-PDO | 125 | **PA66/6** | 3.35 |
+| 8 | GVL | 160 | **PET** | 12.45 |
+| 9 | DMSO | 145 | **PA6** | 8.41 |
+| 10 | Formic acid | 90 | **PA66** | 16.90 |
 
 ---
 
-### Query 3: Separation Sequence
-**Query:** "Search RAG for optimal separation sequence for mixed plastic waste"
+## RAG Retrieval vs Ground Truth Comparison
 
-**Result:** Tool limitation encountered (max 6 polymers for sequential separation planning)
-
----
-
-## Analysis: RAG Retrieval Capability
-
-### Successfully Retrieved
-✅ 10 specific polymer names
-✅ Corresponding solvents for each polymer
-✅ Dissolution temperatures (9 of 10)
-✅ Alternative solvents mentioned
-✅ Process methodology (STRAP, HSPs)
-✅ Precipitation methods
-
-### Partially Retrieved
-⚠️ PC dissolution temperature (antisolvent noted, not dissolution temp)
-⚠️ EVOH specific temperature
-
-### Not Found
-❌ PMMA dissolution data
-❌ Complete separation sequence in single passage
+| Polymer | RAG Solvent | Actual Solvent | RAG Temp | Actual Temp | Solvent ✓ | Temp ✓ |
+|---------|-------------|----------------|----------|-------------|-----------|--------|
+| PS | Ethyl acetate | **Toluene** | 77°C | **35°C** | ❌ | ❌ |
+| PVC | THF | THF | 68°C | 67°C | ✅ | ✅ |
+| LDPE | Toluene | **o-Xylene** | 85°C | **80°C** | ❌ | ⚠️ |
+| HDPE | Toluene | **o-Xylene** | 110°C | **95°C** | ❌ | ❌ |
+| PP | THP | **o-Xylene** | 90°C | **115°C** | ❌ | ❌ |
+| EVOH | DMSO/THF | DMSO/water | — | 95°C | ⚠️ | ❌ |
+| PA66/6 | 1,2-propanediol | 1,2-PDO | 135°C | 125°C | ✅ | ⚠️ |
+| PET | GVL | GVL | 160°C | 160°C | ✅ | ✅ |
+| PA6 | DMSO | DMSO | 145°C | 145°C | ✅ | ✅ |
+| PA66 | Formic acid | Formic acid | 65°C | **90°C** | ✅ | ❌ |
 
 ---
 
-## Suggested Separation Sequence (Based on Temperature)
+## RAG Accuracy Assessment
 
-From RAG data, optimal sequence by increasing temperature:
+### Solvent Accuracy: 5/10 (50%)
+- ✅ Correct: PVC (THF), PA66/6 (1,2-PDO), PET (GVL), PA6 (DMSO), PA66 (Formic acid)
+- ❌ Incorrect: PS, LDPE, HDPE, PP, EVOH
 
-| Step | Polymer | Solvent | Temp | Rationale |
-|------|---------|---------|------|-----------|
-| 1 | Nylon 6,6 | Formic acid | 65°C | Lowest temp, selective |
-| 2 | PVC | THF | 68°C | Low temp, good selectivity |
-| 3 | PS | Ethyl acetate | 77°C | Moderate temp |
-| 4 | LDPE | Toluene | 85°C | Below HDPE threshold |
-| 5 | PP | THP | 90°C | Selective for PP |
-| 6 | HDPE | Toluene | 110°C | Higher temp than LDPE |
-| 7 | Nylon 6,6,6 | 1,2-propanediol | 135°C | High temp |
-| 8 | Nylon 6 | DMSO | 145°C | High temp |
-| 9 | PET | GVL | 160°C | Highest temp |
+### Temperature Accuracy: 3/10 (30%)
+- ✅ Correct (±2°C): PVC (68 vs 67), PET (160), PA6 (145)
+- ⚠️ Close (±10°C): LDPE (85 vs 80), PA66/6 (135 vs 125)
+- ❌ Wrong: PS (77 vs 35), HDPE (110 vs 95), PP (90 vs 115), PA66 (65 vs 90)
+
+### Key Errors
+1. **o-Xylene not recognized**: LDPE, HDPE, PP all use o-xylene at different temps
+2. **PS solvent wrong**: Toluene at 35°C, not ethyl acetate at 77°C
+3. **Temperature sequence**: RAG missed the sequential temperature stepping with same solvent
 
 ---
 
-## RAG Performance Metrics
+## Why RAG Retrieved Incorrect Data
 
-| Metric | Value |
-|--------|-------|
-| Polymers retrieved | 10/10 (100%) |
-| Solvents retrieved | 10/10 (100%) |
-| Temperatures retrieved | 9/10 (90%) |
-| Query iterations | 2 |
-| Response time | 33.2s |
+### Issue 1: Cross-Paper Confusion
+RAG retrieved dissolution data from **multiple papers**, mixing:
+- General polymer solubility databases
+- Different STRAP case studies
+- Hansen parameter predictions vs experimental results
+
+### Issue 2: Chunking Limitations
+The 10-step separation table may have been split across chunks, losing the sequential context.
+
+### Issue 3: Query Specificity
+The query asked for "polymer dissolution data" broadly rather than "the specific 10-step separation sequence from the mixed waste paper."
+
+---
+
+## Recommendations for Improved RAG Retrieval
+
+1. **More specific queries**: "What is step 3 in the 10-polymer separation sequence?"
+2. **Table-aware chunking**: Ensure tables are kept intact in chunks
+3. **Paper-specific queries**: "In the 10-polymer STRAP paper, what solvent is used for LDPE?"
+4. **Validation step**: Cross-check RAG output against source documents
 
 ---
 
 ## Conclusion
 
-The RAG engine **successfully retrieved** detailed polymer-solvent-temperature data for the 10-polymer study:
+**RAG retrieval accuracy for this specific table: ~40%**
 
-1. **High precision**: Specific solvents and temperatures extracted accurately
-2. **Good coverage**: 10 polymers with dissolution conditions
-3. **Actionable data**: Values can be directly used for process design
-4. **Literature grounded**: Data traced to STRAP research papers
+The RAG system retrieved plausible but often incorrect polymer-solvent-temperature combinations by mixing data from multiple sources. For precise process design, users should:
+1. Verify RAG outputs against source papers
+2. Use paper-specific queries when possible
+3. Request the original table/figure if available
 
-The RAG system demonstrates strong capability for extracting quantitative process parameters from ingested literature.
+This highlights a limitation: RAG excels at semantic search but may conflate similar data from different sources when precise tabular data is needed.
 
 ---
 
 *Part of complexity assessment - RAG workflow evaluation*
+*Updated with ground truth comparison*
