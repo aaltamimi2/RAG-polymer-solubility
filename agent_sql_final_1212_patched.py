@@ -103,6 +103,9 @@ from langchain_core.tools import tool
 # TEA/LCA Module - standalone file for easy editing by TEA/LCA specialists
 import tea_lca_module as tea_lca
 
+# RAG Module - Literature search with vector retrieval
+import rag_module as rag
+
 # ============================================================
 # Configuration
 # ============================================================
@@ -8280,6 +8283,293 @@ def search_google_scholar(
 
 
 # ============================================================
+# Google Patents Search (SerpAPI)
+# ============================================================
+
+@tool
+def search_google_patents(
+    query: str,
+    max_results: int = 10,
+    after: Optional[str] = None,
+    before: Optional[str] = None,
+    assignee: Optional[str] = None,
+    inventor: Optional[str] = None,
+    country: Optional[str] = None
+) -> str:
+    """
+    Search Google Patents for patent documents using SerpAPI.
+
+    **When to use**: For finding patents related to polymer processing, solvent recovery,
+    recycling technologies, and chemical processes. Patents often contain detailed process
+    parameters and experimental data not found in academic papers.
+
+    **BETA FEATURE**: Shares the SerpAPI quota with Google Scholar (100 searches/month). Use wisely!
+
+    Args:
+        query: Natural language search query or patent-specific terms
+               (e.g., "polymer dissolution solvent recovery", "PET recycling process")
+        max_results: Maximum number of results to return (default: 10, max: 20)
+        after: Filter patents filed after date (format: YYYYMMDD, e.g., "20200101")
+        before: Filter patents filed before date (format: YYYYMMDD)
+        assignee: Filter by company/assignee (e.g., "Dow", "BASF", "Eastman")
+        inventor: Filter by inventor name
+        country: Filter by country code (US, EP, WO, CN, JP, etc.)
+
+    Returns:
+        Formatted list of patents with IDs, titles, assignees, dates, and clickable links
+
+    Examples:
+        - "Search patents for polymer dissolution processes"
+        - "Find patents on solvent-based PET recycling"
+        - "What patents does Eastman have on polymer recycling?"
+        - "Search patents for selective dissolution of mixed plastics" assignee="Dow"
+
+    **Note**: Uses SerpAPI Google Patents API. Returns patent applications and granted patents
+    with filing dates, inventors, and assignees.
+    """
+    try:
+        from serpapi_patents_client import GooglePatentsClient
+
+        # Initialize client (uses SERPAPI_KEY from environment)
+        client = GooglePatentsClient()
+
+        # Perform search
+        results = client.search(
+            query=query,
+            num_results=min(max_results, 20),
+            after=after,
+            before=before,
+            assignee=assignee,
+            inventor=inventor,
+            country=country
+        )
+
+        # Parse results
+        organic_results = results.get('organic_results', [])
+
+        if not organic_results:
+            return f"No patents found for query: '{query}'\n\nTry:\n- Using different search terms\n- Removing filters (date, assignee, country)\n- Using more general terminology"
+
+        # Format output
+        output = [f"# Patent Search Results: {query}\n"]
+        output.append(f"**Found:** {len(organic_results)} patents\n")
+
+        # Show active filters
+        filters = []
+        if after:
+            filters.append(f"After: {after}")
+        if before:
+            filters.append(f"Before: {before}")
+        if assignee:
+            filters.append(f"Assignee: {assignee}")
+        if inventor:
+            filters.append(f"Inventor: {inventor}")
+        if country:
+            filters.append(f"Country: {country}")
+        if filters:
+            output.append(f"**Filters:** {', '.join(filters)}\n")
+
+        output.append("\n## Patents\n")
+
+        for i, result in enumerate(organic_results, 1):
+            patent = client._parse_patent(result)
+
+            # Patent ID with link
+            patent_id = patent.get('patent_id', 'N/A')
+            title = patent.get('title', 'N/A')
+            link = patent.get('link', f'https://patents.google.com/patent/{patent_id}')
+            output.append(f"\n### {i}. [{patent_id}: {title}]({link})")
+
+            # Assignee - always show
+            assignee_val = patent.get('assignee', 'N/A')
+            output.append(f"**Assignee:** {assignee_val}")
+
+            # Inventors - always show
+            inventors = patent.get('inventors', [])
+            if inventors:
+                inventor_str = ', '.join(inventors[:3])
+                if len(inventors) > 3:
+                    inventor_str += f" et al. ({len(inventors)} total)"
+            else:
+                inventor_str = "Not available"
+            output.append(f"**Inventors:** {inventor_str}")
+
+            # Dates
+            filing_date = patent.get('filing_date', 'N/A')
+            grant_date = patent.get('grant_date', 'N/A')
+            if filing_date != 'N/A':
+                output.append(f"**Filed:** {filing_date}")
+            if grant_date != 'N/A':
+                output.append(f"**Granted:** {grant_date}")
+
+            # Country
+            country_code = patent.get('country', 'Unknown')
+            output.append(f"**Country:** {country_code}")
+
+            # PDF link if available
+            pdf_link = patent.get('pdf_link')
+            if pdf_link:
+                output.append(f"[PDF Available]({pdf_link})")
+
+            # Snippet/Abstract
+            snippet = patent.get('snippet', '')
+            if snippet:
+                if len(snippet) > 400:
+                    snippet = snippet[:400] + "..."
+                output.append(f"*{snippet}*")
+
+        # Footer
+        output.append(f"\n\n---")
+        output.append(f"** Search Query:** `{query}`")
+        output.append(f"** Results Shown:** {len(organic_results)}")
+        output.append(f"\n **Beta Feature:** This uses SerpAPI with limited monthly searches. Use wisely!")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Google Patents search is not available. The `serpapi_patents_client` module is not installed.\n\n"
+                "This is a BETA feature that requires SerpAPI integration.")
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return ("❌ Google Patents search requires a SerpAPI key.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://serpapi.com/\n"
+                    "2. Set environment variable: `SERPAPI_KEY=your-key`\n"
+                    "3. Restart the application")
+        else:
+            return f"❌ Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Google Patents search error: {e}")
+        return f"❌ Search failed: {str(e)}\n\nPlease try again or simplify your query."
+
+
+@tool
+def lookup_patent(
+    patent_number: str
+) -> str:
+    """
+    Look up a specific patent by its number.
+
+    **When to use**: When you have a specific patent number and want to get its details.
+    Supports various patent number formats from different patent offices.
+
+    Args:
+        patent_number: Patent number in any common format:
+                      - US patents: US10123456, US 10,123,456, US2020/0123456
+                      - European: EP1234567, EP 1234567 A1
+                      - PCT (WIPO): WO2020123456, WO 2020/123456
+                      - Chinese: CN112345678
+                      - Japanese: JP2020123456
+                      - Korean: KR20200123456
+                      - Australian: AU2020123456
+
+    Returns:
+        Detailed patent information including title, abstract, inventors, assignee,
+        filing date, and link to full document
+
+    Examples:
+        - "Look up patent US10123456"
+        - "Get details for EP1234567"
+        - "What is patent WO2020123456 about?"
+    """
+    try:
+        from serpapi_patents_client import GooglePatentsClient
+
+        # Initialize client
+        client = GooglePatentsClient()
+
+        # Look up specific patent
+        patent = client.get_patent(patent_number)
+
+        if patent.get('error'):
+            return f"❌ {patent['error']}\n\nTry checking the patent number format or searching by keywords instead."
+
+        # Format output
+        output = [f"# Patent Details: {patent.get('patent_id', patent_number)}\n"]
+
+        # Title
+        title = patent.get('title', 'N/A')
+        output.append(f"## {title}\n")
+
+        # Link
+        link = patent.get('link', '')
+        if link:
+            output.append(f"**Full Patent:** [{link}]({link})\n")
+
+        # Key Information
+        output.append("### Key Information\n")
+
+        # Assignee
+        assignee = patent.get('assignee', 'N/A')
+        output.append(f"**Assignee/Owner:** {assignee}")
+
+        # Inventors
+        inventors = patent.get('inventors', [])
+        if inventors:
+            output.append(f"**Inventors:** {', '.join(inventors)}")
+        else:
+            output.append("**Inventors:** Not available")
+
+        # Dates
+        output.append("\n### Dates\n")
+        filing_date = patent.get('filing_date', 'N/A')
+        grant_date = patent.get('grant_date', 'N/A')
+        publication_date = patent.get('publication_date', 'N/A')
+        priority_date = patent.get('priority_date', 'N/A')
+
+        output.append(f"**Filing Date:** {filing_date}")
+        if grant_date != 'N/A':
+            output.append(f"**Grant Date:** {grant_date}")
+        if publication_date != 'N/A':
+            output.append(f"**Publication Date:** {publication_date}")
+        if priority_date != 'N/A' and priority_date != filing_date:
+            output.append(f"**Priority Date:** {priority_date}")
+
+        # Country
+        country = patent.get('country', 'Unknown')
+        output.append(f"**Country/Office:** {country}")
+
+        # Claims count if available
+        claims_count = patent.get('claims_count')
+        if claims_count:
+            output.append(f"**Number of Claims:** {claims_count}")
+
+        # Citations
+        cited_by = patent.get('cited_by_count', 0)
+        if cited_by:
+            output.append(f"**Cited By:** {cited_by} patents")
+
+        # Abstract/Snippet
+        snippet = patent.get('snippet', '')
+        if snippet:
+            output.append("\n### Abstract\n")
+            output.append(f"*{snippet}*")
+
+        # PDF link
+        pdf_link = patent.get('pdf_link')
+        if pdf_link:
+            output.append(f"\n**[Download PDF]({pdf_link})**")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Patent lookup is not available. The `serpapi_patents_client` module is not installed.\n\n"
+                "This is a BETA feature that requires SerpAPI integration.")
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return ("❌ Patent lookup requires a SerpAPI key.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://serpapi.com/\n"
+                    "2. Set environment variable: `SERPAPI_KEY=your-key`\n"
+                    "3. Restart the application")
+        else:
+            return f"❌ Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Patent lookup error: {e}")
+        return f"❌ Lookup failed: {str(e)}\n\nPlease check the patent number format."
+
+
+# ============================================================
 # Web of Science Literature Search (Starter API)
 # ============================================================
 
@@ -8451,6 +8741,1750 @@ def search_web_of_science(
         return f"❌ Search failed: {str(e)}\n\nPlease try again or simplify your query."
 
 
+# ============================================================
+# RAG (Retrieval-Augmented Generation) Tools
+# Literature Search with Vector Retrieval
+# ============================================================
+
+@tool
+@safe_tool_wrapper
+async def search_literature_rag(
+    query: str,
+    top_k: int = 5,
+    source_filter: Optional[str] = None,
+    include_context: bool = True
+) -> str:
+    """
+    Search indexed scientific literature using RAG (Retrieval-Augmented Generation).
+
+    This tool searches through your indexed PDF documents (scientific papers, patents,
+    technical reports) to find relevant passages. It uses hybrid search combining:
+    - Semantic search (understands meaning)
+    - Keyword search (exact term matching)
+    - Cross-encoder reranking (improves precision)
+
+    **When to use**:
+    - Find specific information in indexed research papers
+    - Answer questions based on uploaded scientific literature
+    - Get context from multiple sources about a topic
+    - Support answers with citations from literature
+
+    Args:
+        query: Natural language question or search query
+               (e.g., "What solvents are effective for polystyrene dissolution?")
+        top_k: Number of relevant passages to return (default: 5)
+        source_filter: Optional comma-separated list of document names to search within
+                      (e.g., "paper1,paper2")
+        include_context: Whether to include expanded parent context (default: True)
+
+    Returns:
+        Relevant passages from indexed literature with sources and page numbers
+
+    Examples:
+        - "Search literature for Hansen solubility parameters of polyethylene"
+        - "What does the literature say about toluene toxicity?"
+        - "Find passages about multilayer film separation"
+    """
+    try:
+        # Get RAG system
+        rag_system = rag.get_rag_system()
+
+        if not rag_system.is_ready():
+            return ("⚠️ **RAG System Not Ready**\n\n"
+                    "No documents have been indexed yet.\n\n"
+                    "**To index documents:**\n"
+                    "1. Add PDF files to the `./rag_pdfs/` directory\n"
+                    "2. Use the `ingest_pdf_to_rag` tool to index them\n\n"
+                    "Alternatively, use `search_google_scholar` or `search_web_of_science` "
+                    "for online literature search.")
+
+        # Parse source filter
+        sources = None
+        if source_filter:
+            sources = [s.strip() for s in source_filter.split(",")]
+
+        # Perform search
+        results = rag_system.search(
+            query=query,
+            top_k=top_k,
+            source_filter=sources,
+            return_parent_context=include_context
+        )
+
+        if not results:
+            return (f"No relevant passages found for: '{query}'\n\n"
+                    "**Suggestions:**\n"
+                    "- Try different search terms\n"
+                    "- Use more specific or broader query\n"
+                    "- Check if relevant documents are indexed with `get_rag_status`")
+
+        # Format output
+        output = [f"# 📚 Literature Search Results\n"]
+        output.append(f"**Query:** {query}")
+        output.append(f"**Found:** {len(results)} relevant passages\n")
+
+        for i, result in enumerate(results, 1):
+            output.append(f"\n---\n")
+            output.append(f"### Passage {i}")
+
+            # Source info
+            source_info = f"**Source:** {result.source}"
+            if result.page_number:
+                source_info += f" (Page {result.page_number})"
+            output.append(source_info)
+
+            # Relevance score
+            score = result.rerank_score if result.rerank_score is not None else result.score
+            output.append(f"**Relevance:** {score:.3f}")
+
+            # Text content
+            text = result.parent_text if include_context and result.parent_text else result.text
+            # Truncate very long passages
+            if len(text) > 1500:
+                text = text[:1500] + "..."
+            output.append(f"\n{text}\n")
+
+        # Add summary
+        sources_used = list(set(r.source for r in results))
+        output.append(f"\n---\n**Sources searched:** {', '.join(sources_used)}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"RAG search error: {e}")
+        return f"❌ Literature search failed: {str(e)}\n\nPlease try again with a simpler query."
+
+
+@tool
+@safe_tool_wrapper
+async def ingest_pdf_to_rag(
+    pdf_paths: Optional[str] = None,
+    use_ocr: bool = False,
+    recreate_index: bool = False
+) -> str:
+    """
+    Ingest PDF documents into the RAG system for literature search.
+
+    This tool processes PDF files and indexes them for semantic search.
+    The process includes:
+    - Text extraction (with optional OCR for scanned documents)
+    - Smart chunking that preserves context
+    - Filtering of low-quality content (headers, citations)
+    - Embedding generation for semantic search
+
+    **When to use**:
+    - Add new research papers to the searchable index
+    - Re-index documents after changes
+    - Build a knowledge base from scientific literature
+
+    Args:
+        pdf_paths: Comma-separated paths to PDF files, or None to scan ./rag_pdfs/ directory
+                  (e.g., "./papers/paper1.pdf,./papers/paper2.pdf")
+        use_ocr: Enable OCR for scanned documents (slower but handles images)
+        recreate_index: Delete existing index and start fresh (default: False)
+
+    Returns:
+        Summary of ingestion results including number of documents and chunks processed
+
+    Examples:
+        - "Ingest all PDFs in the rag_pdfs folder"
+        - "Add paper.pdf to the RAG index"
+        - "Re-index all documents with OCR enabled"
+    """
+    try:
+        import glob as glob_module
+
+        # Determine PDF paths
+        if pdf_paths:
+            paths = [p.strip() for p in pdf_paths.split(",")]
+        else:
+            # Scan default directory
+            paths = glob_module.glob(os.path.join(rag.RAG_PDF_DIR, "*.pdf"))
+
+        if not paths:
+            return (f"❌ **No PDFs Found**\n\n"
+                    f"No PDF files found in `{rag.RAG_PDF_DIR}/`\n\n"
+                    "**To add documents:**\n"
+                    "1. Place PDF files in the `./rag_pdfs/` directory\n"
+                    "2. Or specify paths: `ingest_pdf_to_rag(pdf_paths='path/to/file.pdf')`")
+
+        # Perform ingestion
+        rag_system = rag.get_rag_system()
+        result = rag_system.ingest_pdfs(
+            pdf_paths=paths,
+            use_ocr=use_ocr,
+            recreate_collection=recreate_index
+        )
+
+        if not result.get("success"):
+            return f"❌ **Ingestion Failed**\n\n{result.get('error', 'Unknown error')}"
+
+        # Format output
+        output = ["# 📥 PDF Ingestion Complete\n"]
+        output.append(f"**Documents Processed:** {len(result.get('processed_files', []))}")
+        output.append(f"**Documents Failed:** {len(result.get('failed_files', []))}")
+        output.append(f"\n**Indexing Summary:**")
+        output.append(f"- Base chunks: {result.get('base_chunks', 0)}")
+        output.append(f"- Parent chunks: {result.get('parent_chunks', 0)}")
+        output.append(f"- Child chunks (indexed): {result.get('child_chunks', 0)}")
+
+        # Filter stats
+        filter_stats = result.get('filter_stats', {})
+        if filter_stats:
+            output.append(f"\n**Filtering:**")
+            output.append(f"- Processed: {filter_stats.get('total_processed', 0)}")
+            output.append(f"- Retained: {filter_stats.get('retained', 0)}")
+            output.append(f"- Filtered: headers={filter_stats.get('header_footer', 0)}, "
+                         f"citations={filter_stats.get('citation_heavy', 0)}, "
+                         f"duplicates={filter_stats.get('duplicate', 0)}")
+
+        # List processed files
+        processed = result.get('processed_files', [])
+        if processed:
+            output.append(f"\n**Processed Files:**")
+            for p in processed[:10]:  # Limit to 10
+                output.append(f"- {Path(p).name}")
+            if len(processed) > 10:
+                output.append(f"- ... and {len(processed) - 10} more")
+
+        # Failed files
+        failed = result.get('failed_files', [])
+        if failed:
+            output.append(f"\n**Failed Files:**")
+            for f in failed[:5]:
+                output.append(f"- {Path(f).name}")
+
+        output.append(f"\n✅ RAG system ready for search. Use `search_literature_rag` to query.")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"RAG ingestion error: {e}")
+        return f"❌ Ingestion failed: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def get_rag_status() -> str:
+    """
+    Get the current status of the RAG (Retrieval-Augmented Generation) system.
+
+    This tool shows:
+    - Whether the system is initialized and ready
+    - Number of indexed documents and chunks
+    - Available sources (document names)
+    - System configuration
+
+    **When to use**:
+    - Check if documents are indexed before searching
+    - See what documents are available
+    - Verify system health
+    - Debug RAG issues
+
+    Returns:
+        Detailed status of the RAG system including indexed documents and configuration
+    """
+    try:
+        status = rag.get_rag_status()
+
+        output = ["# 📊 RAG System Status\n"]
+
+        # Overall status
+        if status.get('ready'):
+            output.append("**Status:** ✅ Ready for search")
+        elif status.get('initialized'):
+            output.append("**Status:** ⚠️ Initialized but no documents indexed")
+        else:
+            output.append("**Status:** ❌ Not initialized")
+
+        # Dependencies
+        output.append(f"\n**Dependencies:**")
+        output.append(f"- Embeddings: {'✅' if status.get('embeddings_available') else '❌'}")
+        output.append(f"- Vector DB (Qdrant): {'✅' if status.get('qdrant_available') else '❌'}")
+        output.append(f"- PDF Processing: {'✅' if status.get('pdf_processing_available') else '❌'}")
+        output.append(f"- Reranking: {'✅' if status.get('reranking_enabled') else '❌'}")
+
+        # Collection info
+        collection = status.get('collection', {})
+        output.append(f"\n**Vector Database:**")
+        output.append(f"- Collection: {collection.get('collection_name', 'N/A')}")
+        output.append(f"- Indexed chunks: {collection.get('points_count', 0)}")
+        output.append(f"- Status: {collection.get('status', 'unknown')}")
+
+        # Chunk store
+        chunk_store = status.get('chunk_store', {})
+        output.append(f"\n**Document Statistics:**")
+        output.append(f"- Total chunks: {chunk_store.get('total_chunks', 0)}")
+        output.append(f"- Total sources: {chunk_store.get('total_sources', 0)}")
+        output.append(f"- Parent chunks: {chunk_store.get('parent_chunks', 0)}")
+        output.append(f"- Child chunks: {chunk_store.get('child_chunks', 0)}")
+        output.append(f"- Parent-child mode: {'Yes' if chunk_store.get('parent_child_enabled') else 'No'}")
+
+        # Sources
+        sources = chunk_store.get('sources', [])
+        if sources:
+            output.append(f"\n**Indexed Documents ({len(sources)}):**")
+            chunks_per_source = chunk_store.get('chunks_per_source', {})
+            for source in sources[:15]:  # Limit to 15
+                count = chunks_per_source.get(source, 'N/A')
+                output.append(f"- {source}: {count} chunks")
+            if len(sources) > 15:
+                output.append(f"- ... and {len(sources) - 15} more")
+        else:
+            output.append(f"\n**No documents indexed yet.**")
+            output.append(f"\nTo add documents:")
+            output.append(f"1. Place PDF files in `./rag_pdfs/`")
+            output.append(f"2. Run `ingest_pdf_to_rag` tool")
+
+        # Configuration
+        config = status.get('config', {})
+        output.append(f"\n**Configuration:**")
+        output.append(f"- Embedding model: {config.get('dense_model', 'N/A')}")
+        output.append(f"- Chunk strategy: {config.get('chunk_strategy', 'N/A')}")
+        output.append(f"- Chunk size: {config.get('chunk_size', 'N/A')} tokens")
+        output.append(f"- Parent-child: {'Yes' if config.get('use_parent_child') else 'No'}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"RAG status error: {e}")
+        return f"❌ Failed to get RAG status: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def ask_literature(
+    question: str,
+    top_k: int = 5,
+    max_context_tokens: int = 3000
+) -> str:
+    """
+    Ask a question and get an answer synthesized from indexed scientific literature.
+
+    This tool:
+    1. Searches the indexed literature for relevant passages
+    2. Formats the context for answering
+    3. Returns the relevant information with citations
+
+    **When to use**:
+    - Get answers grounded in scientific literature
+    - Find supporting evidence from papers
+    - Compare information across multiple sources
+
+    Args:
+        question: Natural language question to answer
+                 (e.g., "What is the optimal temperature for dissolving polystyrene?")
+        top_k: Number of passages to consider (default: 5)
+        max_context_tokens: Maximum tokens for context (default: 3000)
+
+    Returns:
+        Relevant information from literature with source citations
+
+    Examples:
+        - "What are the environmental impacts of toluene?"
+        - "How does temperature affect polymer solubility?"
+        - "What solvents are recommended for PET recycling?"
+    """
+    try:
+        rag_system = rag.get_rag_system()
+
+        if not rag_system.is_ready():
+            return ("⚠️ **Literature Database Not Ready**\n\n"
+                    "No documents have been indexed.\n\n"
+                    "Use `ingest_pdf_to_rag` to add scientific papers first.")
+
+        # Get context and sources
+        context, sources = rag.format_rag_context(
+            query=question,
+            top_k=top_k,
+            max_tokens=max_context_tokens
+        )
+
+        if not context:
+            return (f"No relevant information found for: '{question}'\n\n"
+                    "Try rephrasing your question or check indexed documents with `get_rag_status`.")
+
+        # Format response
+        output = [f"# 📖 Literature Answer\n"]
+        output.append(f"**Question:** {question}\n")
+        output.append(f"---\n")
+        output.append(f"## Relevant Information from Literature\n")
+        output.append(context)
+        output.append(f"\n---\n")
+        output.append(f"## Sources ({len(sources)} passages)")
+        for i, src in enumerate(sources, 1):
+            source_name = src.get('source', 'Unknown')
+            page = src.get('page_number')
+            score = src.get('score', 0)
+            source_str = f"{i}. **{source_name}**"
+            if page:
+                source_str += f" (Page {page})"
+            source_str += f" - Relevance: {score:.2f}"
+            output.append(source_str)
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Ask literature error: {e}")
+        return f"❌ Failed to search literature: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def clear_rag_index() -> str:
+    """
+    Clear the RAG index and remove all indexed documents.
+
+    This tool deletes all indexed documents from the vector database,
+    allowing you to start fresh with new documents.
+
+    **Warning**: This action cannot be undone!
+
+    **When to use**:
+    - Reset the index to remove all documents
+    - Fix corrupted index
+    - Start over with new document set
+
+    Returns:
+        Confirmation of index deletion
+    """
+    try:
+        rag_system = rag.get_rag_system()
+
+        # Get current status
+        status = rag_system.get_status()
+        collection = status.get('collection', {})
+        points_before = collection.get('points_count', 0)
+
+        # Clear the index
+        if rag_system.vector_db:
+            success = rag_system.vector_db.delete_collection()
+            if not success:
+                return "❌ Failed to delete collection"
+
+        # Clear chunk store
+        rag_system.chunk_store.clear()
+
+        output = ["# 🗑️ RAG Index Cleared\n"]
+        output.append(f"**Deleted:** {points_before} indexed chunks")
+        output.append(f"\nThe RAG system is now empty.")
+        output.append(f"\nTo re-index documents:")
+        output.append(f"1. Ensure PDFs are in `./rag_pdfs/`")
+        output.append(f"2. Run `ingest_pdf_to_rag`")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Clear RAG index error: {e}")
+        return f"❌ Failed to clear index: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def visualize_rag_chunks() -> str:
+    """
+    Generate visualization plots showing the distribution of indexed chunks.
+
+    This tool creates a comprehensive 6-panel visualization showing:
+    - Token count distribution (histogram)
+    - Character count distribution (histogram)
+    - Chunks per document (bar chart)
+    - Section type distribution (pie chart)
+    - Token vs Character correlation (scatter plot)
+    - Token distribution by section type (box plot)
+
+    **When to use**:
+    - After ingesting new documents to verify quality
+    - To understand the composition of your RAG index
+    - To diagnose chunking issues
+    - To optimize chunking parameters
+
+    Returns:
+        Path to the saved visualization plot and summary statistics
+
+    Examples:
+        - "Show me visualization of the indexed chunks"
+        - "Generate chunk distribution plots"
+        - "Visualize the RAG document breakdown"
+    """
+    try:
+        # Generate plot
+        plot_path = rag.plot_chunk_distributions()
+
+        if plot_path is None:
+            return ("⚠️ **No chunks to visualize**\n\n"
+                    "The RAG index is empty. Use `ingest_pdf_to_rag` to add documents first.")
+
+        # Get summary stats
+        summary = rag.get_chunk_summary()
+
+        output = ["# 📊 RAG Chunk Visualization\n"]
+        output.append(f"**Plot saved to:** `{plot_path}`\n")
+
+        # Quick stats
+        output.append("## Summary Statistics\n")
+        output.append(f"- **Total Chunks:** {summary['total_chunks']:,}")
+        output.append(f"- **Documents:** {summary['total_documents']}")
+        output.append(f"- **Total Tokens:** {summary['token_stats']['total']:,}")
+
+        ts = summary['token_stats']
+        output.append(f"\n**Token Distribution:**")
+        output.append(f"- Mean: {ts['mean']:.1f} | Median: {ts['median']:.1f}")
+        output.append(f"- Range: {ts['min']} - {ts['max']}")
+        output.append(f"- Std Dev: {ts['std']:.1f}")
+
+        # Section breakdown
+        output.append(f"\n**Section Types:**")
+        for section, count in sorted(summary['section_distribution'].items(),
+                                      key=lambda x: x[1], reverse=True)[:5]:
+            pct = 100 * count / summary['total_chunks']
+            output.append(f"- {section.replace('_', ' ').title()}: {count} ({pct:.1f}%)")
+
+        output.append(f"\n**View the full visualization at:** `{plot_path}`")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Chunk visualization error: {e}")
+        return f"❌ Failed to generate visualization: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def check_rag_chunk_quality() -> str:
+    """
+    Run quality checks on ingested RAG chunks and identify potential issues.
+
+    This tool analyzes the indexed chunks and checks for:
+    - Minimum chunk count (should have enough for good coverage)
+    - Tiny chunks (<20 tokens) that may lack context
+    - High variance in chunk sizes (inconsistent chunking)
+    - Empty or near-empty chunks
+    - Imbalanced document distribution
+    - Missing important sections (abstract, methods, results)
+
+    **When to use**:
+    - After ingesting documents to verify quality
+    - Before running searches if getting poor results
+    - To diagnose RAG performance issues
+    - To decide if re-chunking is needed
+
+    Returns:
+        Quality assessment with issues, warnings, and recommendations
+
+    Examples:
+        - "Check the quality of my RAG chunks"
+        - "Are my indexed documents properly chunked?"
+        - "Run quality diagnostics on the RAG index"
+    """
+    try:
+        quality = rag.check_chunk_quality()
+
+        if quality['status'] == 'error':
+            return (f"⚠️ **{quality['message']}**\n\n"
+                    f"**Recommendations:**\n" +
+                    "\n".join(f"- {r}" for r in quality['recommendations']))
+
+        output = ["# 🔍 RAG Chunk Quality Report\n"]
+
+        # Status indicator
+        if quality['status'] == 'healthy':
+            output.append("**Status:** ✅ All checks passed\n")
+        elif quality['status'] == 'warnings':
+            output.append("**Status:** ⚠️ Warnings detected\n")
+        else:
+            output.append("**Status:** ❌ Issues found\n")
+
+        output.append(f"**Total Chunks:** {quality['total_chunks']:,}\n")
+
+        # Issues
+        if quality['issues']:
+            output.append("## ❌ Issues\n")
+            for issue in quality['issues']:
+                output.append(f"- {issue}")
+            output.append("")
+
+        # Warnings
+        if quality['warnings']:
+            output.append("## ⚠️ Warnings\n")
+            for warning in quality['warnings']:
+                output.append(f"- {warning}")
+            output.append("")
+
+        # Recommendations
+        if quality['recommendations']:
+            output.append("## 💡 Recommendations\n")
+            for rec in quality['recommendations']:
+                output.append(f"- {rec}")
+            output.append("")
+
+        # Quality metrics
+        summary = quality.get('summary', {})
+        if summary:
+            qm = summary.get('quality_metrics', {})
+            output.append("## 📊 Quality Metrics\n")
+            output.append(f"- **Tiny chunks (<20 tokens):** {qm.get('tiny_chunks', 0)} ({qm.get('tiny_percentage', 0):.1f}%)")
+            output.append(f"- **Large chunks (>1000 tokens):** {qm.get('large_chunks', 0)} ({qm.get('large_percentage', 0):.1f}%)")
+            output.append(f"- **Empty chunks:** {qm.get('empty_chunks', 0)}")
+            output.append(f"- **Coefficient of Variation:** {qm.get('cv', 0):.2f}")
+
+            if qm.get('cv', 0) < 0.5:
+                output.append("  (Good - consistent chunk sizes)")
+            elif qm.get('cv', 0) < 1.0:
+                output.append("  (Moderate - some variation)")
+            else:
+                output.append("  (High - inconsistent chunking)")
+
+        if quality['status'] == 'healthy':
+            output.append("\n✅ Your RAG index is healthy and ready for searching!")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Chunk quality check error: {e}")
+        return f"❌ Failed to check quality: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def get_rag_chunk_report() -> str:
+    """
+    Generate a comprehensive report of all RAG chunk statistics.
+
+    This tool creates a detailed markdown report including:
+    - Overview (total chunks, documents, tokens)
+    - Token statistics (mean, median, min, max, std)
+    - Section distribution (abstract, methods, results, etc.)
+    - Document distribution (chunks per PDF)
+    - Quality assessment (issues, warnings, recommendations)
+    - Quality metrics (tiny/large/empty chunks)
+
+    **When to use**:
+    - Get a complete overview of your RAG index
+    - Document the state of your literature collection
+    - Compare before/after re-indexing
+    - Share statistics with others
+
+    Returns:
+        Comprehensive markdown report with all statistics
+
+    Examples:
+        - "Give me a full report on my RAG chunks"
+        - "Generate detailed RAG index statistics"
+        - "What's the complete breakdown of my indexed literature?"
+    """
+    try:
+        report = rag.generate_chunk_report()
+        return report
+
+    except Exception as e:
+        logger.error(f"Chunk report error: {e}")
+        return f"❌ Failed to generate report: {str(e)}"
+
+
+# ============================================================
+# RAG Advanced Diagnostics Tools
+# ============================================================
+
+@tool
+@safe_tool_wrapper
+async def analyze_search_diagnostics(
+    query: str,
+    top_k: int = 10
+) -> str:
+    """
+    Analyze search score breakdown for a specific query.
+
+    Shows contribution of dense, sparse, section boost, and reranking scores
+    to help understand why certain results rank higher.
+
+    **When to use**:
+    - Debug why certain results appear higher/lower than expected
+    - Understand the contribution of different scoring components
+    - Tune search parameters
+    - Verify hybrid search is working correctly
+
+    Args:
+        query: Search query to analyze
+        top_k: Number of results to analyze (default: 10)
+
+    Returns:
+        Score breakdown visualization and statistics
+
+    Examples:
+        - "Analyze search scores for 'polymer dissolution temperature'"
+        - "Why are these results ranking this way for 'Hansen parameters'?"
+        - "Debug search scores for 'PET recycling'"
+    """
+    try:
+        analysis = rag.analyze_search_scores(query=query, top_k=top_k)
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = [f"# 🔍 Search Score Analysis\n"]
+        output.append(f"**Query:** {query}")
+        output.append(f"**Results Analyzed:** {analysis['num_results']}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Score statistics
+        stats = analysis.get("score_stats", {})
+        output.append("## Score Statistics\n")
+        output.append(f"- **Avg Dense Score:** {stats.get('dense_mean', 0):.3f}")
+        output.append(f"- **Avg Sparse Score:** {stats.get('sparse_mean', 0):.3f}")
+        output.append(f"- **Reranking Improved:** {stats.get('rerank_improved', 0)} results\n")
+
+        # Top results breakdown
+        output.append("## Top Results Breakdown\n")
+        output.append("| Rank | Source | Section | Dense | Sparse | Boost | Final |")
+        output.append("|------|--------|---------|-------|--------|-------|-------|")
+
+        for i, r in enumerate(analysis.get("results", [])[:5], 1):
+            output.append(f"| {i} | {r['source'][:15]}... | {r['section'][:10]} | "
+                         f"{r['dense_score']:.3f} | {r['sparse_score']:.3f} | "
+                         f"{r['section_boost']:.3f} | {r['final_score']:.3f} |")
+
+        output.append("\n**Interpretation:**")
+        if stats.get('dense_mean', 0) > stats.get('sparse_mean', 0):
+            output.append("- Dense (semantic) search is contributing more than sparse (keyword)")
+        else:
+            output.append("- Sparse (keyword) search is contributing more than dense (semantic)")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Search diagnostics error: {e}")
+        return f"❌ Failed to analyze search: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def visualize_retrieval_patterns() -> str:
+    """
+    Analyze retrieval patterns across multiple test queries.
+
+    Shows which documents and sections are retrieved most frequently,
+    helping identify any biases or gaps in retrieval.
+
+    **When to use**:
+    - Understand which documents dominate search results
+    - Check if certain sections are over/under-represented
+    - Identify potential retrieval biases
+    - Verify balanced coverage across your document collection
+
+    Returns:
+        Retrieval pattern analysis with visualization
+
+    Examples:
+        - "Show me retrieval patterns across my documents"
+        - "Which documents are retrieved most often?"
+        - "Analyze section distribution in search results"
+    """
+    try:
+        analysis = rag.analyze_retrieval_patterns()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# 📊 Retrieval Pattern Analysis\n"]
+        output.append(f"**Queries Tested:** {analysis['num_queries']}")
+        output.append(f"**Test Queries:** {', '.join(analysis.get('queries_tested', [])[:3])}...\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Most retrieved documents
+        output.append("## Most Retrieved Documents\n")
+        for doc, count in analysis.get("most_retrieved_docs", []):
+            output.append(f"- **{doc[:40]}...**: {count} times")
+
+        # Section distribution
+        output.append("\n## Section Distribution\n")
+        section_dist = analysis.get("section_distribution", {})
+        total = sum(section_dist.values())
+        for section, count in sorted(section_dist.items(), key=lambda x: x[1], reverse=True):
+            pct = 100 * count / total if total > 0 else 0
+            output.append(f"- **{section.replace('_', ' ').title()}**: {count} ({pct:.1f}%)")
+
+        # Top score average
+        output.append(f"\n**Avg Top-1 Score:** {analysis.get('avg_top_score', 0):.3f}")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Retrieval patterns error: {e}")
+        return f"❌ Failed to analyze retrieval patterns: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def visualize_embedding_space(
+    sample_size: int = 500,
+    method: str = "tsne"
+) -> str:
+    """
+    Visualize document embeddings in 2D space using dimensionality reduction.
+
+    Creates a scatter plot showing how documents cluster in embedding space,
+    colored by source document and section type.
+
+    **When to use**:
+    - See if documents cluster by topic
+    - Identify outlier documents
+    - Verify embedding quality
+    - Understand semantic relationships between documents
+
+    Args:
+        sample_size: Number of chunks to sample (default: 500)
+        method: Dimensionality reduction method - "tsne" or "umap" (default: tsne)
+
+    Returns:
+        Embedding space visualization and clustering analysis
+
+    Examples:
+        - "Visualize my document embeddings"
+        - "Show embedding space clustering"
+        - "Create t-SNE plot of my RAG documents"
+    """
+    try:
+        analysis = rag.visualize_embedding_space(sample_size=sample_size, method=method)
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = [f"# 🗺️ Embedding Space Visualization\n"]
+        output.append(f"**Method:** {analysis['method'].upper()}")
+        output.append(f"**Embeddings Visualized:** {analysis['num_embeddings']}")
+        output.append(f"**Embedding Dimension:** {analysis['embedding_dim']}")
+        output.append(f"**Unique Documents:** {analysis['unique_sources']}")
+        output.append(f"**Unique Sections:** {analysis['unique_sections']}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        output.append("**Interpretation:**")
+        output.append("- Clusters indicate semantically similar content")
+        output.append("- Documents should cluster if they cover similar topics")
+        output.append("- Scattered points may indicate diverse content")
+        output.append("- Outliers may be unique or poorly extracted content")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Embedding visualization error: {e}")
+        return f"❌ Failed to visualize embeddings: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_document_similarity() -> str:
+    """
+    Compute and visualize document-level similarity matrix.
+
+    Shows which documents in your collection are semantically similar
+    to each other, helping identify related papers and potential duplicates.
+
+    **When to use**:
+    - Find related documents in your collection
+    - Identify potential duplicate content
+    - Understand document relationships
+    - Verify diverse coverage
+
+    Returns:
+        Document similarity matrix with most/least similar pairs
+
+    Examples:
+        - "Which documents in my RAG are most similar?"
+        - "Show document similarity matrix"
+        - "Find related papers in my collection"
+    """
+    try:
+        analysis = rag.compute_document_similarity_matrix()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# 📐 Document Similarity Analysis\n"]
+        output.append(f"**Documents Analyzed:** {analysis['num_documents']}")
+        output.append(f"**Average Similarity:** {analysis['avg_similarity']:.3f}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Most similar pairs
+        output.append("## Most Similar Document Pairs\n")
+        for pair in analysis.get("most_similar_pairs", [])[:5]:
+            output.append(f"- **{pair['doc1'][:25]}...** ↔ **{pair['doc2'][:25]}...**: {pair['similarity']:.3f}")
+
+        # Least similar pairs
+        output.append("\n## Least Similar Document Pairs\n")
+        for pair in analysis.get("least_similar_pairs", [])[:3]:
+            output.append(f"- **{pair['doc1'][:25]}...** ↔ **{pair['doc2'][:25]}...**: {pair['similarity']:.3f}")
+
+        output.append("\n**Interpretation:**")
+        output.append("- Similarity > 0.8: Very related content, possible overlap")
+        output.append("- Similarity 0.5-0.8: Related topics")
+        output.append("- Similarity < 0.5: Different topics (good diversity)")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Document similarity error: {e}")
+        return f"❌ Failed to compute similarity: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_dense_vs_sparse() -> str:
+    """
+    Compare dense (semantic) vs sparse (keyword) retrieval performance.
+
+    Shows when each method works better and their correlation,
+    helping understand hybrid search behavior.
+
+    **When to use**:
+    - Understand which retrieval method is contributing more
+    - Tune hybrid search weights
+    - Debug when semantic or keyword search fails
+    - Verify hybrid search is combining both signals
+
+    Returns:
+        Dense vs sparse comparison with visualization
+
+    Examples:
+        - "Compare dense and sparse retrieval"
+        - "Is semantic search or keyword search working better?"
+        - "Analyze hybrid search components"
+    """
+    try:
+        analysis = rag.analyze_dense_vs_sparse()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# ⚖️ Dense vs Sparse Retrieval Analysis\n"]
+        output.append(f"**Queries Tested:** {analysis['num_queries']}")
+        output.append(f"**Results Analyzed:** {analysis['num_results']}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Key statistics
+        output.append("## Key Statistics\n")
+        output.append(f"- **Correlation:** {analysis['correlation']:.3f}")
+        output.append(f"- **Avg Dense Score:** {analysis['avg_dense_score']:.3f}")
+        output.append(f"- **Avg Sparse Score:** {analysis['avg_sparse_score']:.3f}")
+        output.append(f"- **Dense Wins:** {analysis['dense_wins']} ({analysis['dense_win_rate']*100:.1f}%)")
+        output.append(f"- **Sparse Wins:** {analysis['sparse_wins']} ({(1-analysis['dense_win_rate'])*100:.1f}%)")
+
+        # Interpretation
+        output.append("\n**Interpretation:**")
+        if analysis['correlation'] > 0.7:
+            output.append("- High correlation: Both methods agree on relevance")
+        elif analysis['correlation'] > 0.4:
+            output.append("- Moderate correlation: Methods complement each other")
+        else:
+            output.append("- Low correlation: Methods capture different signals (good for hybrid)")
+
+        if analysis['dense_win_rate'] > 0.7:
+            output.append("- Semantic search is dominant - consider adjusting sparse weight")
+        elif analysis['dense_win_rate'] < 0.3:
+            output.append("- Keyword search is dominant - documents may have strong keywords")
+        else:
+            output.append("- Balanced contribution - hybrid search working well")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Dense vs sparse error: {e}")
+        return f"❌ Failed to analyze: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_reranking_impact() -> str:
+    """
+    Analyze how cross-encoder reranking changes result ordering.
+
+    Shows position changes, score improvements, and which results
+    benefit most from reranking.
+
+    **When to use**:
+    - Verify reranking is improving results
+    - Understand which content benefits from reranking
+    - Debug when good results are ranked low
+    - Decide if reranking is worth the latency cost
+
+    Returns:
+        Reranking impact analysis with visualization
+
+    Examples:
+        - "How much does reranking help my search results?"
+        - "Analyze reranking impact"
+        - "Is the cross-encoder improving ranking?"
+    """
+    try:
+        analysis = rag.analyze_reranking_impact()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# 🔄 Reranking Impact Analysis\n"]
+        output.append(f"**Queries Tested:** {analysis['num_queries']}")
+        output.append(f"**Results Analyzed:** {analysis['total_results']}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Position changes
+        output.append("## Position Changes\n")
+        output.append(f"- **Results with position change:** {analysis['results_with_position_change']}")
+        output.append(f"- **Moved up:** {analysis['moved_up']}")
+        output.append(f"- **Moved down:** {analysis['moved_down']}")
+        output.append(f"- **Unchanged:** {analysis['unchanged']}")
+        output.append(f"- **Avg position change:** {analysis['avg_position_change']:.2f}")
+
+        # Interpretation
+        output.append("\n**Interpretation:**")
+        if analysis['moved_up'] > analysis['moved_down']:
+            output.append("- Reranking is promoting relevant results ✅")
+        elif analysis['moved_up'] < analysis['moved_down']:
+            output.append("- Reranking may be demoting good results ⚠️")
+        else:
+            output.append("- Reranking has balanced effect")
+
+        pct_changed = analysis['results_with_position_change'] / analysis['total_results'] * 100 if analysis['total_results'] > 0 else 0
+        if pct_changed > 50:
+            output.append(f"- High impact: {pct_changed:.0f}% of results changed position")
+        else:
+            output.append(f"- Moderate impact: {pct_changed:.0f}% of results changed position")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Reranking analysis error: {e}")
+        return f"❌ Failed to analyze reranking: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_section_boost() -> str:
+    """
+    Analyze the impact of section-based score boosting.
+
+    Shows how different section types (abstract, methods, results) are
+    boosted and their effect on final ranking.
+
+    **When to use**:
+    - Understand section boost configuration
+    - Verify abstracts are getting appropriate priority
+    - Debug when methods/results sections rank unexpectedly
+    - Tune section boost parameters
+
+    Returns:
+        Section boost analysis with visualization
+
+    Examples:
+        - "How does section boosting affect my results?"
+        - "Analyze section boost impact"
+        - "Are abstracts being prioritized correctly?"
+    """
+    try:
+        analysis = rag.analyze_section_boost_impact()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# 📑 Section Boost Analysis\n"]
+        output.append(f"**Results Analyzed:** {analysis['total_results']}")
+        output.append(f"**Avg Boost Contribution:** {analysis['avg_boost_contribution']*100:.1f}%\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Configured boosts
+        output.append("## Configured Section Boosts\n")
+        for section, boost in analysis.get("configured_boosts", {}).items():
+            output.append(f"- **{section.title()}:** +{boost:.2f}")
+
+        # Section performance
+        output.append("\n## Section Performance\n")
+        output.append("| Section | Count | Avg Boost | Avg Rank |")
+        output.append("|---------|-------|-----------|----------|")
+        for section, stats in analysis.get("section_stats", {}).items():
+            output.append(f"| {section[:12]} | {stats['count']} | {stats['avg_boost']:.3f} | {stats['avg_rank']:.1f} |")
+
+        output.append("\n**Interpretation:**")
+        output.append("- Lower avg rank = appearing higher in results")
+        output.append("- Higher boost = more priority given to section type")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Section boost error: {e}")
+        return f"❌ Failed to analyze section boost: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def analyze_query_expansion() -> str:
+    """
+    Analyze the effectiveness of query expansion.
+
+    Shows how expanded queries (synonyms, related terms) affect
+    retrieval results - both positively and negatively.
+
+    **When to use**:
+    - Verify query expansion is helping
+    - Understand which expansions work well
+    - Debug when expansion hurts results
+    - Tune expansion parameters
+
+    Returns:
+        Query expansion analysis with visualization
+
+    Examples:
+        - "Is query expansion helping my searches?"
+        - "Analyze query expansion effectiveness"
+        - "How do expanded terms affect results?"
+    """
+    try:
+        analysis = rag.analyze_query_expansion()
+
+        if analysis.get("error"):
+            return f"❌ {analysis['error']}"
+
+        output = ["# 🔀 Query Expansion Analysis\n"]
+        output.append(f"**Queries Tested:** {analysis['num_queries']}")
+        output.append(f"**Net Result Change:** {analysis['net_change']:+d}\n")
+
+        if analysis.get("plot_path"):
+            output.append(f"**Visualization:** `{analysis['plot_path']}`\n")
+
+        # Summary
+        output.append("## Summary\n")
+        output.append(f"- **Total New Results:** {analysis['total_new_results']}")
+        output.append(f"- **Total Lost Results:** {analysis['total_lost_results']}")
+        output.append(f"- **Avg Score Change:** {analysis['avg_score_improvement']:+.3f}")
+
+        # Per-query details
+        output.append("\n## Query Details\n")
+        for detail in analysis.get("expansion_details", [])[:5]:
+            output.append(f"\n**Query:** {detail['original_query']}")
+            output.append(f"- Expansions: {detail['num_expansions']}")
+            output.append(f"- New results: +{detail['new_results']}, Lost: -{detail['lost_results']}")
+            if detail.get('expanded_queries'):
+                output.append(f"- Expanded to: {', '.join(detail['expanded_queries'][:3])}...")
+
+        # Interpretation
+        output.append("\n**Interpretation:**")
+        if analysis['net_change'] > 0:
+            output.append("- Expansion is adding relevant results ✅")
+        elif analysis['net_change'] < 0:
+            output.append("- Expansion may be diluting results ⚠️")
+        else:
+            output.append("- Expansion has neutral effect")
+
+        if analysis['avg_score_improvement'] > 0:
+            output.append("- Expanded queries have higher avg scores ✅")
+        else:
+            output.append("- Original queries may be sufficient")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Query expansion error: {e}")
+        return f"❌ Failed to analyze query expansion: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def run_full_rag_diagnostics() -> str:
+    """
+    Run comprehensive RAG system diagnostics with all visualizations.
+
+    Generates a complete diagnostic report including:
+    - Chunk distribution analysis
+    - Quality checks
+    - Retrieval patterns
+    - Embedding space visualization
+    - Document similarity matrix
+    - Dense vs sparse analysis
+    - Reranking impact
+    - Section boost impact
+    - Query expansion analysis
+
+    **When to use**:
+    - Complete health check of RAG system
+    - After major changes to indexed documents
+    - Debugging persistent retrieval issues
+    - Preparing a comprehensive report
+
+    Returns:
+        Summary of all diagnostics with paths to generated plots
+
+    Examples:
+        - "Run full RAG diagnostics"
+        - "Generate complete RAG system report"
+        - "Health check my RAG system"
+    """
+    try:
+        results = rag.generate_full_rag_diagnostics()
+
+        output = ["# 🔬 Full RAG System Diagnostics\n"]
+        output.append(f"**Generated:** {results['timestamp']}")
+        output.append(f"**Plots Created:** {len(results.get('all_plots', []))}\n")
+
+        # List all diagnostics
+        output.append("## Diagnostics Run\n")
+
+        diagnostics = results.get("diagnostics", {})
+
+        # Chunk distribution
+        if "chunk_distribution" in diagnostics:
+            cd = diagnostics["chunk_distribution"]
+            summary = cd.get("summary", {})
+            output.append(f"### 1. Chunk Distribution")
+            output.append(f"- Total chunks: {summary.get('total_chunks', 0)}")
+            output.append(f"- Documents: {summary.get('total_documents', 0)}")
+            output.append(f"- Plot: `{cd.get('plot_path', 'N/A')}`\n")
+
+        # Chunk quality
+        if "chunk_quality" in diagnostics:
+            cq = diagnostics["chunk_quality"]
+            output.append(f"### 2. Chunk Quality")
+            output.append(f"- Status: {'✅' if cq.get('status') == 'healthy' else '⚠️'} {cq.get('status', 'unknown')}")
+            output.append(f"- Issues: {len(cq.get('issues', []))}")
+            output.append(f"- Warnings: {len(cq.get('warnings', []))}\n")
+
+        # Retrieval patterns
+        if "retrieval_patterns" in diagnostics:
+            rp = diagnostics["retrieval_patterns"]
+            output.append(f"### 3. Retrieval Patterns")
+            output.append(f"- Plot: `{rp.get('plot_path', 'N/A')}`\n")
+
+        # Embedding space
+        if "embedding_space" in diagnostics:
+            es = diagnostics["embedding_space"]
+            output.append(f"### 4. Embedding Space")
+            output.append(f"- Embeddings: {es.get('num_embeddings', 0)}")
+            output.append(f"- Plot: `{es.get('plot_path', 'N/A')}`\n")
+
+        # Document similarity
+        if "document_similarity" in diagnostics:
+            ds = diagnostics["document_similarity"]
+            output.append(f"### 5. Document Similarity")
+            output.append(f"- Avg similarity: {ds.get('avg_similarity', 0):.3f}")
+            output.append(f"- Plot: `{ds.get('plot_path', 'N/A')}`\n")
+
+        # Dense vs sparse
+        if "dense_vs_sparse" in diagnostics:
+            dvs = diagnostics["dense_vs_sparse"]
+            output.append(f"### 6. Dense vs Sparse")
+            output.append(f"- Correlation: {dvs.get('correlation', 0):.3f}")
+            output.append(f"- Dense win rate: {dvs.get('dense_win_rate', 0)*100:.0f}%")
+            output.append(f"- Plot: `{dvs.get('plot_path', 'N/A')}`\n")
+
+        # Reranking
+        if "reranking_impact" in diagnostics:
+            ri = diagnostics["reranking_impact"]
+            output.append(f"### 7. Reranking Impact")
+            output.append(f"- Position changes: {ri.get('results_with_position_change', 0)}")
+            output.append(f"- Plot: `{ri.get('plot_path', 'N/A')}`\n")
+
+        # Section boost
+        if "section_boost" in diagnostics:
+            sb = diagnostics["section_boost"]
+            output.append(f"### 8. Section Boost")
+            output.append(f"- Plot: `{sb.get('plot_path', 'N/A')}`\n")
+
+        # Query expansion
+        if "query_expansion" in diagnostics:
+            qe = diagnostics["query_expansion"]
+            output.append(f"### 9. Query Expansion")
+            output.append(f"- Net result change: {qe.get('net_change', 0):+d}")
+            output.append(f"- Plot: `{qe.get('plot_path', 'N/A')}`\n")
+
+        # All plots
+        output.append("## Generated Plots\n")
+        for plot_path in results.get("all_plots", []):
+            if plot_path:
+                output.append(f"- `{plot_path}`")
+
+        output.append("\n✅ Full diagnostics complete! Review plots for detailed analysis.")
+
+        return "\n".join(output)
+
+    except Exception as e:
+        logger.error(f"Full diagnostics error: {e}")
+        return f"❌ Failed to run diagnostics: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def download_pdf_to_rag(
+    url: str,
+    filename: Optional[str] = None,
+    auto_ingest: bool = True
+) -> str:
+    """
+    Download a PDF from a URL and save it to the RAG system.
+
+    This tool downloads PDFs from the web and saves them to the RAG pdfs directory.
+    Optionally triggers automatic ingestion into the vector database.
+
+    **When to use**:
+    - Save a PDF from Google Scholar, arXiv, or other sources
+    - Download open-access research papers
+    - Add PDFs to your local literature collection
+    - Build a searchable knowledge base from online sources
+
+    Args:
+        url: Direct URL to the PDF file (must end in .pdf or be a PDF content type)
+        filename: Optional custom filename (without .pdf extension). If not provided,
+                 extracts from URL or generates a unique name
+        auto_ingest: Whether to automatically ingest into RAG after download (default: True)
+
+    Returns:
+        Confirmation of download and ingestion status
+
+    Examples:
+        - "Download this PDF to RAG: https://arxiv.org/pdf/2301.00001.pdf"
+        - "Save the PDF from this link to my literature collection"
+    """
+    import requests
+    import re
+    from pathlib import Path
+    from urllib.parse import urlparse, unquote
+
+    try:
+        # Validate URL
+        if not url or not url.startswith(('http://', 'https://')):
+            return "❌ Invalid URL. Please provide a valid HTTP/HTTPS URL."
+
+        # Create RAG pdfs directory if it doesn't exist
+        pdf_dir = Path(rag.RAG_PDF_DIR)
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename if not provided
+        if not filename:
+            # Try to extract from URL
+            parsed_url = urlparse(url)
+            url_filename = unquote(Path(parsed_url.path).name)
+
+            if url_filename and url_filename.endswith('.pdf'):
+                filename = url_filename[:-4]  # Remove .pdf
+            else:
+                # Generate unique name
+                import hashlib
+                url_hash = hashlib.md5(url.encode()).hexdigest()[:8]
+                filename = f"downloaded_{url_hash}"
+
+        # Clean filename
+        filename = re.sub(r'[^\w\-_]', '_', filename)
+        filepath = pdf_dir / f"{filename}.pdf"
+
+        # Check if file already exists
+        if filepath.exists():
+            return (f"⚠️ File `{filename}.pdf` already exists in RAG directory.\n\n"
+                    f"Use a different filename or delete the existing file first.")
+
+        # Download the PDF
+        logger.info(f"Downloading PDF from: {url}")
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+
+        response = requests.get(url, headers=headers, timeout=60, stream=True)
+        response.raise_for_status()
+
+        # Check content type
+        content_type = response.headers.get('Content-Type', '')
+        if 'pdf' not in content_type.lower() and not url.endswith('.pdf'):
+            return (f"⚠️ URL does not appear to be a PDF.\n"
+                    f"Content-Type: {content_type}\n\n"
+                    "Please provide a direct link to a PDF file.")
+
+        # Save the file
+        total_size = int(response.headers.get('content-length', 0))
+
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        file_size_mb = filepath.stat().st_size / (1024 * 1024)
+
+        output = [f"# ✅ PDF Downloaded Successfully\n"]
+        output.append(f"**Filename:** {filename}.pdf")
+        output.append(f"**Size:** {file_size_mb:.2f} MB")
+        output.append(f"**Location:** {filepath}")
+
+        # Auto-ingest if requested
+        if auto_ingest:
+            output.append(f"\n**Ingesting into RAG...**")
+
+            rag_system = rag.get_rag_system()
+            result = rag_system.ingest_pdfs(
+                pdf_paths=[str(filepath)],
+                use_ocr=False,
+                recreate_collection=False
+            )
+
+            if result.get("success"):
+                output.append(f"✅ Successfully indexed!")
+                output.append(f"- Chunks created: {result.get('total_chunks', 0)}")
+                output.append(f"\nYou can now search this document with `search_literature_rag`")
+            else:
+                output.append(f"⚠️ Ingestion had issues: {result.get('error', 'Unknown')}")
+                output.append(f"The PDF is saved. Try `ingest_pdf_to_rag` manually.")
+        else:
+            output.append(f"\n📁 PDF saved. To index it, run `ingest_pdf_to_rag`")
+
+        return "\n".join(output)
+
+    except requests.exceptions.RequestException as e:
+        return f"❌ Download failed: {str(e)}\n\nCheck if the URL is accessible and points to a PDF."
+    except Exception as e:
+        logger.error(f"PDF download error: {e}")
+        return f"❌ Error downloading PDF: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def save_patent_to_rag(
+    patent_number: str,
+    auto_ingest: bool = True
+) -> str:
+    """
+    Download a patent PDF by its number and save it to the RAG system.
+
+    Patents from Google Patents always have free PDFs available. This tool
+    looks up the patent, downloads the PDF, and optionally ingests it.
+
+    **When to use**:
+    - Save a specific patent to your searchable literature collection
+    - Build a patent knowledge base for your research
+    - Add patents found in search results to RAG
+
+    Args:
+        patent_number: Patent number in any common format:
+                      - US patents: US10123456, US 10,123,456
+                      - European: EP1234567
+                      - PCT: WO2020123456
+                      - Others: CN, JP, KR, AU
+        auto_ingest: Whether to automatically ingest into RAG after download (default: True)
+
+    Returns:
+        Confirmation of download and ingestion status
+
+    Examples:
+        - "Save patent US10457803 to RAG"
+        - "Download EP1234567 and add to my literature collection"
+        - "Add patent WO2020123456 to the RAG index"
+    """
+    import requests
+    import re
+    from pathlib import Path
+
+    try:
+        from serpapi_patents_client import GooglePatentsClient
+
+        # Initialize client
+        client = GooglePatentsClient()
+
+        # Look up the patent to get details
+        patent = client.get_patent(patent_number)
+
+        if patent.get('error'):
+            return f"❌ {patent['error']}\n\nPlease check the patent number format."
+
+        patent_id = patent.get('patent_id', patent_number)
+        title = patent.get('title', 'Unknown')
+
+        # Create RAG pdfs directory
+        pdf_dir = Path(rag.RAG_PDF_DIR)
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+
+        # Generate filename from patent ID
+        safe_patent_id = re.sub(r'[^\w\-]', '_', patent_id)
+        filepath = pdf_dir / f"patent_{safe_patent_id}.pdf"
+
+        # Check if already exists
+        if filepath.exists():
+            return (f"⚠️ Patent `{patent_id}` already exists in RAG directory.\n\n"
+                    f"File: patent_{safe_patent_id}.pdf\n\n"
+                    f"To re-download, delete the existing file first.")
+
+        # Get PDF URL - Google Patents format
+        # Try the PDF link from search results first
+        pdf_url = patent.get('pdf_link')
+
+        if not pdf_url:
+            # Construct Google Patents PDF URL
+            # Format: https://patentimages.storage.googleapis.com/pdfs/US10123456.pdf
+            # Or: https://patents.google.com/patent/US10123456/download
+            pdf_url = f"https://patents.google.com/patent/{patent_id}/download"
+
+        # Download the PDF
+        logger.info(f"Downloading patent PDF: {patent_id}")
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+
+        response = requests.get(pdf_url, headers=headers, timeout=120, stream=True, allow_redirects=True)
+
+        # If download page, try alternate URL
+        if response.status_code != 200 or 'html' in response.headers.get('Content-Type', '').lower():
+            # Try direct storage URL format
+            alt_url = f"https://patentimages.storage.googleapis.com/pdfs/{patent_id}.pdf"
+            response = requests.get(alt_url, headers=headers, timeout=120, stream=True)
+
+        response.raise_for_status()
+
+        # Save the file
+        with open(filepath, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        file_size_mb = filepath.stat().st_size / (1024 * 1024)
+
+        output = [f"# ✅ Patent Downloaded Successfully\n"]
+        output.append(f"**Patent:** {patent_id}")
+        output.append(f"**Title:** {title[:80]}{'...' if len(title) > 80 else ''}")
+        output.append(f"**Assignee:** {patent.get('assignee', 'N/A')}")
+        output.append(f"**Size:** {file_size_mb:.2f} MB")
+        output.append(f"**File:** patent_{safe_patent_id}.pdf")
+
+        # Auto-ingest if requested
+        if auto_ingest:
+            output.append(f"\n**Ingesting into RAG...**")
+
+            rag_system = rag.get_rag_system()
+            result = rag_system.ingest_pdfs(
+                pdf_paths=[str(filepath)],
+                use_ocr=False,
+                recreate_collection=False
+            )
+
+            if result.get("success"):
+                output.append(f"✅ Successfully indexed!")
+                output.append(f"- Chunks created: {result.get('total_chunks', 0)}")
+                output.append(f"\nYou can now search this patent with `search_literature_rag`")
+            else:
+                output.append(f"⚠️ Ingestion had issues: {result.get('error', 'Unknown')}")
+                output.append(f"The PDF is saved. Try `ingest_pdf_to_rag` manually.")
+        else:
+            output.append(f"\n📁 Patent saved. To index it, run `ingest_pdf_to_rag`")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Patent download requires SerpAPI integration.\n\n"
+                "The `serpapi_patents_client` module is not installed.")
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return ("❌ Patent download requires a SerpAPI key for lookup.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://serpapi.com/\n"
+                    "2. Set environment variable: `SERPAPI_KEY=your-key`")
+        return f"❌ Error: {str(e)}"
+    except requests.exceptions.RequestException as e:
+        return f"❌ Download failed: {str(e)}\n\nThe patent may not have a downloadable PDF."
+    except Exception as e:
+        logger.error(f"Patent download error: {e}")
+        return f"❌ Error downloading patent: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+async def save_scholar_results_to_rag(
+    query: str,
+    max_papers: int = 5,
+    year_low: Optional[int] = None,
+    year_high: Optional[int] = None
+) -> str:
+    """
+    Search Google Scholar and download available open-access PDFs to RAG.
+
+    This tool searches Google Scholar, identifies papers with available PDFs,
+    downloads them, and ingests them into the RAG system.
+
+    **Important**: Only open-access papers with direct PDF links can be downloaded.
+    Paywalled papers will be skipped.
+
+    **When to use**:
+    - Build a literature collection on a topic
+    - Download multiple open-access papers at once
+    - Create a searchable knowledge base from Google Scholar results
+
+    Args:
+        query: Search query for Google Scholar (e.g., "polymer dissolution solvent")
+        max_papers: Maximum number of papers to try downloading (default: 5)
+        year_low: Minimum publication year (optional)
+        year_high: Maximum publication year (optional)
+
+    Returns:
+        Summary of downloaded papers and ingestion status
+
+    Examples:
+        - "Download open-access papers on PET recycling to RAG"
+        - "Save Google Scholar papers about Hansen solubility parameters to my collection"
+        - "Build a RAG collection from recent polymer dissolution research"
+    """
+    import requests
+    import re
+    from pathlib import Path
+
+    try:
+        from serpapi_scholar_client import GoogleScholarClient
+
+        # Initialize client
+        client = GoogleScholarClient()
+
+        # Search for papers
+        results = client.search(
+            query=query,
+            num_results=min(max_papers * 2, 20),  # Get extra in case some don't have PDFs
+            year_low=year_low,
+            year_high=year_high
+        )
+
+        organic_results = results.get('organic_results', [])
+
+        if not organic_results:
+            return f"No results found for: '{query}'"
+
+        # Create RAG directory
+        pdf_dir = Path(rag.RAG_PDF_DIR)
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+
+        downloaded = []
+        skipped = []
+        failed = []
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+
+        for result in organic_results:
+            if len(downloaded) >= max_papers:
+                break
+
+            article = client._parse_article(result)
+            title = article.get('title', 'Unknown')
+            pdf_url = article.get('pdf_link')
+
+            if not pdf_url:
+                skipped.append(f"{title[:50]}... (no PDF link)")
+                continue
+
+            try:
+                # Generate safe filename
+                safe_title = re.sub(r'[^\w\-]', '_', title[:50])
+                year = article.get('year', 'unknown')
+                filename = f"scholar_{year}_{safe_title}.pdf"
+                filepath = pdf_dir / filename
+
+                # Skip if exists
+                if filepath.exists():
+                    skipped.append(f"{title[:50]}... (already exists)")
+                    continue
+
+                # Download
+                response = requests.get(pdf_url, headers=headers, timeout=60, stream=True)
+                response.raise_for_status()
+
+                # Verify it's a PDF
+                content_type = response.headers.get('Content-Type', '')
+                if 'pdf' not in content_type.lower() and not pdf_url.endswith('.pdf'):
+                    skipped.append(f"{title[:50]}... (not a PDF)")
+                    continue
+
+                # Save
+                with open(filepath, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+
+                file_size = filepath.stat().st_size / 1024  # KB
+                downloaded.append({
+                    'title': title,
+                    'filename': filename,
+                    'size_kb': file_size,
+                    'year': year,
+                    'filepath': str(filepath)
+                })
+
+            except Exception as e:
+                failed.append(f"{title[:40]}... ({str(e)[:30]})")
+
+        # Format output
+        output = [f"# 📚 Google Scholar → RAG Download\n"]
+        output.append(f"**Query:** {query}")
+        output.append(f"**Results found:** {len(organic_results)}\n")
+
+        if downloaded:
+            output.append(f"## ✅ Downloaded ({len(downloaded)} papers)\n")
+            for paper in downloaded:
+                output.append(f"- **{paper['title'][:60]}{'...' if len(paper['title']) > 60 else ''}**")
+                output.append(f"  Year: {paper['year']}, Size: {paper['size_kb']:.0f} KB")
+
+            # Ingest all downloaded papers
+            output.append(f"\n**Ingesting into RAG...**")
+
+            rag_system = rag.get_rag_system()
+            result = rag_system.ingest_pdfs(
+                pdf_paths=[p['filepath'] for p in downloaded],
+                use_ocr=False,
+                recreate_collection=False
+            )
+
+            if result.get("success"):
+                output.append(f"✅ Successfully indexed {len(downloaded)} papers!")
+                output.append(f"- Total chunks: {result.get('total_chunks', 0)}")
+            else:
+                output.append(f"⚠️ Ingestion had issues. Try `ingest_pdf_to_rag` manually.")
+
+        if skipped:
+            output.append(f"\n## ⏭️ Skipped ({len(skipped)})")
+            for reason in skipped[:5]:
+                output.append(f"- {reason}")
+            if len(skipped) > 5:
+                output.append(f"- ... and {len(skipped) - 5} more")
+
+        if failed:
+            output.append(f"\n## ❌ Failed ({len(failed)})")
+            for reason in failed[:3]:
+                output.append(f"- {reason}")
+
+        if not downloaded:
+            output.append(f"\n⚠️ No papers could be downloaded.")
+            output.append(f"Most Google Scholar results are paywalled.")
+            output.append(f"\n**Alternatives:**")
+            output.append(f"- Search for preprints on arXiv")
+            output.append(f"- Use `download_pdf_to_rag` with direct PDF URLs")
+            output.append(f"- Download patents with `save_patent_to_rag` (always free)")
+
+        return "\n".join(output)
+
+    except ModuleNotFoundError:
+        return ("❌ Google Scholar search requires SerpAPI integration.\n\n"
+                "The `serpapi_scholar_client` module is not installed.")
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return ("❌ Google Scholar search requires a SerpAPI key.\n\n"
+                    "**Setup:**\n"
+                    "1. Get API key from: https://serpapi.com/\n"
+                    "2. Set environment variable: `SERPAPI_KEY=your-key`")
+        return f"❌ Error: {str(e)}"
+    except Exception as e:
+        logger.error(f"Scholar download error: {e}")
+        return f"❌ Error: {str(e)}"
+
+
 SQL_AGENT_TOOLS = [
     # Core database tools
     list_tables,
@@ -8511,6 +10545,8 @@ SQL_AGENT_TOOLS = [
 
     # Literature Search Tools (external APIs)
     search_google_scholar,      # Google Scholar via SerpAPI (broad coverage, 100/month limit)
+    search_google_patents,      # Google Patents via SerpAPI (patent search)
+    lookup_patent,              # Look up specific patent by number
     search_web_of_science,      # Web of Science via Clarivate (peer-reviewed, citation metrics)
 
     # TEA/LCA Tools (Techno-Economic Analysis / Life Cycle Assessment)
@@ -8531,6 +10567,34 @@ SQL_AGENT_TOOLS = [
     plot_strap_scale_economics,
     compare_strap_scenarios,
     generate_strap_visualizations,
+
+    # RAG (Retrieval-Augmented Generation) Tools - Literature Search with Vector DB
+    search_literature_rag,      # Semantic search through indexed papers
+    ingest_pdf_to_rag,          # Index PDF documents
+    get_rag_status,             # Check RAG system status
+    ask_literature,             # Q&A from indexed literature
+    clear_rag_index,            # Clear indexed documents
+
+    # RAG Visualization & Quality Tools
+    visualize_rag_chunks,       # Generate chunk distribution plots
+    check_rag_chunk_quality,    # Run quality checks on chunks
+    get_rag_chunk_report,       # Generate comprehensive statistics report
+
+    # RAG Advanced Diagnostics Tools
+    analyze_search_diagnostics,     # Score breakdown for a query
+    visualize_retrieval_patterns,   # Which docs/sections retrieved most
+    visualize_embedding_space,      # t-SNE/UMAP of embeddings
+    analyze_document_similarity,    # Document similarity matrix
+    analyze_dense_vs_sparse,        # Dense vs sparse comparison
+    analyze_reranking_impact,       # Reranking position changes
+    analyze_section_boost,          # Section boost effectiveness
+    analyze_query_expansion,        # Query expansion effectiveness
+    run_full_rag_diagnostics,       # Complete diagnostic suite
+
+    # Literature → RAG Integration Tools (download and index)
+    download_pdf_to_rag,        # Download any PDF from URL to RAG
+    save_patent_to_rag,         # Download patent PDF by number to RAG
+    save_scholar_results_to_rag,  # Batch download Google Scholar PDFs to RAG
 ]
 
 print(f"✅ Loaded {len(SQL_AGENT_TOOLS)} enhanced tools for SQL Agent")
@@ -8544,9 +10608,10 @@ print("  - GSK Safety (G-Score): 4 tools (scoring, family alternatives, visualiz
 print("  - Listing: 2 tools (list solvents and polymers with counts)")
 print("  - ML Prediction: 1 tool (Hansen-based solubility prediction with visualizations)")
 print("  - PubChem Safety: 4 tools (GHS data, toxicity, safety comparison, visualizations)")
-print("  - Literature Search: 2 tools (Web of Science + Google Scholar with clickable links)")
+print("  - Literature Search: 4 tools (Google Scholar + Google Patents + Web of Science)")
 print("  - TEA/LCA: 8 tools (TEA, LCA, comparison, + 5 visualization tools)")
 print("  - STRAP Process: 5 tools (full analysis, MSP, scale economics, scenarios, visualizations)")
+print("  - RAG Literature: 20 tools (search, ingest, Q&A + 12 diagnostics + 3 download)")
 
 
 # ============================================================

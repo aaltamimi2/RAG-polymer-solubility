@@ -461,6 +461,73 @@ async def api_status():
     """Get system status."""
     return get_system_status()
 
+@app.get("/api/rag/status")
+async def api_rag_status():
+    """Get RAG knowledgebase status."""
+    try:
+        from rag_module import get_rag_system
+        rag = get_rag_system()
+
+        if not rag.is_ready():
+            return {
+                "available": False,
+                "active_kb": None,
+                "paper_count": 0,
+                "chunk_count": 0,
+                "message": "RAG system not initialized"
+            }
+
+        # Get active KB info
+        kb_name = rag.get_active_kb()
+        summary = rag.list_kbs()
+
+        # Find the active KB info
+        active_kb_info = next((kb for kb in summary if kb.get('is_active')), None)
+
+        return {
+            "available": True,
+            "active_kb": kb_name,
+            "paper_count": active_kb_info.get('papers', 0) if active_kb_info else 0,
+            "chunk_count": active_kb_info.get('chunks', 0) if active_kb_info else 0,
+            "all_kbs": summary
+        }
+    except Exception as e:
+        logger.warning(f"RAG status check failed: {e}")
+        return {
+            "available": False,
+            "active_kb": None,
+            "paper_count": 0,
+            "chunk_count": 0,
+            "message": str(e)
+        }
+
+@app.post("/api/rag/switch-kb")
+async def api_switch_kb(request: dict):
+    """Switch to a different knowledgebase."""
+    try:
+        kb_name = request.get("kb_name")
+        if not kb_name:
+            raise HTTPException(status_code=400, detail="kb_name is required")
+
+        from rag_module import get_rag_system
+        rag = get_rag_system()
+
+        # Switch KB
+        kb_info = rag.switch_kb(kb_name)
+
+        return {
+            "success": True,
+            "active_kb": kb_info.name,
+            "paper_count": kb_info.paper_count,
+            "chunk_count": kb_info.chunk_count,
+            "message": f"Switched to {kb_name}"
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"KB switch failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/chat")
 async def api_chat(request: ChatRequest):
     """Chat with the agent."""

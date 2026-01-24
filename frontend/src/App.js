@@ -23,7 +23,9 @@ import {
   Search,
   Calculator,
   Rocket,
-  BookOpen
+  BookOpen,
+  Library,
+  FileText
 } from 'lucide-react';
 import api, { API_BASE } from './api';
 
@@ -805,6 +807,9 @@ function App() {
   const [selectedPolymers, setSelectedPolymers] = useState([]);
   const [solventInput, setSolventInput] = useState('');
 
+  // RAG Knowledgebase state
+  const [ragStatus, setRagStatus] = useState(null);
+
   // Issue Report Modal state
   const [issueModalOpen, setIssueModalOpen] = useState(false);
   const [issueMessage, setIssueMessage] = useState(null);
@@ -836,7 +841,38 @@ function App() {
   // Load status on mount
   useEffect(() => {
     loadStatus();
+    loadRagStatus();
   }, []);
+
+  const loadRagStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/rag/status`);
+      const data = await response.json();
+      setRagStatus(data);
+    } catch (e) {
+      console.error('Failed to load RAG status:', e);
+    }
+  };
+
+  const handleKbChange = async (kbName) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/rag/switch-kb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kb_name: kbName })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        showNotification(`Switched to ${kbName}`, 'success');
+        loadRagStatus(); // Refresh KB status
+      } else {
+        showNotification(data.detail || 'Failed to switch KB', 'error');
+      }
+    } catch (e) {
+      console.error('Failed to switch KB:', e);
+      showNotification('Failed to switch KB', 'error');
+    }
+  };
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -1154,6 +1190,26 @@ function App() {
           </div>
           <div className="flex items-center gap-3">
             <StatusBadge status={status?.status} />
+            {/* Knowledge Base Selector */}
+            {ragStatus?.available && ragStatus?.all_kbs?.length > 0 && (
+              <select
+                value={ragStatus.active_kb || ''}
+                onChange={(e) => handleKbChange(e.target.value)}
+                className="px-3 py-1.5 text-sm rounded-lg transition-colors font-body cursor-pointer"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)'
+                }}
+                title={`RAG Knowledge Base: ${ragStatus.paper_count} papers, ${ragStatus.chunk_count} chunks`}
+              >
+                {ragStatus.all_kbs.map(kb => (
+                  <option key={kb.name} value={kb.name}>
+                    {kb.name} ({kb.papers} papers)
+                  </option>
+                ))}
+              </select>
+            )}
             {/* Model Selector */}
             <select
               value={selectedModel}
@@ -1593,6 +1649,42 @@ function App() {
                           "What are recent WoS publications on selective polymer separation?",
                           "Search for articles about polyethylene solubility in the last 5 years",
                           "Find research on green solvents for polymer recycling"
+                        ]}
+                      />
+                    </div>
+                    {/* Third Row - Patents + RAG */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                      <QuickActionWithExamples
+                        icon={FileText}
+                        label="Patent Search"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Search patents for polymer dissolution solvent recovery",
+                          "Find patents on PET recycling technologies from Eastman",
+                          "Look up patent US10457803",
+                          "What patents exist for selective dissolution of mixed plastics?",
+                          "Search Google Patents for solvent-based recycling after 2020",
+                          "Save patent US10457803 to RAG for searching",
+                          "Find Dow patents on polymer separation and save to RAG"
+                        ]}
+                      />
+                      <QuickActionWithExamples
+                        icon={Library}
+                        label="RAG Literature"
+                        currentInput={input}
+                        onSelectExample={handleQuickAction}
+                        examples={[
+                          "Search the indexed literature for polystyrene dissolution",
+                          "Ask literature: What solvents are best for PET recycling?",
+                          "Run full RAG diagnostics",
+                          "Visualize my document embeddings using t-SNE",
+                          "Analyze search scores for 'polymer dissolution'",
+                          "Which documents are most similar in my collection?",
+                          "Compare dense vs sparse retrieval performance",
+                          "How much does reranking improve my results?",
+                          "Analyze query expansion effectiveness",
+                          "Download open-access papers on polymer recycling to RAG"
                         ]}
                       />
                     </div>
