@@ -1,0 +1,38 @@
+[
+  {
+    "figure_index": 0,
+    "page": 3,
+    "caption": "Fig. 2. Characterization of the post-industrial mixed plastic waste (MPW). (a) MPW feed, (b) FTIR of one sample indicating PE, (c) FTIR of one sample indicating PET, (d) FTIR of one sample indicating PA, and (e) optical microscopy image of one sample indicating the presence of multilayer plastic components. FTIR spectra of reference materials are shown in Fig. 3.",
+    "image_path": "./rag_figures/A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste/figure-3-5.jpg",
+    "interpretation": "Here is a detailed analysis of Fig. 2, characterizing post-industrial mixed plastic waste (MPW):\n\n---\n\n### **Analysis of Fig. 2: Characterization of the post-industrial mixed plastic waste (MPW)**\n\n**1. Figure Type:**\nThis figure is a composite figure comprising:\n*   **(a)** A macroscopic optical image of the mixed plastic waste feed.\n*   **(b), (c), (d)** Fourier Transform Infrared (FTIR) spectroscopy absorbance spectra.\n*   **(e)** An optical microscopy image of a plastic sample cross-section.\n\n**2. Key Observations:**\n\n*   **(a) MPW feed:** The image displays a pile of shredded or flaked plastic pieces. The waste appears highly heterogeneous, exhibiting a variety of colors (e",
+    "success": true,
+    "model": "gemini-2.5-flash"
+  },
+  {
+    "figure_index": 1,
+    "page": 4,
+    "caption": "Fig. 3. IR spectra of the recovered STRAP polymers from the physical mixture (in red) and the virgin polymers (in black): (a) PS, (b) PVC, (c) LDPE, (d) HDPE, (e) PP, (f) EVOH, (g) PA66/6, (h) PET, (i) PA6, and (j) PA66. (For interpretation of the references to color in this figure legend, the reader is referred to the web version of this article.)",
+    "image_path": "./rag_figures/A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste/figure-4-6.jpg",
+    "interpretation": "## Figure Analysis: IR Spectra of Recovered and Virgin Polymers\n\n### 1. Figure Type\n\nThis figure presents a series of **Fourier-transform infrared (FTIR) spectra**. Specifically, it shows 10 pairs of IR spectra, each pair comparing a \"recovered STRAP polymer\" (red trace) with its \"virgin polymer\" counterpart (black trace). The x-axis represents wavenumber (cm⁻¹) and the y-axis represents absorbance (arbitrary units).\n\n### 2",
+    "success": true,
+    "model": "gemini-2.5-flash"
+  },
+  {
+    "figure_index": 2,
+    "page": 6,
+    "caption": "Fig. 4. Solvent-targeted recovery and precipitation (STRAP) with post-industrial mixed plastic waste (MPW) from packaging waste that includes multilayer films.",
+    "image_path": "./rag_figures/A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste/figure-6-7.jpg",
+    "interpretation": "Here's a detailed analysis of the provided figure:\n\n---\n\n### Figure Analysis: Solvent-Targeted Recovery and Precipitation (STRAP)\n\n**1. Figure Type:**\nThis figure is a combination of a **process flowchart (or schematic diagram)** and a **data table**. The flowchart illustrates the general workflow of the Solvent-Targeted Recovery and Precipitation (STRAP) process, while the table presents specific experimental results, including the recovered materials, the solvents and temperatures used, and the corresponding yields.\n\n**2. Key Observations:**\n\n*   **Process Flowchart (Left and Middle):**\n    *   **Input:** The process starts with \"Mixed plastic waste (MPW) from packaging,\" which is explicitly stated to include multilayer films. A list of common polymers (PS, PVC, LDPE, HDPE, PP, EVOH, PA 6/66, PET, PA 6, PA 66) along with cardboard and metal are identified as components of this waste stream.\n    *   **Steps:** The core process involves two main stages: \"Polymer dissolution\" in a stirred reactor, followed by \"Polymer precipitation\" in a second stirred reactor.\n    *   **Solvent Management:** A \"Solvent (polymer selective)\" is introduced into the dissolution step, and \"Solvent recycle\" is shown originating from the precipitation step, indicating solvent recovery and reuse.\n    *   **Outputs:** The precipitation step yields the recovered polymer, while the undissolved materials are removed as \"Residual cardboard, metal and plastic.\"\n    *   **Flow Representation:** Dotted lines represent liquid flow, and solid lines represent solid flow.\n\n*   **Data Table (Right):**\n    *   The table lists 10 different polymers recovered: PS, PVC, LDPE, HDPE, PP, EVOH, PA 66/6, PET, PA 6, and PA 66.\n    *   For each recovered polymer, a specific solvent or solvent mixture, a dissolution temperature, and a yield (in weight percent, wt%) are provided.\n    *   An entry for \"Residue\" is included at the end, indicating the unrecovered portion of the",
+    "success": true,
+    "model": "gemini-2.5-flash"
+  },
+  {
+    "figure_index": 3,
+    "page": 6,
+    "caption": "Fig. 5. IR spectra of the recovered polymers from MPW (in red) and the virgin polymers (in black): (a) PVC, (b) PP, (c) PA6, and (d) PA66. (For interpretation of the references to color in this figure legend, the reader is referred to the web version of this article.)",
+    "image_path": "./rag_figures/A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste/figure-6-8.jpg",
+    "interpretation": "Here is a detailed analysis of the provided figure:\n\n---\n\n**1. Figure Type**:\nThe figure displays **Fourier-transform infrared (FTIR) spectra**. Specifically, it shows absorbance (arbitrary units) as a function of wavenumber (cm⁻¹), which is characteristic of FTIR spectroscopy.\n\n**2. Key Observations**:\nThe figure is composed of four sub-panels, labeled (a) through (d), each dedicated to a specific polymer:\n*   **(a)",
+    "success": true,
+    "model": "gemini-2.5-flash"
+  }
+]

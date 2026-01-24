@@ -1,0 +1,838 @@
+[
+  {
+    "timestamp": "2026-01-23T16:20:42.351538",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 127,
+    "indexed_chunks": 111,
+    "llm_stats": {
+      "total_llm_calls": 21,
+      "figure_interpretation_calls": 4,
+      "parent_context_calls": 17,
+      "per_paper": [
+        {
+          "filename": "Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation.pdf",
+          "source_name": "Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation",
+          "figure_llm_calls": 4,
+          "parent_context_llm_calls": 17,
+          "total_llm_calls": 21,
+          "section_chunks": 17,
+          "paragraph_chunks": 112,
+          "timestamp": "2026-01-23T16:20:17.248984"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation.pdf",
+        "source_name": "Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation",
+        "figure_llm_calls": 4,
+        "parent_context_llm_calls": 17,
+        "total_llm_calls": 21,
+        "section_chunks": 17,
+        "paragraph_chunks": 112,
+        "timestamp": "2026-01-23T16:20:17.248984"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T17:12:52.241048",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 206,
+    "indexed_chunks": 193,
+    "llm_stats": {
+      "total_llm_calls": 16,
+      "figure_interpretation_calls": 3,
+      "parent_context_calls": 13,
+      "per_paper": [
+        {
+          "filename": "Solvent Based Plastic Recycling Review Published Paper.pdf",
+          "source_name": "Solvent Based Plastic Recycling Review Published Paper",
+          "figure_llm_calls": 3,
+          "parent_context_llm_calls": 13,
+          "total_llm_calls": 16,
+          "section_chunks": 13,
+          "paragraph_chunks": 193,
+          "timestamp": "2026-01-23T17:12:07.600962"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Solvent Based Plastic Recycling Review Published Paper.pdf",
+        "source_name": "Solvent Based Plastic Recycling Review Published Paper",
+        "figure_llm_calls": 3,
+        "parent_context_llm_calls": 13,
+        "total_llm_calls": 16,
+        "section_chunks": 13,
+        "paragraph_chunks": 193,
+        "timestamp": "2026-01-23T17:12:07.600962"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T20:27:33.182817",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 160,
+    "indexed_chunks": 150,
+    "llm_stats": {
+      "total_llm_calls": 0,
+      "figure_interpretation_calls": 0,
+      "parent_context_calls": 0,
+      "per_paper": [
+        {
+          "filename": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+          "source_name": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation",
+          "figure_llm_calls": 0,
+          "parent_context_llm_calls": 0,
+          "total_llm_calls": 0,
+          "section_chunks": 18,
+          "paragraph_chunks": 150,
+          "timestamp": "2026-01-23T20:27:09.522657"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+        "source_name": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation",
+        "figure_llm_calls": 0,
+        "parent_context_llm_calls": 0,
+        "total_llm_calls": 0,
+        "section_chunks": 18,
+        "paragraph_chunks": 150,
+        "timestamp": "2026-01-23T20:27:09.522657"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T20:51:54.778712",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 235,
+    "indexed_chunks": 215,
+    "llm_stats": {
+      "total_llm_calls": 35,
+      "figure_interpretation_calls": 15,
+      "parent_context_calls": 20,
+      "per_paper": [
+        {
+          "filename": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+          "source_name": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation",
+          "figure_llm_calls": 15,
+          "parent_context_llm_calls": 20,
+          "total_llm_calls": 35,
+          "section_chunks": 20,
+          "paragraph_chunks": 219,
+          "timestamp": "2026-01-23T20:51:04.217838"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+        "source_name": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation",
+        "figure_llm_calls": 15,
+        "parent_context_llm_calls": 20,
+        "total_llm_calls": 35,
+        "section_chunks": 20,
+        "paragraph_chunks": 219,
+        "timestamp": "2026-01-23T20:51:04.217838"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:21:44.478053",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 239,
+    "indexed_chunks": 218,
+    "llm_stats": {
+      "total_llm_calls": 35,
+      "figure_interpretation_calls": 14,
+      "parent_context_calls": 21,
+      "per_paper": [
+        {
+          "filename": "Screening green solvents for multilayer plastic film recycling processes.pdf",
+          "source_name": "Screening green solvents for multilayer plastic film recycling processes",
+          "figure_llm_calls": 14,
+          "parent_context_llm_calls": 21,
+          "total_llm_calls": 35,
+          "section_chunks": 21,
+          "paragraph_chunks": 219,
+          "timestamp": "2026-01-23T21:20:51.665978"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Screening green solvents for multilayer plastic film recycling processes.pdf",
+        "source_name": "Screening green solvents for multilayer plastic film recycling processes",
+        "figure_llm_calls": 14,
+        "parent_context_llm_calls": 21,
+        "total_llm_calls": 35,
+        "section_chunks": 21,
+        "paragraph_chunks": 219,
+        "timestamp": "2026-01-23T21:20:51.665978"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:33:31.640075",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 189,
+    "indexed_chunks": 176,
+    "llm_stats": {
+      "total_llm_calls": 22,
+      "figure_interpretation_calls": 9,
+      "parent_context_calls": 13,
+      "per_paper": [
+        {
+          "filename": "Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation.pdf",
+          "source_name": "Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation",
+          "figure_llm_calls": 9,
+          "parent_context_llm_calls": 13,
+          "total_llm_calls": 22,
+          "section_chunks": 13,
+          "paragraph_chunks": 176,
+          "timestamp": "2026-01-23T21:32:52.060502"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation.pdf",
+        "source_name": "Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation",
+        "figure_llm_calls": 9,
+        "parent_context_llm_calls": 13,
+        "total_llm_calls": 22,
+        "section_chunks": 13,
+        "paragraph_chunks": 176,
+        "timestamp": "2026-01-23T21:32:52.060502"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:43:04.670778",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 131,
+    "indexed_chunks": 112,
+    "llm_stats": {
+      "total_llm_calls": 24,
+      "figure_interpretation_calls": 5,
+      "parent_context_calls": 19,
+      "per_paper": [
+        {
+          "filename": "Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling.pdf",
+          "source_name": "Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 19,
+          "total_llm_calls": 24,
+          "section_chunks": 19,
+          "paragraph_chunks": 112,
+          "timestamp": "2026-01-23T21:42:38.193885"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling.pdf",
+        "source_name": "Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 19,
+        "total_llm_calls": 24,
+        "section_chunks": 19,
+        "paragraph_chunks": 112,
+        "timestamp": "2026-01-23T21:42:38.193885"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:46:19.360672",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 119,
+    "indexed_chunks": 102,
+    "llm_stats": {
+      "total_llm_calls": 24,
+      "figure_interpretation_calls": 7,
+      "parent_context_calls": 17,
+      "per_paper": [
+        {
+          "filename": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models.pdf",
+          "source_name": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models",
+          "figure_llm_calls": 7,
+          "parent_context_llm_calls": 17,
+          "total_llm_calls": 24,
+          "section_chunks": 17,
+          "paragraph_chunks": 102,
+          "timestamp": "2026-01-23T21:45:54.161661"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models.pdf",
+        "source_name": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models",
+        "figure_llm_calls": 7,
+        "parent_context_llm_calls": 17,
+        "total_llm_calls": 24,
+        "section_chunks": 17,
+        "paragraph_chunks": 102,
+        "timestamp": "2026-01-23T21:45:54.161661"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:48:20.742064",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 65,
+    "indexed_chunks": 60,
+    "llm_stats": {
+      "total_llm_calls": 10,
+      "figure_interpretation_calls": 5,
+      "parent_context_calls": 5,
+      "per_paper": [
+        {
+          "filename": "Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP).pdf",
+          "source_name": "Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP)",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 5,
+          "total_llm_calls": 10,
+          "section_chunks": 5,
+          "paragraph_chunks": 60,
+          "timestamp": "2026-01-23T21:48:06.056299"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP).pdf",
+        "source_name": "Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP)",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 5,
+        "total_llm_calls": 10,
+        "section_chunks": 5,
+        "paragraph_chunks": 60,
+        "timestamp": "2026-01-23T21:48:06.056299"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T21:53:13.309552",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 163,
+    "indexed_chunks": 147,
+    "llm_stats": {
+      "total_llm_calls": 26,
+      "figure_interpretation_calls": 10,
+      "parent_context_calls": 16,
+      "per_paper": [
+        {
+          "filename": "Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films.pdf",
+          "source_name": "Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films",
+          "figure_llm_calls": 10,
+          "parent_context_llm_calls": 16,
+          "total_llm_calls": 26,
+          "section_chunks": 16,
+          "paragraph_chunks": 154,
+          "timestamp": "2026-01-23T21:52:37.518322"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films.pdf",
+        "source_name": "Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films",
+        "figure_llm_calls": 10,
+        "parent_context_llm_calls": 16,
+        "total_llm_calls": 26,
+        "section_chunks": 16,
+        "paragraph_chunks": 154,
+        "timestamp": "2026-01-23T21:52:37.518322"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:04:01.896180",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 100,
+    "indexed_chunks": 85,
+    "llm_stats": {
+      "total_llm_calls": 17,
+      "figure_interpretation_calls": 2,
+      "parent_context_calls": 15,
+      "per_paper": [
+        {
+          "filename": "Optimal Design of Food Packaging Considering Waste.pdf",
+          "source_name": "Optimal Design of Food Packaging Considering Waste",
+          "figure_llm_calls": 2,
+          "parent_context_llm_calls": 15,
+          "total_llm_calls": 17,
+          "section_chunks": 15,
+          "paragraph_chunks": 85,
+          "timestamp": "2026-01-23T22:03:42.070647"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Optimal Design of Food Packaging Considering Waste.pdf",
+        "source_name": "Optimal Design of Food Packaging Considering Waste",
+        "figure_llm_calls": 2,
+        "parent_context_llm_calls": 15,
+        "total_llm_calls": 17,
+        "section_chunks": 15,
+        "paragraph_chunks": 85,
+        "timestamp": "2026-01-23T22:03:42.070647"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:30:37.400124",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 149,
+    "indexed_chunks": 136,
+    "llm_stats": {
+      "total_llm_calls": 18,
+      "figure_interpretation_calls": 5,
+      "parent_context_calls": 13,
+      "per_paper": [
+        {
+          "filename": "Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states.pdf",
+          "source_name": "Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 13,
+          "total_llm_calls": 18,
+          "section_chunks": 13,
+          "paragraph_chunks": 136,
+          "timestamp": "2026-01-23T22:30:04.609979"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states.pdf",
+        "source_name": "Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 13,
+        "total_llm_calls": 18,
+        "section_chunks": 13,
+        "paragraph_chunks": 136,
+        "timestamp": "2026-01-23T22:30:04.609979"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:38:46.571511",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 212,
+    "indexed_chunks": 201,
+    "llm_stats": {
+      "total_llm_calls": 19,
+      "figure_interpretation_calls": 8,
+      "parent_context_calls": 11,
+      "per_paper": [
+        {
+          "filename": "A fast computational framework for the design of solvent-based plastic recyling processes.pdf",
+          "source_name": "A fast computational framework for the design of solvent-based plastic recyling processes",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 11,
+          "total_llm_calls": 19,
+          "section_chunks": 11,
+          "paragraph_chunks": 208,
+          "timestamp": "2026-01-23T22:37:58.738887"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "A fast computational framework for the design of solvent-based plastic recyling processes.pdf",
+        "source_name": "A fast computational framework for the design of solvent-based plastic recyling processes",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 11,
+        "total_llm_calls": 19,
+        "section_chunks": 11,
+        "paragraph_chunks": 208,
+        "timestamp": "2026-01-23T22:37:58.738887"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:47:30.715193",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 151,
+    "indexed_chunks": 135,
+    "llm_stats": {
+      "total_llm_calls": 25,
+      "figure_interpretation_calls": 9,
+      "parent_context_calls": 16,
+      "per_paper": [
+        {
+          "filename": "Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films.pdf",
+          "source_name": "Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films",
+          "figure_llm_calls": 9,
+          "parent_context_llm_calls": 16,
+          "total_llm_calls": 25,
+          "section_chunks": 16,
+          "paragraph_chunks": 135,
+          "timestamp": "2026-01-23T22:46:56.782505"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films.pdf",
+        "source_name": "Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films",
+        "figure_llm_calls": 9,
+        "parent_context_llm_calls": 16,
+        "total_llm_calls": 25,
+        "section_chunks": 16,
+        "paragraph_chunks": 135,
+        "timestamp": "2026-01-23T22:46:56.782505"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:51:09.826265",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 146,
+    "indexed_chunks": 136,
+    "llm_stats": {
+      "total_llm_calls": 20,
+      "figure_interpretation_calls": 10,
+      "parent_context_calls": 10,
+      "per_paper": [
+        {
+          "filename": "High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation.pdf",
+          "source_name": "High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation",
+          "figure_llm_calls": 10,
+          "parent_context_llm_calls": 10,
+          "total_llm_calls": 20,
+          "section_chunks": 10,
+          "paragraph_chunks": 136,
+          "timestamp": "2026-01-23T22:50:33.723352"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation.pdf",
+        "source_name": "High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation",
+        "figure_llm_calls": 10,
+        "parent_context_llm_calls": 10,
+        "total_llm_calls": 20,
+        "section_chunks": 10,
+        "paragraph_chunks": 136,
+        "timestamp": "2026-01-23T22:50:33.723352"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T22:57:13.096013",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 137,
+    "indexed_chunks": 129,
+    "llm_stats": {
+      "total_llm_calls": 12,
+      "figure_interpretation_calls": 4,
+      "parent_context_calls": 8,
+      "per_paper": [
+        {
+          "filename": "Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process.pdf",
+          "source_name": "Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process",
+          "figure_llm_calls": 4,
+          "parent_context_llm_calls": 8,
+          "total_llm_calls": 12,
+          "section_chunks": 8,
+          "paragraph_chunks": 129,
+          "timestamp": "2026-01-23T22:56:39.814683"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process.pdf",
+        "source_name": "Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process",
+        "figure_llm_calls": 4,
+        "parent_context_llm_calls": 8,
+        "total_llm_calls": 12,
+        "section_chunks": 8,
+        "paragraph_chunks": 129,
+        "timestamp": "2026-01-23T22:56:39.814683"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:13:13.744131",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 187,
+    "indexed_chunks": 179,
+    "llm_stats": {
+      "total_llm_calls": 16,
+      "figure_interpretation_calls": 8,
+      "parent_context_calls": 8,
+      "per_paper": [
+        {
+          "filename": "Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation.pdf",
+          "source_name": "Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 8,
+          "total_llm_calls": 16,
+          "section_chunks": 8,
+          "paragraph_chunks": 179,
+          "timestamp": "2026-01-23T23:12:31.116113"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation.pdf",
+        "source_name": "Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 8,
+        "total_llm_calls": 16,
+        "section_chunks": 8,
+        "paragraph_chunks": 179,
+        "timestamp": "2026-01-23T23:12:31.116113"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:24:16.164838",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 189,
+    "indexed_chunks": 179,
+    "llm_stats": {
+      "total_llm_calls": 22,
+      "figure_interpretation_calls": 11,
+      "parent_context_calls": 11,
+      "per_paper": [
+        {
+          "filename": "Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling.pdf",
+          "source_name": "Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling",
+          "figure_llm_calls": 11,
+          "parent_context_llm_calls": 11,
+          "total_llm_calls": 22,
+          "section_chunks": 11,
+          "paragraph_chunks": 187,
+          "timestamp": "2026-01-23T23:23:32.471330"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling.pdf",
+        "source_name": "Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling",
+        "figure_llm_calls": 11,
+        "parent_context_llm_calls": 11,
+        "total_llm_calls": 22,
+        "section_chunks": 11,
+        "paragraph_chunks": 187,
+        "timestamp": "2026-01-23T23:23:32.471330"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:28:22.930925",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 152,
+    "indexed_chunks": 132,
+    "llm_stats": {
+      "total_llm_calls": 24,
+      "figure_interpretation_calls": 4,
+      "parent_context_calls": 20,
+      "per_paper": [
+        {
+          "filename": "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste.pdf",
+          "source_name": "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste",
+          "figure_llm_calls": 4,
+          "parent_context_llm_calls": 20,
+          "total_llm_calls": 24,
+          "section_chunks": 20,
+          "paragraph_chunks": 138,
+          "timestamp": "2026-01-23T23:27:52.710997"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste.pdf",
+        "source_name": "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste",
+        "figure_llm_calls": 4,
+        "parent_context_llm_calls": 20,
+        "total_llm_calls": 24,
+        "section_chunks": 20,
+        "paragraph_chunks": 138,
+        "timestamp": "2026-01-23T23:27:52.710997"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:31:09.351344",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 109,
+    "indexed_chunks": 93,
+    "llm_stats": {
+      "total_llm_calls": 21,
+      "figure_interpretation_calls": 5,
+      "parent_context_calls": 16,
+      "per_paper": [
+        {
+          "filename": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation.pdf",
+          "source_name": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 16,
+          "total_llm_calls": 21,
+          "section_chunks": 16,
+          "paragraph_chunks": 93,
+          "timestamp": "2026-01-23T23:30:46.007852"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation.pdf",
+        "source_name": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 16,
+        "total_llm_calls": 21,
+        "section_chunks": 16,
+        "paragraph_chunks": 93,
+        "timestamp": "2026-01-23T23:30:46.007852"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:34:17.840694",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 84,
+    "indexed_chunks": 64,
+    "llm_stats": {
+      "total_llm_calls": 25,
+      "figure_interpretation_calls": 5,
+      "parent_context_calls": 20,
+      "per_paper": [
+        {
+          "filename": "A Novel Solvent\u2010Based Recycling Technology.pdf",
+          "source_name": "A Novel Solvent\u2010Based Recycling Technology",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 20,
+          "total_llm_calls": 25,
+          "section_chunks": 20,
+          "paragraph_chunks": 64,
+          "timestamp": "2026-01-23T23:34:00.682342"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "A Novel Solvent\u2010Based Recycling Technology.pdf",
+        "source_name": "A Novel Solvent\u2010Based Recycling Technology",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 20,
+        "total_llm_calls": 25,
+        "section_chunks": 20,
+        "paragraph_chunks": 64,
+        "timestamp": "2026-01-23T23:34:00.682342"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-23T23:44:28.213885",
+    "kb_name": "STRAP-CORE",
+    "papers_processed": 1,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 327,
+    "indexed_chunks": 288,
+    "llm_stats": {
+      "total_llm_calls": 63,
+      "figure_interpretation_calls": 24,
+      "parent_context_calls": 39,
+      "per_paper": [
+        {
+          "filename": "Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent.pdf",
+          "source_name": "Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent",
+          "figure_llm_calls": 24,
+          "parent_context_llm_calls": 39,
+          "total_llm_calls": 63,
+          "section_chunks": 39,
+          "paragraph_chunks": 294,
+          "timestamp": "2026-01-23T23:43:19.929813"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent.pdf",
+        "source_name": "Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent",
+        "figure_llm_calls": 24,
+        "parent_context_llm_calls": 39,
+        "total_llm_calls": 63,
+        "section_chunks": 39,
+        "paragraph_chunks": 294,
+        "timestamp": "2026-01-23T23:43:19.929813"
+      }
+    ]
+  }
+]

@@ -1,0 +1,300 @@
+{
+  "papers": [
+    {
+      "file_hash": "a1da4f32db56529ff28f4aff39f73ba5",
+      "filename": "Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation.pdf",
+      "filepath": "/home/aaltamimi2/LLM-test/papers/STRAP/Recycling of multilayer plastic packaging materials bysolvent-targeted recovery and precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T16:20:42.351122",
+      "chunk_count": 112,
+      "file_size": 3476086,
+      "title": "MATERIALS SCIENCE",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 21
+      }
+    },
+    {
+      "file_hash": "0d961fedf70c674bacf96d5d72b965d3",
+      "filename": "Solvent Based Plastic Recycling Review Published Paper.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Solvent Based Plastic Recycling Review Published Paper.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T17:12:52.240018",
+      "chunk_count": 193,
+      "file_size": 2014067,
+      "title": "nature chemical engineering",
+      "doi": "10.1038/s44286-025-00247-1",
+      "metadata": {
+        "llm_calls": 16
+      }
+    },
+    {
+      "file_hash": "1940df11aced66f6d037dc3dd11ca337",
+      "filename": "Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Recycling of Single-Use Multilayer Plastics for Biomanufacturing with Solvent-Targeted Recovery and Precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T20:51:54.777564",
+      "chunk_count": 219,
+      "file_size": 12529622,
+      "title": "Sustainable Chemistry 2 Engineering",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 35
+      }
+    },
+    {
+      "file_hash": "1bb7c478711e11c24078350366820e0f",
+      "filename": "Screening green solvents for multilayer plastic film recycling processes.pdf",
+      "filepath": "/home/aaltamimi2/LLM-test/papers/STRAP/Screening green solvents for multilayer plastic film recycling processes.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:21:44.477221",
+      "chunk_count": 219,
+      "file_size": 4000429,
+      "title": "Computers and Chemical Engineering",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 35
+      }
+    },
+    {
+      "file_hash": "e1ce7ca15eda41f00ce4cfdccc889f9c",
+      "filename": "Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Pigment removal from reverse-printed laminated flexible films by solvent-targeted recovery and precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:33:31.638833",
+      "chunk_count": 176,
+      "file_size": 8857885,
+      "title": "APPLIED SCIENCES AND ENGINEERING",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 22
+      }
+    },
+    {
+      "file_hash": "6c7477b20220a515fe1575b4ae18d8d8",
+      "filename": "Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Large-scale computational polymer solubility predictions and applications to dissolution-based plastic recycling.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:43:04.670327",
+      "chunk_count": 112,
+      "file_size": 1353891,
+      "title": "Green Chemistry",
+      "doi": "10.1039/d3gc00404j",
+      "metadata": {
+        "llm_calls": 24
+      }
+    },
+    {
+      "file_hash": "c392b597f56b9099da214504a65bf49c",
+      "filename": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:46:19.359958",
+      "chunk_count": 102,
+      "file_size": 1728720,
+      "title": "Computational Approach for Rapidly Predicting Temperature-Dependent Polymer Solubilities Using Molecular-Scale Models",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 24
+      }
+    },
+    {
+      "file_hash": "a77ab216849dd97f3d4c8d55743d3218",
+      "filename": "Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP).pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Extraction of Pure Plastic Resins From PCR Plastic Waste by Solvent\u2010Targeted Recovery and Precipitation (STRAP).pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:48:20.741327",
+      "chunk_count": 60,
+      "file_size": 1307888,
+      "title": "RESEARCH ARTICLE",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 10
+      }
+    },
+    {
+      "file_hash": "9427dd7344c8be22e16ac86a024b306a",
+      "filename": "Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T21:53:13.308504",
+      "chunk_count": 154,
+      "file_size": 1017675,
+      "title": "x Reducing Antisolvent Use in the STRAP Process by Enabling a Temperature-Controlled Polymer Dissolution and Precipitation for the Recycling of Multilayer Plastic Films",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 26
+      }
+    },
+    {
+      "file_hash": "d94f60581f612ddc7bc81db690b685c0",
+      "filename": "Optimal Design of Food Packaging Considering Waste.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Optimal Design of Food Packaging Considering Waste.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:04:01.894732",
+      "chunk_count": 85,
+      "file_size": 497090,
+      "title": "Research Article",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 17
+      }
+    },
+    {
+      "file_hash": "19c55887dcac9a457a7f2c30ff2db7f3",
+      "filename": "Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Techno-Economic and life cycle assessment of standalone Single-Stream material recovery facilities in the United states.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:30:37.399528",
+      "chunk_count": 136,
+      "file_size": 1773206,
+      "title": "Waste Management",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 18
+      }
+    },
+    {
+      "file_hash": "053eedd584f5edc8653a0d89aebd4be9",
+      "filename": "A fast computational framework for the design of solvent-based plastic recyling processes.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/A fast computational framework for the design of solvent-based plastic recyling processes.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:38:46.570203",
+      "chunk_count": 208,
+      "file_size": 2238565,
+      "title": "Computers and Chemical Engineering",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 19
+      }
+    },
+    {
+      "file_hash": "1b24e7310342a4ffa6d92fcd740ced13",
+      "filename": "Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Quantifying the environmental benefits of a solvent-based separation process for multilayer plastic films.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:47:30.714352",
+      "chunk_count": 135,
+      "file_size": 2294754,
+      "title": "Green Chemistry",
+      "doi": "10.1039/d2gc04262b",
+      "metadata": {
+        "llm_calls": 25
+      }
+    },
+    {
+      "file_hash": "cf21c56c639ce9655e69d2c0e9363e53",
+      "filename": "High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/High-purity polypropylene from disposable face masks via solvent-targeted recovery and precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:51:09.825328",
+      "chunk_count": 136,
+      "file_size": 2771172,
+      "title": "Green Chemistry",
+      "doi": "10.1039/d3gc00205e",
+      "metadata": {
+        "llm_calls": 20
+      }
+    },
+    {
+      "file_hash": "49cd3edf46f13e136dc9456bdde09ffa",
+      "filename": "Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Shear and extensional rheology of polyethylenes recycled using a solvent dissolution process.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T22:57:13.095169",
+      "chunk_count": 129,
+      "file_size": 3772498,
+      "title": "ORIGINAL CONTRIBUTION",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 12
+      }
+    },
+    {
+      "file_hash": "acd411d32df30474bd6eab284413d691",
+      "filename": "Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Recycling of a post-industrial printed multilayer plastic film containing polyurethane inks by solvent-targeted recovery and precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:13:13.743093",
+      "chunk_count": 179,
+      "file_size": 4288528,
+      "title": "Resources, Conservation & Recycling",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 16
+      }
+    },
+    {
+      "file_hash": "b87c7fcc1847e7d1804d2038635173cc",
+      "filename": "Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Increasing the Dissolution Rate of Polystyrene Waste in Solvent-Based Recycling.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:24:16.163522",
+      "chunk_count": 187,
+      "file_size": 4718245,
+      "title": "Sustalnable Che mistry & Engi neerl ng",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 22
+      }
+    },
+    {
+      "file_hash": "e920ccda2e8261359d2d144171467a2f",
+      "filename": "A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:28:22.929766",
+      "chunk_count": 138,
+      "file_size": 4855085,
+      "title": "Waste Management",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 24
+      }
+    },
+    {
+      "file_hash": "b1775e3b920d97a4d782df900f5450f1",
+      "filename": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:31:09.350208",
+      "chunk_count": 93,
+      "file_size": 5653190,
+      "title": "Cast Film Production with Polyethylene Recycled from a Post-Industrial Printed Multilayer Film by Solvent-Targeted Recovery and Precipitation",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 21
+      }
+    },
+    {
+      "file_hash": "ad33c98e07b4181b3b1337bfba48bb92",
+      "filename": "A Novel Solvent\u2010Based Recycling Technology.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/A Novel Solvent\u2010Based Recycling Technology.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:34:17.839734",
+      "chunk_count": 64,
+      "file_size": 7165229,
+      "title": "A Novel Solvent-Based Recycling Technology:",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 25
+      }
+    },
+    {
+      "file_hash": "9c809b57a7dcbf543102c1ff273e2f2c",
+      "filename": "Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/STRAP/Recycling of plastics by solvent-targeted recovery and precipitation (strap) patent.pdf",
+      "kb_name": "STRAP-CORE",
+      "ingested_at": "2026-01-23T23:44:28.213029",
+      "chunk_count": 294,
+      "file_size": 5093412,
+      "title": "as) United States a2) Patent Application Publication",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 63
+      }
+    }
+  ],
+  "last_modified": "2026-01-23T23:44:28.213307",
+  "total_papers": 21
+}

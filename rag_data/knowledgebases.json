@@ -1,0 +1,28 @@
+{
+  "knowledgebases": {
+    "default": {
+      "name": "default",
+      "description": "Default knowledgebase",
+      "collection_name": "kb_default",
+      "created_at": "2026-01-23T16:18:19.489954",
+      "modified_at": "2026-01-23T16:18:19.489954",
+      "paper_count": 0,
+      "chunk_count": 0,
+      "status": "active",
+      "metadata": {}
+    },
+    "STRAP-CORE": {
+      "name": "STRAP-CORE",
+      "description": "Core STRAP recycling papers",
+      "collection_name": "kb_strap_core",
+      "created_at": "2026-01-23T16:18:19.490361",
+      "modified_at": "2026-01-23T23:44:28.213749",
+      "paper_count": 21,
+      "chunk_count": 3091,
+      "status": "active",
+      "metadata": {}
+    }
+  },
+  "active_kb": "STRAP-CORE",
+  "last_modified": "2026-01-24T00:24:08.795367"
+}
