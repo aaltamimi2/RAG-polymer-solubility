@@ -2,6 +2,8 @@
 
 A gradient set of queries for testing the DISSOLVE agent, progressing from simple single-tool calls to complex multi-step analyses requiring 10-20+ tool invocations.
 
+**Note:** Literature search API calls have been replaced with RAG-based queries that retrieve thresholds, process parameters, and validation data from the STRAP-CORE knowledge base.
+
 ---
 
 ## Level 1: Single Tool Queries (1-2 tool calls)
@@ -87,9 +89,9 @@ Run TEA and LCA for each scenario and generate comparison visualizations.
 
 ## Level 5: Complex Integrated Queries (8-12 tool calls)
 
-### 5.1 Complete Process Design with Literature
+### 5.1 Complete Process Design with RAG Knowledge
 ```
-I need to design a solvent-based recycling process for multilayer biocontainer films (PE/EVOH). First, search literature for recent PE dissolution studies. Then find optimal solvents for selective PE dissolution at 110°C ranked by safety. Run TEA and LCA at 5000 kg/hr scale, and generate visualizations comparing virgin vs recycled polymer environmental impact.
+I need to design a solvent-based recycling process for multilayer biocontainer films (PE/EVOH). First, search the RAG knowledge base for PE dissolution temperatures and optimal process conditions from published STRAP studies. Then find optimal solvents for selective PE dissolution at 110°C ranked by safety. Run TEA and LCA at 5000 kg/hr scale, and generate visualizations comparing virgin vs recycled polymer environmental impact.
 ```
 
 ### 5.2 Minimum Selling Price Analysis
@@ -179,9 +181,9 @@ PHASE 3 - Environmental Assessment:
 - Identify the largest contributors to carbon footprint
 - Generate Sankey diagram of environmental flows
 
-PHASE 4 - Literature Validation:
-- Search Web of Science for PE solvent recycling validation studies
-- Search Google Scholar for EVOH recovery methods
+PHASE 4 - RAG Knowledge Validation:
+- Search RAG for experimental PE dissolution validation data and recovery yields
+- Search RAG for EVOH barrier layer separation methods and conditions
 
 PHASE 5 - Synthesis:
 - Generate comparison visualizations for all scenarios
@@ -239,8 +241,8 @@ STEP 8 - Executive Summary:
 Generate a publication-ready analysis of STRAP technology for PE/EVOH biocontainer recycling. Structure the analysis as follows:
 
 INTRODUCTION DATA:
-- Search Web of Science for 5 recent papers on polyolefin solvent recycling
-- Search Google Scholar for EVOH barrier film recycling methods
+- Search RAG for recent STRAP studies on polyolefin solvent recycling conditions and yields
+- Search RAG for EVOH barrier film separation methods and process parameters
 
 MATERIALS CHARACTERIZATION:
 - Document dissolution behavior of PE at 100, 110, 120°C

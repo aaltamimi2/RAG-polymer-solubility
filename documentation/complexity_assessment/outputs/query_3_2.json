@@ -1,0 +1,19 @@
+{
+  "level": 3,
+  "name": "TEA + LCA Comparison",
+  "query": "Compare TEA and LCA for heptane vs dodecane solvent recovery at 1000 kg/hr. Which has lower operating cost and carbon footprint?",
+  "complexity": {
+    "score": 4,
+    "label": "Complex",
+    "reasoning": "Requires TEA, LCA, data integration, and comparison for two solvents at a specific rate.",
+    "estimated_tools": 6,
+    "elapsed_ms": 569.0
+  },
+  "elapsed_seconds": 2.2514901161193848,
+  "iterations": 2,
+  "response": "SOLVENT COMPARISON: TEA & LCA\n\nANALYSIS PARAMETERS\nPolymer throughput: 1000.0 kg/hr\nSolvent:polymer ratio: 10.0:1\nRecovery efficiency: 95.0%\n\nSOLVENT RESULTS\nheptane: FCI=$10.81M, OpCost=$7440K/yr, $0.9394/kg, Payback=0.1 yr, CO2=10714.2t/yr, Rank=1\ndodecane: FCI=$10.81M, OpCost=$7440K/yr, $0.9394/kg, Payback=0.1 yr, CO2=10714.2t/yr, Rank=1\n\nRANKINGS\nBest Overall: heptane\nLowest Cost: heptane\nLowest Emissions: heptane",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "789236c0-e433-4255-b458-b58fd78471de"
+}

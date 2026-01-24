@@ -1,0 +1,19 @@
+{
+  "level": 2,
+  "name": "Dissolution + Properties",
+  "query": "What solvents dissolve PE at 110\u00b0C? For the top 3, show their boiling points, cost, and LogP toxicity values.",
+  "complexity": {
+    "score": 3,
+    "label": "Moderate",
+    "reasoning": "Requires polymer lookup, solvent properties, and data integration for comparison.",
+    "estimated_tools": 4,
+    "elapsed_ms": 562.7
+  },
+  "elapsed_seconds": 2.3376805782318115,
+  "iterations": 2,
+  "response": "\u274c No solubility data found for PE.\n\n\ud83d\udca1 This polymer may not be in the database. Try:\n- `list_available_polymers()` to see available polymers\n- ML prediction for polymers not in database",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "d746614e-da61-4bdb-99ba-966a0546cf6c"
+}

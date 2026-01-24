@@ -1,0 +1,33 @@
+{
+  "level": 2,
+  "name": "TEA + Visualization",
+  "query": "Run TEA for dodecane recovery at 500 kg/hr and generate a cost breakdown visualization.",
+  "complexity": {
+    "score": 3,
+    "label": "Moderate",
+    "reasoning": "TEA analysis with visualization requires data integration and multiple tool calls.",
+    "estimated_tools": 3,
+    "elapsed_ms": 677.1
+  },
+  "elapsed_seconds": 3.453951835632324,
+  "iterations": 2,
+  "response": "## TEA Visualizations for Dodecane Recovery\n\nGenerated 6 visualizations:\n\n- **Capital Breakdown**: `./plots/tea_capital_breakdown_20260124_150032.png`\n- **Operating Breakdown**: `./plots/tea_operating_breakdown_20260124_150032.png`\n- **Cost Waterfall**: `./plots/tea_waterfall_20260124_150032.png`\n- **Cashflow**: `./plots/tea_cashflow_20260124_150033.png`\n- **Sensitivity Tornado**: `./plots/tea_tornado_20260124_150033.png`\n- **Energy Flow**: `./plots/tea_energy_flow_20260124_150033.png`\n",
+  "images": [
+    "tea_energy_flow_20260124_150033.png",
+    "tea_tornado_20260124_150033.png",
+    "tea_cashflow_20260124_150033.png",
+    "tea_waterfall_20260124_150032.png",
+    "tea_operating_breakdown_20260124_150032.png",
+    "tea_capital_breakdown_20260124_150032.png"
+  ],
+  "visualizations": [
+    "2.3_tea_tornado_20260124_150033.png",
+    "2.3_tea_capital_breakdown_20260124_150032.png",
+    "2.3_tea_cashflow_20260124_150033.png",
+    "2.3_tea_waterfall_20260124_150032.png",
+    "2.3_tea_operating_breakdown_20260124_150032.png",
+    "2.3_tea_energy_flow_20260124_150033.png"
+  ],
+  "status": "PASS",
+  "session_id": "cc9005aa-0891-4c6f-abe4-e8959be49295"
+}

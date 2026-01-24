@@ -1,0 +1,19 @@
+{
+  "level": 2,
+  "name": "Solvent + Safety",
+  "query": "Find solvents that dissolve LDPE at 110\u00b0C with G-score above 5. Rank by solubility.",
+  "complexity": {
+    "score": 3,
+    "label": "Moderate",
+    "reasoning": "Requires polymer lookup, solvent filtering, and ranking, integrating multiple data sources.",
+    "estimated_tools": 4,
+    "elapsed_ms": 744.7
+  },
+  "elapsed_seconds": 4.123027801513672,
+  "iterations": 3,
+  "response": "Here are the solvents that dissolve LDPE at 110\u00b0C, ranked by solubility, with a G-score above 5:\n\n| # | Solvent | Solubility | BP (\u00b0C) | G-Score | LogP | Energy (J/g) |\n|---|---------|------------|---------|---------|------|--------------|\n| 9 | **benzene** | \u26a0\ufe0f 25.3% | 205 | \u27057.2 | 3.77 | 213 |\n| 10 | **toluene** | \u26a0\ufe0f 24.9% | 300 | \ud83d\udfe16.0 | 2.55 | 148 |\n| 11 | **1,4-dimethylbenzene** | \u26a0\ufe0f 23.9% | \u2014 | \ud83d\udfe15.9 | \u2014 | \u2014 |\n\n**Note:** While cyclohexane, hexane, n-heptane, and dodecane show higher solubility, their G-scores are 5.3 or lower, or they are missing G-score data. Benzene, toluene, and 1,4-dimethylbenzene meet the G-score requirement of above 5.",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "75d02311-1c68-4798-bf72-600218e87541"
+}

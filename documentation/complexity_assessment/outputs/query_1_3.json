@@ -1,0 +1,19 @@
+{
+  "level": 1,
+  "name": "Basic TEA",
+  "query": "Run a TEA analysis for heptane solvent recovery at 100 kg/hr throughput.",
+  "complexity": {
+    "score": 3,
+    "label": "Moderate",
+    "reasoning": "Requires TEA tool and likely solvent properties, data integration needed.",
+    "estimated_tools": 3,
+    "elapsed_ms": 501.7
+  },
+  "elapsed_seconds": 2.100090980529785,
+  "iterations": 2,
+  "response": "TECHNO-ECONOMIC ANALYSIS\n\nProcess: heptane recovery at 100.0 kg/hr, 95% recovery, 80.0\u00b0C\n\nCAPITAL COSTS\n  Distillation column: $1,352,175\n  Heat exchanger: $606,866\n  Pump: $121,661\n  Storage tank: $203,791\n  Total Equipment: $2,284,493\n  Fixed Capital Investment: $2,741,392\n\nENERGY\n  Heating: 11.1 kW\n  Vaporization: 105.6 kW\n  Total: 116.7 kW\n  Intensity: 0.4200 MJ/kg\n\nANNUAL OPERATING COSTS\n  Electricity: $22,177/yr\n  Steam: $13,971/yr\n  Solvent makeup: $594,000/yr\n  Labor: $630,000/yr\n  Maintenance: $82,242/yr\n  Total: $1,388,993/yr\n\nECONOMICS\n  Cost per kg polymer: $1.7538/kg\n  Annual polymer processed: 792,000 kg\n  Annual solvent recovered: 7,524,000 kg\n  Annual savings: $11,286,000\n  Simple payback: 0.28 years",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "a3f6ea3d-238a-4354-ba48-a3d4bbc9d093"
+}

@@ -1,0 +1,23 @@
+{
+  "level": 3,
+  "name": "Multilayer Separation Strategy",
+  "query": "Design a separation strategy for a PE/EVOH multilayer film. Find selective solvents for each layer at 110\u00b0C, prioritizing safety (G-score > 5).",
+  "complexity": {
+    "score": 4,
+    "label": "Complex",
+    "reasoning": "Requires multilayer separation, solvent lookup, safety filtering, and temperature constraints.",
+    "estimated_tools": 6,
+    "elapsed_ms": 571.8
+  },
+  "elapsed_seconds": 2.7572970390319824,
+  "iterations": 2,
+  "response": "The best separation strategy is to first separate EVOH using ethanol at 110\u00b0C, followed by PE. Ethanol has a G-score of 6.6/10, indicating good safety, and a LogP of 0.00, suggesting medium toxicity. The selectivity for EVOH in this step is 15.7%.",
+  "images": [
+    "integrated_separation_analysis_20260124_150038.png"
+  ],
+  "visualizations": [
+    "3.1_integrated_separation_analysis_20260124_150038.png"
+  ],
+  "status": "PASS",
+  "session_id": "46c109a7-abde-480c-817d-0aeb397b3050"
+}

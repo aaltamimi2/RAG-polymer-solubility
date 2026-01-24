@@ -1,0 +1,19 @@
+{
+  "level": 1,
+  "name": "Basic Safety Check",
+  "query": "What is the G-score safety rating for dodecane, heptane, and toluene?",
+  "complexity": {
+    "score": 2,
+    "label": "Simple",
+    "reasoning": "Requires multiple solvent property lookups, likely using the safety data tool.",
+    "estimated_tools": 2,
+    "elapsed_ms": 589.4
+  },
+  "elapsed_seconds": 3.1719884872436523,
+  "iterations": 2,
+  "response": "I could not find a G-score for dodecane. However, I found the following for heptane and toluene:\n\n*   **Heptane:** G-Score: 5.58/10.00 (Problematic - Use with caution)\n*   **Toluene:** G-Score: 5.96/10.00 (Problematic - Use with caution)",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "31efdd6a-593b-4f11-bce6-72785db65bbc"
+}

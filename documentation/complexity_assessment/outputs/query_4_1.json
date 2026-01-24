@@ -1,0 +1,27 @@
+{
+  "level": 4,
+  "name": "Full STRAP Process Analysis",
+  "query": "Run a full STRAP analysis for PE recovery from biocontainer film waste at 5000 kg/hr using heptane as solvent. Include TEA, LCA, and generate visualizations.",
+  "complexity": {
+    "score": 4,
+    "label": "Complex",
+    "reasoning": "Requires multiple tools, data integration, and multi-step analysis for a full STRAP.",
+    "estimated_tools": 7,
+    "elapsed_ms": 691.9
+  },
+  "elapsed_seconds": 5.150913715362549,
+  "iterations": 2,
+  "response": "The STRAP analysis for PE recovery using heptane at a capacity of 5,000 mt/yr indicates the following:\n\n**Techno-Economic Analysis (TEA):**\n*   **Total Capital Investment (TCI):** $18.95 million\n*   **Unit Operating Cost (UOC):** $0.5565/kg of PE\n*   **Annual Operating Cost:** $2.64 million/year\n*   **Annual Revenue:** $4.28 million/year\n*   **Net Annual Profit:** $1.63 million/year\n*   **Simple Payback Period:** 11.61 years\n*   **Return on Investment (ROI):** 8.6%\n*   **Minimum Selling Price (MSP) for PE:** $1.1938/kg (at 15% IRR)\n\n**Life Cycle Assessment (LCA):**\n*   **Global Warming Potential (GWP):** 0.879 kg CO2eq/kg of PE recovered. This represents a 57.9% reduction compared to virgin PE production (2.091 kg CO2eq/kg).\n*   The primary contributors to GWP are electricity and steam consumption.\n\n**Visualizations:**\nThe following plots have been generated:\n*   **Scale Economics:** Shows Unit Operating Cost (UOC) and Total Capital Investment (TCI) across different plant capacities.\n*   **MSP Sensitivity:** A tornado chart illustrating how various parameters impact the Minimum Selling Price.\n*   **GWP Comparison:** A bar chart comparing the carbon footprint of STRAP-recovered PE against virgin PE.\n\nPlease note that the TEA for solvent recovery specifically using heptane at 80\u00b0C with 95% recovery shows a significantly lower payback period of 0.05 years and a cost per kg of polymer of $0.8454/kg. This discrepancy might be due to the different scopes of the analyses (full STRAP vs. isolated solvent recovery). The STRAP analysis provides a more holistic view including capital costs for the entire recovery process.",
+  "images": [
+    "strap_gwp_comparison_20260124_150057.png",
+    "strap_msp_sensitivity_20260124_150057.png",
+    "strap_scale_economics_20260124_150057.png"
+  ],
+  "visualizations": [
+    "4.1_strap_msp_sensitivity_20260124_150057.png",
+    "4.1_strap_scale_economics_20260124_150057.png",
+    "4.1_strap_gwp_comparison_20260124_150057.png"
+  ],
+  "status": "PASS",
+  "session_id": "9267e46c-1b2e-449a-ad86-c0756737e688"
+}

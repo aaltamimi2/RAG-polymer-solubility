@@ -1,0 +1,19 @@
+{
+  "level": 4,
+  "name": "Two-Stage Separation with Economics",
+  "query": "Design a two-stage STRAP process for PE/EVOH separation: Stage 1 dissolves PE selectively, Stage 2 recovers EVOH. Run TEA at 1000 kg/hr for each stage and compare total costs. Show which solvents are optimal for each stage.",
+  "complexity": {
+    "score": 4,
+    "label": "Complex",
+    "reasoning": "Requires multiple tools, data integration, and multi-step analysis for a STRAP process.",
+    "estimated_tools": 8,
+    "elapsed_ms": 622.0
+  },
+  "elapsed_seconds": 1.212981939315796,
+  "iterations": 1,
+  "response": "Processing complete.",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "71db1e36-57fb-48e1-9de6-31eae37b7d76"
+}

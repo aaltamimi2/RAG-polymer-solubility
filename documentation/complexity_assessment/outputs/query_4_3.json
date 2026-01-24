@@ -1,0 +1,19 @@
+{
+  "level": 4,
+  "name": "Scenario Comparison",
+  "query": "Compare three recycling scenarios for PE/EVOH film at 5000 kg/hr:\n- Scenario 1: PE recovery only using heptane\n- Scenario 2: PE recovery with EVOH sold as residue\n- Scenario 3: Sequential PE and EVOH recovery with two solvents\n\nRun TEA and LCA for each scenario and generate comparison visualizations.",
+  "complexity": {
+    "score": 4,
+    "label": "Complex",
+    "reasoning": "Requires TEA, LCA, multiple scenarios, data integration, and visualization generation.",
+    "estimated_tools": 7,
+    "elapsed_ms": 643.0
+  },
+  "elapsed_seconds": 1.7325332164764404,
+  "iterations": 1,
+  "response": "Processing complete.",
+  "images": [],
+  "visualizations": [],
+  "status": "PASS",
+  "session_id": "0a412f94-6f1a-4efd-8793-2b21b22c2206"
+}
