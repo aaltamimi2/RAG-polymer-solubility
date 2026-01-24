@@ -73,12 +73,59 @@ The query asked for "polymer dissolution data" broadly rather than "the specific
 
 ---
 
+## Specific Query Test (2026-01-24)
+
+Testing the recommendation from Issue 3: using more specific queries with paper title and expected data points.
+
+### Query Used:
+```
+Search RAG for Table 1 or the main results table from the 10-polymer separation paper.
+Specifically looking for: toluene for PS at 35C, THF for PVC at 67C, o-xylene for
+LDPE/HDPE/PP at different temperatures, DMSO/water for EVOH, 1,2-PDO for PA66/6,
+GVL for PET at 160C, formic acid for PA66.
+```
+
+### What RAG Retrieved:
+RAG found relevant data but from the **STRAP Patent** rather than the 10-polymer paper:
+
+| Polymer | RAG (Patent) | Ground Truth (Paper) | Match |
+|---------|--------------|---------------------|-------|
+| PS | Not found | Toluene @ 35°C | ❌ |
+| PVC | THF @ 68°C | THF @ 67°C | ✅ |
+| LDPE | Toluene @ 85°C | o-Xylene @ 80°C | ⚠️ |
+| HDPE | Toluene @ 110°C | o-Xylene @ 95°C | ❌ |
+| PP | THP @ 90°C | o-Xylene @ 115°C | ❌ |
+| EVOH | Not found | DMSO/water @ 95°C | ❌ |
+| PA66/6 | 1,2-PDO @ 135°C | 1,2-PDO @ 125°C | ⚠️ |
+| PET | GVL @ 160°C | GVL @ 160°C | ✅ |
+| PA6 | DMSO @ 145°C | DMSO @ 145°C | ✅ |
+| PA66 | Formic acid @ 65°C | Formic acid @ 90°C | ⚠️ |
+
+### Key Finding: Patent vs Paper Data Mismatch
+The specific query **improved** retrieval relevance (found sequential dissolution table), but RAG prioritized the **patent** over the **paper** because:
+1. Patent has more explicit step-by-step process descriptions
+2. Patent chunk may have higher semantic similarity to "separation sequence" query
+3. Paper table may be split across chunks or in figure/supplementary material
+
+### Accuracy with Specific Query:
+- **Solvent accuracy**: 5/10 (50%) - same as broad query
+- **Temperature accuracy**: 4/10 (40%) - slight improvement
+- **Overall**: ~45% (vs ~40% with broad query)
+
+### Conclusion
+Specific queries help retrieve **more relevant passages** but cannot resolve **source disambiguation** when multiple documents contain similar but different data.
+
+---
+
 ## Recommendations for Improved RAG Retrieval
 
 1. **More specific queries**: "What is step 3 in the 10-polymer separation sequence?"
 2. **Table-aware chunking**: Ensure tables are kept intact in chunks
 3. **Paper-specific queries**: "In the 10-polymer STRAP paper, what solvent is used for LDPE?"
 4. **Validation step**: Cross-check RAG output against source documents
+5. **Source filtering**: Add ability to filter RAG results by specific paper/document
+6. **Metadata enhancement**: Tag chunks with "experimental data" vs "patent claims" to distinguish sources
+7. **Table extraction**: Pre-extract key data tables as structured JSON for exact retrieval
 
 ---
 
