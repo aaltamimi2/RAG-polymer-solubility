@@ -104,14 +104,20 @@ const api = {
    * @param {string} message - User message
    * @param {string} sessionId - Session ID (optional)
    * @param {string} model - Gemini model to use (optional, defaults to gemini-2.5-flash-lite)
+   * @param {string} memoryUserId - Memory user ID for persistent memory (optional)
    */
-  async chat(message, sessionId, model = 'gemini-2.5-flash-lite') {
+  async chat(message, sessionId, model = 'gemini-2.5-flash-lite', memoryUserId = null) {
+    const body = { message, session_id: sessionId, model };
+    if (memoryUserId) {
+      body.memory_user_id = memoryUserId;
+    }
+
     const response = await fetchWithRetry(
       `${API_BASE}/api/chat`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, session_id: sessionId, model }),
+        body: JSON.stringify(body),
       },
       { timeout: 120000 } // 2 minutes for agent responses
     );

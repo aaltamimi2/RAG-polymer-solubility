@@ -32,6 +32,9 @@ load_dotenv()
 from async_utils import run_in_thread
 from session_manager import session_manager
 
+# Memory Engine
+from memory_engine import get_memory_engine, UserProfile
+
 # FastAPI and related
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,6 +70,7 @@ class ChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
     model: Optional[str] = "gemini-2.5-flash-lite"
+    memory_user_id: Optional[str] = None  # Persistent user ID for memory
 
 class ChatResponse(BaseModel):
     response: str
@@ -110,6 +114,52 @@ class IssueReportResponse(BaseModel):
     issue_result: Optional[Dict[str, Any]] = None  # For GitHub Issues (non-PR reports)
     message: str = ""
     error: Optional[str] = None
+
+# Memory API Models
+class UserProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+    preferred_polymers: Optional[List[str]] = None
+    preferred_solvents: Optional[List[str]] = None
+    research_focus: Optional[str] = None
+    detail_level: Optional[str] = None  # "brief", "detailed", "technical"
+    default_temperature: Optional[float] = None
+    memory_enabled: Optional[bool] = None
+    store_conversations: Optional[bool] = None
+    retention_days: Optional[int] = None
+
+class UserProfileResponse(BaseModel):
+    user_id: str
+    display_name: Optional[str] = None
+    preferred_polymers: List[str] = []
+    preferred_solvents: List[str] = []
+    research_focus: Optional[str] = None
+    memory_enabled: bool = True
+    store_conversations: bool = True
+    retention_days: int = 90
+    detail_level: str = "detailed"
+    default_temperature: float = 120.0
+    created_at: str
+    updated_at: str
+
+class UserFactResponse(BaseModel):
+    fact_id: str
+    fact_type: str
+    content: str
+    confidence: float
+    use_count: int
+    created_at: str
+
+class MemoryStatusResponse(BaseModel):
+    profile_exists: bool
+    memory_enabled: bool
+    facts_count: int
+    conversations_stored: bool
+
+class MemoryDeleteResponse(BaseModel):
+    success: bool
+    profile_deleted: bool
+    facts_deleted: int
+    conversations_deleted: int
 
 # ============================================================
 # Agent Module (Inline Import with Error Handling)
@@ -202,8 +252,15 @@ def load_agent():
         logger.error(f"Failed to load agent: {e}\n{traceback.format_exc()}")
         return False
 
-async def chat_with_agent(message: str, session_id: Optional[str] = None, model: str = "gemini-2.5-flash-lite") -> dict:
-    """Send a message to the agent (async version with session locking)."""
+async def chat_with_agent(message: str, session_id: Optional[str] = None, model: str = "gemini-2.5-flash-lite", memory_user_id: Optional[str] = None) -> dict:
+    """Send a message to the agent (async version with session locking).
+
+    Args:
+        message: User message
+        session_id: Session ID for conversation state
+        model: Gemini model to use
+        memory_user_id: Persistent user ID for memory (e.g., 'ali', 'charles')
+    """
     if not load_agent():
         return {
             "response": "❌ Agent not loaded. Please check server logs.",
@@ -224,6 +281,14 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
         existing_plots = set(glob.glob(os.path.join(PLOTS_DIR, "*.png")))
 
         try:
+            # Get memory context for personalization
+            # Use persistent memory_user_id if provided, otherwise fall back to session_id
+            memory_engine = get_memory_engine()
+            user_id = memory_user_id if memory_user_id else session.session_id
+            memory_context = await memory_engine.get_context(user_id, message)
+            memory_context_str = memory_context.to_context_string() if not memory_context.is_empty() else ""
+            logger.info(f"Memory user_id: {user_id}, context length: {len(memory_context_str)}")
+
             # Async agent invocation with increased recursion limit and model selection
             config_with_limit = {
                 **session.config,
@@ -238,7 +303,10 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                 {
                     "messages": [_HumanMessage(content=message)],
                     "iteration_count": 0,
-                    "max_iterations": _MAX_ITERATIONS
+                    "max_iterations": _MAX_ITERATIONS,
+                    "user_id": user_id,
+                    "memory_context": memory_context_str,
+                    "memory_enabled": True
                 },
                 config_with_limit
             )
@@ -302,6 +370,22 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
             session.messages.append({
                 "role": "assistant", "content": content, "images": new_plots
             })
+
+            # Store conversation and learn facts asynchronously (non-blocking)
+            asyncio.create_task(
+                memory_engine.store_conversation_turn(
+                    user_id=user_id,
+                    user_message=message,
+                    assistant_response=content
+                )
+            )
+            asyncio.create_task(
+                memory_engine.learn_from_conversation(
+                    user_id=user_id,
+                    user_message=message,
+                    assistant_response=content
+                )
+            )
 
             return {
                 "response": content,
@@ -544,7 +628,12 @@ async def api_chat(request: ChatRequest):
     if not request.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    result = await chat_with_agent(request.message, request.session_id, request.model)
+    result = await chat_with_agent(
+        request.message,
+        request.session_id,
+        request.model,
+        request.memory_user_id  # Pass persistent user ID for memory
+    )
     return result
 
 @app.post("/api/evaluate-complexity")
@@ -674,6 +763,146 @@ async def api_clear_session(session_id: str):
     """Clear a chat session."""
     success = await session_manager.delete(session_id)
     return {"success": success}
+
+# ============================================================
+# Memory API Endpoints
+# ============================================================
+
+@app.get("/api/memory/profile/{user_id}", response_model=UserProfileResponse)
+async def api_get_memory_profile(user_id: str):
+    """Get user memory profile."""
+    memory_engine = get_memory_engine()
+    profile = memory_engine.get_profile(user_id)
+    if not profile:
+        # Return default profile structure
+        profile = memory_engine.get_or_create_profile(user_id)
+    return UserProfileResponse(
+        user_id=profile.user_id,
+        display_name=profile.display_name,
+        preferred_polymers=profile.preferred_polymers,
+        preferred_solvents=profile.preferred_solvents,
+        research_focus=profile.research_focus,
+        memory_enabled=profile.memory_enabled,
+        store_conversations=profile.store_conversations,
+        retention_days=profile.retention_days,
+        detail_level=profile.detail_level,
+        default_temperature=profile.default_temperature,
+        created_at=profile.created_at,
+        updated_at=profile.updated_at
+    )
+
+@app.put("/api/memory/profile/{user_id}", response_model=UserProfileResponse)
+async def api_update_memory_profile(user_id: str, request: UserProfileRequest):
+    """Update user memory profile."""
+    memory_engine = get_memory_engine()
+    profile = memory_engine.get_or_create_profile(user_id)
+
+    # Update only provided fields
+    if request.display_name is not None:
+        profile.display_name = request.display_name
+    if request.preferred_polymers is not None:
+        profile.preferred_polymers = request.preferred_polymers
+    if request.preferred_solvents is not None:
+        profile.preferred_solvents = request.preferred_solvents
+    if request.research_focus is not None:
+        profile.research_focus = request.research_focus
+    if request.detail_level is not None:
+        profile.detail_level = request.detail_level
+    if request.default_temperature is not None:
+        profile.default_temperature = request.default_temperature
+    if request.memory_enabled is not None:
+        profile.memory_enabled = request.memory_enabled
+    if request.store_conversations is not None:
+        profile.store_conversations = request.store_conversations
+    if request.retention_days is not None:
+        profile.retention_days = request.retention_days
+
+    updated_profile = memory_engine.update_profile(profile)
+    return UserProfileResponse(
+        user_id=updated_profile.user_id,
+        display_name=updated_profile.display_name,
+        preferred_polymers=updated_profile.preferred_polymers,
+        preferred_solvents=updated_profile.preferred_solvents,
+        research_focus=updated_profile.research_focus,
+        memory_enabled=updated_profile.memory_enabled,
+        store_conversations=updated_profile.store_conversations,
+        retention_days=updated_profile.retention_days,
+        detail_level=updated_profile.detail_level,
+        default_temperature=updated_profile.default_temperature,
+        created_at=updated_profile.created_at,
+        updated_at=updated_profile.updated_at
+    )
+
+@app.get("/api/memory/facts/{user_id}", response_model=List[UserFactResponse])
+async def api_get_memory_facts(user_id: str, fact_type: Optional[str] = None):
+    """Get user facts."""
+    memory_engine = get_memory_engine()
+    facts = memory_engine.get_facts(user_id, fact_type)
+    return [
+        UserFactResponse(
+            fact_id=f.fact_id,
+            fact_type=f.fact_type,
+            content=f.content,
+            confidence=f.confidence,
+            use_count=f.use_count,
+            created_at=f.created_at
+        )
+        for f in facts
+    ]
+
+@app.delete("/api/memory/facts/{user_id}/{fact_id}")
+async def api_delete_memory_fact(user_id: str, fact_id: str):
+    """Delete a specific fact."""
+    memory_engine = get_memory_engine()
+    success = memory_engine.delete_fact(user_id, fact_id)
+    return {"success": success}
+
+@app.post("/api/memory/disable/{user_id}")
+async def api_disable_memory(user_id: str):
+    """Disable memory collection for a user."""
+    memory_engine = get_memory_engine()
+    profile = memory_engine.disable_memory(user_id)
+    return {
+        "success": True,
+        "message": f"Memory disabled for user {user_id}",
+        "memory_enabled": profile.memory_enabled if profile else False
+    }
+
+@app.post("/api/memory/enable/{user_id}")
+async def api_enable_memory(user_id: str):
+    """Enable memory collection for a user."""
+    memory_engine = get_memory_engine()
+    profile = memory_engine.enable_memory(user_id)
+    return {
+        "success": True,
+        "message": f"Memory enabled for user {user_id}",
+        "memory_enabled": profile.memory_enabled if profile else True
+    }
+
+@app.get("/api/memory/status/{user_id}", response_model=MemoryStatusResponse)
+async def api_get_memory_status(user_id: str):
+    """Get memory status for a user."""
+    memory_engine = get_memory_engine()
+    profile = memory_engine.get_profile(user_id)
+    facts = memory_engine.get_facts(user_id)
+    return MemoryStatusResponse(
+        profile_exists=profile is not None,
+        memory_enabled=profile.memory_enabled if profile else True,
+        facts_count=len(facts),
+        conversations_stored=profile.store_conversations if profile else True
+    )
+
+@app.delete("/api/memory/{user_id}", response_model=MemoryDeleteResponse)
+async def api_delete_all_memory(user_id: str):
+    """Delete all memory data for a user (profile, facts, conversations)."""
+    memory_engine = get_memory_engine()
+    results = await memory_engine.delete_user_data(user_id)
+    return MemoryDeleteResponse(
+        success=True,
+        profile_deleted=results.get("profile_deleted", False),
+        facts_deleted=results.get("facts_deleted", 0),
+        conversations_deleted=results.get("conversations_deleted", 0)
+    )
 
 @app.get("/api/plots")
 async def api_list_plots():

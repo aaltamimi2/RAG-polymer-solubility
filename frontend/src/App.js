@@ -836,6 +836,10 @@ function App() {
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash-lite'); // Gemini model selection
   const [complexityJudgeEnabled, setComplexityJudgeEnabled] = useState(false); // LLM complexity judge
   const [currentComplexity, setCurrentComplexity] = useState(null); // Current query complexity
+  const [memoryEnabled, setMemoryEnabled] = useState(false); // Memory engine toggle - starts OFF until user sets name
+  const [memoryUserId, setMemoryUserId] = useState(null); // User ID for memory persistence
+  const [showMemoryNameModal, setShowMemoryNameModal] = useState(false); // Modal for entering name
+  const [memoryNameInput, setMemoryNameInput] = useState(''); // Input for name modal
   const [mlPolymerTypes, setMlPolymerTypes] = useState(null); // ML polymer types data
   const [showMlTypes, setShowMlTypes] = useState(false); // Show ML types view
 
@@ -874,6 +878,21 @@ function App() {
   useEffect(() => {
     const savedComplexityJudge = localStorage.getItem('dissolve-complexity-judge') === 'true';
     setComplexityJudgeEnabled(savedComplexityJudge);
+  }, []);
+
+  // Initialize memory from localStorage
+  useEffect(() => {
+    const savedMemoryUserId = localStorage.getItem('dissolve-memory-user-id');
+    const savedMemory = localStorage.getItem('dissolve-memory');
+
+    // If we have a saved user ID, enable memory with that ID
+    if (savedMemoryUserId) {
+      setMemoryUserId(savedMemoryUserId);
+      setMemoryEnabled(savedMemory !== 'false'); // Default to true if user ID exists
+    } else {
+      // No user ID saved, memory is disabled until user sets their name
+      setMemoryEnabled(false);
+    }
   }, []);
 
   // Save model to localStorage when changed
@@ -1072,7 +1091,9 @@ function App() {
         }
       }
 
-      const response = await api.chat(userMessage.content, sessionId, selectedModel);
+      // Pass memoryUserId if memory is enabled
+      const userIdForMemory = memoryEnabled && memoryUserId ? memoryUserId : null;
+      const response = await api.chat(userMessage.content, sessionId, selectedModel, userIdForMemory);
 
       if (!sessionId && response.session_id) {
         setSessionId(response.session_id);
@@ -1235,6 +1256,68 @@ function App() {
     );
   };
 
+  const toggleMemory = async () => {
+    if (!memoryEnabled) {
+      // Turning ON - check if we have a user ID
+      if (!memoryUserId) {
+        // Show modal to get user name
+        setShowMemoryNameModal(true);
+        return;
+      }
+      // We have a user ID, just enable
+      setMemoryEnabled(true);
+      localStorage.setItem('dissolve-memory', 'true');
+      showNotification(`Memory enabled for ${memoryUserId}`, 'info');
+    } else {
+      // Turning OFF
+      setMemoryEnabled(false);
+      localStorage.setItem('dissolve-memory', 'false');
+      showNotification('Memory disabled - conversations will not be stored', 'info');
+    }
+
+    // If we have a session and user ID, update server-side memory setting
+    if (sessionId && memoryUserId) {
+      try {
+        const endpoint = !memoryEnabled ? 'enable' : 'disable';
+        await fetch(`${API_BASE}/api/memory/${endpoint}/${memoryUserId}`, {
+          method: 'POST'
+        });
+      } catch (e) {
+        console.error('Failed to update memory setting on server:', e);
+      }
+    }
+  };
+
+  // Handle memory name submission from modal
+  const handleMemoryNameSubmit = () => {
+    const name = memoryNameInput.trim().toLowerCase().replace(/\s+/g, '_');
+    if (!name) {
+      showNotification('Please enter a name', 'error');
+      return;
+    }
+
+    // Set the user ID and enable memory
+    setMemoryUserId(name);
+    setMemoryEnabled(true);
+    localStorage.setItem('dissolve-memory-user-id', name);
+    localStorage.setItem('dissolve-memory', 'true');
+
+    // Close modal and clear input
+    setShowMemoryNameModal(false);
+    setMemoryNameInput('');
+
+    showNotification(`Memory enabled for ${name} - I'll remember our conversations`, 'success');
+  };
+
+  // Handle clearing memory user (allows switching users)
+  const handleClearMemoryUser = () => {
+    setMemoryUserId(null);
+    setMemoryEnabled(false);
+    localStorage.removeItem('dissolve-memory-user-id');
+    localStorage.setItem('dissolve-memory', 'false');
+    showNotification('Memory user cleared - click the brain icon to set a new user', 'info');
+  };
+
   const evaluateComplexity = async (query) => {
     try {
       const response = await fetch(`${API_BASE}/api/evaluate-complexity`, {
@@ -1321,6 +1404,24 @@ function App() {
               title={`Complexity Judge: ${complexityJudgeEnabled ? 'ON' : 'OFF'} - Evaluates query complexity before processing`}
             >
               <Scale size={18} />
+            </button>
+            <button
+              onClick={toggleMemory}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                if (memoryUserId) handleClearMemoryUser();
+              }}
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                backgroundColor: memoryEnabled ? 'rgba(139, 92, 246, 0.2)' : 'var(--bg-tertiary)',
+                color: memoryEnabled ? 'rgb(139, 92, 246)' : 'var(--text-tertiary)'
+              }}
+              aria-label={`${memoryEnabled ? 'Disable' : 'Enable'} memory`}
+              title={memoryEnabled && memoryUserId
+                ? `Memory: ON (${memoryUserId}) - Right-click to switch user`
+                : 'Memory: OFF - Click to enable personalized memory'}
+            >
+              <Brain size={18} />
             </button>
             <button
               onClick={toggleTheme}
@@ -1897,6 +1998,77 @@ function App() {
         onUpload={handleUpload}
         onClearPlots={handleClearPlots}
       />
+
+      {/* Memory Name Modal */}
+      {showMemoryNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div
+            className="rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl"
+            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <Brain size={24} style={{ color: 'rgb(139, 92, 246)' }} />
+              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                Enable Memory
+              </h2>
+            </div>
+
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Enter your name to personalize your experience. DISSOLVE will remember your research interests,
+              preferences, and past conversations to provide better assistance.
+            </p>
+
+            <input
+              type="text"
+              value={memoryNameInput}
+              onChange={(e) => setMemoryNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleMemoryNameSubmit()}
+              placeholder="Enter your name (e.g., Ali, Charles)"
+              className="w-full px-4 py-3 rounded-lg mb-4 font-mono"
+              style={{
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)'
+              }}
+              autoFocus
+            />
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowMemoryNameModal(false);
+                  setMemoryNameInput('');
+                }}
+                className="flex-1 px-4 py-2 rounded-lg transition-colors"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMemoryNameSubmit}
+                disabled={!memoryNameInput.trim()}
+                className="flex-1 px-4 py-2 rounded-lg transition-colors font-medium"
+                style={{
+                  backgroundColor: memoryNameInput.trim() ? 'rgb(139, 92, 246)' : 'var(--bg-tertiary)',
+                  color: memoryNameInput.trim() ? 'white' : 'var(--text-tertiary)',
+                  cursor: memoryNameInput.trim() ? 'pointer' : 'not-allowed'
+                }}
+              >
+                Enable Memory
+              </button>
+            </div>
+
+            {memoryUserId && (
+              <p className="text-xs mt-3 text-center" style={{ color: 'var(--text-tertiary)' }}>
+                Currently using memory as: <strong>{memoryUserId}</strong>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Issue Report Modal */}
       <IssueReportModal

@@ -1,0 +1,1185 @@
+{
+  "test_user": [
+    {
+      "fact_id": "a1d31786-6404-4c00-929b-eeb498ae7bf3",
+      "user_id": "test_user",
+      "fact_type": "interest",
+      "content": "Works on LDPE recycling",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-24T23:34:57.121092",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc": [
+    {
+      "fact_id": "0f0b4b7e-bf36-4769-80ef-5247ce2c88c8",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "Working with a feedstock of 90% LDPE and 10% EVOH.",
+      "confidence": 1.0,
+      "use_count": 4,
+      "created_at": "2026-01-25T03:05:32.060607",
+      "last_used_at": "2026-01-25T03:07:13.515570",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8c5f7994-72a5-46bd-9d62-8e200c3b28ac",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "Interested in separating LDPE from EVOH using solvents.",
+      "confidence": 1.0,
+      "use_count": 4,
+      "created_at": "2026-01-25T03:05:32.060618",
+      "last_used_at": "2026-01-25T03:07:13.515581",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "6044bb09-5e2b-46fc-9ad0-9003db9d2305",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "constraint",
+      "content": "Requires solvents that can operate at 130\u00b0C or below.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:05:32.060623",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "aaf46a27-b443-4689-8046-3d98e54bd300",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "The user is interested in the temperature-dependent solubility of polymers in various solvents, specifically cyclohexane, hexane, n-heptane, benzene, toluene, 2,3-dihydropyran, 1,4-dimethylbenzene, 1,2-dimethylbenzene, and dodecane.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:12.631955",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "b9684d9a-3d6f-4725-906b-726844767585",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "The user is working with polymers and their solubility in different organic solvents.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:12.631966",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "5073395b-6215-452d-a861-2765878770cc",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "preference",
+      "content": "Confirms accuracy of provided information.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:27.930064",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "cc38e8c3-9b5c-405c-bb39-c947ae28a8c4",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "The user is interested in plotting data related to specific solvents, indicating a need for data visualization in their research.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:42.380824",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "f6a22204-ad8a-4d62-b91b-e0f1e2e26eab",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "constraint",
+      "content": "The user's interaction is limited by the assistant's database of solvent names, suggesting potential issues with non-standard or misspelled chemical names.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:42.380834",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "70a2956a-dd7c-4d95-8394-9c04dd85b200",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "preference",
+      "content": "The user expects the assistant to be able to generate plots based on provided data, implying a need for data processing and visualization capabilities.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:06:42.380839",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "3dba9775-de4d-42d6-8a6e-abe56028e20a",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "User is interested in the temperature-dependent solubility of polymers, specifically LDPE and EVOH.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:07:18.309602",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "725d80bc-f5fc-4d5f-aae6-ecda0863d486",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "interest",
+      "content": "User is investigating the solubility of LDPE and EVOH in various solvents including cyclohexane, hexane, n-heptane, benzene, toluene, and dodecane.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:07:18.309611",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "4d2daeac-f238-4461-b2e8-555033c040fc",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "preference",
+      "content": "User prefers interactive plots with features like legend toggling, range sliders, hover-over data points, and toolbar options for plot manipulation.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:07:18.309615",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "1a618198-78a0-4d9b-9618-ce9428fc39b8",
+      "user_id": "e999a474-cf1f-4e6f-be0a-ed9a9eb733cc",
+      "fact_type": "preference",
+      "content": "User wants to exclude certain data points or curves from plots.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:07:18.309618",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "57d284b7-b3d8-4313-99dc-b6ffdaeb8df4": [
+    {
+      "fact_id": "ab4c30cc-320c-41cc-9491-901277b77bde",
+      "user_id": "57d284b7-b3d8-4313-99dc-b6ffdaeb8df4",
+      "fact_type": "interest",
+      "content": "Working on recycling HDPE from food packaging.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:25:43.780765",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "1fa47a82-957b-4622-867d-d182c00b6f4e",
+      "user_id": "57d284b7-b3d8-4313-99dc-b6ffdaeb8df4",
+      "fact_type": "constraint",
+      "content": "Needs solvents that dissolve HDPE at temperatures below 100\u00b0C.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:25:43.780777",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "5398f773-9c1c-4610-9a29-a26596023c88",
+      "user_id": "57d284b7-b3d8-4313-99dc-b6ffdaeb8df4",
+      "fact_type": "preference",
+      "content": "Appreciates detailed information about solvents, including boiling point, solubility, G-Score, LogP, and energy cost.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:25:43.780786",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8498da5a-408a-44c1-80a3-dae3080aef9c",
+      "user_id": "57d284b7-b3d8-4313-99dc-b6ffdaeb8df4",
+      "fact_type": "preference",
+      "content": "Values recommendations based on specific criteria like solubility, ease of recovery, safety, cost, and toxicity.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:25:43.780793",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "d12745e6-2515-4dd9-abff-6b98e50a54bb": [
+    {
+      "fact_id": "cd58ca37-a995-4177-95ca-a7638fd834e5",
+      "user_id": "d12745e6-2515-4dd9-abff-6b98e50a54bb",
+      "fact_type": "interest",
+      "content": "The user is inquiring about the safety of toluene for a specific application, suggesting an interest in solvents and their use in practical contexts.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:29:03.710470",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "c2ed7407-f4ef-4026-a7f9-213164e5153b",
+      "user_id": "d12745e6-2515-4dd9-abff-6b98e50a54bb",
+      "fact_type": "constraint",
+      "content": "The user is concerned about the safety of toluene for their application, indicating a need to consider safety requirements and potential hazards.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:29:03.710481",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "cea41d6f-bfb3-443e-b2c1-1a519e06e91c": [
+    {
+      "fact_id": "40d16e7a-698e-43e6-b26a-b426ca09004b",
+      "user_id": "cea41d6f-bfb3-443e-b2c1-1a519e06e91c",
+      "fact_type": "interest",
+      "content": "The user is working on recycling multilayer PET/PE films from food packaging.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:35.664089",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "f4fe1e24-7e18-498e-a750-d6befd74ca93",
+      "user_id": "cea41d6f-bfb3-443e-b2c1-1a519e06e91c",
+      "fact_type": "interest",
+      "content": "The feedstock for their recycling project is approximately 70% PET and 30% PE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:35.664099",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "093ba627-9b5a-4c82-a98a-e3d2cba251e7",
+      "user_id": "cea41d6f-bfb3-443e-b2c1-1a519e06e91c",
+      "fact_type": "interest",
+      "content": "The user is looking for solvents that can selectively dissolve PE while leaving PET intact.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:35.664104",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "be0a1abb-9a29-4d4f-b38e-ec141ce85a54": [
+    {
+      "fact_id": "296010e9-8e1f-45b0-8c4e-7c73030eed2a",
+      "user_id": "be0a1abb-9a29-4d4f-b38e-ec141ce85a54",
+      "fact_type": "interest",
+      "content": "The user is interested in the Hansen Solubility Parameters for PET and PE, and how these parameters influence solvent selection.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:40.339520",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "34fdd956-0960-4e5d-ad81-d7bb651e16ef",
+      "user_id": "be0a1abb-9a29-4d4f-b38e-ec141ce85a54",
+      "fact_type": "interest",
+      "content": "The user is working with polymers, specifically PET and PE, and their solubility in different solvents.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:40.339530",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "9aed0c5b-7e69-4af0-8167-a8d3267487ca",
+      "user_id": "be0a1abb-9a29-4d4f-b38e-ec141ce85a54",
+      "fact_type": "preference",
+      "content": "The user expects a direct answer to their query about Hansen Solubility Parameters and their implications for solvent selection.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:40.339535",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "1d2ef040-d20e-451e-880f-cdaa49e4cdf0": [
+    {
+      "fact_id": "635185c8-aa1c-46b9-b6bc-b98b64336649",
+      "user_id": "1d2ef040-d20e-451e-880f-cdaa49e4cdf0",
+      "fact_type": "interest",
+      "content": "Interested in the solubility of polymers in solvents, specifically PE in cyclohexane.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:45.043841",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "f7037f8b-3f69-487f-ab38-f1991e721e09",
+      "user_id": "1d2ef040-d20e-451e-880f-cdaa49e4cdf0",
+      "fact_type": "interest",
+      "content": "Needs to understand dissolution kinetics.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:45.043851",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "48682452-cb61-4379-8b13-d79c1a5f3cc0",
+      "user_id": "1d2ef040-d20e-451e-880f-cdaa49e4cdf0",
+      "fact_type": "constraint",
+      "content": "The user's initial query for 'PE' was not recognized by the available tool, suggesting a limitation in the tool's polymer database.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:45.043855",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "9ade8a02-d5b0-4cac-b684-0dbfa9b227e2",
+      "user_id": "1d2ef040-d20e-451e-880f-cdaa49e4cdf0",
+      "fact_type": "context",
+      "content": "The user is interacting with a tool that has a predefined list of recognized polymers.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:45.043859",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "e5251a66-cb1e-4b58-8bc8-dd5434b011e3": [
+    {
+      "fact_id": "eb543981-d294-425f-8fed-773e0cf14625",
+      "user_id": "e5251a66-cb1e-4b58-8bc8-dd5434b011e3",
+      "fact_type": "interest",
+      "content": "Interested in using cyclohexane as a solvent for dissolving polyethylene (PE).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:49.363597",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "7f39c94a-3823-4962-84b2-8552df2580d1",
+      "user_id": "e5251a66-cb1e-4b58-8bc8-dd5434b011e3",
+      "fact_type": "interest",
+      "content": "Works with multilayer films, specifically for the purpose of dissolving PE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:49.363608",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "1760a0e1-7994-4051-b871-cde4fa5a76e6",
+      "user_id": "e5251a66-cb1e-4b58-8bc8-dd5434b011e3",
+      "fact_type": "constraint",
+      "content": "Requires a throughput of 1000 kg/hr for the process.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:49.363612",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "57256aff-7115-4219-876e-694855c12ae6",
+      "user_id": "e5251a66-cb1e-4b58-8bc8-dd5434b011e3",
+      "fact_type": "context",
+      "content": "The user is likely involved in a project that requires a TEA (Techno-Economic Analysis) for a solvent-based polymer dissolution process.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:49.363615",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "5d46a722-918b-4ccc-9532-2d4ba5efa340": [
+    {
+      "fact_id": "4c4a686d-60d9-40f9-aab6-38a4b7347ee5",
+      "user_id": "5d46a722-918b-4ccc-9532-2d4ba5efa340",
+      "fact_type": "interest",
+      "content": "The user is interested in comparing the environmental impact (LCA) of using different solvents, specifically cyclohexane versus toluene, for a PE dissolution process.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:54.069809",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "3f11f8da-30a3-43e6-8f61-2faaefb5912a",
+      "user_id": "5d46a722-918b-4ccc-9532-2d4ba5efa340",
+      "fact_type": "interest",
+      "content": "The user is working with polyethylene (PE) dissolution processes.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:54.069826",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "a64355ef-1c74-4622-9135-09a842b86446",
+      "user_id": "5d46a722-918b-4ccc-9532-2d4ba5efa340",
+      "fact_type": "context",
+      "content": "The user is evaluating a toluene recovery process with a specific rate (100.0 kg/hr) and recovery efficiency (95%).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:54.069835",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "914f256f-4b4c-4148-b09d-b50b9027a8de": [
+    {
+      "fact_id": "88a8a752-a5d3-423a-a495-60f0f3b83865",
+      "user_id": "914f256f-4b4c-4148-b09d-b50b9027a8de",
+      "fact_type": "interest",
+      "content": "Interested in safety scores (GSK scores) of common industrial solvents like cyclohexane and toluene.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:58.439548",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "677b33ce-4672-49aa-b923-4ae37dba9600",
+      "user_id": "914f256f-4b4c-4148-b09d-b50b9027a8de",
+      "fact_type": "interest",
+      "content": "Investigating the relative safety of solvents for industrial use.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:58.439558",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "23d1ab03-05d2-48e2-948f-6c181349180b",
+      "user_id": "914f256f-4b4c-4148-b09d-b50b9027a8de",
+      "fact_type": "context",
+      "content": "The user is likely involved in industrial applications or research related to industrial processes.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:53:58.439562",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "2355ca7d-213a-4d7d-92dd-acd037dfdcec": [
+    {
+      "fact_id": "1850f11d-971d-4120-b728-c2749665e222",
+      "user_id": "2355ca7d-213a-4d7d-92dd-acd037dfdcec",
+      "fact_type": "interest",
+      "content": "Interested in the dissolution of PE (Polyethylene).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:03.158247",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "9ec0c567-e929-4f7c-8e20-1c56a51004ef",
+      "user_id": "2355ca7d-213a-4d7d-92dd-acd037dfdcec",
+      "fact_type": "interest",
+      "content": "Considers both solubility and energy costs when determining process conditions.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:03.158259",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "0bc9d4dc-28d2-4f1e-ae61-2bbc2e0a9e3f",
+      "user_id": "2355ca7d-213a-4d7d-92dd-acd037dfdcec",
+      "fact_type": "constraint",
+      "content": "May have equipment limitations or budget constraints that influence the choice of temperature and pressure for dissolution.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:03.158263",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64": [
+    {
+      "fact_id": "a2e276e3-0fdf-4e20-a2e8-fba2697f0211",
+      "user_id": "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64",
+      "fact_type": "interest",
+      "content": "Interested in research on multilayer film recycling, specifically PET/PE separation.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:39.326124",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "bcd531ff-538b-4e47-aba8-209383fbca77",
+      "user_id": "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64",
+      "fact_type": "interest",
+      "content": "Investigating the Solvent-Targeted Recovery and Precipitation (STRAP) process for polymer separation.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:39.326134",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "efc6db6e-22e5-4b24-9765-1abd301a3cf2",
+      "user_id": "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64",
+      "fact_type": "interest",
+      "content": "Looking for information on specific solvents like toluene and DMSO for polymer separation.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:39.326139",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "e803aefb-2dea-4101-8b00-309b4606a801",
+      "user_id": "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64",
+      "fact_type": "interest",
+      "content": "Interested in details such as dissolution temperatures, solubility ranges, and recovery yields for polymer separation processes.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:39.326142",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "63d11c15-423f-451a-8ab7-89b192554175",
+      "user_id": "2b9b7e3c-9f9b-4e5d-818f-061a6d94dd64",
+      "fact_type": "interest",
+      "content": "Exploring the use of antisolvents and spectroscopic methods in polymer separation and validation.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:39.326145",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "ad8a4cdf-c812-4f92-94ca-72831f8e13c2": [
+    {
+      "fact_id": "4e18ece6-8bc5-472b-8819-a63fb0a2fb63",
+      "user_id": "ad8a4cdf-c812-4f92-94ca-72831f8e13c2",
+      "fact_type": "interest",
+      "content": "Interested in finding greener solvent alternatives to cyclohexane for dissolving PE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:43.761423",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "0b231efa-5b9c-49a5-bf39-d3fd326e67c5",
+      "user_id": "ad8a4cdf-c812-4f92-94ca-72831f8e13c2",
+      "fact_type": "interest",
+      "content": "Focuses on selective dissolution of PE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:43.761433",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "aa1ebde6-b361-4f97-9a15-7af039329476",
+      "user_id": "ad8a4cdf-c812-4f92-94ca-72831f8e13c2",
+      "fact_type": "constraint",
+      "content": "The user initially inquired about a temperature of 120.0\u00b0C, suggesting this is a relevant operational temperature for their work.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:43.761437",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "abc40e04-811c-4655-a252-eee4bac7ab0f",
+      "user_id": "ad8a4cdf-c812-4f92-94ca-72831f8e13c2",
+      "fact_type": "preference",
+      "content": "The user is looking for 'greener' solvent alternatives, indicating a preference for environmentally friendly options.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:43.761442",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95": [
+    {
+      "fact_id": "b5c361d8-4884-4ed0-9922-e1c9d63d107a",
+      "user_id": "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95",
+      "fact_type": "interest",
+      "content": "Interested in the economic viability of processes involving recovered PE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:48.078677",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "cc849c93-0814-4560-80c7-b2ef32469907",
+      "user_id": "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95",
+      "fact_type": "interest",
+      "content": "Focuses on the minimum selling price (MSP) for recovered PE to achieve economic viability.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:48.078686",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8755b37b-a7a1-41bd-bbac-951b42772da9",
+      "user_id": "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95",
+      "fact_type": "context",
+      "content": "The user is evaluating a process with a capacity of 10,000 mt/yr.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:48.078691",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "6cb7557a-9ea9-4258-a994-5a27e26dbafe",
+      "user_id": "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95",
+      "fact_type": "context",
+      "content": "The user is considering a target Internal Rate of Return (IRR) of 15% for the process.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:48.078694",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "c5de55de-8281-4dc0-872d-cdf909745ffe",
+      "user_id": "9c7a03bb-e204-43ab-b4c3-a16cdefe1e95",
+      "fact_type": "context",
+      "content": "The user is aware of the current market price for recovered PE ($0.90/kg).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:48.078697",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "b44743bf-a065-4625-af64-1955601884d1": [
+    {
+      "fact_id": "619c806c-e6f5-43e6-9c87-127f5a739fd5",
+      "user_id": "b44743bf-a065-4625-af64-1955601884d1",
+      "fact_type": "interest",
+      "content": "The user is starting a new project focused on recycling rubber tires, specifically involving SBR (styrene-butadiene rubber) and natural rubber.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:52.039970",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "05eb176a-cbea-40c2-a8a2-76fad8e35716",
+      "user_id": "b44743bf-a065-4625-af64-1955601884d1",
+      "fact_type": "interest",
+      "content": "The user is looking for solvents that can dissolve SBR.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:52.039980",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "4fc304fc-fb2a-449c-8382-b63247ece182": [
+    {
+      "fact_id": "b9f849db-fa62-4c61-8a4e-75ac6ad52864",
+      "user_id": "4fc304fc-fb2a-449c-8382-b63247ece182",
+      "fact_type": "interest",
+      "content": "Interested in the Hansen parameters for SBR and natural rubber.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:56.372313",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "222657e0-e4e7-45cf-a46a-b8f668e11810",
+      "user_id": "4fc304fc-fb2a-449c-8382-b63247ece182",
+      "fact_type": "interest",
+      "content": "Interested in comparing the Hansen parameters of different polymers.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:54:56.372323",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "8d5885f4-f499-49cd-ab0e-726afd7563c7": [
+    {
+      "fact_id": "f20d4f80-307f-43e9-be8c-5686992abf42",
+      "user_id": "8d5885f4-f499-49cd-ab0e-726afd7563c7",
+      "fact_type": "interest",
+      "content": "Interested in swelling polymers, specifically SBR, rather than full dissolution.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:01.347333",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "c6db2e0e-3f8e-474b-b89f-6b84f225d74b",
+      "user_id": "8d5885f4-f499-49cd-ab0e-726afd7563c7",
+      "fact_type": "interest",
+      "content": "Looking for solvents that cause maximum swelling of SBR at room temperature.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:01.347347",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "a74633df-0c72-4756-827a-33a074e52bcc",
+      "user_id": "8d5885f4-f499-49cd-ab0e-726afd7563c7",
+      "fact_type": "constraint",
+      "content": "The user is working at room temperature.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:01.347351",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "393c6173-f4b8-4ea6-befd-0e8554fbab51": [
+    {
+      "fact_id": "ac22a173-dd0f-4250-987a-a0d91e2ee1c6",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "interest",
+      "content": "Interested in solvent-assisted devulcanization of rubber.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018860",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "7157e316-cb81-415c-83db-1b784ca39486",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "interest",
+      "content": "Has an interest in plastic recycling, specifically using solvent-based methods.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018870",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "809b2e12-1f1c-45d5-b6ff-0cc189f248ff",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "interest",
+      "content": "Interested in specific solvents like toluene, DMSO, THF, and dodecane for polymer dissolution.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018874",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "5dceaa46-443d-4374-9062-f10ee1dc0a62",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "interest",
+      "content": "Interested in computational tools for solvent selection, such as Hansen Solubility Parameters (HSPs) and COSMO-RS.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018878",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8cd94857-2452-43a7-9486-5bf2741f1923",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "interest",
+      "content": "Interested in experimental validation techniques like FTIR for polymer integrity.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018881",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "a2ae13f1-aa3c-4a29-813b-1aba6edf6d97",
+      "user_id": "393c6173-f4b8-4ea6-befd-0e8554fbab51",
+      "fact_type": "preference",
+      "content": "Prefers the assistant to clarify if the initial search is not directly on the requested topic and offer to refine the search.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:29.018884",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "fa9a1921-2bf9-4dab-8478-ea7db8695bf5": [
+    {
+      "fact_id": "a08e2d40-6ea0-4861-82dd-1937a0472c2f",
+      "user_id": "fa9a1921-2bf9-4dab-8478-ea7db8695bf5",
+      "fact_type": "interest",
+      "content": "The user is interested in the dissolution of SBR (Styrene-Butadiene Rubber) in toluene.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:32.764741",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "b5c1e725-84ac-4d98-82a4-9fe950c622f3",
+      "user_id": "fa9a1921-2bf9-4dab-8478-ea7db8695bf5",
+      "fact_type": "constraint",
+      "content": "The user provided a temperature range '25-160' which was not understood by the tool, indicating a potential need for clarification on how to input temperature ranges or a limitation in the tool's current capabilities.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:32.764751",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "e93df3d8-d894-4d1b-ac78-c01a6ef4071d",
+      "user_id": "fa9a1921-2bf9-4dab-8478-ea7db8695bf5",
+      "fact_type": "preference",
+      "content": "The user is seeking an optimal temperature for a specific dissolution process.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:32.764754",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c": [
+    {
+      "fact_id": "83208664-a91a-44ce-8e39-efc99f5d3658",
+      "user_id": "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c",
+      "fact_type": "interest",
+      "content": "The user is interested in the techno-economic analysis (TEA) of dissolving SBR (Styrene-Butadiene Rubber) in toluene.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:37.199556",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "864cb3d4-c1be-46a8-a637-f0a5e14b64cf",
+      "user_id": "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c",
+      "fact_type": "interest",
+      "content": "The user is working on applications involving polymer dissolution and solvent recovery.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:37.199565",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "6936e595-96d8-429c-a8b1-eb00bbd7bc75",
+      "user_id": "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c",
+      "fact_type": "constraint",
+      "content": "The user specified a throughput of 500 kg/hr for the process.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:37.199569",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "d9cb9bbd-e088-441d-8fa3-5ba70f6bb3c8",
+      "user_id": "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c",
+      "fact_type": "constraint",
+      "content": "The user specified an operating temperature of 100\u00b0C for the dissolution process.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:37.199572",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "c2ba2695-02b0-471e-8362-ff831b5f8221",
+      "user_id": "33cea8b7-5a49-41ef-99bd-6a4f9aea6e2c",
+      "fact_type": "context",
+      "content": "The user is likely involved in a project that requires evaluating the economic feasibility of a solvent-based polymer processing method.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:37.199576",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "90eb4013-12db-42b9-b218-21cea17267ac": [
+    {
+      "fact_id": "476c49ba-245d-4372-9046-3a25383ecdf7",
+      "user_id": "90eb4013-12db-42b9-b218-21cea17267ac",
+      "fact_type": "interest",
+      "content": "The user is interested in comparing the Life Cycle Assessment (LCA) of different solvents, specifically toluene and limonene, for rubber dissolution.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:41.540867",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "d9e8b2b6-9bd3-4e0e-8dd7-dd019e7c2642",
+      "user_id": "90eb4013-12db-42b9-b218-21cea17267ac",
+      "fact_type": "interest",
+      "content": "The user is working with polymers, as indicated by the context of rubber dissolution and the LCA metric of 'CO2eq per kg polymer'.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:41.540876",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "d188f0c4-3d08-4bb5-bea3-cce37055e013",
+      "user_id": "90eb4013-12db-42b9-b218-21cea17267ac",
+      "fact_type": "context",
+      "content": "The user is evaluating the environmental impact of solvent recovery processes, as evidenced by the detailed LCA breakdown including electricity, steam, and solvent makeup.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:41.540880",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "824afae5-72f7-4719-b8b6-a6d4f348db5b": [
+    {
+      "fact_id": "4280a178-b286-46ff-b98b-ae83cf95b3ec",
+      "user_id": "824afae5-72f7-4719-b8b6-a6d4f348db5b",
+      "fact_type": "interest",
+      "content": "Interested in bio-based solvents for dissolving SBR.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:49.189635",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "b8009327-2932-4925-896b-49a3720c25c0",
+      "user_id": "824afae5-72f7-4719-b8b6-a6d4f348db5b",
+      "fact_type": "constraint",
+      "content": "Wants to avoid petroleum-derived solvents.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:49.189644",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8bbe84c4-f5d5-4bf3-b1e0-4587983d8cb7",
+      "user_id": "824afae5-72f7-4719-b8b6-a6d4f348db5b",
+      "fact_type": "interest",
+      "content": "Working with SBR (Styrene-Butadiene Rubber).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:49.189648",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "755dee5c-7817-4927-a564-2aa797e3741b": [
+    {
+      "fact_id": "90f6a50d-f852-4d2a-8763-f7947b3079e8",
+      "user_id": "755dee5c-7817-4927-a564-2aa797e3741b",
+      "fact_type": "interest",
+      "content": "Interested in recovering dissolved rubber from solution and identifying effective anti-solvents.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:55:53.263839",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "8487e43d-0ef7-49da-b637-1ad013d66c3a": [
+    {
+      "fact_id": "1644df91-3bc9-4371-a09b-bb6e1c19d803",
+      "user_id": "8487e43d-0ef7-49da-b637-1ad013d66c3a",
+      "fact_type": "interest",
+      "content": "The user is interested in comparing solvent requirements for recycling different materials, specifically PET/PE films and rubber tires.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:56:28.614131",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "bef19388-a070-4001-a0d5-9ebcc25b1e26",
+      "user_id": "8487e43d-0ef7-49da-b637-1ad013d66c3a",
+      "fact_type": "interest",
+      "content": "The user is familiar with solvent-based recycling processes like STRAP for plastic films.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:56:28.614140",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "cb8f88da-f3f9-43cd-99f6-0577eebe686c",
+      "user_id": "8487e43d-0ef7-49da-b637-1ad013d66c3a",
+      "fact_type": "interest",
+      "content": "The user is exploring the challenges of rubber tire recycling, particularly concerning solvent requirements for cross-linked polymers.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:56:28.614145",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "7bb21b5d-afa8-4338-b0ca-bda053e05eda",
+      "user_id": "8487e43d-0ef7-49da-b637-1ad013d66c3a",
+      "fact_type": "interest",
+      "content": "The user is interested in factors influencing solvent selection for polymer recycling, such as selective solubility, temperature dependence, green solvent criteria, antisolvent use, and Hansen Solubility Parameters.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T03:56:28.614148",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ],
+  "ali": [
+    {
+      "fact_id": "30115dde-1950-4820-9ea2-caf6a7e456a3",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Working on recycling LDPE from agricultural films.",
+      "confidence": 1.0,
+      "use_count": 1,
+      "created_at": "2026-01-25T05:08:30.452018",
+      "last_used_at": "2026-01-25T05:13:28.144414",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "4e09ecbd-b4d1-4d8e-a6da-cac21af5b7d9",
+      "user_id": "ali",
+      "fact_type": "constraint",
+      "content": "Requires solvents that work at 80\u00b0C.",
+      "confidence": 1.0,
+      "use_count": 2,
+      "created_at": "2026-01-25T05:08:30.452029",
+      "last_used_at": "2026-01-25T05:25:51.136467",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "08f26d89-a5b0-4eae-97ce-7b63ac10a2e9",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "Values information on solvent solubility, boiling point, safety (G-Score), cost (Energy), and toxicity (LogP).",
+      "confidence": 0.9,
+      "use_count": 2,
+      "created_at": "2026-01-25T05:08:30.452034",
+      "last_used_at": "2026-01-25T05:25:51.136463",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "86d35f1e-af6d-43ca-96b9-2ec53f9cd98c",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "Appreciates ranked lists and clear recommendations based on specific criteria.",
+      "confidence": 0.9,
+      "use_count": 1,
+      "created_at": "2026-01-25T05:08:30.452038",
+      "last_used_at": "2026-01-25T05:13:28.144416",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "5e25939e-46fe-4617-bc5a-46197c44e3c5",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Interested in comparing the solvent properties of toluene and cyclohexane for polymers.",
+      "confidence": 0.9,
+      "use_count": 1,
+      "created_at": "2026-01-25T05:13:31.995307",
+      "last_used_at": "2026-01-25T05:25:51.136460",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "f5c3f47e-6073-449f-8242-3d47df5c537d",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Working with LDPE (Low-Density Polyethylene).",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:13:31.995320",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "7f715d5f-2385-4528-afc7-0c2dbd69625e",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Considering solvent applications for polymers, potentially related to solubility.",
+      "confidence": 0.8,
+      "use_count": 1,
+      "created_at": "2026-01-25T05:13:31.995324",
+      "last_used_at": "2026-01-25T05:25:51.136450",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "ba1d83e1-a730-45fc-bbcc-04ee1ee68c27",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "Prefers comparisons of solvents based on specific criteria like solubility at a given temperature.",
+      "confidence": 0.8,
+      "use_count": 1,
+      "created_at": "2026-01-25T05:13:31.995328",
+      "last_used_at": "2026-01-25T05:25:51.136470",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "130e1f8d-de6d-4bb5-9053-6b54f8f4fe29",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "Open to exploring other solvents or comparing existing ones based on different criteria such as safety or boiling point.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:13:31.995332",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "4abeab78-0e6e-4fbb-bbea-1567e866de21",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is interested in polyethylene (PE) dissolution temperatures, solvent ratios, and recovery yields, specifically from STRAP studies.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:26:19.933185",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "80e2bf81-6bac-4430-bbf1-0fb56ca7e912",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is working on processes involving solvent-based recovery of polymers, as indicated by the request to run TEA for heptane recovery.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:26:19.933195",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "db5e9265-34be-425f-b45b-4238bd248950",
+      "user_id": "ali",
+      "fact_type": "constraint",
+      "content": "The user has a specific throughput requirement of 5000 kg/hr for the TEA process.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:26:19.933200",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "54ceebfa-d6fc-475d-8baf-dd52bd22c42c",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "The user prefers detailed technical and economic analyses, including capital costs, energy consumption, operating costs, and economic metrics like cost per kg and payback period.",
+      "confidence": 0.9,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:26:19.933203",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "85d5156a-c37a-47e8-a511-0cf803221866",
+      "user_id": "ali",
+      "fact_type": "context",
+      "content": "The user is likely involved in research or industrial processes related to polymer recycling or solvent recovery, given the nature of the query and the use of terms like RAG, STRAP studies, and TEA.",
+      "confidence": 0.7,
+      "use_count": 0,
+      "created_at": "2026-01-25T05:26:19.933206",
+      "last_used_at": null,
+      "source_turn_id": null
+    }
+  ]
+}

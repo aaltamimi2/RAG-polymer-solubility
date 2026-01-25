@@ -1,0 +1,44 @@
+{
+  "test_user": {
+    "user_id": "test_user",
+    "display_name": null,
+    "preferred_polymers": [],
+    "preferred_solvents": [],
+    "research_focus": null,
+    "memory_enabled": true,
+    "store_conversations": true,
+    "retention_days": 90,
+    "detail_level": "detailed",
+    "default_temperature": 120.0,
+    "created_at": "2026-01-24T23:34:57.120035",
+    "updated_at": "2026-01-24T23:34:57.120043"
+  },
+  "test_session_123": {
+    "user_id": "test_session_123",
+    "display_name": null,
+    "preferred_polymers": [],
+    "preferred_solvents": [],
+    "research_focus": null,
+    "memory_enabled": true,
+    "store_conversations": true,
+    "retention_days": 90,
+    "detail_level": "detailed",
+    "default_temperature": 120.0,
+    "created_at": "2026-01-25T03:03:31.007343",
+    "updated_at": "2026-01-25T03:03:31.016323"
+  },
+  "test_memory_user": {
+    "user_id": "test_memory_user",
+    "display_name": null,
+    "preferred_polymers": [],
+    "preferred_solvents": [],
+    "research_focus": null,
+    "memory_enabled": true,
+    "store_conversations": true,
+    "retention_days": 90,
+    "detail_level": "detailed",
+    "default_temperature": 120.0,
+    "created_at": "2026-01-25T03:25:08.062500",
+    "updated_at": "2026-01-25T03:25:08.062508"
+  }
+}

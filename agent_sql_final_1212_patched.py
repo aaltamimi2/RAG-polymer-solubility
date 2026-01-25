@@ -1364,6 +1364,27 @@ SOLVENT_NAME_MAPPING = {
     'propylene glycol': ['propyleneglycol'],
 }
 
+# Patterns to reconstruct solvent names that were incorrectly split by commas
+# Maps fragment patterns to the correct full name
+SOLVENT_FRAGMENT_RECONSTRUCTION = {
+    # Pattern: (preceding_fragment, current_fragment) -> full_name
+    # When we see "2" followed by "3-dihydropyran", reconstruct to "2,3-dihydropyran"
+    ('2', '3-dihydropyran'): '2,3-dihydropyran',
+    ('1', '2-dimethylbenzene'): '1,2-dimethylbenzene',
+    ('1', '4-dimethylbenzene'): '1,4-dimethylbenzene',
+    ('1', '3-dimethylbenzene'): '1,3-dimethylbenzene',
+    ('1', '2-dichloroethane'): '1,2-dichloroethane',
+    ('1', '1-dichloroethane'): '1,1-dichloroethane',
+    ('1', '2-dichlorobenzene'): '1,2-dichlorobenzene',
+    ('1', '4-dichlorobenzene'): '1,4-dichlorobenzene',
+    ('1', '2-ethanediol'): '1,2-ethanediol',
+    ('1', '3-propanediol'): '1,3-propanediol',
+    ('1', '4-dioxane'): '1,4-dioxane',
+    ('2', '2-dimethylbutane'): '2,2-dimethylbutane',
+    ('2', '3-butanediol'): '2,3-butanediol',
+    ('2', '4-pentanedione'): '2,4-pentanedione',
+}
+
 
 def normalize_solvent_names(solvents: List[str]) -> List[str]:
     """
@@ -1371,14 +1392,39 @@ def normalize_solvent_names(solvents: List[str]) -> List[str]:
     Expands common names like 'xylene' to actual database names.
     Also converts to lowercase since database uses lowercase names.
 
+    Handles reconstruction of solvent names that were incorrectly split by commas,
+    e.g., "2,3-dihydropyran" becoming ["2", "3-dihydropyran"].
+
     Args:
         solvents: List of solvent names (may include common names)
 
     Returns:
         List of normalized solvent names matching database entries (lowercase)
     """
+    # First, reconstruct any fragmented solvent names
+    reconstructed = []
+    i = 0
+    while i < len(solvents):
+        solvent = solvents[i].strip().lower()
+
+        # Check if this could be the start of a fragmented name
+        if i + 1 < len(solvents):
+            next_solvent = solvents[i + 1].strip().lower()
+            fragment_key = (solvent, next_solvent)
+
+            if fragment_key in SOLVENT_FRAGMENT_RECONSTRUCTION:
+                # Reconstruct the full name
+                full_name = SOLVENT_FRAGMENT_RECONSTRUCTION[fragment_key]
+                reconstructed.append(full_name)
+                i += 2  # Skip both fragments
+                continue
+
+        reconstructed.append(solvent)
+        i += 1
+
+    # Now apply the standard normalization mapping
     normalized = []
-    for solvent in solvents:
+    for solvent in reconstructed:
         solvent_lower = solvent.strip().lower()
         if solvent_lower in SOLVENT_NAME_MAPPING:
             # Expand to mapped name(s) - already lowercase in mapping
@@ -10944,6 +10990,10 @@ class AgentState(MessagesState):
     """Enhanced state - defaults handled in functions."""
     iteration_count: int
     max_iterations: int
+    # Memory Engine fields
+    user_id: Optional[str] = None
+    memory_context: Optional[str] = None
+    memory_enabled: bool = True
 
 
 class AsyncToolNode:
@@ -11165,7 +11215,13 @@ async def sql_agent_node(state: AgentState):
         
         # Ensure SQL_AGENT_PROMPT is a string
         prompt = SQL_AGENT_PROMPT if isinstance(SQL_AGENT_PROMPT, str) else str(SQL_AGENT_PROMPT)
-        
+
+        # Inject memory context if available
+        memory_context = state.get("memory_context", "")
+        if memory_context and state.get("memory_enabled", True):
+            prompt = prompt + "\n\n" + memory_context
+            logger.debug(f"Injected memory context ({len(memory_context)} chars)")
+
         # Build full messages list carefully
         system_msg = SystemMessage(content=prompt)
         full_messages = [system_msg] + valid_messages
