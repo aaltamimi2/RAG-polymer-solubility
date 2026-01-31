@@ -293,8 +293,316 @@
       "metadata": {
         "llm_calls": 63
       }
+    },
+    {
+      "file_hash": "ff9dad81a51a9eb2c6aa3f8269e727d9",
+      "filename": "10_Removal_of_contaminants_from_recycled_po.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/10_Removal_of_contaminants_from_recycled_po.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T15:22:40.125216",
+      "chunk_count": 219,
+      "file_size": 5654437,
+      "title": "Accelerated Simple Preparation of Curcumin-Loaded Silk Fibroin/Hyaluronic Acid Hydrogels for Biomedical Applications",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 29
+      }
+    },
+    {
+      "file_hash": "5111d7edbc2381fd62996b9d30d563e8",
+      "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/01_Screening_the_Impact_of_Surfactants_and_.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.826647",
+      "chunk_count": 180,
+      "file_size": 5022234,
+      "title": "Screening the Impact of Surfactants and Reaction Conditions on the De-Inkability of Different Printing Ink Systems for Plastic Packaging",
+      "doi": "10.3390/polym15092220",
+      "metadata": {
+        "llm_calls": 33
+      }
+    },
+    {
+      "file_hash": "9403262b6aa93f84b6a48fd12b980d8f",
+      "filename": "06_Recycling_of_multi-material_multilayer_p.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/06_Recycling_of_multi-material_multilayer_p.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T14:08:35.919510",
+      "chunk_count": 193,
+      "file_size": 4500254,
+      "title": "eee polymers",
+      "doi": "10.3390/polym13203467",
+      "metadata": {
+        "llm_calls": 38
+      }
+    },
+    {
+      "file_hash": "3711ac78bf5f7c3cf72e9275097350a0",
+      "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/04_Delamination_and_deinking_of_colored_mul.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.840423",
+      "chunk_count": 177,
+      "file_size": 3182219,
+      "title": "",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 29
+      }
+    },
+    {
+      "file_hash": "48c6d6af3d146cf5b6541bd390075bf4",
+      "filename": "Removal_of_UV_curable_inks_from_flexographic_printed_PE_films.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Removal_of_UV_curable_inks_from_flexographic_printed_PE_films.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.734811",
+      "chunk_count": 60,
+      "file_size": 324699,
+      "title": "Use of surfactants to remove water based inks from",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 24
+      }
+    },
+    {
+      "file_hash": "dbaff51ba340264ae03d07ffaa349a40",
+      "filename": "Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.740944",
+      "chunk_count": 82,
+      "file_size": 1972715,
+      "title": "@lz) INSPIRING PLASTICS PROFESSIONALS WILEY",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 25
+      }
+    },
+    {
+      "file_hash": "59c122490ff58cac3e638cb34bb36d23",
+      "filename": "Water-based_flexographic_inks_deinking_from_printed_polyethylene_films.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Water-based_flexographic_inks_deinking_from_printed_polyethylene_films.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.746247",
+      "chunk_count": 100,
+      "file_size": 1186110,
+      "title": "ScienceDirect",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 34
+      }
+    },
+    {
+      "file_hash": "df2f961b022d012cd10d98ce0ad3e4e6",
+      "filename": "Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.757435",
+      "chunk_count": 173,
+      "file_size": 5437916,
+      "title": "",
+      "doi": "10.1016/j.jhazmat.2023.131239",
+      "metadata": {
+        "llm_calls": 16
+      }
+    },
+    {
+      "file_hash": "9b8da5f5fb7998abf82548ebd2546a70",
+      "filename": "Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.763046",
+      "chunk_count": 166,
+      "file_size": 1847432,
+      "title": "Deinking of Water-Based Ink Printing from Plastic Film Using Nonionic Surfactants",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 26
+      }
+    },
+    {
+      "file_hash": "3479d4167548fe1c3d90246ac5dc0a94",
+      "filename": "Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.768307",
+      "chunk_count": 85,
+      "file_size": 1038404,
+      "title": "Mechanistic insights into de-inking",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 25
+      }
+    },
+    {
+      "file_hash": "64229b03ef20d6d0e1d684b6dd5baf6a",
+      "filename": "Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.782461",
+      "chunk_count": 108,
+      "file_size": 7315891,
+      "title": "Nanoscale Probing of the Organic Binder in Artists\u2019 Paint Layers: Organic Phases and Chemical Heterogeneity",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 17
+      }
+    },
+    {
+      "file_hash": "8ec12e467c509f12a2b30d28b8386927",
+      "filename": "POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.784207",
+      "chunk_count": 62,
+      "file_size": 244809,
+      "title": "(11) EP 2 208 765 A1",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 42
+      }
+    },
+    {
+      "file_hash": "d668a86a867f08ae02169bc844f1230d",
+      "filename": "Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.794735",
+      "chunk_count": 204,
+      "file_size": 2899163,
+      "title": "OPEN ACCESS",
+      "doi": "10.3389/fmats.2019.00311",
+      "metadata": {
+        "llm_calls": 28
+      }
+    },
+    {
+      "file_hash": "1545ff5979387d35c8b1cad3073b60ed",
+      "filename": "Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.816053",
+      "chunk_count": 187,
+      "file_size": 8230144,
+      "title": "Journal of Hazardous Materials",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 44
+      }
+    },
+    {
+      "file_hash": "00298289c250c6be5ece29f98f21326e",
+      "filename": "The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.829243",
+      "chunk_count": 100,
+      "file_size": 602527,
+      "title": "The Role of Liquid Penetration in Detergency of Long-Chain Fatty Acid",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 18
+      }
+    },
+    {
+      "file_hash": "be12c47d798b8fd8bc7b4fdd05cd79d1",
+      "filename": "Recycling_of_plastic_film_from_industrial_and_residential_waste_streams.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Recycling_of_plastic_film_from_industrial_and_residential_waste_streams.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.830890",
+      "chunk_count": 87,
+      "file_size": 384709,
+      "title": "Use of surfactants to remove solvent-based inks from plastic films",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 13
+      }
+    },
+    {
+      "file_hash": "2c7edff0a92e13a728b27486acafe9a0",
+      "filename": "Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.832465",
+      "chunk_count": 118,
+      "file_size": 376248,
+      "title": "Use of surfactants to remove water-based inks from plastic film: effect of calcium ion concentration and length of surfactant hydrophobe",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 18
+      }
+    },
+    {
+      "file_hash": "57ee908756e2c2d676beb8e05fd50917",
+      "filename": "Deinking_of_flexographic_PE_using_surfactant_solutions.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Deinking_of_flexographic_PE_using_surfactant_solutions.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.834240",
+      "chunk_count": 43,
+      "file_size": 578209,
+      "title": "AND SURFACES : Q Sat Sell ass. Colloids and Surfaces",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 22
+      }
+    },
+    {
+      "file_hash": "2d327551da5163eb16f73a44b5cc1b81",
+      "filename": "The_use_of_surfactants_in_the_cleaning_of_works_of_art.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/The_use_of_surfactants_in_the_cleaning_of_works_of_art.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.849954",
+      "chunk_count": 147,
+      "file_size": 3484549,
+      "title": "ScienceDirect",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 1
+      }
+    },
+    {
+      "file_hash": "fe1729f4f9238f1d78343684e2d6798b",
+      "filename": "The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.859167",
+      "chunk_count": 262,
+      "file_size": 5121781,
+      "title": "Polymer Testing",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 26
+      }
+    },
+    {
+      "file_hash": "8737286408add18ecbf34d5bb49c0769",
+      "filename": "The_use_of_surfactants_in_de-inking_paper_for_paper_recycling.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/The_use_of_surfactants_in_de-inking_paper_for_paper_recycling.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.861116",
+      "chunk_count": 75,
+      "file_size": 671642,
+      "title": "The use of surfactants in de-inking paper for paper recycling John K Borchardt",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 3
+      }
+    },
+    {
+      "file_hash": "326d538969c129b2ee54c6ea4880e380",
+      "filename": "Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly.pdf",
+      "filepath": "/home/aaltamimi2/polymer-solubility-app/data/printed_plastics_deinking_pdfs/Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly.pdf",
+      "kb_name": "printed_plastics_deinking",
+      "ingested_at": "2026-01-26T18:39:42.865468",
+      "chunk_count": 178,
+      "file_size": 2368967,
+      "title": "Journal of Colloid and Interface Science",
+      "doi": null,
+      "metadata": {
+        "llm_calls": 20
+      }
     }
   ],
-  "last_modified": "2026-01-23T23:44:28.213307",
-  "total_papers": 21
+  "last_modified": "2026-01-26T18:39:42.865831",
+  "total_papers": 43
 }

@@ -1,0 +1,25 @@
+{
+  "query_id": 9,
+  "query_text": "Can I use DCM to process polycarbonate?",
+  "polymer": "PC",
+  "solvent": "Dichloromethane",
+  "polymer_hsp": {
+    "D": 19.5,
+    "P": 6.3,
+    "H": 5.1
+  },
+  "solvent_hsp": {
+    "D": 18.2,
+    "P": 6.3,
+    "H": 6.1
+  },
+  "r0": 3.9,
+  "prediction": {
+    "soluble": true,
+    "probability": 0.9997691272636706,
+    "confidence": 0.9996949734097129,
+    "red": 0.7142763219068783,
+    "ra": 2.7856776554368254,
+    "r0": 3.9
+  }
+}

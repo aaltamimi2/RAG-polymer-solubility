@@ -8633,24 +8633,34 @@ def search_web_of_science(
 
     **When to use**: For high-quality peer-reviewed articles from journals, with citation counts
     and impact metrics. Best for established research topics in polymer science and chemistry.
-    Use this for queries about specific polymers, solvents, or well-defined scientific topics.
 
     Args:
-        query: General search query (e.g., "polymer dissolution mechanisms", "selective PET separation")
-        polymer_name: Specific polymer name to search for (e.g., "polyethylene", "PET", "nylon")
-        solvent_name: Specific solvent name (e.g., "toluene", "NMP", "o-dichlorobenzene")
-        year_low: Minimum publication year (optional)
-        year_high: Maximum publication year (optional)
-        max_results: Maximum number of results to return (default: 10, max: 50)
+        query: Search query - can be natural language OR WoS syntax (see below)
+        polymer_name: Specific polymer name (e.g., "polyethylene", "PET", "nylon")
+        solvent_name: Specific solvent name (e.g., "toluene", "NMP")
+        year_low: Minimum publication year (e.g., 2020)
+        year_high: Maximum publication year (e.g., 2026)
+        max_results: Number of results (default: 10, max: 50)
+
+    **WoS Query Syntax** (for advanced searches):
+        - Use quotes for exact phrases: "deinking" AND "plastic"
+        - Boolean operators: AND, OR, NOT (must be uppercase)
+        - Wildcards: * (e.g., "recycl*" matches recycling, recyclable, recycled)
+        - Field tags (optional, auto-added if not present):
+            - TS= Topic Search (title, abstract, keywords) - DEFAULT
+            - TI= Title only
+            - AU= Author
+            - SO= Source/Journal name
+
+    **Query Examples**:
+        Simple: "PET dissolution"
+        Boolean: "deinking" AND "plastic" AND "recycling"
+        Phrase + Boolean: "ink removal" AND "polymer" AND "packaging"
+        With wildcards: "multilayer*" AND "recycl*" AND "plastic"
+        Specific field: TI=("deinking" AND "plastic")
 
     Returns:
-        Formatted list of peer-reviewed articles with titles, authors, journals, years, DOIs, and links
-
-    Examples:
-        - "Search Web of Science for articles on PET dissolution"
-        - "Find WoS papers about polyethylene solubility"
-        - "What are recent Web of Science articles on Hansen solubility parameters?"
-        - "Search for peer-reviewed articles about selective dissolution of mixed plastics"
+        Formatted list of peer-reviewed articles with titles, authors, journals, years, DOIs
 
     **Note**: Uses Web of Science Starter API. Returns peer-reviewed journal articles with
     citation metrics and DOI links. More focused on high-quality sources than Google Scholar.
@@ -8671,20 +8681,46 @@ def search_web_of_science(
                 year_high=year_high,
                 max_results=max_results
             )
-        elif "hansen" in query.lower():
-            # Hansen-specific search
+        elif "hansen" in query.lower() and "TS=" not in query.upper():
+            # Hansen-specific search (only if not already using WoS syntax)
             articles = client.search_hansen_parameters(
                 year_low=year_low,
                 year_high=year_high,
                 max_results=max_results
             )
         else:
-            # Build WoS query from natural language
-            wos_query = f'TS=({query})'
-            if year_low or year_high:
+            # Build WoS query - check if user provided WoS syntax
+            wos_query = query.strip()
+
+            # Check if query already has WoS field tags
+            has_field_tag = any(tag in wos_query.upper() for tag in ['TS=', 'TI=', 'AU=', 'SO=', 'PY='])
+
+            if not has_field_tag:
+                # Convert natural language to WoS syntax
+                # Check for boolean operators already in query
+                has_boolean = any(op in wos_query.upper() for op in [' AND ', ' OR ', ' NOT '])
+
+                if has_boolean:
+                    # Query has boolean operators - wrap in TS=()
+                    # Handle quoted phrases properly
+                    wos_query = f'TS=({wos_query})'
+                else:
+                    # Simple query - wrap as topic search
+                    # If multiple words without quotes, treat as AND search
+                    words = wos_query.split()
+                    if len(words) > 1 and '"' not in wos_query:
+                        # Multi-word query without quotes - join with AND
+                        wos_query = f'TS=({" AND ".join(words)})'
+                    else:
+                        wos_query = f'TS=({wos_query})'
+
+            # Add year range if specified and not already in query
+            if (year_low or year_high) and 'PY=' not in wos_query.upper():
                 year_start = year_low or 1900
                 year_end = year_high or 2030
                 wos_query += f' AND PY=({year_start}-{year_end})'
+
+            logger.info(f"WoS query: {wos_query}")
 
             results = client.search_documents(
                 query=wos_query,
@@ -10661,6 +10697,371 @@ print("  - RAG Literature: 20 tools (search, ingest, Q&A + 12 diagnostics + 3 do
 
 
 # ============================================================
+# TOOL ROUTER: Category-Based Tool Selection
+# ============================================================
+# This router reduces LLM context by only providing relevant tools
+# for each query type, improving response speed by 200-400ms per turn.
+
+# Import message types for router (needed before LangGraph section)
+from langchain_core.messages import HumanMessage as HumanMessageType
+
+# Core tools ALWAYS available (fast, frequently needed)
+CORE_TOOLS = [
+    list_tables,
+    list_available_polymers,
+    list_available_solvents,
+    describe_table,
+]
+
+# Tool categories for intelligent routing
+TOOL_CATEGORIES = {
+    "database": [
+        list_tables,
+        describe_table,
+        check_column_values,
+        query_database,
+        verify_data_accuracy,
+        validate_and_query,
+    ],
+    "dissolution": [
+        find_optimal_separation_conditions,
+        adaptive_threshold_search,
+        analyze_selective_solubility_enhanced,
+        analyze_polymer_dissolution,
+        get_solubility_for_solvents,
+    ],
+    "separation": [
+        plan_sequential_separation,
+        view_alternative_separation_sequence,
+        analyze_integrated_separation,
+        analyze_separation_with_properties,
+    ],
+    "solvent_properties": [
+        list_solvent_properties,
+        get_solvent_properties,
+        rank_solvents_by_property,
+        get_solvent_gscore,
+        get_family_alternatives,
+    ],
+    "visualization": [
+        plot_solubility_vs_temperature,
+        plot_solubility_vs_temperature_interactive,
+        plot_selectivity_heatmap,
+        plot_multi_panel_analysis,
+        plot_comparison_dashboard,
+        plot_solvent_properties,
+        plot_solvent_properties_for_polymer,
+        visualize_gscores,
+    ],
+    "statistics": [
+        statistical_summary,
+        correlation_analysis,
+        compare_groups_statistically,
+        regression_analysis,
+    ],
+    "safety": [
+        get_pubchem_safety_info,
+        compare_pubchem_safety,
+        visualize_pubchem_safety,
+        get_pubchem_toxicity,
+        get_solvent_gscore,
+        get_family_alternatives,
+    ],
+    "economics": [
+        analyze_solvent_recovery_tea,
+        analyze_solvent_recovery_lca,
+        compare_solvents_tea_lca,
+        generate_tea_visualizations,
+        generate_lca_visualizations,
+        generate_solvent_comparison_visualization,
+        plot_tea_sensitivity_tornado,
+        plot_tea_cashflow,
+    ],
+    "strap": [
+        analyze_strap_process,
+        calculate_strap_msp,
+        plot_strap_scale_economics,
+        compare_strap_scenarios,
+        generate_strap_visualizations,
+    ],
+    "literature": [
+        search_google_scholar,
+        search_google_patents,
+        lookup_patent,
+        search_web_of_science,
+    ],
+    "rag": [
+        search_literature_rag,
+        ingest_pdf_to_rag,
+        get_rag_status,
+        ask_literature,
+        clear_rag_index,
+        visualize_rag_chunks,
+        check_rag_chunk_quality,
+        get_rag_chunk_report,
+        analyze_search_diagnostics,
+        visualize_retrieval_patterns,
+        visualize_embedding_space,
+        analyze_document_similarity,
+        analyze_dense_vs_sparse,
+        analyze_reranking_impact,
+        analyze_section_boost,
+        analyze_query_expansion,
+        run_full_rag_diagnostics,
+        download_pdf_to_rag,
+        save_patent_to_rag,
+        save_scholar_results_to_rag,
+    ],
+    "ml_prediction": [
+        predict_solubility_ml,
+    ],
+}
+
+# Category relationships - when one category is selected, related categories often needed
+CATEGORY_RELATIONSHIPS = {
+    "dissolution": ["solvent_properties", "visualization"],
+    "separation": ["dissolution", "solvent_properties", "visualization"],
+    "safety": ["solvent_properties"],
+    "economics": ["visualization"],
+    "strap": ["economics", "visualization"],
+}
+
+def route_query_to_categories(query: str) -> set:
+    """
+    Fast rule-based routing to determine which tool categories are needed.
+
+    Design principles:
+    1. Multi-category selection for integrated queries
+    2. "Integrated/comprehensive" queries get ALL tools
+    3. Related categories are included together
+    4. Core tools always included
+
+    Returns set of category names.
+    """
+    query_lower = query.lower()
+    selected_categories = set()
+
+    # ==========================================================
+    # INTEGRATED MODE: Full analysis queries get ALL categories
+    # ==========================================================
+    integrated_triggers = [
+        "full analysis", "full integrated", "comprehensive",
+        "complete analysis", "complete profile", "step by step",
+        "walk me through", "explain your reasoning", "explain each",
+        "document your", "tool selection", "which tools",
+        "end-to-end", "entire workflow", "full workflow",
+        "4-polymer", "5-polymer", "mixed plastic waste",
+        "multilayer", "multi-layer", "3-layer", "4-layer",
+        "recycling process", "complete recycling",
+    ]
+
+    if any(trigger in query_lower for trigger in integrated_triggers):
+        # Return ALL categories for integrated analysis
+        logger.info("Router: INTEGRATED MODE - providing all tools")
+        return set(TOOL_CATEGORIES.keys())
+
+    # ==========================================================
+    # Standard category detection (can select multiple)
+    # ==========================================================
+
+    # Database/Schema queries
+    if any(w in query_lower for w in ["table", "schema", "column", "database", "sql", "what data"]):
+        selected_categories.add("database")
+
+    # Dissolution queries
+    if any(w in query_lower for w in ["dissolve", "dissolution", "soluble", "solubility", "what solvents"]):
+        selected_categories.add("dissolution")
+
+    # Separation queries
+    if any(w in query_lower for w in ["separate", "separation", "selective", "selectivity", "sequence"]):
+        selected_categories.add("separation")
+
+    # Solvent property queries
+    if any(w in query_lower for w in [
+        "boiling point", "bp", "density", "viscosity", "cost", "price",
+        "property", "properties", "g-score", "gscore", "logp", "log p",
+        "cheapest", "expensive", "compare cost"
+    ]):
+        selected_categories.add("solvent_properties")
+
+    # Visualization queries
+    if any(w in query_lower for w in [
+        "plot", "graph", "chart", "visualize", "visualization",
+        "heatmap", "heat map", "show me", "display", "dashboard"
+    ]):
+        selected_categories.add("visualization")
+
+    # Statistics queries
+    if any(w in query_lower for w in [
+        "statistic", "correlation", "regression", "compare groups",
+        "significance", "p-value", "average", "mean", "std"
+    ]):
+        selected_categories.add("statistics")
+
+    # Safety queries
+    if any(w in query_lower for w in [
+        "safe", "safety", "toxic", "toxicity", "hazard", "ghs",
+        "health", "pubchem", "ld50", "carcinogen", "exposure",
+        "environmental impact", "biodegradable"
+    ]):
+        selected_categories.add("safety")
+
+    # TEA/LCA Economics queries
+    if any(w in query_lower for w in [
+        "tea", "lca", "techno-economic", "technoeconomic", "economic",
+        "cost analysis", "capital cost", "operating cost", "payback",
+        "carbon footprint", "co2", "gwp", "emissions", "energy consumption",
+        "recovery cost", "environmental"
+    ]):
+        selected_categories.add("economics")
+
+    # STRAP process queries
+    if any(w in query_lower for w in ["strap", "msp", "minimum selling price", "scale economics"]):
+        selected_categories.add("strap")
+
+    # Literature search queries
+    if any(w in query_lower for w in [
+        "paper", "article", "publication", "scholar", "wos",
+        "web of science", "research", "literature search", "find papers"
+    ]):
+        selected_categories.add("literature")
+
+    # Patent queries
+    if any(w in query_lower for w in ["patent", "patents", "intellectual property", "ip"]):
+        selected_categories.add("literature")
+
+    # RAG queries - includes deinking/printed plastics topics from RAG KB
+    if any(w in query_lower for w in [
+        "rag", "indexed", "search literature", "ask literature",
+        "ingest", "pdf", "embedding", "t-sne", "tsne", "umap",
+        "chunk", "retrieval", "search rag", "download to rag", "save to rag",
+        # Deinking/printed plastics topics (covered by RAG KB)
+        "deinking", "de-inking", "deink", "de-ink", "ink removal",
+        "binder", "binders", "printed plastic", "printed film",
+        "flexographic", "surfactant", "surfactants",
+        "multilayer packaging", "packaging recycling",
+        "knowledgebase", "knowledge base", "literature"
+    ]):
+        selected_categories.add("rag")
+
+    # ML prediction queries
+    if any(w in query_lower for w in ["predict", "prediction", "ml", "machine learning", "hansen", "hsp"]):
+        selected_categories.add("ml_prediction")
+
+    # ==========================================================
+    # Cross-category triggers (queries that span multiple categories)
+    # ==========================================================
+
+    # "rank by safety" = dissolution + safety
+    if "rank" in query_lower and any(w in query_lower for w in ["safe", "safety", "toxicity"]):
+        selected_categories.add("dissolution")
+        selected_categories.add("safety")
+        selected_categories.add("solvent_properties")
+
+    # "include G-scores" or "with G-score" = add safety
+    if "g-score" in query_lower or "gscore" in query_lower:
+        selected_categories.add("safety")
+        selected_categories.add("solvent_properties")
+
+    # "include/show/with boiling point" = add solvent_properties
+    if "boiling" in query_lower:
+        selected_categories.add("solvent_properties")
+
+    # "TEA at X kg/hr" or "run TEA" = economics
+    if "kg/hr" in query_lower or "throughput" in query_lower:
+        selected_categories.add("economics")
+
+    # "compare" queries often need visualization
+    if "compare" in query_lower:
+        selected_categories.add("visualization")
+
+    # ==========================================================
+    # Add related categories
+    # ==========================================================
+    categories_to_add = set()
+    for cat in selected_categories:
+        if cat in CATEGORY_RELATIONSHIPS:
+            categories_to_add.update(CATEGORY_RELATIONSHIPS[cat])
+    selected_categories.update(categories_to_add)
+
+    # ==========================================================
+    # Default: If nothing matched, provide database + dissolution
+    # ==========================================================
+    if not selected_categories:
+        logger.info("Router: No specific category matched, defaulting to database + dissolution")
+        selected_categories = {"database", "dissolution", "solvent_properties"}
+
+    return selected_categories
+
+
+def get_tools_for_categories(categories: set) -> list:
+    """
+    Get deduplicated list of tools for the given categories.
+    Always includes CORE_TOOLS.
+    Uses dict for deduplication since tools aren't hashable.
+    """
+    # Use dict with tool.name as key for deduplication
+    tools_by_name = {tool.name: tool for tool in CORE_TOOLS}
+
+    for category in categories:
+        if category in TOOL_CATEGORIES:
+            for tool in TOOL_CATEGORIES[category]:
+                tools_by_name[tool.name] = tool
+
+    # Convert to list and sort by name for consistency
+    tool_list = sorted(list(tools_by_name.values()), key=lambda t: t.name)
+    return tool_list
+
+
+async def router_node(state: dict) -> dict:
+    """
+    Router node: Analyzes the query and selects relevant tool categories.
+
+    This node runs BEFORE the agent node and sets state["selected_categories"]
+    which the agent node will use to reconstruct and bind tools to the LLM.
+
+    NOTE: We only store category names (strings) in state, not tool objects,
+    because the checkpointer can't serialize StructuredTool objects.
+
+    Performance: ~1ms (rule-based, no LLM call)
+    """
+    messages = state.get("messages", [])
+
+    if not messages:
+        # No messages, provide all categories
+        return {"selected_categories": list(TOOL_CATEGORIES.keys())}
+
+    # Find the last human message
+    last_human_message = None
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessageType):
+            last_human_message = msg
+            break
+
+    if not last_human_message:
+        # No human message found, provide all categories
+        return {"selected_categories": list(TOOL_CATEGORIES.keys())}
+
+    query = last_human_message.content if hasattr(last_human_message, 'content') else str(last_human_message)
+
+    # Route query to categories
+    categories = route_query_to_categories(query)
+
+    # Get tool count for logging (don't store tools in state)
+    selected_tools = get_tools_for_categories(categories)
+
+    logger.info(f"Router: Selected {len(categories)} categories: {sorted(categories)}")
+    logger.info(f"Router: Will provide {len(selected_tools)} tools (reduced from {len(SQL_AGENT_TOOLS)})")
+
+    # Only return category names (strings) - serializable by checkpointer
+    return {"selected_categories": list(categories)}
+
+
+print(f"\n✅ Tool Router initialized with {len(TOOL_CATEGORIES)} categories")
+print(f"   Categories: {', '.join(TOOL_CATEGORIES.keys())}")
+
+
+# ============================================================
 # LangGraph Agent Setup (PATCHED)
 # ============================================================
 
@@ -10674,7 +11075,7 @@ from langgraph.checkpoint.memory import MemorySaver
 # Enhanced Agent Configuration
 # ============================================================
 
-SQL_AGENT_PROMPT = """You are an EXPERT SQL data analyst specializing in polymer-solvent solubility analysis with ADAPTIVE analysis capabilities and extensive verification workflows.
+SQL_AGENT_PROMPT = """You are an EXPERT analyst specializing in polymer-solvent solubility analysis and plastic recycling research, with ADAPTIVE analysis capabilities, extensive verification workflows, and access to scientific literature through RAG knowledge bases.
 
 **YOUR MISSION:**
 Provide thorough, ACCURATE data analysis with intelligent threshold adaptation. NEVER hallucinate values - ALWAYS verify data before reporting.
@@ -10979,6 +11380,26 @@ YOUR RESPONSE TO USER (copy tool output exactly):
 - **Boiling Point**: Lower = easier solvent recovery, but may need pressure vessels
 - **Cp (Heat Capacity)**: Higher = more energy needed to heat
 
+### RAG TOOLS (Literature Knowledge Base Search):
+
+You have access to indexed scientific literature through RAG (Retrieval-Augmented Generation) knowledge bases. Use these tools to answer questions about topics covered in the literature, such as:
+- **Deinking/printed plastics recycling** (surfactants, binders, ink removal, flexographic printing)
+- **STRAP recycling methodology** (solvent-targeted recovery)
+- **Any topic covered in the indexed papers**
+
+**RAG Tools:**
+- `rag_search()` - **🔍 SEARCH LITERATURE** - Query the indexed knowledge base for relevant information
+  - **WHEN TO USE**: User asks about deinking, surfactants, binders, ink removal, printed plastics, or any topic that might be covered in literature
+  - **IMPORTANT**: If user asks a question about a topic (deinking, binders, surfactants, etc.) and database tools don't have the answer, USE RAG!
+
+- `rag_status()` - Check which knowledge bases are available and their contents
+- `switch_rag_kb()` - Switch between different knowledge bases (e.g., STRAP-CORE, printed_plastics_deinking)
+
+**RAG USAGE GUIDELINES:**
+1. **Follow-up questions**: If user asks a follow-up about topics found in RAG (e.g., "What binders have been tested?"), USE RAG AGAIN
+2. **Topic coverage**: RAG covers topics NOT in the database: deinking, surfactants, binders, ink removal, multilayer packaging recycling, printed plastics
+3. **Don't refuse RAG topics**: If the question is about deinking, binders, surfactants, or other RAG topics, SEARCH RAG - don't say "I cannot answer"
+
 Remember: ACCURACY > SPEED. ACTION > EXPLANATION. Always verify before reporting. Let the adaptive tools do their job - they will find results if any exist."""
 
 
@@ -10994,6 +11415,9 @@ class AgentState(MessagesState):
     user_id: Optional[str] = None
     memory_context: Optional[str] = None
     memory_enabled: bool = True
+    # Router fields (for dynamic tool selection)
+    # NOTE: Only store category names (strings), not tool objects (not serializable by checkpointer)
+    selected_categories: Optional[List[str]] = None
 
 
 class AsyncToolNode:
@@ -11211,8 +11635,23 @@ async def sql_agent_node(state: AgentState):
         # Get model from config if specified, otherwise use default
         model_name = state.get("configurable", {}).get("model") or DEFAULT_MODEL
         current_llm = create_llm(model_name)
-        sql_llm = current_llm.bind_tools(SQL_AGENT_TOOLS)
-        
+
+        # Get router-selected categories and reconstruct tools
+        # NOTE: We store only category names in state (strings are serializable)
+        # and reconstruct tool objects here
+        selected_categories = state.get("selected_categories") or []
+
+        if selected_categories:
+            # Reconstruct tools from categories
+            tools_to_bind = get_tools_for_categories(set(selected_categories))
+            logger.info(f"Agent using {len(tools_to_bind)} tools from categories: {selected_categories}")
+        else:
+            # Fallback to all tools if no categories selected
+            tools_to_bind = SQL_AGENT_TOOLS
+            logger.info(f"Agent using all {len(tools_to_bind)} tools (no router categories)")
+
+        sql_llm = current_llm.bind_tools(tools_to_bind)
+
         # Ensure SQL_AGENT_PROMPT is a string
         prompt = SQL_AGENT_PROMPT if isinstance(SQL_AGENT_PROMPT, str) else str(SQL_AGENT_PROMPT)
 
@@ -11335,12 +11774,22 @@ def should_continue(state: AgentState) -> Literal["continue", "end"]:
     return "end"
 
 
-# Build async agent graph
+# Build async agent graph with ROUTER for intelligent tool selection
 builder = StateGraph(AgentState)
-builder.add_node("agent", sql_agent_node)  # Async node
-builder.add_node("tools", AsyncToolNode(SQL_AGENT_TOOLS))  # Async tool node with parallel execution
 
-builder.add_edge(START, "agent")
+# Add router node (runs first, selects relevant tools based on query)
+builder.add_node("router", router_node)
+
+# Add agent node (uses router-selected tools)
+builder.add_node("agent", sql_agent_node)
+
+# Add tool node (keeps ALL tools - can execute any tool the LLM calls)
+# This ensures robustness even if router misses a category
+builder.add_node("tools", AsyncToolNode(SQL_AGENT_TOOLS))
+
+# Graph flow: START → router → agent ↔ tools → END
+builder.add_edge(START, "router")
+builder.add_edge("router", "agent")
 builder.add_conditional_edges("agent", should_continue, {"continue": "tools", "end": END})
 builder.add_edge("tools", "agent")
 
@@ -11348,8 +11797,9 @@ checkpointer = MemorySaver()
 agent_graph = builder.compile(checkpointer=checkpointer)
 
 logger.info("✅ Async SQL Agent System compiled successfully!")
-logger.info(f"SQL Agent: {len(SQL_AGENT_TOOLS)} tools available (async with parallel execution)")
-logger.info("Performance: 4-6x faster with parallel tool execution and async DB queries")
+logger.info(f"SQL Agent: {len(SQL_AGENT_TOOLS)} total tools, {len(TOOL_CATEGORIES)} categories")
+logger.info("Router: Intelligent tool selection reduces LLM context by 60-70% per query")
+logger.info("Performance: Router + async parallel execution = faster responses")
 
 # ============================================================
 # Utility Functions for External Integration

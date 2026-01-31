@@ -1,0 +1,596 @@
+[
+  {
+    "timestamp": "2026-01-26T14:08:35.926138",
+    "kb_name": "printed_plastics_deinking",
+    "papers_processed": 4,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 888,
+    "indexed_chunks": 788,
+    "llm_stats": {
+      "total_llm_calls": 140,
+      "figure_interpretation_calls": 40,
+      "parent_context_calls": 100,
+      "per_paper": [
+        {
+          "filename": "10_Removal_of_contaminants_from_recycled_po.pdf",
+          "source_name": "10_Removal_of_contaminants_from_recycled_po",
+          "figure_llm_calls": 11,
+          "parent_context_llm_calls": 19,
+          "total_llm_calls": 30,
+          "section_chunks": 19,
+          "paragraph_chunks": 220,
+          "timestamp": "2026-01-26T13:54:02.921974"
+        },
+        {
+          "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+          "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+          "figure_llm_calls": 11,
+          "parent_context_llm_calls": 29,
+          "total_llm_calls": 40,
+          "section_chunks": 29,
+          "paragraph_chunks": 192,
+          "timestamp": "2026-01-26T13:58:14.476318"
+        },
+        {
+          "filename": "06_Recycling_of_multi-material_multilayer_p.pdf",
+          "source_name": "06_Recycling_of_multi-material_multilayer_p",
+          "figure_llm_calls": 10,
+          "parent_context_llm_calls": 28,
+          "total_llm_calls": 38,
+          "section_chunks": 28,
+          "paragraph_chunks": 193,
+          "timestamp": "2026-01-26T14:01:42.186138"
+        },
+        {
+          "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+          "source_name": "04_Delamination_and_deinking_of_colored_mul",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 24,
+          "total_llm_calls": 32,
+          "section_chunks": 24,
+          "paragraph_chunks": 193,
+          "timestamp": "2026-01-26T14:05:18.059194"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "10_Removal_of_contaminants_from_recycled_po.pdf",
+        "source_name": "10_Removal_of_contaminants_from_recycled_po",
+        "figure_llm_calls": 11,
+        "parent_context_llm_calls": 19,
+        "total_llm_calls": 30,
+        "section_chunks": 19,
+        "paragraph_chunks": 220,
+        "timestamp": "2026-01-26T13:54:02.921974"
+      },
+      {
+        "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+        "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+        "figure_llm_calls": 11,
+        "parent_context_llm_calls": 29,
+        "total_llm_calls": 40,
+        "section_chunks": 29,
+        "paragraph_chunks": 192,
+        "timestamp": "2026-01-26T13:58:14.476318"
+      },
+      {
+        "filename": "06_Recycling_of_multi-material_multilayer_p.pdf",
+        "source_name": "06_Recycling_of_multi-material_multilayer_p",
+        "figure_llm_calls": 10,
+        "parent_context_llm_calls": 28,
+        "total_llm_calls": 38,
+        "section_chunks": 28,
+        "paragraph_chunks": 193,
+        "timestamp": "2026-01-26T14:01:42.186138"
+      },
+      {
+        "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+        "source_name": "04_Delamination_and_deinking_of_colored_mul",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 24,
+        "total_llm_calls": 32,
+        "section_chunks": 24,
+        "paragraph_chunks": 193,
+        "timestamp": "2026-01-26T14:05:18.059194"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-26T15:22:40.142669",
+    "kb_name": "printed_plastics_deinking",
+    "papers_processed": 3,
+    "papers_skipped": 0,
+    "papers_failed": 1,
+    "total_chunks": 638,
+    "indexed_chunks": 569,
+    "llm_stats": {
+      "total_llm_calls": 92,
+      "figure_interpretation_calls": 23,
+      "parent_context_calls": 69,
+      "per_paper": [
+        {
+          "filename": "10_Removal_of_contaminants_from_recycled_po.pdf",
+          "source_name": "10_Removal_of_contaminants_from_recycled_po",
+          "figure_llm_calls": 10,
+          "parent_context_llm_calls": 19,
+          "total_llm_calls": 29,
+          "section_chunks": 19,
+          "paragraph_chunks": 219,
+          "timestamp": "2026-01-26T15:15:14.773203"
+        },
+        {
+          "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+          "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 26,
+          "total_llm_calls": 34,
+          "section_chunks": 26,
+          "paragraph_chunks": 182,
+          "timestamp": "2026-01-26T15:18:03.168529"
+        },
+        {
+          "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+          "source_name": "04_Delamination_and_deinking_of_colored_mul",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 24,
+          "total_llm_calls": 29,
+          "section_chunks": 24,
+          "paragraph_chunks": 174,
+          "timestamp": "2026-01-26T15:20:24.850725"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "10_Removal_of_contaminants_from_recycled_po.pdf",
+        "source_name": "10_Removal_of_contaminants_from_recycled_po",
+        "figure_llm_calls": 10,
+        "parent_context_llm_calls": 19,
+        "total_llm_calls": 29,
+        "section_chunks": 19,
+        "paragraph_chunks": 219,
+        "timestamp": "2026-01-26T15:15:14.773203"
+      },
+      {
+        "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+        "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 26,
+        "total_llm_calls": 34,
+        "section_chunks": 26,
+        "paragraph_chunks": 182,
+        "timestamp": "2026-01-26T15:18:03.168529"
+      },
+      {
+        "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+        "source_name": "04_Delamination_and_deinking_of_colored_mul",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 24,
+        "total_llm_calls": 29,
+        "section_chunks": 24,
+        "paragraph_chunks": 174,
+        "timestamp": "2026-01-26T15:20:24.850725"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-26T18:39:42.866664",
+    "kb_name": "printed_plastics_deinking",
+    "papers_processed": 20,
+    "papers_skipped": 0,
+    "papers_failed": 0,
+    "total_chunks": 2757,
+    "indexed_chunks": 2431,
+    "llm_stats": {
+      "total_llm_calls": 464,
+      "figure_interpretation_calls": 133,
+      "parent_context_calls": 331,
+      "per_paper": [
+        {
+          "filename": "Removal_of_UV_curable_inks_from_flexographic_printed_PE_films.pdf",
+          "source_name": "Removal_of_UV_curable_inks_from_flexographic_printed_PE_films",
+          "figure_llm_calls": 7,
+          "parent_context_llm_calls": 17,
+          "total_llm_calls": 24,
+          "section_chunks": 17,
+          "paragraph_chunks": 60,
+          "timestamp": "2026-01-26T17:43:30.326720"
+        },
+        {
+          "filename": "Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment.pdf",
+          "source_name": "Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment",
+          "figure_llm_calls": 6,
+          "parent_context_llm_calls": 19,
+          "total_llm_calls": 25,
+          "section_chunks": 19,
+          "paragraph_chunks": 82,
+          "timestamp": "2026-01-26T17:45:42.000890"
+        },
+        {
+          "filename": "Water-based_flexographic_inks_deinking_from_printed_polyethylene_films.pdf",
+          "source_name": "Water-based_flexographic_inks_deinking_from_printed_polyethylene_films",
+          "figure_llm_calls": 9,
+          "parent_context_llm_calls": 25,
+          "total_llm_calls": 34,
+          "section_chunks": 25,
+          "paragraph_chunks": 100,
+          "timestamp": "2026-01-26T17:48:30.333880"
+        },
+        {
+          "filename": "Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi.pdf",
+          "source_name": "Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi",
+          "figure_llm_calls": 6,
+          "parent_context_llm_calls": 10,
+          "total_llm_calls": 16,
+          "section_chunks": 10,
+          "paragraph_chunks": 173,
+          "timestamp": "2026-01-26T17:51:35.088086"
+        },
+        {
+          "filename": "Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant.pdf",
+          "source_name": "Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant",
+          "figure_llm_calls": 14,
+          "parent_context_llm_calls": 12,
+          "total_llm_calls": 26,
+          "section_chunks": 12,
+          "paragraph_chunks": 166,
+          "timestamp": "2026-01-26T17:54:26.551664"
+        },
+        {
+          "filename": "Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr.pdf",
+          "source_name": "Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr",
+          "figure_llm_calls": 9,
+          "parent_context_llm_calls": 16,
+          "total_llm_calls": 25,
+          "section_chunks": 16,
+          "paragraph_chunks": 85,
+          "timestamp": "2026-01-26T17:56:42.098188"
+        },
+        {
+          "filename": "Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a.pdf",
+          "source_name": "Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a",
+          "figure_llm_calls": 4,
+          "parent_context_llm_calls": 13,
+          "total_llm_calls": 17,
+          "section_chunks": 13,
+          "paragraph_chunks": 108,
+          "timestamp": "2026-01-26T17:58:28.751102"
+        },
+        {
+          "filename": "POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING.pdf",
+          "source_name": "POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING",
+          "figure_llm_calls": 0,
+          "parent_context_llm_calls": 42,
+          "total_llm_calls": 42,
+          "section_chunks": 42,
+          "paragraph_chunks": 62,
+          "timestamp": "2026-01-26T18:01:24.766461"
+        },
+        {
+          "filename": "Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na.pdf",
+          "source_name": "Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na",
+          "figure_llm_calls": 9,
+          "parent_context_llm_calls": 19,
+          "total_llm_calls": 28,
+          "section_chunks": 19,
+          "paragraph_chunks": 204,
+          "timestamp": "2026-01-26T18:04:52.859940"
+        },
+        {
+          "filename": "Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou.pdf",
+          "source_name": "Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou",
+          "figure_llm_calls": 7,
+          "parent_context_llm_calls": 37,
+          "total_llm_calls": 44,
+          "section_chunks": 37,
+          "paragraph_chunks": 187,
+          "timestamp": "2026-01-26T18:09:40.563260"
+        },
+        {
+          "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+          "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 25,
+          "total_llm_calls": 33,
+          "section_chunks": 25,
+          "paragraph_chunks": 180,
+          "timestamp": "2026-01-26T18:12:12.548354"
+        },
+        {
+          "filename": "The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid.pdf",
+          "source_name": "The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 10,
+          "total_llm_calls": 18,
+          "section_chunks": 10,
+          "paragraph_chunks": 100,
+          "timestamp": "2026-01-26T18:14:20.438455"
+        },
+        {
+          "filename": "Recycling_of_plastic_film_from_industrial_and_residential_waste_streams.pdf",
+          "source_name": "Recycling_of_plastic_film_from_industrial_and_residential_waste_streams",
+          "figure_llm_calls": 11,
+          "parent_context_llm_calls": 2,
+          "total_llm_calls": 13,
+          "section_chunks": 2,
+          "paragraph_chunks": 87,
+          "timestamp": "2026-01-26T18:16:09.179959"
+        },
+        {
+          "filename": "Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions.pdf",
+          "source_name": "Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions",
+          "figure_llm_calls": 11,
+          "parent_context_llm_calls": 7,
+          "total_llm_calls": 18,
+          "section_chunks": 7,
+          "paragraph_chunks": 118,
+          "timestamp": "2026-01-26T18:18:35.289594"
+        },
+        {
+          "filename": "Deinking_of_flexographic_PE_using_surfactant_solutions.pdf",
+          "source_name": "Deinking_of_flexographic_PE_using_surfactant_solutions",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 17,
+          "total_llm_calls": 22,
+          "section_chunks": 17,
+          "paragraph_chunks": 43,
+          "timestamp": "2026-01-26T18:20:16.274076"
+        },
+        {
+          "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+          "source_name": "04_Delamination_and_deinking_of_colored_mul",
+          "figure_llm_calls": 5,
+          "parent_context_llm_calls": 24,
+          "total_llm_calls": 29,
+          "section_chunks": 24,
+          "paragraph_chunks": 177,
+          "timestamp": "2026-01-26T18:22:32.889055"
+        },
+        {
+          "filename": "The_use_of_surfactants_in_the_cleaning_of_works_of_art.pdf",
+          "source_name": "The_use_of_surfactants_in_the_cleaning_of_works_of_art",
+          "figure_llm_calls": 0,
+          "parent_context_llm_calls": 1,
+          "total_llm_calls": 1,
+          "section_chunks": 1,
+          "paragraph_chunks": 147,
+          "timestamp": "2026-01-26T18:23:47.747289"
+        },
+        {
+          "filename": "The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based.pdf",
+          "source_name": "The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based",
+          "figure_llm_calls": 8,
+          "parent_context_llm_calls": 18,
+          "total_llm_calls": 26,
+          "section_chunks": 18,
+          "paragraph_chunks": 262,
+          "timestamp": "2026-01-26T18:27:12.355423"
+        },
+        {
+          "filename": "The_use_of_surfactants_in_de-inking_paper_for_paper_recycling.pdf",
+          "source_name": "The_use_of_surfactants_in_de-inking_paper_for_paper_recycling",
+          "figure_llm_calls": 0,
+          "parent_context_llm_calls": 3,
+          "total_llm_calls": 3,
+          "section_chunks": 3,
+          "paragraph_chunks": 75,
+          "timestamp": "2026-01-26T18:27:49.808652"
+        },
+        {
+          "filename": "Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly.pdf",
+          "source_name": "Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly",
+          "figure_llm_calls": 6,
+          "parent_context_llm_calls": 14,
+          "total_llm_calls": 20,
+          "section_chunks": 14,
+          "paragraph_chunks": 178,
+          "timestamp": "2026-01-26T18:29:56.258845"
+        }
+      ]
+    },
+    "paper_details": [
+      {
+        "filename": "Removal_of_UV_curable_inks_from_flexographic_printed_PE_films.pdf",
+        "source_name": "Removal_of_UV_curable_inks_from_flexographic_printed_PE_films",
+        "figure_llm_calls": 7,
+        "parent_context_llm_calls": 17,
+        "total_llm_calls": 24,
+        "section_chunks": 17,
+        "paragraph_chunks": 60,
+        "timestamp": "2026-01-26T17:43:30.326720"
+      },
+      {
+        "filename": "Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment.pdf",
+        "source_name": "Improving_Water-Based_Ink_Adhesion_on_Commercial_Polymers_by_Corona_Treatment",
+        "figure_llm_calls": 6,
+        "parent_context_llm_calls": 19,
+        "total_llm_calls": 25,
+        "section_chunks": 19,
+        "paragraph_chunks": 82,
+        "timestamp": "2026-01-26T17:45:42.000890"
+      },
+      {
+        "filename": "Water-based_flexographic_inks_deinking_from_printed_polyethylene_films.pdf",
+        "source_name": "Water-based_flexographic_inks_deinking_from_printed_polyethylene_films",
+        "figure_llm_calls": 9,
+        "parent_context_llm_calls": 25,
+        "total_llm_calls": 34,
+        "section_chunks": 25,
+        "paragraph_chunks": 100,
+        "timestamp": "2026-01-26T17:48:30.333880"
+      },
+      {
+        "filename": "Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi.pdf",
+        "source_name": "Understanding_the_complexity_of_deinking_plastic_waste_An_assessment_of_the_effi",
+        "figure_llm_calls": 6,
+        "parent_context_llm_calls": 10,
+        "total_llm_calls": 16,
+        "section_chunks": 10,
+        "paragraph_chunks": 173,
+        "timestamp": "2026-01-26T17:51:35.088086"
+      },
+      {
+        "filename": "Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant.pdf",
+        "source_name": "Deinking_of_water-based_ink_printing_from_plastic_film_using_nonionic_surfactant",
+        "figure_llm_calls": 14,
+        "parent_context_llm_calls": 12,
+        "total_llm_calls": 26,
+        "section_chunks": 12,
+        "paragraph_chunks": 166,
+        "timestamp": "2026-01-26T17:54:26.551664"
+      },
+      {
+        "filename": "Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr.pdf",
+        "source_name": "Mechanistic_parallels_between_de-inking_and_laundering_are_complicated_by_the_gr",
+        "figure_llm_calls": 9,
+        "parent_context_llm_calls": 16,
+        "total_llm_calls": 25,
+        "section_chunks": 16,
+        "paragraph_chunks": 85,
+        "timestamp": "2026-01-26T17:56:42.098188"
+      },
+      {
+        "filename": "Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a.pdf",
+        "source_name": "Nanoscale_Probing_of_the_Organic_Binder_in_Artists_Paint_Layers_Organic_Phases_a",
+        "figure_llm_calls": 4,
+        "parent_context_llm_calls": 13,
+        "total_llm_calls": 17,
+        "section_chunks": 13,
+        "paragraph_chunks": 108,
+        "timestamp": "2026-01-26T17:58:28.751102"
+      },
+      {
+        "filename": "POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING.pdf",
+        "source_name": "POLYURETHANE_FOR_PRINTING_INK_BINDER_METHOD_FOR_PRODUCING_THE_SAME_AND_PRINTING",
+        "figure_llm_calls": 0,
+        "parent_context_llm_calls": 42,
+        "total_llm_calls": 42,
+        "section_chunks": 42,
+        "paragraph_chunks": 62,
+        "timestamp": "2026-01-26T18:01:24.766461"
+      },
+      {
+        "filename": "Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na.pdf",
+        "source_name": "Removing_Polymeric_Coatings_With_Nanostructured_Fluids_Influence_of_Substrate_Na",
+        "figure_llm_calls": 9,
+        "parent_context_llm_calls": 19,
+        "total_llm_calls": 28,
+        "section_chunks": 19,
+        "paragraph_chunks": 204,
+        "timestamp": "2026-01-26T18:04:52.859940"
+      },
+      {
+        "filename": "Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou.pdf",
+        "source_name": "Understanding_de-inking_in_packaging_plastic_recycling_Bridging_the_gap_in_resou",
+        "figure_llm_calls": 7,
+        "parent_context_llm_calls": 37,
+        "total_llm_calls": 44,
+        "section_chunks": 37,
+        "paragraph_chunks": 187,
+        "timestamp": "2026-01-26T18:09:40.563260"
+      },
+      {
+        "filename": "01_Screening_the_Impact_of_Surfactants_and_.pdf",
+        "source_name": "01_Screening_the_Impact_of_Surfactants_and_",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 25,
+        "total_llm_calls": 33,
+        "section_chunks": 25,
+        "paragraph_chunks": 180,
+        "timestamp": "2026-01-26T18:12:12.548354"
+      },
+      {
+        "filename": "The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid.pdf",
+        "source_name": "The_role_of_liquid_penetration_in_detergency_of_long-chain_fatty_acid",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 10,
+        "total_llm_calls": 18,
+        "section_chunks": 10,
+        "paragraph_chunks": 100,
+        "timestamp": "2026-01-26T18:14:20.438455"
+      },
+      {
+        "filename": "Recycling_of_plastic_film_from_industrial_and_residential_waste_streams.pdf",
+        "source_name": "Recycling_of_plastic_film_from_industrial_and_residential_waste_streams",
+        "figure_llm_calls": 11,
+        "parent_context_llm_calls": 2,
+        "total_llm_calls": 13,
+        "section_chunks": 2,
+        "paragraph_chunks": 87,
+        "timestamp": "2026-01-26T18:16:09.179959"
+      },
+      {
+        "filename": "Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions.pdf",
+        "source_name": "Deinking_of_flexographic_printed_plastic_films_by_use_of_surfactant_solutions",
+        "figure_llm_calls": 11,
+        "parent_context_llm_calls": 7,
+        "total_llm_calls": 18,
+        "section_chunks": 7,
+        "paragraph_chunks": 118,
+        "timestamp": "2026-01-26T18:18:35.289594"
+      },
+      {
+        "filename": "Deinking_of_flexographic_PE_using_surfactant_solutions.pdf",
+        "source_name": "Deinking_of_flexographic_PE_using_surfactant_solutions",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 17,
+        "total_llm_calls": 22,
+        "section_chunks": 17,
+        "paragraph_chunks": 43,
+        "timestamp": "2026-01-26T18:20:16.274076"
+      },
+      {
+        "filename": "04_Delamination_and_deinking_of_colored_mul.pdf",
+        "source_name": "04_Delamination_and_deinking_of_colored_mul",
+        "figure_llm_calls": 5,
+        "parent_context_llm_calls": 24,
+        "total_llm_calls": 29,
+        "section_chunks": 24,
+        "paragraph_chunks": 177,
+        "timestamp": "2026-01-26T18:22:32.889055"
+      },
+      {
+        "filename": "The_use_of_surfactants_in_the_cleaning_of_works_of_art.pdf",
+        "source_name": "The_use_of_surfactants_in_the_cleaning_of_works_of_art",
+        "figure_llm_calls": 0,
+        "parent_context_llm_calls": 1,
+        "total_llm_calls": 1,
+        "section_chunks": 1,
+        "paragraph_chunks": 147,
+        "timestamp": "2026-01-26T18:23:47.747289"
+      },
+      {
+        "filename": "The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based.pdf",
+        "source_name": "The_impact_of_polyurethane_adhesives_on_the_recyclability_of_polyethylene-based",
+        "figure_llm_calls": 8,
+        "parent_context_llm_calls": 18,
+        "total_llm_calls": 26,
+        "section_chunks": 18,
+        "paragraph_chunks": 262,
+        "timestamp": "2026-01-26T18:27:12.355423"
+      },
+      {
+        "filename": "The_use_of_surfactants_in_de-inking_paper_for_paper_recycling.pdf",
+        "source_name": "The_use_of_surfactants_in_de-inking_paper_for_paper_recycling",
+        "figure_llm_calls": 0,
+        "parent_context_llm_calls": 3,
+        "total_llm_calls": 3,
+        "section_chunks": 3,
+        "paragraph_chunks": 75,
+        "timestamp": "2026-01-26T18:27:49.808652"
+      },
+      {
+        "filename": "Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly.pdf",
+        "source_name": "Nanostructured_fluids_for_polymeric_coatings_removal_Surfactants_affect_the_poly",
+        "figure_llm_calls": 6,
+        "parent_context_llm_calls": 14,
+        "total_llm_calls": 20,
+        "section_chunks": 14,
+        "paragraph_chunks": 178,
+        "timestamp": "2026-01-26T18:29:56.258845"
+      }
+    ]
+  }
+]

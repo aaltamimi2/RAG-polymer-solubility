@@ -1,0 +1,259 @@
+======================================================================
+DISSOLVE AGENT COMPLEXITY ASSESSMENT
+======================================================================
+Started: 2026-01-24T15:00:03.348462
+API: http://localhost:8000
+
+
+======================================================================
+Query 1.1: Basic Solvent Screening (Level 1)
+======================================================================
+Query: What solvents dissolve LDPE at 110°C? Show the top 5 ranked by solubility percentage....
+
+1. Evaluating complexity...
+   Score: 2/5 (Simple)
+   Reasoning: Requires polymer lookup and ranking, likely 2-3 tool calls.
+   Estimated tools: 3
+
+2. Running query...
+   Elapsed: 2.6s
+   Iterations: 2
+   Status: PASS
+   Saved: query_1_1.json
+
+======================================================================
+Query 1.2: Basic Safety Check (Level 1)
+======================================================================
+Query: What is the G-score safety rating for dodecane, heptane, and toluene?...
+
+1. Evaluating complexity...
+   Score: 2/5 (Simple)
+   Reasoning: Requires multiple solvent property lookups, likely using the safety data tool.
+   Estimated tools: 2
+
+2. Running query...
+   Elapsed: 3.2s
+   Iterations: 2
+   Status: PASS
+   Saved: query_1_2.json
+
+======================================================================
+Query 1.3: Basic TEA (Level 1)
+======================================================================
+Query: Run a TEA analysis for heptane solvent recovery at 100 kg/hr throughput....
+
+1. Evaluating complexity...
+   Score: 3/5 (Moderate)
+   Reasoning: Requires TEA tool and likely solvent properties, data integration needed.
+   Estimated tools: 3
+
+2. Running query...
+   Elapsed: 2.1s
+   Iterations: 2
+   Status: PASS
+   Saved: query_1_3.json
+
+======================================================================
+Query 2.1: Solvent + Safety (Level 2)
+======================================================================
+Query: Find solvents that dissolve LDPE at 110°C with G-score above 5. Rank by solubility....
+
+1. Evaluating complexity...
+   Score: 3/5 (Moderate)
+   Reasoning: Requires polymer lookup, solvent filtering, and ranking, integrating multiple data sources.
+   Estimated tools: 4
+
+2. Running query...
+   Elapsed: 4.1s
+   Iterations: 3
+   Status: PASS
+   Saved: query_2_1.json
+
+======================================================================
+Query 2.2: Dissolution + Properties (Level 2)
+======================================================================
+Query: What solvents dissolve PE at 110°C? For the top 3, show their boiling points, cost, and LogP toxicit...
+
+1. Evaluating complexity...
+   Score: 3/5 (Moderate)
+   Reasoning: Requires polymer lookup, solvent properties, and data integration for comparison.
+   Estimated tools: 4
+
+2. Running query...
+   Elapsed: 2.3s
+   Iterations: 2
+   Status: PASS
+   Saved: query_2_2.json
+
+======================================================================
+Query 2.3: TEA + Visualization (Level 2)
+======================================================================
+Query: Run TEA for dodecane recovery at 500 kg/hr and generate a cost breakdown visualization....
+
+1. Evaluating complexity...
+   Score: 3/5 (Moderate)
+   Reasoning: TEA analysis with visualization requires data integration and multiple tool calls.
+   Estimated tools: 3
+
+2. Running query...
+   Elapsed: 3.5s
+   Iterations: 2
+   Visualizations: 6 generated
+   Status: PASS
+   Saved: query_2_3.json
+
+======================================================================
+Query 3.1: Multilayer Separation Strategy (Level 3)
+======================================================================
+Query: Design a separation strategy for a PE/EVOH multilayer film. Find selective solvents for each layer a...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires multilayer separation, solvent lookup, safety filtering, and temperature constraints.
+   Estimated tools: 6
+
+2. Running query...
+   Elapsed: 2.8s
+   Iterations: 2
+   Visualizations: 1 generated
+   Status: PASS
+   Saved: query_3_1.json
+
+======================================================================
+Query 3.2: TEA + LCA Comparison (Level 3)
+======================================================================
+Query: Compare TEA and LCA for heptane vs dodecane solvent recovery at 1000 kg/hr. Which has lower operatin...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires TEA, LCA, data integration, and comparison for two solvents at a specific rate.
+   Estimated tools: 6
+
+2. Running query...
+   Elapsed: 2.3s
+   Iterations: 2
+   Status: PASS
+   Saved: query_3_2.json
+
+======================================================================
+Query 3.3: Solvent Screening with Full Analysis (Level 3)
+======================================================================
+Query: For LDPE dissolution at 110°C, find the best solvent considering: (1) solubility > 80%, (2) G-score ...
+
+1. Evaluating complexity...
+   Score: 3/5 (Moderate)
+   Reasoning: Requires multiple tools and data integration for comparison table generation.
+   Estimated tools: 5
+
+2. Running query...
+   Elapsed: 4.9s
+   Iterations: 2
+   Status: PASS
+   Saved: query_3_3.json
+
+======================================================================
+Query 4.1: Full STRAP Process Analysis (Level 4)
+======================================================================
+Query: Run a full STRAP analysis for PE recovery from biocontainer film waste at 5000 kg/hr using heptane a...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires multiple tools, data integration, and multi-step analysis for a full STRAP.
+   Estimated tools: 7
+
+2. Running query...
+   Elapsed: 5.2s
+   Iterations: 2
+   Visualizations: 3 generated
+   Status: PASS
+   Saved: query_4_1.json
+
+======================================================================
+Query 4.2: Two-Stage Separation with Economics (Level 4)
+======================================================================
+Query: Design a two-stage STRAP process for PE/EVOH separation: Stage 1 dissolves PE selectively, Stage 2 r...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires multiple tools, data integration, and multi-step analysis for a STRAP process.
+   Estimated tools: 8
+
+2. Running query...
+   Elapsed: 1.2s
+   Iterations: 1
+   Status: PASS
+   Saved: query_4_2.json
+
+======================================================================
+Query 4.3: Scenario Comparison (Level 4)
+======================================================================
+Query: Compare three recycling scenarios for PE/EVOH film at 5000 kg/hr:
+- Scenario 1: PE recovery only usi...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires TEA, LCA, multiple scenarios, data integration, and visualization generation.
+   Estimated tools: 7
+
+2. Running query...
+   Elapsed: 1.7s
+   Iterations: 1
+   Status: PASS
+   Saved: query_4_3.json
+
+======================================================================
+Query 5.1: Complete Process Design with RAG (Level 5)
+======================================================================
+Query: I need to design a solvent-based recycling process for multilayer biocontainer films (PE/EVOH). Firs...
+
+1. Evaluating complexity...
+   Score: 5/5 (Research)
+   Reasoning: Requires extensive tool usage, multi-step analysis, and data integration.
+   Estimated tools: 10
+
+2. Running query...
+   Elapsed: 14.5s
+   Iterations: 2
+   Visualizations: 2 generated
+   Status: PASS
+   Saved: query_5_1.json
+
+======================================================================
+Query 5.2: Minimum Selling Price Analysis (Level 5)
+======================================================================
+Query: For a STRAP process recovering PE from multilayer film using dodecane at 110°C:
+1. Find the solvent ...
+
+1. Evaluating complexity...
+   Score: 4/5 (Complex)
+   Reasoning: Requires multiple tools, data integration, and multi-step analysis for a full STRAP process.
+   Estimated tools: 7
+
+2. Running query...
+   Elapsed: 10.8s
+   Iterations: 3
+   Status: PASS
+   Saved: query_5_2.json
+
+======================================================================
+Query 6.1: Comprehensive Solvent Selection Pipeline (Level 6)
+======================================================================
+Query: I'm designing a PE recycling process and need a comprehensive solvent analysis:
+
+1. List all solvent...
+
+1. Evaluating complexity...
+   Score: 5/5 (Research)
+   Reasoning: Requires extensive tool usage, data integration, and multi-step analysis.
+   Estimated tools: 10
+
+2. Running query...
+   Elapsed: 22.4s
+   Iterations: 6
+   Visualizations: 1 generated
+   Status: PASS
+   Saved: query_6_1.json
+
+
+Full results saved to: documentation/complexity_assessment/outputs/full_assessment_results.json
+Summary saved to: documentation/complexity_assessment/ASSESSMENT_RESULTS.md

@@ -1,0 +1,58 @@
+
+╔══════════════════════════════════════════════════════════════╗
+║ POLYMER-SOLVENT SOLUBILITY PREDICTION                       ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║ Polymer:  Nylon 66                                           ║
+║ Solvent:  Water                                              ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ PREDICTION                                                   ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║ Result:       ✗ NON-SOLUBLE                                      ║
+║ Probability:    0.0%                                             ║
+║ Confidence:   High                                               ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ HANSEN SOLUBILITY PARAMETERS                                ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║ Polymer HSPs:                                                ║
+║   Dispersion (δD):   17.0                                       ║
+║   Polar (δP):         6.3                                       ║
+║   Hydrogen (δH):     12.7                                       ║
+║                                                              ║
+║ Solvent HSPs:                                                ║
+║   Dispersion (δD):   15.5                                       ║
+║   Polar (δP):        16.0                                       ║
+║   Hydrogen (δH):     42.3                                       ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ RED CALCULATION                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║ Parameter Differences:                                       ║
+║   ΔD =  +1.50                                            ║
+║   ΔP =  -9.70                                            ║
+║   ΔH = -29.60                                            ║
+║                                                              ║
+║ Hansen Distance:                                             ║
+║   Ra = sqrt(4×ΔD² + ΔP² + ΔH²) =  31.29                      ║
+║                                                              ║
+║ Interaction Radius:                                          ║
+║   R0 =   6.80                                            ║
+║                                                              ║
+║ RED (Relative Energy Difference):                            ║
+║   RED = Ra / R0 =  4.602                                 ║
+║   Threshold: RED < 1.0 for solubility                        ║
+║   Theory prediction: NON-SOLUBLE                              ║
+║                                                              ║
+╠══════════════════════════════════════════════════════════════╣
+║ RECOMMENDATION                                               ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║ Both ML model and Hansen theory predict non-solubility.      ║
+║ High confidence - not recommended for application.           ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝

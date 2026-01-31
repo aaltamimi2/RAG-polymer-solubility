@@ -1,0 +1,25 @@
+{
+  "query_id": 12,
+  "query_text": "Is cyclohexane a good solvent for HDPE?",
+  "polymer": "HDPE",
+  "solvent": "Cyclohexane",
+  "polymer_hsp": {
+    "D": 18.0,
+    "P": 0.0,
+    "H": 2.0
+  },
+  "solvent_hsp": {
+    "D": 16.8,
+    "P": 0.0,
+    "H": 0.2
+  },
+  "r0": 2.0,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.006349729991223332,
+    "confidence": 0.3128001106473695,
+    "red": 1.4999999999999993,
+    "ra": 2.9999999999999987,
+    "r0": 2.0
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "query_id": 14,
+  "query_text": "Can acetone dissolve cellulose acetate?",
+  "polymer": "Cellulose Acetate",
+  "solvent": "Acetone",
+  "polymer_hsp": {
+    "D": 18.6,
+    "P": 12.7,
+    "H": 11.0
+  },
+  "solvent_hsp": {
+    "D": 15.5,
+    "P": 10.4,
+    "H": 7.0
+  },
+  "r0": 7.6,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.0018566839285541548,
+    "confidence": 0.3187362750567685,
+    "red": 1.0169103442287557,
+    "ra": 7.728518616138543,
+    "r0": 7.6
+  }
+}

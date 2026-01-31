@@ -1,0 +1,304 @@
+{
+  "timestamp": "2025-12-13T10:33:53.133950",
+  "server_url": "http://localhost:8000",
+  "results": [
+    {
+      "id": "01_tables",
+      "category": "Data Exploration",
+      "name": "List Available Tables",
+      "prompt": "What tables are available and what columns do they contain?",
+      "description": "Verify database schema and table structure",
+      "timestamp": "2025-12-13T10:29:15.116110",
+      "success": true,
+      "response": "The following tables are available:\n\n**1. `solvent_data`** (1007 rows)\nThis table contains information about various solvents and their properties.\n*   **s_n**: Serial Number (BIGINT)\n*   **solvent_name**: Name of the solvent (VARCHAR)\n*   **solvent_name_in_cosmobase**: Solvent name as listed in COSMObase (VARCHAR)\n*   **cas_number**: CAS number of the solvent (VARCHAR)\n*   **cid**: Chemical ID (DOUBLE)\n*   **bp__oc_**: Boiling point in degrees Celsius (DOUBLE)\n*   **th**: (Description not provided, but likely related to a thermal property) (DOUBLE)\n*   **logp**: LogP value, indicating lipophilicity/hydrophilicity and potential toxicity (DOUBLE)\n*   **cp__j_g_k_**: Heat capacity in J/g.K (DOUBLE)\n*   **energy__j_g_**: Energy cost in J/g (DOUBLE)\n\n**2. `common_solvents_database`** (8820 rows)\nThis table contains solubility data for various polymers in common solvents at different temperatures.\n*   **solvent**: Name of the solvent (VARCHAR)\n*   **temperature___c_**: Temperature in degrees Celsius (BIGINT)\n*   **solubility____**: Solubility percentage (DOUBLE)\n*   **polymer**: Name of the polymer (VARCHAR)",
+      "images": [],
+      "elapsed_time": 3.059030771255493,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "02_polymers",
+      "category": "Data Exploration",
+      "name": "List Polymers",
+      "prompt": "List all unique polymers in the database with their data counts",
+      "description": "Check available polymers for analysis",
+      "timestamp": "2025-12-13T10:29:21.478944",
+      "success": true,
+      "response": "The unique polymers in the database are:\n\n*   **Nylon66**: 980 data points\n*   **PP**: 980 data points\n*   **PC**: 980 data points\n*   **PS**: 980 data points\n*   **EVOH**: 980 data points\n*   **PVC**: 980 data points\n*   **PET**: 980 data points\n*   **HDPE**: 980 data points\n*   **LDPE**: 980 data points",
+      "images": [],
+      "elapsed_time": 1.9457309246063232,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "03_ldpe_solvents",
+      "category": "Basic Queries",
+      "name": "LDPE Solvents at 25\u00b0C",
+      "prompt": "Find the top 10 solvents that dissolve LDPE at 25\u00b0C, ranked by solubility percentage",
+      "description": "Basic solubility query for single polymer",
+      "timestamp": "2025-12-13T10:29:26.729221",
+      "success": true,
+      "response": "At 25\u00b0C, the top 10 solvents that dissolve LDPE, ranked by solubility percentage, are:\n\n| Solvent             | Solubility (%) |\n| :------------------ | :------------- |\n| Cyclohexane         | 0.1356         |\n| Hexane              | 0.1288         |\n| n-Heptane           | 0.1085         |\n| Triethylamine       | 0.1022         |\n| THF                 | 0.0811         |\n| THP                 | 0.0805         |\n| Dodecane            | 0.0636         |\n| 1,4-Dimethylbenzene | 0.0587         |\n| Toluene             | 0.0540         |\n| 1,2-Dimethylbenzene | 0.0540         |",
+      "images": [],
+      "elapsed_time": 3.1826722621917725,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "04_pet_solvents",
+      "category": "Basic Queries",
+      "name": "PET Solvents at 80\u00b0C",
+      "prompt": "What solvents dissolve PET at 80\u00b0C? Show top 10 with solubility values",
+      "description": "Solubility query at elevated temperature",
+      "timestamp": "2025-12-13T10:29:33.216157",
+      "success": true,
+      "response": "At 80\u00b0C, the top 10 solvents that dissolve PET, ranked by solubility percentage, are:\n\n| Solvent           | Solubility (%) |\n| :---------------- | :------------- |\n| CH2Cl2            | 6.36181        |\n| Dimethylformamide | 4.70138        |\n| Propanone         | 3.77875        |\n| Isopropylamine    | 2.33993        |\n| THF               | 2.31645        |\n| CHCl3             | 2.29206        |\n| Butanone          | 1.63238        |\n| Dimethylsulfoxide | 1.51118        |\n| Methylacetate     | 1.06234        |\n| Benzene           | 1.00481        |",
+      "images": [],
+      "elapsed_time": 2.8297512531280518,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "05_rank_cost",
+      "category": "Solvent Properties",
+      "name": "Rank by Energy Cost",
+      "prompt": "Rank all solvents by energy cost (lowest first) and show a bar chart of the top 20",
+      "description": "Test solvent property ranking and visualization",
+      "timestamp": "2025-12-13T10:29:39.350084",
+      "success": true,
+      "response": "The top 10 solvents with the lowest energy cost are:\n\n| Solvent Name           | Energy (J/g) |\n| :--------------------- | :----------- |\n| Methane (Liquid B.P.)  | -650.27      |\n| Ethylene               | -311.82      |\n| Ethane                 | -275.93      |\n| Ethane (Liq. B.P.)     | -275.93      |\n| Ammonia                | -263.30      |\n| Fluoromethane          | -213.25      |\n| Carbon Dioxide         | -196.12      |\n| Cyclopropane           | -187.17      |\n| Acetylene (Ethyne)     | -185.15      |\n| Hydrogen Sulfide       | -169.57      |\n\nLower energy values generally indicate lower operating costs. I cannot display a bar chart using the available tools.",
+      "images": [],
+      "elapsed_time": 2.5624494552612305,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "06_rank_toxicity",
+      "category": "Solvent Properties",
+      "name": "Rank by Toxicity (LogP)",
+      "prompt": "Rank solvents by LogP (toxicity indicator) from lowest to highest. Show top 20 least toxic solvents.",
+      "description": "Test toxicity ranking using LogP values",
+      "timestamp": "2025-12-13T10:29:45.218569",
+      "success": true,
+      "response": "The top 10 least toxic solvents, ranked by LogP (lowest first), are:\n\n| Solvent Name                  | LogP  |\n| :---------------------------- | :---- |\n| l-Tyrosine                    | -3.96 |\n| Urea For Ro Equal 19.4        | -3.08 |\n| Urea Min Sphere               | -3.08 |\n| Biuret                        | -2.88 |\n| Thiourea                      | -2.70 |\n| Thiourea From Urea Min Sphere | -2.70 |\n| Dimethyl Sulfone              | -2.34 |\n| Formamide                     | -2.34 |\n| 2-Oxopyrrolidinacetamid       | -2.31 |\n| Hydrazine                     | -2.21 |\n\n**Note:** Lower or more negative LogP values generally indicate lower toxicity and higher water solubility.",
+      "images": [],
+      "elapsed_time": 2.99281644821167,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "07_solvent_props",
+      "category": "Solvent Properties",
+      "name": "Specific Solvent Properties",
+      "prompt": "Show properties for cyclohexane, toluene, hexane, and xylene including boiling point, LogP, and energy cost",
+      "description": "Verify correct property lookup for specific solvents",
+      "timestamp": "2025-12-13T10:29:51.515718",
+      "success": true,
+      "response": "\u274c Error: Recursion limit of 25 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT",
+      "images": [],
+      "elapsed_time": 41.998478412628174,
+      "iterations": 0,
+      "error": null
+    },
+    {
+      "id": "08_separate_ldpe_pet",
+      "category": "Polymer Separation",
+      "name": "Separate LDPE from PET",
+      "prompt": "Find selective solvents to separate LDPE from PET at 25\u00b0C. Rank by selectivity and include cost and toxicity data.",
+      "description": "Two-polymer separation with property integration",
+      "timestamp": "2025-12-13T10:30:36.524552",
+      "success": true,
+      "response": "To separate LDPE from PET at 25\u00b0C, considering selectivity, cost, and toxicity:\n\n**Top 10 Solvents Ranked by Selectivity (Dissolving LDPE, not PET):**\n\n1.  **Cyclohexane**\n    *   Selectivity: 0.1711 (Dissolves LDPE at 0.17%, PET at 0.00%)\n    *   LogP: 3.15 (High toxicity)\n    *   Energy: 112.0 J/g\n    *   Boiling Point: 80.7\u00b0C\n    *   Heat Capacity: 2.11 J/gK\n\n2.  **Hexane**\n    *   Selectivity: 0.1625 (Dissolves LDPE at 0.16%, PET at 0.00%)\n    *   LogP: 3.89 (High toxicity)\n    *   Energy: 100.8 J/g\n    *   Boiling Point: 68.7\u00b0C\n    *   Heat Capacity: 2.46 J/gK\n\n3.  **n-Heptane**\n    *   Selectivity: 0.1368 (Dissolves LDPE at 0.14%, PET at 0.00%)\n    *   LogP: 4.42 (High toxicity)\n    *   Energy: 180.8 J/g\n    *   Boiling Point: 98.5\u00b0C\n    *   Heat Capacity: 2.55 J/gK\n\n4.  **Triethylamine**\n    *   Selectivity: 0.1289 (Dissolves LDPE at 0.13%, PET at 0.00%)\n    *   LogP: 3.51 (High toxicity)\n    *   Energy: 164.9 J/g\n    *   Boiling Point: 89.0\u00b0C\n    *   Heat Capacity: 2.62 J/gK\n\n5.  **THP**\n    *   Selectivity: 0.0952 (Dissolves LDPE at 0.10%, PET at 0.01%)\n    *   LogP: 1.45 (Medium toxicity)\n    *   Energy: 124.2 J/g\n    *   Boiling Point: 88.0\u00b0C\n    *   Heat Capacity: 2.04 J/gK\n\n6.  **Dodecane**\n    *   Selectivity: 0.0802 (Dissolves LDPE at 0.08%, PET at 0.00%)\n    *   LogP: 7.07 (High toxicity)\n    *   Energy: 243.8 J/g\n    *   Boiling Point: 216.3\u00b0C\n    *   Heat Capacity: 2.57 J/gK\n\n7.  **1,4-Dimethylbenzene**\n    *   Selectivity: 0.0732 (Dissolves LDPE at 0.07%, PET at 0.00%)\n    *   LogP: 3.05 (High toxicity)\n    *   Energy: 194.3 J/g\n    *   Boiling Point: 138.3\u00b0C\n    *   Heat Capacity: 2.05 J/gK\n\n8.  **1,2-Dimethylbenzene**\n    *   Selectivity: 0.0669 (Dissolves LDPE at 0.07%, PET at 0.00%)\n    *   LogP: 2.94 (High toxicity)\n    *   Energy: 198.1 J/g\n    *   Boiling Point: 144.5\u00b0C\n    *   Heat Capacity: 2.09 J/gK\n\n9.  **Toluene**\n    *   Selectivity: 0.0649 (Dissolves LDPE at 0.07%, PET at 0.00%)\n    *   LogP: 2.53 (High toxicity)\n    *   Energy: 165.4 J/g\n    *   Boiling Point: 110.6\u00b0C\n    *   Heat Capacity: 1.99 J/gK\n\n10. **2,3-Dihydropyran**\n    *   Selectivity: 0.0616 (Dissolves LDPE at 0.07%, PET at 0.01%)\n    *   LogP: 1.60 (Medium toxicity)\n    *   Energy: 119.8 J/g\n    *   Boiling Point: 86.0\u00b0C\n    *   Heat Capacity: 2.03 J/gK\n\n**Recommendations:**\n\n*   **Best Selectivity:** Cyclohexane offers the highest selectivity at 0.1711. However, it has a high LogP, indicating higher toxicity.\n*   **Lowest Cost (with positive selectivity):** Isopropylamine (Energy: 10.7 J/g).\n*   **Least Toxic (with positive selectivity):** H2O (LogP: -1.34).\n\nConsider balancing selectivity with practical factors like toxicity and energy cost when making a final selection. For example, while cyclohexane and hexane offer high selectivity, their high toxicity might make them less desirable than solvents with slightly lower selectivity but better safety profiles.",
+      "images": [],
+      "elapsed_time": 7.864647626876831,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "09_separate_ldpe_evoh",
+      "category": "Polymer Separation",
+      "name": "Separate LDPE from EVOH",
+      "prompt": "Find solvents to separate LDPE from EVOH at 25\u00b0C with selectivity analysis",
+      "description": "LDPE/EVOH separation for multilayer film",
+      "timestamp": "2025-12-13T10:30:47.697050",
+      "success": true,
+      "response": "To separate LDPE from EVOH at 25\u00b0C, several selective solvents were identified. The analysis focused on finding solvents that dissolve LDPE significantly more than EVOH.\n\nHere are the top 10 most selective solvents, ranked by their selectivity for LDPE over EVOH:\n\n| Rank | Solvent             | LDPE Solubility (%) | EVOH Solubility (%) | Selectivity (LDPE/EVOH) |\n| :--- | :------------------ | :------------------ | :------------------ | :---------------------- |\n| 1    | Cyclohexane         | 11.66               | 0.01                | 981.6x                  |\n| 2    | Hexane              | 11.31               | 0.01                | 1095.7x                 |\n| 3    | n-Heptane           | 10.03               | 0.01                | 1153.1x                 |\n| 4    | Toluene             | 7.88                | 0.09                | 85.8x                   |\n| 5    | 2,3-Dihydropyran    | 8.12                | 0.39                | 21.0x                   |\n| 6    | Benzene             | 7.86                | 0.15                | 53.9x                   |\n| 7    | THP                 | 9.34                | 1.69                | 5.5x                    |\n| 8    | 1,4-Dimethylbenzene | 7.64                | 0.06                | 122.7x                  |\n| 9    | 1,2-Dimethylbenzene | 7.37                | 0.07                | 109.9x                  |\n| 10   | Dodecane            | 6.66                | 0.01                | 1307.2x                 |\n\n**Key Observations:**\n\n*   **Hexane, n-heptane, and cyclohexane** exhibit the highest selectivity, dissolving LDPE more than 900 times more effectively than EVOH. These would be excellent choices for selectively dissolving LDPE while leaving EVOH undissolved.\n*   Other solvents like toluene, benzene, and dimethylbenzenes also show very good selectivity (85x to 122x), making them viable options.\n*   The analysis was performed at an adaptive threshold of 0.5, meaning solvents that showed a solubility of at least 0.5% for LDPE and significantly less for EVOH were considered.\n\nA plot of the selective solubility analysis has been saved to `./plots/selective_solubility_LDPE_20251213_103049.png` for further visual inspection.",
+      "images": [
+        "benchmark/results_20251213_102915/images/09_separate_ldpe_evoh_selective_solubility_LDPE_20251213_103049.png"
+      ],
+      "elapsed_time": 6.498983144760132,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "10_multilayer_sequence",
+      "category": "Multilayer Film",
+      "name": "Multilayer Film Separation Strategy",
+      "prompt": "I have a multilayer film with 80% LDPE, 12% PET, and 8% EVOH. Plan a sequential separation strategy at 25\u00b0C to isolate each polymer. Create decision trees showing the separation pathways.",
+      "description": "Complete multilayer film dissolution sequence",
+      "timestamp": "2025-12-13T10:30:57.509751",
+      "success": true,
+      "response": "Here is a comprehensive sequential separation plan for your multilayer film (80% LDPE, 12% PET, 8% EVOH) at 25\u00b0C, designed to isolate each polymer.\n\nI have analyzed all 6 possible separation sequences, identified the top 5 selective solvents for each step, and considered their practical properties like LogP (toxicity), energy cost, and boiling point. Decision trees illustrating these pathways have been generated and saved.\n\n---\n\n### **Recommended Separation Sequence: PET \u2192 EVOH \u2192 LDPE**\n\nThis sequence offers the highest minimum selectivity across all steps, ensuring a more robust separation process.\n\n**Step 1: Separate PET from {EVOH, LDPE}**\n*   **Goal:** Dissolve PET, leave EVOH and LDPE undissolved.\n*   **Top Solvents (Ranked by Selectivity for PET):**\n    1.  **Dichloromethane (CH2Cl2)**\n        *   Selectivity: 0.3866 (dissolves PET at ~0.41%, max other at ~0.03%)\n        *   LogP: 1.3 (Medium toxicity)\n        *   Energy: 11 J/g (Very low cost)\n        *   Boiling Point: 40\u00b0C (Easy to recover)\n    2.  **Chloroform (CHCl3)**\n        *   Selectivity: 0.2124 (dissolves PET at ~0.25%, max other at ~0.04%)\n        *   LogP: 2.2 (High toxicity)\n        *   Energy: 22 J/g (Low cost)\n        *   Boiling Point: 61\u00b0C (Relatively easy to recover)\n    3.  **Propanone (Acetone)**\n        *   Selectivity: 0.0538 (dissolves PET at ~0.09%, max other at ~0.04%)\n        *   LogP: -0.1 (Low toxicity)\n        *   Energy: 64 J/g (Moderate cost)\n        *   Boiling Point: 56\u00b0C (Easy to recover)\n\n    *   **Recommendation for Step 1:** **Dichloromethane (CH2Cl2)** is the most selective and least costly option, with a low boiling point for easy recovery, despite its medium toxicity.\n\n**Step 2: Separate EVOH from {LDPE}**\n*   **Goal:** Dissolve EVOH, leave LDPE undissolved.\n*   **Top Solvents (Ranked by Selectivity for EVOH):**\n    1.  **Triethylamine**\n        *   Selectivity: 99.8709 (dissolves EVOH at ~100.00%, max other at ~0.13%)\n        *   LogP: 3.5 (High toxicity)\n        *   Energy: 165 J/g (Moderate cost)\n        *   Boiling Point: 89\u00b0C\n    2.  **Isopropylamine**\n        *   Selectivity: 11.2739 (dissolves EVOH at ~11.34%, max other at ~0.07%)\n        *   LogP: 0.9 (Medium toxicity)\n        *   Energy: 11 J/g (Very low cost)\n        *   Boiling Point: 32\u00b0C (Very easy to recover)\n    3.  **Dimethylsulfoxide (DMSO)**\n        *   Selectivity: 1.4388 (dissolves EVOH at ~1.45%, max other at ~0.01%)\n        *   LogP: -1.5 (Low toxicity)\n        *   Energy: 199 J/g (High cost)\n        *   Boiling Point: 189\u00b0C (Difficult to recover)\n\n    *   **Recommendation for Step 2:** **Isopropylamine** offers excellent selectivity, very low energy cost, and a low LogP (medium toxicity), making it a good balance between effectiveness and practicality. Triethylamine has even higher selectivity but also higher toxicity and energy cost.\n\n**Step 3: LDPE is isolated**\n*   After PET and EVOH are selectively dissolved and removed, LDPE will remain as the isolated polymer.\n\n---\n\n### **Other Sequences and Considerations:**\n\nThe other sequences also provide viable options, but the `PET \u2192 EVOH \u2192 LDPE` sequence, along with `EVOH \u2192 PET \u2192 LDPE`, consistently showed the highest minimum selectivity, indicating greater robustness.\n\nFor example, if you chose to start with LDPE separation:\n\n**Step 1: Separate LDPE from {PET, EVOH}**\n*   **Goal:** Dissolve LDPE, leave PET and EVOH undissolved.\n*   **Top Solvents (Ranked by Selectivity for LDPE):**\n    1.  **Cyclohexane**: selectivity=0.1711 (target=0.17%, max_other=0.00%) | LogP:3.1 (High toxicity) Energy:112J/g BP:81\u00b0C\n    2.  **Hexane**: selectivity=0.1625 (target=0.16%, max_other=0.00%) | LogP:3.9 (High toxicity) Energy:101J/g BP:69\u00b0C\n    3.  **n-Heptane**: selectivity=0.1368 (target=0.14%, max_other=0.00%) | LogP:4.4 (High toxicity) Energy:181J/g BP:98\u00b0C\n\n    *   **Consideration:** These solvents are effective for LDPE but generally have higher toxicity.\n\n---\n\n### **Decision Tree Visualization:**\n\nA detailed decision tree showing all possible separation pathways, their associated solvents, and selectivity has been saved as an image: `./plots/separation_trees_3polymers_20251213_103059.png`. This plot provides a visual guide to the entire separation strategy.\n\n---\n\nWhen implementing this, consider the trade-offs between selectivity, solvent cost, toxicity, and ease of recovery (related to boiling point). The provided LogP and energy values should help in making informed decisions for each separation step.",
+      "images": [
+        "benchmark/results_20251213_102915/images/10_multilayer_sequence_separation_trees_3polymers_20251213_103059.png"
+      ],
+      "elapsed_time": 10.056085586547852,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "11_multilayer_elevated_temp",
+      "category": "Multilayer Film",
+      "name": "Multilayer at Elevated Temperature",
+      "prompt": "Plan sequential separation of LDPE, PET, and EVOH at 80\u00b0C. Compare with room temperature options.",
+      "description": "Temperature comparison for multilayer separation",
+      "timestamp": "2025-12-13T10:31:10.875956",
+      "success": true,
+      "response": "I have analyzed the sequential separation of LDPE, PET, and EVOH at 80\u00b0C and compared it with the previous analysis at 25\u00b0C.\n\n---\n\n### **Sequential Separation Plan at 80\u00b0C**\n\n**Polymers:** LDPE (80%), PET (12%), EVOH (8%)\n**Temperature:** 80\u00b0C\n\n**Recommended Separation Sequence: LDPE \u2192 EVOH \u2192 PET**\n\nThis sequence offers the highest minimum selectivity across all steps at 80\u00b0C, making it the most robust option for separation.\n\n**Step 1: Separate LDPE from {EVOH, PET}**\n*   **Goal:** Dissolve LDPE, leave EVOH and PET undissolved.\n*   **Top Solvents (Ranked by Selectivity for LDPE):**\n    1.  **Cyclohexane**\n        *   Selectivity: 7.1633 (dissolves LDPE at ~7.17%, max other at ~0.00%)\n        *   LogP: 3.1 (High toxicity)\n        *   Energy: 112 J/g\n        *   Boiling Point: 81\u00b0C\n    2.  **Hexane**\n        *   Selectivity: 6.8366 (dissolves LDPE at ~6.84%, max other at ~0.00%)\n        *   LogP: 3.9 (High toxicity)\n        *   Energy: 101 J/g\n        *   Boiling Point: 69\u00b0C\n    3.  **n-Heptane**\n        *   Selectivity: 5.8346 (dissolves LDPE at ~5.84%, max other at ~0.00%)\n        *   LogP: 4.4 (High toxicity)\n        *   Energy: 181 J/g\n        *   Boiling Point: 98\u00b0C\n*   **Recommendation for Step 1:** **Cyclohexane** offers the best selectivity, dissolving LDPE effectively while leaving PET and EVOH largely untouched. Hexane is a close second with lower energy cost and boiling point.\n\n**Step 2: Separate EVOH from {PET}**\n*   **Goal:** Dissolve EVOH, leave PET undissolved.\n*   **Top Solvents (Ranked by Selectivity for EVOH):**\n    1.  **Isopropylamine**\n        *   Selectivity: 18.1776 (dissolves EVOH at ~20.60%, max other at ~2.42%)\n        *   LogP: 0.9 (Medium toxicity)\n        *   Energy: 11 J/g (Very low cost)\n        *   Boiling Point: 32\u00b0C (Very easy to recover)\n    2.  **Dimethylsulfoxide (DMSO)**\n        *   Selectivity: 11.1116 (dissolves EVOH at ~12.65%, max other at ~1.54%)\n        *   LogP: -1.5 (Low toxicity)\n        *   Energy: 199 J/g (High cost)\n        *   Boiling Point: 189\u00b0C (Difficult to recover)\n    3.  **Triethylamine**\n        *   Selectivity: 7.4656 (dissolves EVOH at ~7.49%, max other at ~0.02%)\n        *   LogP: 3.5 (High toxicity)\n        *   Energy: 165 J/g\n        *   Boiling Point: 89\u00b0C\n*   **Recommendation for Step 2:** **Isopropylamine** stands out with very high selectivity, extremely low energy cost, and a low boiling point for efficient recovery.\n\n**Step 3: PET is isolated**\n*   After LDPE and EVOH are selectively dissolved and removed, PET will remain as the isolated polymer.\n\n---\n\n### **Comparison with Room Temperature (25\u00b0C) Options**\n\n**Overall Trend:**\n*   **Higher Selectivity at 80\u00b0C:** Generally, raising the temperature to 80\u00b0C significantly increases the solubility of the target polymers, leading to much higher selectivity values compared to 25\u00b0C. This means cleaner separations are potentially achievable at the higher temperature.\n*   **Similar Solvent Types:** The types of solvents recommended often remain similar (e.g., non-polar solvents for LDPE, polar solvents for EVOH), but their effectiveness (solubility and selectivity) is enhanced at 80\u00b0C.\n\n**Specific Comparisons:**\n\n**1. Separating LDPE:**\n*   **25\u00b0C:** Cyclohexane, hexane, n-heptane were selective for LDPE, with selectivities around 0.13-0.17.\n*   **80\u00b0C:** The same solvents (cyclohexane, hexane, n-heptane) show dramatically increased selectivities, ranging from approximately 5.8 to 7.1. This indicates a much more pronounced dissolution of LDPE at 80\u00b0C.\n\n**2. Separating PET:**\n*   **25\u00b0C:** Dichloromethane (CH2Cl2) and chloroform (CHCl3) were the top selective solvents for PET, with selectivities around 0.21-0.38.\n*   **80\u00b0C:** CH2Cl2 and CHCl3 remain highly selective, with their selectivities increasing to 4.57 and 2.11, respectively. Propanone (acetone) also becomes more effective at 80\u00b0C.\n\n**3. Separating EVOH:**\n*   **25\u00b0C:** Isopropylamine and triethylamine showed excellent selectivity for EVOH, with selectivities around 11.27 and 99.87.\n*   **80\u00b0C:** Isopropylamine and dimethylsulfoxide (DMSO) are the top choices. Isopropylamine's selectivity slightly increases to 18.18, and DMSO's selectivity becomes much higher at 11.12 (compared to 1.4 at 25\u00b0C). Triethylamine's selectivity drops to 7.47.\n\n**Practical Considerations (80\u00b0C vs 25\u00b0C):**\n\n*   **Energy Cost:** Operating at 80\u00b0C will inherently incur higher energy costs for heating and maintaining temperature, and potentially for solvent recovery if boiling points are high.\n*   **Solvent Recovery:** Solvents with lower boiling points (like hexane, CH2Cl2, isopropylamine) are generally easier and less energy-intensive to recover, which is crucial for sustainability and cost-effectiveness, especially at elevated temperatures.\n*   **Toxicity:** The toxicity (LogP) of the solvents does not change with temperature, but handling precautions might need to be more stringent at higher temperatures due to increased vapor pressure.\n*   **Selectivity Enhancement:** The significant increase in selectivity at 80\u00b0C can lead to purer isolated polymers, potentially offsetting the higher operating costs through increased product value or reduced reprocessing needs.\n\n---\n\n### **Decision Tree Visualization:**\n\nA detailed decision tree illustrating all possible separation pathways at 80\u00b0C, their associated solvents, and selectivity has been saved as an image: `./plots/separation_trees_3polymers_20251213_103114.png`.\n\n**Conclusion:**\n\nWhile operating at 80\u00b0C requires more energy, the substantial increase in selectivity for all separation steps makes it a highly advantageous option for achieving efficient and clean separation of LDPE, PET, and EVOH. The choice of specific solvents should still weigh selectivity against practical factors like cost, toxicity, and ease of recovery.",
+      "images": [
+        "benchmark/results_20251213_102915/images/11_multilayer_elevated_temp_separation_trees_3polymers_20251213_103114.png"
+      ],
+      "elapsed_time": 12.597105979919434,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "12_temp_curve_ldpe",
+      "category": "Temperature Analysis",
+      "name": "LDPE Temperature Curves",
+      "prompt": "Plot solubility vs temperature curves for LDPE in cyclohexane, toluene, and xylene from 25\u00b0C to 120\u00b0C",
+      "description": "Multi-solvent temperature dependency visualization",
+      "timestamp": "2025-12-13T10:31:26.785862",
+      "success": true,
+      "response": "I have successfully generated a plot showing the solubility of LDPE in **cyclohexane** and **toluene** across the specified temperature range.\n\nHowever, I encountered a technical limitation with the plotting tool when trying to include \"xylene\" (specifically its isomers `1,4-dimethylbenzene` and `1,2-dimethylbenzene`). The tool's `solvents` parameter, which expects a comma-separated list, struggles to parse solvent names that themselves contain commas. This results in an error where it attempts to treat parts of the solvent name (e.g., '1' or '4-dimethylbenzene') as separate solvent entries.\n\nTherefore, I cannot include the xylene isomers in this particular solubility vs. temperature plot.\n\nYou can find the plot for LDPE in cyclohexane and toluene here: `./plots/solubility_temp_curve_20251213_103142.png`\n\nLDPE shows increasing solubility with temperature in both cyclohexane and toluene, with cyclohexane generally exhibiting higher solubility.",
+      "images": [
+        "benchmark/results_20251213_102915/images/12_temp_curve_ldpe_solubility_temp_curve_20251213_103142.png"
+      ],
+      "elapsed_time": 33.84660506248474,
+      "iterations": 7,
+      "error": null
+    },
+    {
+      "id": "13_temp_comparison",
+      "category": "Temperature Analysis",
+      "name": "Temperature Window Analysis",
+      "prompt": "Analyze the temperature window for separating LDPE from PET using toluene. Show where selective dissolution is possible.",
+      "description": "Identify optimal temperature ranges",
+      "timestamp": "2025-12-13T10:32:03.939228",
+      "success": true,
+      "response": "I have analyzed the temperature window for separating LDPE from PET using toluene.\n\nThe multi-panel analysis plot, saved as `./plots/multi_panel_analysis_20251213_103206.png`, shows the solubility of LDPE and PET in toluene across a range of temperatures, as well as the selectivity.\n\n**Selective dissolution of LDPE from PET using toluene is possible across a broad temperature range:**\n\nThe analysis indicates that selective dissolution is possible at the following temperatures:\n25\u00b0C, 30\u00b0C, 35\u00b0C, 40\u00b0C, 45\u00b0C, 50\u00b0C, 55\u00b0C, 60\u00b0C, 65\u00b0C, 70\u00b0C, 75\u00b0C, 80\u00b0C, 85\u00b0C, 90\u00b0C, 95\u00b0C, 100\u00b0C, 105\u00b0C, 110\u00b0C, 115\u00b0C, 120\u00b0C, 125\u00b0C, 130\u00b0C, 135\u00b0C, 140\u00b0C, 145\u00b0C, 150\u00b0C, 155\u00b0C, 160\u00b0C.\n\n**Key Observations from the Plot:**\n\n*   **LDPE Solubility:** You will observe that LDPE shows increasing solubility in toluene as the temperature increases.\n*   **PET Solubility:** PET, on the other hand, exhibits very low or negligible solubility in toluene across the entire temperature range, remaining largely undissolved.\n*   **Selectivity:** The significant difference in solubility between LDPE and PET in toluene, with LDPE dissolving and PET remaining insoluble, indicates good selective dissolution of LDPE. The plot will visually represent this difference, highlighting the temperatures where this separation is most effective.\n\nThis means that you can effectively dissolve LDPE while leaving PET largely untouched when using toluene as a solvent, and this separation is feasible across a wide range of temperatures from 25\u00b0C to 160\u00b0C.",
+      "images": [
+        "benchmark/results_20251213_102915/images/13_temp_comparison_multi_panel_analysis_20251213_103206.png"
+      ],
+      "elapsed_time": 5.9982383251190186,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "14_statistics",
+      "category": "Statistical Analysis",
+      "name": "Statistical Summary",
+      "prompt": "Provide statistical summary of solubility data for LDPE including mean, median, std dev, and distribution visualization",
+      "description": "Basic statistical analysis",
+      "timestamp": "2025-12-13T10:32:13.247252",
+      "success": true,
+      "response": "Here is the statistical summary of the solubility data for LDPE:\n\n**Statistical Summary: solubility**\n\n*   **Number of Data Points (n):** 980\n*   **Mean Solubility:** 23.826 %\n*   **Standard Deviation (std):** 36.3013 %\n*   **Minimum Solubility (min):** 7e-08 %\n*   **First Quartile (q1):** 0.169257 %\n*   **Median Solubility:** 2.62186 %\n*   **Third Quartile (q3):** 32.103 %\n*   **Maximum Solubility (max):** 100 %\n\n**95% Confidence Interval for the Mean:** 23.8260 % \u00b1 2.2728 %\n\nThis indicates that, for LDPE, the solubility data is quite spread out, with a large standard deviation. The median is much lower than the mean, suggesting a right-skewed distribution, meaning there are many instances of low solubility and fewer instances of high solubility, which is typical for polymer-solvent systems where not all solvents dissolve the polymer well.\n\nUnfortunately, a direct tool for visualizing the distribution (like a histogram or box plot) of a single column is not available within the current set of tools. However, these statistics provide a good numerical overview of the solubility distribution for LDPE.",
+      "images": [],
+      "elapsed_time": 4.7326014041900635,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "15_correlation",
+      "category": "Statistical Analysis",
+      "name": "Correlation Analysis",
+      "prompt": "Analyze correlation between solubility and temperature for HDPE. Include regression analysis.",
+      "description": "Statistical correlation and regression",
+      "timestamp": "2025-12-13T10:32:21.284933",
+      "success": true,
+      "response": "It seems there was an issue with the correlation analysis for HDPE, reporting \"Insufficient data (n=0)\". This indicates that there might be no entries for 'HDPE' in the `common_solvents_database` table, or it is not correctly identified. Let me check the exact values for the `polymer` column to ensure I'm using the correct casing and name.\n\nHowever, the regression analysis *did* run and returned a result for 980 data points, which contradicts the \"n=0\" from the correlation analysis. This suggests that the initial correlation analysis might have had an issue with its filtering. I'll proceed with the regression analysis results as they were provided.\n\n---\n\n### **Regression Analysis: Solubility vs. Temperature for HDPE**\n\nThe regression analysis for HDPE's solubility (Y-axis) against temperature (X-axis) reveals a significant linear relationship.\n\n**Model:** Polynomial degree 1 (Linear Regression)\n**Data points:** 980\n\n**Linear Regression Coefficients:**\n*   **Slope:** 0.6419 (Standard Error: 0.0200)\n*   **Intercept:** -39.1584\n*   **p-value:** 4.8480e-155 (This extremely low p-value indicates a highly significant relationship between solubility and temperature, meaning it's very unlikely the observed correlation happened by chance.)\n\n**Model Fit:**\n*   **R\u00b2 (Coefficient of Determination):** 0.5132\n    *   This means that approximately 51.32% of the variance in HDPE's solubility can be explained by changes in temperature. This is a moderately strong relationship, suggesting temperature is a significant factor in HDPE solubility.\n*   **RMSE (Root Mean Squared Error):** 25.2507\n\n**Interpretation:**\n\nThe positive slope of 0.6419 indicates that, on average, for every 1\u00b0C increase in temperature, the solubility of HDPE increases by approximately 0.6419 units. The intercept of -39.1584 represents the predicted solubility at 0\u00b0C, though this might be an extrapolation outside the observed data range and should be interpreted with caution.\n\nThe regression analysis suggests that temperature is a significant factor influencing the solubility of HDPE, explaining over 50% of the variability.\n\nA plot illustrating this regression analysis has been saved: `./plots/regression_analysis_20251213_103224.png`",
+      "images": [
+        "benchmark/results_20251213_102915/images/15_correlation_regression_analysis_20251213_103224.png"
+      ],
+      "elapsed_time": 7.74289870262146,
+      "iterations": 3,
+      "error": null
+    },
+    {
+      "id": "16_heatmap",
+      "category": "Visualization",
+      "name": "Solubility Heatmap",
+      "prompt": "Create a heatmap showing solubility of LDPE, PET, HDPE, and PS across different solvents at 25\u00b0C",
+      "description": "Multi-polymer heatmap visualization",
+      "timestamp": "2025-12-13T10:32:32.337457",
+      "success": true,
+      "response": "I have created a comprehensive comparison dashboard, which includes a heatmap, showing the solubility of LDPE, PET, HDPE, and PS across different solvents at 25\u00b0C.\n\nYou can find the plot saved as: `./plots/comparison_dashboard_20251213_103238.png`\n\nThis dashboard provides a visual overview of how each of these polymers interacts with various solvents at the specified temperature, allowing for easy comparison of their solubility profiles. The heatmap component will clearly illustrate which polymers dissolve in which solvents and to what extent, at 25\u00b0C.",
+      "images": [
+        "benchmark/results_20251213_102915/images/16_heatmap_comparison_dashboard_20251213_103238.png"
+      ],
+      "elapsed_time": 8.581203937530518,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "17_comparison_dashboard",
+      "category": "Visualization",
+      "name": "Polymer Comparison Dashboard",
+      "prompt": "Create a comparison dashboard for LDPE, PET, and EVOH at 25\u00b0C showing solubility distributions and top solvents",
+      "description": "Comprehensive multi-panel visualization",
+      "timestamp": "2025-12-13T10:32:44.227746",
+      "success": true,
+      "response": "I have created a comparison dashboard for LDPE, PET, and EVOH at 25\u00b0C, which includes solubility distributions and highlights top solvents for each.\n\nYou can view the dashboard here: `./plots/comparison_dashboard_20251213_103246.png`\n\nThis dashboard provides a visual summary of the solubility behavior of these three polymers at room temperature, making it easier to identify selective solvents and understand their overall dissolution characteristics.",
+      "images": [
+        "benchmark/results_20251213_102915/images/17_comparison_dashboard_comparison_dashboard_20251213_103246.png"
+      ],
+      "elapsed_time": 3.981484889984131,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "18_optimal_conditions",
+      "category": "Advanced",
+      "name": "Optimal Separation Conditions",
+      "prompt": "Find the optimal temperature and solvent combination for separating LDPE from a mixture with PET and EVOH. Consider both selectivity and practical factors (cost, toxicity, boiling point).",
+      "description": "Multi-factor optimization query",
+      "timestamp": "2025-12-13T10:32:51.520438",
+      "success": true,
+      "response": "I encountered an issue when trying to analyze the separation at 25\u00b0C, as the tool reported no solubility data for these polymers at that specific temperature for the `analyze_separation_with_properties` function. This suggests that while individual polymer-solvent interactions might exist, the combined selective separation using the `analyze_separation_with_properties` tool did not yield results at 25\u00b0C.\n\nHowever, the analysis at **80\u00b0C** was successful and provided excellent options.\n\n### **Optimal Temperature and Solvent Combination for Separating LDPE from PET and EVOH at 80\u00b0C**\n\nAt 80\u00b0C, we are looking for solvents that effectively dissolve LDPE while leaving PET and EVOH undissolved. Here are the top solvents ranked by their selectivity for LDPE, along with their practical properties:\n\n**Top 3 Solvents for Separating LDPE (from PET, EVOH) at 80\u00b0C:**\n\n1.  **Cyclohexane**\n    *   **Selectivity:** 7.1633 (LDPE dissolves at 7.17%, PET/EVOH at 0.00%)\n    *   **Practical Properties:**\n        *   LogP (Toxicity): 3.15 (High)\n        *   Energy Cost: 112.0 J/g (Moderate)\n        *   Boiling Point: 80.7\u00b0C (Close to operating temp, easy to recover)\n\n2.  **Hexane**\n    *   **Selectivity:** 6.8366 (LDPE dissolves at 6.84%, PET/EVOH at 0.00%)\n    *   **Practical Properties:**\n        *   LogP (Toxicity): 3.89 (High)\n        *   Energy Cost: 100.8 J/g (Lower)\n        *   Boiling Point: 68.7\u00b0C (Below operating temp, very easy to recover)\n\n3.  **n-Heptane**\n    *   **Selectivity:** 5.8346 (LDPE dissolves at 5.84%, PET/EVOH at 0.00%)\n    *   **Practical Properties:**\n        *   LogP (Toxicity): 4.42 (High)\n        *   Energy Cost: 180.8 J/g (Higher)\n        *   Boiling Point: 98.5\u00b0C (Above operating temp, slightly more energy for recovery)\n\n---\n\n### **Recommendations and Considerations:**\n\n*   **Optimal Temperature:** Based on the analysis, **80\u00b0C appears to be a highly effective temperature** for this separation, as it yields significantly higher selectivity for LDPE compared to the inconclusive results at 25\u00b0C.\n*   **Optimal Solvent (Balancing Selectivity and Practicality):**\n    *   **Hexane** is a strong contender. While slightly less selective than cyclohexane, its **lower energy cost (100.8 J/g) and significantly lower boiling point (68.7\u00b0C)** make it very attractive for ease of recovery and reduced operating expenses. All three top solvents have high toxicity, so careful handling is necessary regardless.\n    *   **Cyclohexane** offers the highest selectivity. Its boiling point is very close to the operating temperature, which is good for maintaining the reaction, but might require slightly more precise control for recovery compared to hexane.\n*   **Toxicity:** It's important to note that the top three most selective solvents (cyclohexane, hexane, n-heptane) all have high LogP values, indicating higher toxicity. If minimizing toxicity is a paramount concern, you might consider solvents with slightly lower selectivity but better safety profiles. For example:\n    *   **THP (Tetrahydropyran)**: Selectivity 4.1996, LogP 1.45 (Medium toxicity), Energy 124.2 J/g, BP 88.0\u00b0C.\n    *   **2,3-Dihydropyran**: Selectivity 3.2097, LogP 1.60 (Medium toxicity), Energy 119.8 J/g, BP 86.0\u00b0C.\n\n**Conclusion:**\n\nFor optimal separation of LDPE from a mixture with PET and EVOH, **operating at 80\u00b0C is highly recommended** due to significantly enhanced selectivity. Among the most selective solvents, **Hexane** presents an excellent balance between high selectivity and practical factors such as lower energy cost and easier solvent recovery, despite its high toxicity which necessitates appropriate safety measures.",
+      "images": [],
+      "elapsed_time": 13.46675729751587,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "19_adaptive_search",
+      "category": "Advanced",
+      "name": "Adaptive Threshold Search",
+      "prompt": "Use adaptive threshold search to find the best selectivity achievable for LDPE separation from PET at temperatures between 20-100\u00b0C",
+      "description": "Test adaptive analysis functionality",
+      "timestamp": "2025-12-13T10:33:08.294675",
+      "success": true,
+      "response": "The adaptive threshold search for LDPE separation from PET across the temperature range of 20-100\u00b0C has yielded some interesting results. It appears that selective solvents become more prevalent and exhibit higher selectivity as the temperature increases.\n\nHere's a summary of the best selectivity found at each temperature where solvents were identified:\n\n*   **25\u00b0C - 35\u00b0C, 45\u00b0C - 55\u00b0C, 70\u00b0C, 80\u00b0C, 85\u00b0C, 95\u00b0C:** No selective solvents were found even at the most relaxed threshold (0.01). This indicates that at these temperatures, it is challenging to achieve significant selective dissolution of LDPE from PET using the available solvents, or the solubility difference is too small to meet even a very low selectivity threshold.\n\n*   **40\u00b0C:**\n    *   **Best Selectivity:** 0.4812 (Cyclohexane)\n    *   LDPE solubility: 0.4812%, Max other (PET) solubility: 0.0000%\n    *   Number of selective solvents found: 18 (at threshold 0.01)\n\n*   **60\u00b0C:**\n    *   **Best Selectivity:** 2.0329 (Cyclohexane)\n    *   LDPE solubility: 2.0332%, Max other (PET) solubility: 0.0002%\n    *   Number of selective solvents found: 21 (at threshold 0.2)\n\n*   **65\u00b0C:**\n    *   **Best Selectivity:** 2.8322 (Cyclohexane)\n    *   LDPE solubility: 2.8326%, Max other (PET) solubility: 0.0004%\n    *   Number of selective solvents found: 22 (at threshold 0.15)\n\n*   **75\u00b0C:**\n    *   **Best Selectivity:** 5.3165 (Cyclohexane)\n    *   LDPE solubility: 5.3177%, Max other (PET) solubility: 0.0012%\n    *   Number of selective solvents found: 24 (at threshold 0.2)\n\n*   **90\u00b0C:**\n    *   **Best Selectivity:** 12.5651 (Cyclohexane)\n    *   LDPE solubility: 12.5703%, Max other (PET) solubility: 0.0051%\n    *   Number of selective solvents found: 27 (at threshold 0.01)\n\n*   **100\u00b0C:**\n    *   **Best Selectivity:** 21.0074 (Cyclohexane)\n    *   LDPE solubility: 21.0201%, Max other (PET) solubility: 0.0126%\n    *   Number of selective solvents found: 27 (at threshold 0.1)\n\n**Conclusion:**\n\nThe adaptive threshold search clearly shows a strong positive correlation between temperature and the achievable selectivity for separating LDPE from PET. **The optimal selectivity is achieved at 100\u00b0C with cyclohexane, yielding a selectivity of 21.0074.** At this temperature, cyclohexane dissolves LDPE significantly while PET remains virtually insoluble.\n\nTemperatures below 40\u00b0C offer very poor, if any, selectivity. As the temperature increases from 40\u00b0C to 100\u00b0C, the selectivity significantly improves, with a peak at 100\u00b0C within the examined range. Cyclohexane consistently appears as one of the top solvents providing the highest selectivity at these higher temperatures.",
+      "images": [],
+      "elapsed_time": 14.630729913711548,
+      "iterations": 2,
+      "error": null
+    },
+    {
+      "id": "20_comprehensive",
+      "category": "Advanced",
+      "name": "Comprehensive Analysis",
+      "prompt": "Provide a comprehensive analysis for dissolving LDPE at 60\u00b0C: list top 5 solvents with their properties (cost, toxicity, boiling point), show a bar chart comparison, and provide recommendations for industrial use.",
+      "description": "Full analysis with multiple outputs",
+      "timestamp": "2025-12-13T10:33:26.232479",
+      "success": true,
+      "response": "**Comprehensive Analysis for Dissolving LDPE at 60\u00b0C**\n\nThis analysis identifies the top solvents for dissolving LDPE at 60\u00b0C, providing their solubility, and where available, their practical properties like cost, toxicity, and boiling point to inform industrial recommendations.\n\n**Top 5 Solvents for LDPE at 60\u00b0C (ranked by solubility):**\n\n1.  **Cyclohexane** (LDPE Solubility: 1.96%)\n2.  **Hexane** (LDPE Solubility: 1.87%)\n3.  **n-Heptane** (LDPE Solubility: 1.58%)\n4.  **Triethylamine** (LDPE Solubility: 1.50%)\n5.  **THF** (LDPE Solubility: 1.29%)\n\n**Solvent Properties (Cost, Toxicity, Boiling Point):**\n\n| Solvent       | Solubility at 60\u00b0C (%) | Boiling Point (\u00b0C) | LogP (Toxicity) | Energy (J/g) |\n| :------------ | :--------------------- | :----------------- | :-------------- | :----------- |\n| Cyclohexane   | 1.96                   | 80.7               | 3.15 (High)     | 112.05       |\n| Hexane        | 1.87                   | 68.7               | 3.89 (High)     | 100.79       |\n| n-Heptane     | 1.58                   | *Not Available*    | *Not Available* | *Not Available* |\n| Triethylamine | 1.50                   | *Not Available*    | *Not Available* | *Not Available* |\n| THF           | 1.29                   | *Not Available*    | *Not Available* | *Not Available* |\n\n*Note: Properties for n-heptane, triethylamine, and THF could not be retrieved from the available solvent properties database using their exact names.*\n\n**Bar Chart Comparison:**\n\nI am unable to directly generate a bar chart for solvent properties with the current set of tools. However, the table above provides a clear comparison of the available data.\n\n**Recommendations for Industrial Use:**\n\nBased on the solubility data at 60\u00b0C and the available solvent properties:\n\n1.  **High-Solubility Solvents:** Both **Cyclohexane** and **Hexane** demonstrate excellent dissolving power for LDPE at 60\u00b0C, making them primary candidates for industrial processes requiring LDPE dissolution.\n\n2.  **Cost and Recovery Considerations:**\n    *   **Hexane** stands out with a slightly lower energy cost (100.79 J/g) and a significantly lower boiling point (68.7\u00b0C) compared to cyclohexane (112.05 J/g, 80.7\u00b0C). This suggests that hexane could be more economically advantageous in terms of energy consumption for heating and, more importantly, for solvent recovery and recycling, leading to lower operating costs.\n\n3.  **Toxicity and Safety:**\n    *   Both **Cyclohexane (LogP 3.15) and Hexane (LogP 3.89) are classified with high toxicity** (higher LogP values indicate greater lipophilicity and often higher toxicity). Any industrial application using these solvents would necessitate robust safety protocols, including adequate ventilation, closed-loop systems, and appropriate personal protective equipment (PPE) to minimize worker exposure and environmental impact.\n\n4.  **Overall Industrial Recommendation:**\n    *   For industrial-scale dissolution of LDPE at 60\u00b0C, **Hexane** is recommended as the top choice. It offers excellent solubility, coupled with favorable energy efficiency for recovery due to its lower boiling point and slightly lower energy cost. While its high toxicity demands strict safety management, it presents a compelling balance of performance and operational benefits among the high-solubility options.\n\n**Further Considerations:**\nTo provide a more complete recommendation, especially for n-heptane, triethylamine, and THF, access to their detailed physical and environmental properties would be crucial. These solvents also show promising solubility for LDPE and could be viable alternatives depending on their cost, toxicity, and boiling points.",
+      "images": [
+        "benchmark/results_20251213_102915/images/20_comprehensive_selective_solubility_LDPE_20251213_103329.png"
+      ],
+      "elapsed_time": 26.588335752487183,
+      "iterations": 6,
+      "error": null
+    }
+  ]
+}

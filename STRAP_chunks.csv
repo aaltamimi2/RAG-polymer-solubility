@@ -1,0 +1,347 @@
+chunk_id,level,section_type,section_title,page_number,token_count,char_count,has_table,has_figure,text
+STRAP_paper_sec_0,section,unknown,ELSEVIER,1,168,693,False,False,"Contents lists available at ScienceDirect
+
+## Waste Management
+
+journal homepage: www.elsevier.com/locate/wasman
+Research Paper
+A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste
+=
+Kevin L. Sanchez-Rivera“, Panzheng Zhou“, Elizaveta Radkevich“, Anisha Sharma“, Ezra Bar-Ziv”, Reid C. Van Lehn’, George W. Huber *”
+• * Department of Chemical and Biological Engineering, University of Wisconsin-Madison, Madison, WI 53706, USA
+• > Department of Mechanical Engineering, Michigan Technological University, Houghton, MI 49931, USA
+• © Department of Chemistry, University of Wisconsin-Madison, Madison, WI 53706, USA"
+STRAP_paper_sec_1,section,abstract,ABSTRACT,1,2000,15730,False,False,"Keywords: Recycling Dissolution
+Plastic
+Polymer Waste
+Solubility
+Solvent-Targeted Recovery and Precipitation (STRAP™) separates polymers within a plastic waste stream by selective dissolution. In this work, the STRAP framework, which combines computational modeling and ex- periments, was applied to develop a series of steps to separate up to 10 polymers from post-industrial mixed plastic waste (MPW) and the main components recovered were LDPE, HDPE, and PET. The STRAP steps were initially demonstrated with a physical polymer mixture containing LDPE, HDPE, PS, PVC, EVOH, PET, PP, PA6, PA66, and PA66/6, in which recoveries of 89% or higher were achieved for each polymer. This paper demon- strates a solvent selection approach that can be applied to separate unknown plastics materials into purer components.
+
+## 1. Introduction
+
+One of the challenges with plastic recycling is the processing of mixed plastic waste (MPW) and proper sorting of its components can dictate the efficiency of the overall recycling process (Ragaert et al., 2020). Plastics that are present in an MPW feedstock can have distinct properties and require different recycling approaches (Thiounn and Smith, 2020). The presence of multiple plastics, additives, and con- taminants is a significant concern with mechanical recycling, for which waste stream purity is an important factor (Billiet and Trenor, 2020). In mechanical recycling, there are separation and sorting steps, bailing, washing, grinding, compounding, and pelletizing. The plastics can be separated in various ways by density, size, color, shape, or chemical composition (Ragaert et al., 2017). One disadvantage with mechanical recycling is the degradation of polymer properties, which means that the MPW is converted to less valuable products (Jeswani et al., 2021). Another disadvantage of mechanical recycling is that additives or con- taminants are not removed and stay inside the recycled plastic. Com- patibilization offers a solution to mechanically recycle multiple polymers, however, this becomes more challenging with complex polymer mixtures (Fortelny et al., 2004).
+Other technologies do not require extensive sorting of plastic waste.
+For example, in a pyrolysis approach where plastics are processed at elevated temperatures in the absence of oxygen, different plastics can be included in the feed to produce valuable oils, waxes, and gases that can be converted to chemicals and fuels (Jeswani et al., 2021; Kremer et al., 2021; Martinez-Narro et al., 2022). Different polymer mixtures con- taining high-density polyethylene (HDPE), polypropylene (PP), poly- ethylene terephthalate (PET), and polystyrene (PS) have been successfully pyrolyzed (Chattopadhyay et al., 2016). This approach of- fers advantages since it can process mixtures of plastics, including multilayer packaging, which cannot be processed with mechanical recycling (Dahlbo et al., 2018). A disadvantage of thermally converting plastics is that the process produces an oil that must be further converted (Billiet and Trenor, 2020; Schwarz et al., 2021). Feedstocks that contain polyvinyl chloride (PVC) do become a concern with pyrolysis due to the release of HCl which is toxic and can corrode the processing units (Brebu et al., 2004; Lopez-Urionabarrenechea et al., 2012; Ragaert et al., 2020).
+Other chemical conversion approaches for mixed plastics have been disclosed in the literature, including chemical oxidation and biocon- version (Sullivan et al., 2022), hydrogenolysis (Rorrer et al., 2021), gasification (Dogu et al., 2021; Wilk and Hofbauer, 2013), one-pot depolymerization (Yang et al., 2022), three-step depolymerization (Spicer et al., 2024). These alternative chemical approaches present
+• * Corresponding author.
+E-mail address: gwhuber@wisc.edu (G.W. Huber).
+
+## https://doi.org/10.1016/j.wasman.2025.01.022
+
+Received 11 October 2024; Received in revised form 17 December 2024; Accepted 14 January 2025 Available online 21 January 2025
+0956-053X/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies.
+
+K.L. Sanchez-Rivera et al.
+viable pathways to process mixed waste; however, tuning conditions for each component and ensuring selectivity for the desired products can be a challenge.
+Dissolution-based recycling methods offer the recovery of single polymer components from plastic waste (Miller-Chou and Koenig, 2003). In these methods, solvents are employed to selectively separate materials of interest from a single stream. Many solvents have been disclosed in the literature and in patents for most of the common poly- mers found in plastics produced today (Li et al., 2022). These dissolution-based processes do not break down the polymer chains and have shown advantages over chemical recycling in terms of energy re- quirements and potential environmental impacts (Billiet and Trenor, 2020; Schwarz et al., 2021). Solvent-Targeted Recovery and Precipita- tion (STRAP™) is one dissolution-based approach that can process different types of plastic waste, including multilayer films and dispos- able facemasks, guided by thermodynamic calculations of polymer sol- ubility (Sanchez-Rivera et al., 2023; Sanchez-Rivera et al., 2021; Walker et al., 2020; Yu et al., 2023; Zhou et al., 2021). STRAP has been demonstrated to recover up to 5 different polymeric components from a single, clean, post-industrial waste steam. The materials contained polymers like polyethylene (PE), ethylene vinyl alcohol (EVOH), poly- ethylene terephthalate (PET), ethylene vinyl acetate (EVA), and glycol- modified polyethylene terephthalate (PETG). Polymer separation by dissolution can be an effective way of processing MPW if selective sol- vents can be found for each polymer of interest, and moreover, can be applied to separate multilayer films that cannot be recycled mechanically.
+In this work, STRAP was applied to recover different constituent polymeric materials from an unknown post-industrial MPW stream. Our computational and experimental tools allowed us to develop a series of steps to selectively separate 10 different polymers by selective dissolu- tion, both with physical mixtures of pure polymer pellets and MPW. The polymers considered in this study were LDPE, HDPE, PS, PVC, EVOH, PET, PP, polyamide 6 (PA6), PA66, and PA66/6. The application of the selected solvents can recover valuable plastic materials from MPW, which can serve as a pretreatment for other recycling technologies or to determine which components are present in majority within the waste.
+
+## 2. Materials and methods
+
+
+## 2.1. Materials
+
+The resins used in this study were: LDPE DOW 608A, EVOH EV3251, PET DAK 9921, PA6 B36, PA66 Zytel FG42A, and PA66/6 Ultramid C40L. The remaining polymers were received from Sigma-Aldrich: PP 427888, HDPE 427985, PS 182427, and PVC 389323. The solvents in this study were also received from Sigma-Aldrich: toluene (ACS reagent, >99.5 %), DMSO (ACS reagent, >99.9 %), gamma-valerolactone (ReagentPlus®, >99 %), tetrahydrofuran (THF) (ACS reagent, >99.0 %), 1,2-propanediol (>99 % for analysis from Aeros Organics), formic acid (ACS reagent reag. Ph. Eur., >98 %), and o-xylene (reagent grade, 98.0 %). The post-industrial mixed plastic waste (MPW) feed was collected from different plastic packaging manufacturers by Convergen Energy, Wisconsin (CEW). The MPW was processed by CEW; first, it was sorted from metal, glass and stone; and second, it was shredded by a three-stage shredding process, to 10-in, then to 2-4-in, then < 0.5-in. The same material was shipped to Michigan Technical University, where it was further shredded by a cross-cut shredder (make: Allegheny 16- 75CX) until reaching a flake size of 2-3 mm with an aspect ratio of 1.
+
+## 2.2. Experimental procedure
+
+A 250 mL round bottom flask connected to a reflux condenser with a cold-water supply line was used for the STRAP experiments. The round bottom flask, which would contain the correspond"
+STRAP_paper_sec_2,section,unknown,[TABLE],4,502,856,False,False,"|  | TCC) | PS | PVC | LDPE | HDPE | PP | EVOH | PA66/6 | PET | PA6 | PA66,
+----------------------------------------------------------------------------
+1 | toluene | 35 | 5.72 | 1,12 | 0.13 | 0.11 | 1.74 | 0.00 | 0.01 | 0.01 | 0.00 | 0.00
+2 | THF | 67 |  | 19.10 | 2.09 | 1.45 | 2.88 | 1,12 | 1.33 | 0.99 | 0.52 | 0.26
+3 | o-xylene | 80 |  |  | 3.43 | 2.17 | 1.46 | 0.01 | 0.14 | 0.18 | 0.12 | 0.03
+4 | o-xylene | 95 |  |  |  | 5.04 | 3.42 | 0.04 | 0.39 | 0.53 | 0.35 | 0.09
+5 | o-xylene | 115, |  |  |  |  | 9.65, | 0.33, | 1.29 | 1.88 | 1.23 | 0.33
+6 | DMSO/water | 95, |  |  |  |  |  | 7.67 | 0.03 | 0.00 | 0.01 | 0.00
+7 | 1,2-PDO. | 125, |  |  |  |  |  |  | 3.35 | 0.05 | 2.17 | 0.92
+8 | GVL | 160 |  |  |  |  |  |  |  | 12.45 | 7.71 | 4.14
+9 | DMSO | 145, |  |  |  |  |  |  |  |  | 8.41 | 3.56
+10 | formic acid | 90 |  |  |  |  |  |  |  |  |  | 16.90"
+STRAP_paper_sec_3,section,unknown,[/TABLE],4,950,3559,False,True,"polymers were selected for the first two steps in STRAP with the 10- component physical mixture. For example, toluene, tetrahydrofuran (THF), and styrene have been previously identified as good solvents for PS (Zhou et al., 2023). Solubility calculations in these solvents show that toluene has excellent selectivity for PS at a low temperature. Therefore, toluene at 35 °C was selected as the solvent for PS, and this dissolution was placed as the first in the separation process. Since only PVC was predicted to have high solubility in THF at its boiling temperature, THF was selected as the solvent for the second step (Table 1). Following these first steps, one difficult separation to achieve with dissolution is between polyolefins like PE and PP due to their similar structures. In previous studies, PE and PP have been effectively separated by chromatographic methods and gravity separation and ozonation (Macko and Pasch, 2009; Reddy et al., 2011). Normally, when it comes to separation by dissolu- tion, the same solvents can dissolve both polymers and different tem- peratures can be used to achieve the desired separation. For example, p- cymene can dissolve both PE and PP at 95 and 120 °C, respectively.
+Other solvents like toluene, xylene, and THF have been disclosed to be selective for PP, LDPE, and HDPE at different temperatures, ranging from 50 to 160 °C (Nauman and Lynch, 1991). In our 10-step system, o- xylene was selected for the sequential dissolution of LDPE, HDPE, and PP at different temperatures. According to our solubility predictions, o- xylene can target LDPE, HDPE, and PP at 80, 95, and 115 °C, respec- tively, in steps 3, 4, and 5 (Table 1). After the dissolution steps for the polyolefins, in step 6, EVOH was dissolved in a 60 % DMSO-40 % water (v/v) mixture, which has been used effectively for STRAP with other materials like rigid and flexible multilayer packaging films in the re- covery of EVOH (Sanchez-Rivera et al., 2023; Sanchez-Rivera et al., 2021).
+Another difficult separation is for the three PAs in the physical mixture: PA6, PA66, and PA66/6. Common solvents that have been used for the dissolution of PAs are DMSO and formic acid, along with diols (Kartalis et al., 2002; Subramanian, 1995). To support our solubility predictions, these solvents were tested experimentally to observe
+
+potential dissolutions and determine the proper steps to dissolve each PA separately. As seen in Table S1, PA6 was only soluble in DMSO and formic acid, at 145 °C and 60 °C, respectively. PA66 was only soluble in formic acid at 60 °C, and PA 66/6 was soluble in DMSO at 145 °C, 1,2- propanediol (1,2-PDO) at 125 °C, and gamma-valerolactone (GVL) at 160 °C. Based on these observations, the steps needed to achieve se- lective dissolution of the different PAs in the physical mixture were: PA66/6 dissolution in 1,2-propanediol at 125 °C, PA6 dissolution in DMSO at 145 °C, and PA66 dissolution in formic acid between 60 and 90 °C, according to experiments and solubility predictions. The solubi- lity predictions for these steps indicated preferential dissolution for each PA (Table 1). The last polymer in the 10-component physical mixture was PET, for which solvents like GVL, NMP, and DMSO have been used for its dissolution in the literature (Chen et al., 2021; Poulakis and Papaspyrides, 2001; Walker et al., 2020). To ensure optimal selectivity, the PET was dissolved before PA6 and PA66, at 160 °C in GVL.
+
+## Table 3
+
+
+[FIGURE: Thermal properties of the polymers from a physical mixture before and after STRAP.]"
+STRAP_paper_sec_4,section,unknown,[TABLE],5,287,569,False,False,"Step | Polymer | Before STRAP | After STRAP
+-------------------------------------------
+Tm,2 CC) | Te,2 CC) | Tm,2 CC) | Te,2 CC)
+1 | PS | 107.29 | 103.20 | 110.76 | 108.25,
+2 | PVC | 86.19 | 82.16 | 90.40 | 82.42
+3 | LDPE | 111.24 | 99.73 | 110.89 | 97.58
+4 | HDPE | 128.4 | 111.57 | 127.02 | 114.68
+5 | PP | 163.51 | 116.94 | 160.71 | 115.23
+6 | EVOH | 183.42 | 153.56 | 178.92 | 154.27
+7 | PA66/6 | 188.72 | 123.21 | 185.15 | 137.87
+8 | PET | 242.21 | 154.31 | 221.91 | 145.91
+9 | PA6 | 221.76 | 159.49 | 212.24 | 169.78
+10 | PA66 | 258.98 | 213.70 | 260.97 | 228.70"
+STRAP_paper_sec_5,section,unknown,[/TABLE],5,986,4345,False,False,"After the solvent selection for each step was completed, the overall procedure was demonstrated with the 10-component physical mixture of pure polymer pellets. Table 2 shows the results for the recovery of the polymers after each step in STRAP. Ideally, polymer precipitation should be achieved via a reduction in temperature since this has economic and environmental benefits (Munguia-Lopez et al., 2023; Sanchez-Rivera et al., 2021). However, both PVC and PS required the addition of an antisolvent for their respective precipitation after dissolution. The re- covery was 89 wt% or higher for each polymer, confirming the sepa- ration of one component per step. This was further confirmed with the FTIR of each recovered fraction, which was for the most part comparable to the pure polymer before STRAP (Fig. 3). As seen in Fig. 3(h), the only polymer that presented possible cross contamination after STRAP was PET. Additional peaks were detected after 3000 cm 1, one of these pertaining to an N-H stretch at around 3300 cm™}, which is character- istic of PA (Rodriguez et al., 2021). These peaks indicate contamination of the PET with PA66/6 residue from the previous step, since that polymer is also soluble in GVL at 160 °C. The rest of the recovered polymers showed comparable IR signatures to the corresponding pure polymers.
+The thermal properties of each resin were analyzed with DSC to determine any changes after their recovery by STRAP. As seen in Table 3, the melting (Tm,2) and crystallization temperatures (T.,2) of most of the polymers before and after STRAP were comparable. One noticeable difference was found in the melting temperature of the PET resin after STRAP. This could be due to some contamination from PA 66/ 6. Similarly, there were some differences in the values for the PAs, indicating possible contamination between them. In our previous studies, STRAP did not substantially affect the thermal properties of the recovered polymers (Sanchez-Rivera et al., 2023).
+3.3. Demonstration of STRAP with the post-industrial mixed plastic waste (MPW)
+The 10 dissolution steps that were developed with the physical mixture targeting PS, PVC, LDPE, HDPE, PP, EVOH, PA66/6, PET, PA6, and PA66, were applied to the post-industrial MPW of interest. For the recovery of PA66, water was used as an antisolvent after its dissolution in formic acid. Fig. 4 shows the yields of each fraction recovered from the 10 STRAP steps. Majority components were LDPE, HDPE, and PET.
+The fractions recovered in each STRAP step from the MPW were analyzed with ATR-FTIR to confirm the polymer separations. The ma- jority components, LDPE, HDPE, and PET had comparable IR signatures to their corresponding virgin polymers (Fig. S1). Similar results were observed for EVOH and PA66/6. Other minor solid fractions recovered, PP and PVC, showed the presence of PE (Fig. 5(a,b)). Since there was no evidence of a high yield of PP or PVC and the IR did not confirm their recovery, these steps can be avoided for the MPW in this analysis. In the last two steps for the recovery of PA6 and PA66, potential PET residue was detected (Fig. 5(c,d)). This indicates further optimization of the PET dissolution step is required, via a change in temperature or time, to avoid cross contamination with this polymer. Overall, it would be beneficial to only focus on performing the processing steps for the ma- jority polymers, LDPE, HDPE, and PET, in the presence of the remaining polymers.
+The thermal properties of the fractions recovered from the MPW were analyzed and compared against the virgin resins used in the physical mixture. The LDPE, HDPE, EVOH, and PET samples after STRAP for the most part had comparable melting (Tm,2) and crystalli- zation temperatures (T,,2) to the pure resins (Table S2). However, the PP component had values indicating the presence of HDPE. This is different from the experiments done with the virgin resins and is likely because of differences in molecular weight of the PP and PE materials. This is an important property to consider in polymer dissolution since an increase in molecular weight decreases dissolution rates (Miller-Chou and
+
+## Table 2
+
+STRAP steps for the recovery of 10 common packaging polymers from a physical mixture, with an initial amount of 1 g for each polymer and 30 g of the corresponding solvent."
+STRAP_paper_sec_6,section,unknown,[TABLE],5,260,642,False,False,"| Polymer | Solvent | Temperature (°C) | Dissolution time (hr) | Antisolvent | Recovery (wt%)
+----------------------------------------------------------------------------------------------
+ | PS | Toluene | 35 | 0.5 | IPA | 89.06 %
+ | PVC | THF | 67 | 0.5 | IPA | 93.16 %
+ | LDPE | O-xylene | 80 | 0.5 | None | 90.84 %
+ | HDPE | O-xylene | 95 | 0.5 | None | 92.30 %
+ | PP | O-xylene | 115 | 0.5 | None | 97.61 %
+ | EVOH | 60 % DMSO-40 % water (v/v) | 95 | 1 | None | 90.60 %
+ | PA66/6 | 1,2-PDO | 125 | 1 | None | 99.30 %
+ | PET | GVL | 160 | 1 | None | 106.72 %
+ | PA6 | DMSO | 145 | 1 | None | 99.13 %
+S | PA66* | / | / | / | None | 97.03 %"
+STRAP_paper_sec_7,section,unknown,[/TABLE],5,2000,13484,False,True,"* PA66 was recovered as residue from the physical mixture.
+*™
+Solvent retention.
+
+plastic from
+™
+smn
+—
+
+[FIGURE: Fig. 4. Solvent-targeted recovery and precipitation (STRAP) with post-industrial mixed plastic waste (MPW) from packaging waste that includes multilayer films.]
+
+
+[FIGURE: Fig. 5. IR spectra of the recovered polymers from MPW (in red) and the virgin polymers (in black): (a) PVC, (b) PP, (c) PA6, and (d) PA66. (For interpretation of the references to color in this figure legend, the reader is referred to the web version of this article.)]
+
+Koenig, 2003). Tougher polymers with higher molecular weight distri- butions will require elevated temperatures for their proper dissolution in STRAP, and if multiple polymers have comparable molecular weights, their selective dissolutions can be challenging. More research is needed to better understand how to separate polyolefins like PP and PE from each other. The PA66 and PA6 recovered from the MPW showed thermal values indicating the presence of PET, which supports our results in the IR analysis. There is a possibility that the PAs were not present in the MPW, considering their low yield and differences in the IR and thermal properties. The PVC recovered from the MPW did not have values comparable to the PVC pure resin, possibly due to the presence of a PE impurity, as was observed in the IR spectra.
+
+## 4. Conclusions
+
+Selective polymer dissolution can be an effective way to recover different components from plastic waste mixtures. This was demon- strated by STRAP with physical mixtures containing PVC, PS, LDPE, HDPE, PP, EVOH, PET, PA6, PA66, and PA66/6, in which a sequence of steps were developed for their individual recovery. Our computational tools allowed us to predict solubility values for the targeted polymers and guide our solvent selection and experimental conditions for each step. This process was then demonstrated with a post-industrial mixed plastic waste (MPW) feed in which solids were recovered in each step of the procedure, with LDPE, HDPE, and PET representing the majority.
+
+This method can be used to determine approximate compositions of the plastic waste feed and reduce the number of steps to only recover the main components. In an industrial scale process, minimizing the number of steps and solvents is of interest, considering needs for equipment, polymer drying, and solvent recovery. Additionally, it can be used to separate polymers of interest as a pretreatment for other recycling technologies. Future work will focus on applying this methodology to post-consumer mixed plastic waste.
+
+## CRediT authorship contribution statement
+
+Kevin L. Sanchez-Rivera: Writing - review & editing, Writing — original draft, Visualization, Methodology, Investigation, Conceptuali- zation. Panzheng Zhou: Writing — review & editing, Writing — original draft, Visualization, Methodology, Investigation, Conceptualization. Elizaveta Radkevich: Writing - review & editing, Visualization, Investigation. Anisha Sharma: Writing - review & editing, Investiga- tion. Ezra Bar-Ziv: Writing — review & editing, Investigation. Reid C. Van Lehn: Writing - review & editing, Investigation. George W. Huber: Writing - review & editing, Writing — original draft, Project adminis- tration, Investigation, Funding acquisition, Conceptualization.
+
+## Declaration of competing interest
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgements
+This material is based upon work supported by the U.S. Department of Energy, Office of Energy Efficiency and Renewable Energy, Bioenergy Technologies Office under Award Number DE-EE0009285.
+
+## Appendix A. Supplementary data
+
+Supplementary data to this article can be found online at https://doi. org/10.1016/j.wasman.2025.01.022.
+
+## Data availability
+
+Data will be made available on request.
+
+## References
+
+• Achilias, D.S., Giannoulis, A., Papageorgiou, G.Z., 2009. Recycling of polymers from plastic packaging materials using the dissolution-reprecipitation technique. Polym. Bull. 63, 449-465.
+• Billiet, S., Trenor, $.R., 2020. 100th Anniversary of Macromolecular Science Viewpoint: Needs for Plastics Packaging Circularity. ACS Macro Lett. 9, 1376-1390.
+• Brebu, M., Bhaskar, T., Murai, K., Muto, A., Sakata, Y., Uddin, M.A., 2004. The effect of PVC and/or PET on thermal degradation of polymer mixtures containing brominated ABS. Fuel 83, 2021-2028.
+• Chattopadhyay, J., Pathak, T.S., Srivastava, R., Singh, A.C., 2016. Catalytic co-pyrolysis of paper biomass and plastic mixtures (HDPE (high density polyethylene), PP (polypropylene) and PET (polyethylene terephthalate) and product analysis. Energy 103, 513-521.
+• Chen, W., Yang, Y., Lan, X., Zhang, B., Zhang, X., Mu, T., 2021. Biomass-derived y-valerolactone: efficient dissolution and accelerated alkaline hydrolysis of polyethylene terephthalate. Green Chem. 23, 4065-4073.
+• COSMOlogic GmbH & Co KG, 2019. COSMOtherm Version 19.0.5 (Revision 4825:4826).
+• Dahlbo, H., Poliakova, V., Myllari, V., Sahimaa, O., Anderson, R., 2018. Recycling potential of post-consumer plastic packaging waste in Finland. Waste Manag. 71, 52-61.
+• Dogu, O., Pelucchi, M., Van de Vijver, R., Van Steenberge, P.H.M., D’Hooge, D.R., Cuoci, A., Mehl, M., Frassoldati, A., Faravelli, T., Van Geem, K.M., 2021. The chemistry of chemical recycling of solid plastic waste via pyrolysis and gasification: State-of-the-art, challenges, and future directions. Prog. Energy Combust. Sci. 84, 100901.
+• Fortelny, I, Michdlkova, D., Kruli, Z., 2004. An efficient method of material recycling of municipal plastic waste. Polym. Degrad. Stab. 85, 975-979.
+
+## Waste Management 194 (2025) 290-297
+
+• Jeswani, H., Kriiger, C., Russ, M., Horlacher, M., Antony, F., Hann, S., Azapagic, A., 2021. Life cycle environmental impacts of chemical recycling via pyrolysis of mixed plastic waste in comparison with mechanical recycling and energy recovery. Sci. Total Environ. 769, 144483.
+• Kahlen, J., Masuch, K., Leonhard, K., 2010. Modelling cellulose solubilities in ionic liquids using COSMO-RS. Green Chem. 12, 2172-2181.
+• Kampouris, E.M., Papaspyrides, C.D., Lekakou, C.N., 1987. A model recovery process for scrap polystyrene foam by means of solvent systems. Conserv. Recycl. 10, 315-319.
+• Kampouris, E.M., Papaspyrides, C.D., Lekakou, C.N., 1988. A model process for the solvent recycling of polystyrene. Polym. Eng. Sci. 28, 534-537.
+• Kartalis, C.N., Poulakis, J.G., Tsenoglou, C.J., Papaspyrides, C.D., 2002. Pure component recovery from polyamide 6/6 6 mixtures by selective dissolution and reprecipitation. J. Appl. Polym. Sci. 86, 1924-1930.
+• Klamt, A., 1995. Conductor-like screening model for real solvents: a new approach to the quantitative calculation of solvation phenomena. J. Phys. Chem. 99, 2224-2235.
+• Klamt, A., Jonas, V., Birger, T., Lohrenz, J.C., 1998. Refinement and parametrization of COSMO-RS. J. Phys. Chem. A 102, 5074-5085.
+• Kremer, I., Tomié, T., Katanvié, Z., Erceg, M., Papuga, S., Vukovié, J.P., Schneider, D. 2021. Catalytic pyrolysis of mechanically non-recyclable waste plastics mixture: kinetics and pyrolysis in laboratory-scale reactor. J. Environ, Manage. 296, 113145.
+• Li, H., Aguirre-Villegas, H.A., Allen, R.D., Bai, X., Benson, C.H., Beckham, G.T., Bradshaw, S.L., Brown, J.L., Brown, R.C., Cecon, V.S., Curley, J.B., Curtzwiler, G.W., Dong, S., Gaddameedi, S., Garcia, J.E., Hermans, L, Kim, M.S., Ma, J., Mark, L.O., Mavrikakis, M., Olafasakin, 0.0., Osswald, T.A., Papanikolaou, K.G., Radhakrishnan, H., Sanchez Castillo, M.A., S4nchez-Rivera, K.L., Tumu, K.N., Van Lehn, R.C., Vorst, K.L., Wright, M.M., Wu, J., Zavala, V.M., Zhou, P., Huber, G.W., 2022. Expanding plastics recycling technologies: chemical aspects, technology status and challenges. Green Chem. 24, 8899-9002.
+• Lopez-Urionabarrenechea, A., de Marco, L., Caballero, B.M., Laresgoiti, MLF., Adrado"
+STRAP_paper_sec_0_p0,paragraph,unknown,ELSEVIER,1,168,693,False,False,"Contents lists available at ScienceDirect
+
+## Waste Management
+
+journal homepage: www.elsevier.com/locate/wasman
+Research Paper
+A solvent-targeted recovery and precipitation scheme for the recycling of up to ten polymers from post-industrial mixed plastic waste
+=
+Kevin L. Sanchez-Rivera“, Panzheng Zhou“, Elizaveta Radkevich“, Anisha Sharma“, Ezra Bar-Ziv”, Reid C. Van Lehn’, George W. Huber *”
+• * Department of Chemical and Biological Engineering, University of Wisconsin-Madison, Madison, WI 53706, USA
+• > Department of Mechanical Engineering, Michigan Technological University, Houghton, MI 49931, USA
+• © Department of Chemistry, University of Wisconsin-Madison, Madison, WI 53706, USA"
+STRAP_paper_sec_1_p0,paragraph,abstract,ABSTRACT,1,193,834,False,False,"Keywords: Recycling Dissolution
+Plastic
+Polymer Waste
+Solubility
+Solvent-Targeted Recovery and Precipitation (STRAP™) separates polymers within a plastic waste stream by selective dissolution. In this work, the STRAP framework, which combines computational modeling and ex- periments, was applied to develop a series of steps to separate up to 10 polymers from post-industrial mixed plastic waste (MPW) and the main components recovered were LDPE, HDPE, and PET. The STRAP steps were initially demonstrated with a physical polymer mixture containing LDPE, HDPE, PS, PVC, EVOH, PET, PP, PA6, PA66, and PA66/6, in which recoveries of 89% or higher were achieved for each polymer. This paper demon- strates a solvent selection approach that can be applied to separate unknown plastics materials into purer components.
+
+## 1. Introduction"
+STRAP_paper_sec_1_p1,paragraph,abstract,ABSTRACT,1,902,3808,False,False,"Keywords: Recycling Dissolution
+Plastic
+Polymer Waste
+Solubility
+Solvent-Targeted Recovery and Precipitation (STRAP™) separates polymers within a plastic waste stream by selective dissolution. In this work, the STRAP framework, which combines computational modeling and ex- periments, was applied to develop a series of steps to separate up to 10 polymers from post-industrial mixed plastic waste (MPW) and the main components recovered were LDPE, HDPE, and PET. The STRAP steps were initially demonstrated with a physical polymer mixture containing LDPE, HDPE, PS, PVC, EVOH, PET, PP, PA6, PA66, and PA66/6, in which recoveries of 89% or higher were achieved for each polymer. This paper demon- strates a solvent selection approach that can be applied to separate unknown plastics materials into purer components.
+
+## 1. Introduction
+
+One of the challenges with plastic recycling is the processing of mixed plastic waste (MPW) and proper sorting of its components can dictate the efficiency of the overall recycling process (Ragaert et al., 2020). Plastics that are present in an MPW feedstock can have distinct properties and require different recycling approaches (Thiounn and Smith, 2020). The presence of multiple plastics, additives, and con- taminants is a significant concern with mechanical recycling, for which waste stream purity is an important factor (Billiet and Trenor, 2020). In mechanical recycling, there are separation and sorting steps, bailing, washing, grinding, compounding, and pelletizing. The plastics can be separated in various ways by density, size, color, shape, or chemical composition (Ragaert et al., 2017). One disadvantage with mechanical recycling is the degradation of polymer properties, which means that the MPW is converted to less valuable products (Jeswani et al., 2021). Another disadvantage of mechanical recycling is that additives or con- taminants are not removed and stay inside the recycled plastic. Com- patibilization offers a solution to mechanically recycle multiple polymers, however, this becomes more challenging with complex polymer mixtures (Fortelny et al., 2004).
+Other technologies do not require extensive sorting of plastic waste.
+For example, in a pyrolysis approach where plastics are processed at elevated temperatures in the absence of oxygen, different plastics can be included in the feed to produce valuable oils, waxes, and gases that can be converted to chemicals and fuels (Jeswani et al., 2021; Kremer et al., 2021; Martinez-Narro et al., 2022). Different polymer mixtures con- taining high-density polyethylene (HDPE), polypropylene (PP), poly- ethylene terephthalate (PET), and polystyrene (PS) have been successfully pyrolyzed (Chattopadhyay et al., 2016). This approach of- fers advantages since it can process mixtures of plastics, including multilayer packaging, which cannot be processed with mechanical recycling (Dahlbo et al., 2018). A disadvantage of thermally converting plastics is that the process produces an oil that must be further converted (Billiet and Trenor, 2020; Schwarz et al., 2021). Feedstocks that contain polyvinyl chloride (PVC) do become a concern with pyrolysis due to the release of HCl which is toxic and can corrode the processing units (Brebu et al., 2004; Lopez-Urionabarrenechea et al., 2012; Ragaert et al., 2020).
+Other chemical conversion approaches for mixed plastics have been disclosed in the literature, including chemical oxidation and biocon- version (Sullivan et al., 2022), hydrogenolysis (Rorrer et al., 2021), gasification (Dogu et al., 2021; Wilk and Hofbauer, 2013), one-pot depolymerization (Yang et al., 2022), three-step depolymerization (Spicer et al., 2024). These alternative chemical approaches present
+• * Corresponding author.
+E-mail address: gwhuber@wisc.edu (G.W. Huber)."
+STRAP_paper_sec_1_p2,paragraph,abstract,ABSTRACT,1,657,2825,False,False,"## https://doi.org/10.1016/j.wasman.2025.01.022
+
+Received 11 October 2024; Received in revised form 17 December 2024; Accepted 14 January 2025 Available online 21 January 2025
+0956-053X/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies.
+
+K.L. Sanchez-Rivera et al.
+viable pathways to process mixed waste; however, tuning conditions for each component and ensuring selectivity for the desired products can be a challenge.
+Dissolution-based recycling methods offer the recovery of single polymer components from plastic waste (Miller-Chou and Koenig, 2003). In these methods, solvents are employed to selectively separate materials of interest from a single stream. Many solvents have been disclosed in the literature and in patents for most of the common poly- mers found in plastics produced today (Li et al., 2022). These dissolution-based processes do not break down the polymer chains and have shown advantages over chemical recycling in terms of energy re- quirements and potential environmental impacts (Billiet and Trenor, 2020; Schwarz et al., 2021). Solvent-Targeted Recovery and Precipita- tion (STRAP™) is one dissolution-based approach that can process different types of plastic waste, including multilayer films and dispos- able facemasks, guided by thermodynamic calculations of polymer sol- ubility (Sanchez-Rivera et al., 2023; Sanchez-Rivera et al., 2021; Walker et al., 2020; Yu et al., 2023; Zhou et al., 2021). STRAP has been demonstrated to recover up to 5 different polymeric components from a single, clean, post-industrial waste steam. The materials contained polymers like polyethylene (PE), ethylene vinyl alcohol (EVOH), poly- ethylene terephthalate (PET), ethylene vinyl acetate (EVA), and glycol- modified polyethylene terephthalate (PETG). Polymer separation by dissolution can be an effective way of processing MPW if selective sol- vents can be found for each polymer of interest, and moreover, can be applied to separate multilayer films that cannot be recycled mechanically.
+In this work, STRAP was applied to recover different constituent polymeric materials from an unknown post-industrial MPW stream. Our computational and experimental tools allowed us to develop a series of steps to selectively separate 10 different polymers by selective dissolu- tion, both with physical mixtures of pure polymer pellets and MPW. The polymers considered in this study were LDPE, HDPE, PS, PVC, EVOH, PET, PP, polyamide 6 (PA6), PA66, and PA66/6. The application of the selected solvents can recover valuable plastic materials from MPW, which can serve as a pretreatment for other recycling technologies or to determine which components are present in majority within the waste.
+
+## 2. Materials and methods
+
+## 2.1. Materials"
+STRAP_paper_sec_1_p3,paragraph,abstract,ABSTRACT,2,419,1410,False,False,"## 2. Materials and methods
+
+## 2.1. Materials
+
+The resins used in this study were: LDPE DOW 608A, EVOH EV3251, PET DAK 9921, PA6 B36, PA66 Zytel FG42A, and PA66/6 Ultramid C40L. The remaining polymers were received from Sigma-Aldrich: PP 427888, HDPE 427985, PS 182427, and PVC 389323. The solvents in this study were also received from Sigma-Aldrich: toluene (ACS reagent, >99.5 %), DMSO (ACS reagent, >99.9 %), gamma-valerolactone (ReagentPlus®, >99 %), tetrahydrofuran (THF) (ACS reagent, >99.0 %), 1,2-propanediol (>99 % for analysis from Aeros Organics), formic acid (ACS reagent reag. Ph. Eur., >98 %), and o-xylene (reagent grade, 98.0 %). The post-industrial mixed plastic waste (MPW) feed was collected from different plastic packaging manufacturers by Convergen Energy, Wisconsin (CEW). The MPW was processed by CEW; first, it was sorted from metal, glass and stone; and second, it was shredded by a three-stage shredding process, to 10-in, then to 2-4-in, then < 0.5-in. The same material was shipped to Michigan Technical University, where it was further shredded by a cross-cut shredder (make: Allegheny 16- 75CX) until reaching a flake size of 2-3 mm with an aspect ratio of 1.
+
+## 2.2. Experimental procedure
+
+A 250 mL round bottom flask connected to a reflux condenser with a cold-water supply line was used for the STRAP experiments. The round bottom flask, which would contain the correspond"
+STRAP_paper_sec_2_p0,paragraph,unknown,[TABLE],4,502,856,False,False,"|  | TCC) | PS | PVC | LDPE | HDPE | PP | EVOH | PA66/6 | PET | PA6 | PA66,
+----------------------------------------------------------------------------
+1 | toluene | 35 | 5.72 | 1,12 | 0.13 | 0.11 | 1.74 | 0.00 | 0.01 | 0.01 | 0.00 | 0.00
+2 | THF | 67 |  | 19.10 | 2.09 | 1.45 | 2.88 | 1,12 | 1.33 | 0.99 | 0.52 | 0.26
+3 | o-xylene | 80 |  |  | 3.43 | 2.17 | 1.46 | 0.01 | 0.14 | 0.18 | 0.12 | 0.03
+4 | o-xylene | 95 |  |  |  | 5.04 | 3.42 | 0.04 | 0.39 | 0.53 | 0.35 | 0.09
+5 | o-xylene | 115, |  |  |  |  | 9.65, | 0.33, | 1.29 | 1.88 | 1.23 | 0.33
+6 | DMSO/water | 95, |  |  |  |  |  | 7.67 | 0.03 | 0.00 | 0.01 | 0.00
+7 | 1,2-PDO. | 125, |  |  |  |  |  |  | 3.35 | 0.05 | 2.17 | 0.92
+8 | GVL | 160 |  |  |  |  |  |  |  | 12.45 | 7.71 | 4.14
+9 | DMSO | 145, |  |  |  |  |  |  |  |  | 8.41 | 3.56
+10 | formic acid | 90 |  |  |  |  |  |  |  |  |  | 16.90"
+STRAP_paper_sec_3_p0,paragraph,unknown,[/TABLE],4,603,2338,False,False,"polymers were selected for the first two steps in STRAP with the 10- component physical mixture. For example, toluene, tetrahydrofuran (THF), and styrene have been previously identified as good solvents for PS (Zhou et al., 2023). Solubility calculations in these solvents show that toluene has excellent selectivity for PS at a low temperature. Therefore, toluene at 35 °C was selected as the solvent for PS, and this dissolution was placed as the first in the separation process. Since only PVC was predicted to have high solubility in THF at its boiling temperature, THF was selected as the solvent for the second step (Table 1). Following these first steps, one difficult separation to achieve with dissolution is between polyolefins like PE and PP due to their similar structures. In previous studies, PE and PP have been effectively separated by chromatographic methods and gravity separation and ozonation (Macko and Pasch, 2009; Reddy et al., 2011). Normally, when it comes to separation by dissolu- tion, the same solvents can dissolve both polymers and different tem- peratures can be used to achieve the desired separation. For example, p- cymene can dissolve both PE and PP at 95 and 120 °C, respectively.
+Other solvents like toluene, xylene, and THF have been disclosed to be selective for PP, LDPE, and HDPE at different temperatures, ranging from 50 to 160 °C (Nauman and Lynch, 1991). In our 10-step system, o- xylene was selected for the sequential dissolution of LDPE, HDPE, and PP at different temperatures. According to our solubility predictions, o- xylene can target LDPE, HDPE, and PP at 80, 95, and 115 °C, respec- tively, in steps 3, 4, and 5 (Table 1). After the dissolution steps for the polyolefins, in step 6, EVOH was dissolved in a 60 % DMSO-40 % water (v/v) mixture, which has been used effectively for STRAP with other materials like rigid and flexible multilayer packaging films in the re- covery of EVOH (Sanchez-Rivera et al., 2023; Sanchez-Rivera et al., 2021).
+Another difficult separation is for the three PAs in the physical mixture: PA6, PA66, and PA66/6. Common solvents that have been used for the dissolution of PAs are DMSO and formic acid, along with diols (Kartalis et al., 2002; Subramanian, 1995). To support our solubility predictions, these solvents were tested experimentally to observe"
+STRAP_paper_sec_3_p1,paragraph,unknown,[/TABLE],4,345,1218,False,True,"potential dissolutions and determine the proper steps to dissolve each PA separately. As seen in Table S1, PA6 was only soluble in DMSO and formic acid, at 145 °C and 60 °C, respectively. PA66 was only soluble in formic acid at 60 °C, and PA 66/6 was soluble in DMSO at 145 °C, 1,2- propanediol (1,2-PDO) at 125 °C, and gamma-valerolactone (GVL) at 160 °C. Based on these observations, the steps needed to achieve se- lective dissolution of the different PAs in the physical mixture were: PA66/6 dissolution in 1,2-propanediol at 125 °C, PA6 dissolution in DMSO at 145 °C, and PA66 dissolution in formic acid between 60 and 90 °C, according to experiments and solubility predictions. The solubi- lity predictions for these steps indicated preferential dissolution for each PA (Table 1). The last polymer in the 10-component physical mixture was PET, for which solvents like GVL, NMP, and DMSO have been used for its dissolution in the literature (Chen et al., 2021; Poulakis and Papaspyrides, 2001; Walker et al., 2020). To ensure optimal selectivity, the PET was dissolved before PA6 and PA66, at 160 °C in GVL.
+
+## Table 3
+
+[FIGURE: Thermal properties of the polymers from a physical mixture before and after STRAP.]"
+STRAP_paper_sec_4_p0,paragraph,unknown,[TABLE],5,287,569,False,False,"Step | Polymer | Before STRAP | After STRAP
+-------------------------------------------
+Tm,2 CC) | Te,2 CC) | Tm,2 CC) | Te,2 CC)
+1 | PS | 107.29 | 103.20 | 110.76 | 108.25,
+2 | PVC | 86.19 | 82.16 | 90.40 | 82.42
+3 | LDPE | 111.24 | 99.73 | 110.89 | 97.58
+4 | HDPE | 128.4 | 111.57 | 127.02 | 114.68
+5 | PP | 163.51 | 116.94 | 160.71 | 115.23
+6 | EVOH | 183.42 | 153.56 | 178.92 | 154.27
+7 | PA66/6 | 188.72 | 123.21 | 185.15 | 137.87
+8 | PET | 242.21 | 154.31 | 221.91 | 145.91
+9 | PA6 | 221.76 | 159.49 | 212.24 | 169.78
+10 | PA66 | 258.98 | 213.70 | 260.97 | 228.70"
+STRAP_paper_sec_5_p0,paragraph,unknown,[/TABLE],5,942,4160,False,False,"After the solvent selection for each step was completed, the overall procedure was demonstrated with the 10-component physical mixture of pure polymer pellets. Table 2 shows the results for the recovery of the polymers after each step in STRAP. Ideally, polymer precipitation should be achieved via a reduction in temperature since this has economic and environmental benefits (Munguia-Lopez et al., 2023; Sanchez-Rivera et al., 2021). However, both PVC and PS required the addition of an antisolvent for their respective precipitation after dissolution. The re- covery was 89 wt% or higher for each polymer, confirming the sepa- ration of one component per step. This was further confirmed with the FTIR of each recovered fraction, which was for the most part comparable to the pure polymer before STRAP (Fig. 3). As seen in Fig. 3(h), the only polymer that presented possible cross contamination after STRAP was PET. Additional peaks were detected after 3000 cm 1, one of these pertaining to an N-H stretch at around 3300 cm™}, which is character- istic of PA (Rodriguez et al., 2021). These peaks indicate contamination of the PET with PA66/6 residue from the previous step, since that polymer is also soluble in GVL at 160 °C. The rest of the recovered polymers showed comparable IR signatures to the corresponding pure polymers.
+The thermal properties of each resin were analyzed with DSC to determine any changes after their recovery by STRAP. As seen in Table 3, the melting (Tm,2) and crystallization temperatures (T.,2) of most of the polymers before and after STRAP were comparable. One noticeable difference was found in the melting temperature of the PET resin after STRAP. This could be due to some contamination from PA 66/ 6. Similarly, there were some differences in the values for the PAs, indicating possible contamination between them. In our previous studies, STRAP did not substantially affect the thermal properties of the recovered polymers (Sanchez-Rivera et al., 2023).
+3.3. Demonstration of STRAP with the post-industrial mixed plastic waste (MPW)
+The 10 dissolution steps that were developed with the physical mixture targeting PS, PVC, LDPE, HDPE, PP, EVOH, PA66/6, PET, PA6, and PA66, were applied to the post-industrial MPW of interest. For the recovery of PA66, water was used as an antisolvent after its dissolution in formic acid. Fig. 4 shows the yields of each fraction recovered from the 10 STRAP steps. Majority components were LDPE, HDPE, and PET.
+The fractions recovered in each STRAP step from the MPW were analyzed with ATR-FTIR to confirm the polymer separations. The ma- jority components, LDPE, HDPE, and PET had comparable IR signatures to their corresponding virgin polymers (Fig. S1). Similar results were observed for EVOH and PA66/6. Other minor solid fractions recovered, PP and PVC, showed the presence of PE (Fig. 5(a,b)). Since there was no evidence of a high yield of PP or PVC and the IR did not confirm their recovery, these steps can be avoided for the MPW in this analysis. In the last two steps for the recovery of PA6 and PA66, potential PET residue was detected (Fig. 5(c,d)). This indicates further optimization of the PET dissolution step is required, via a change in temperature or time, to avoid cross contamination with this polymer. Overall, it would be beneficial to only focus on performing the processing steps for the ma- jority polymers, LDPE, HDPE, and PET, in the presence of the remaining polymers.
+The thermal properties of the fractions recovered from the MPW were analyzed and compared against the virgin resins used in the physical mixture. The LDPE, HDPE, EVOH, and PET samples after STRAP for the most part had comparable melting (Tm,2) and crystalli- zation temperatures (T,,2) to the pure resins (Table S2). However, the PP component had values indicating the presence of HDPE. This is different from the experiments done with the virgin resins and is likely because of differences in molecular weight of the PP and PE materials. This is an important property to consider in polymer dissolution since an increase in molecular weight decreases dissolution rates (Miller-Chou and"
+STRAP_paper_sec_5_p1,paragraph,unknown,[/TABLE],5,42,183,False,False,"## Table 2
+
+STRAP steps for the recovery of 10 common packaging polymers from a physical mixture, with an initial amount of 1 g for each polymer and 30 g of the corresponding solvent."
+STRAP_paper_sec_6_p0,paragraph,unknown,[TABLE],5,260,642,False,False,"| Polymer | Solvent | Temperature (°C) | Dissolution time (hr) | Antisolvent | Recovery (wt%)
+----------------------------------------------------------------------------------------------
+ | PS | Toluene | 35 | 0.5 | IPA | 89.06 %
+ | PVC | THF | 67 | 0.5 | IPA | 93.16 %
+ | LDPE | O-xylene | 80 | 0.5 | None | 90.84 %
+ | HDPE | O-xylene | 95 | 0.5 | None | 92.30 %
+ | PP | O-xylene | 115 | 0.5 | None | 97.61 %
+ | EVOH | 60 % DMSO-40 % water (v/v) | 95 | 1 | None | 90.60 %
+ | PA66/6 | 1,2-PDO | 125 | 1 | None | 99.30 %
+ | PET | GVL | 160 | 1 | None | 106.72 %
+ | PA6 | DMSO | 145 | 1 | None | 99.13 %
+S | PA66* | / | / | / | None | 97.03 %"
+STRAP_paper_sec_7_p0,paragraph,unknown,[/TABLE],5,800,3744,False,True,"* PA66 was recovered as residue from the physical mixture.
+*™
+Solvent retention.
+
+plastic from
+™
+smn
+—
+
+[FIGURE: Fig. 4. Solvent-targeted recovery and precipitation (STRAP) with post-industrial mixed plastic waste (MPW) from packaging waste that includes multilayer films.]
+
+[FIGURE: Fig. 5. IR spectra of the recovered polymers from MPW (in red) and the virgin polymers (in black): (a) PVC, (b) PP, (c) PA6, and (d) PA66. (For interpretation of the references to color in this figure legend, the reader is referred to the web version of this article.)]
+
+Koenig, 2003). Tougher polymers with higher molecular weight distri- butions will require elevated temperatures for their proper dissolution in STRAP, and if multiple polymers have comparable molecular weights, their selective dissolutions can be challenging. More research is needed to better understand how to separate polyolefins like PP and PE from each other. The PA66 and PA6 recovered from the MPW showed thermal values indicating the presence of PET, which supports our results in the IR analysis. There is a possibility that the PAs were not present in the MPW, considering their low yield and differences in the IR and thermal properties. The PVC recovered from the MPW did not have values comparable to the PVC pure resin, possibly due to the presence of a PE impurity, as was observed in the IR spectra.
+
+## 4. Conclusions
+
+Selective polymer dissolution can be an effective way to recover different components from plastic waste mixtures. This was demon- strated by STRAP with physical mixtures containing PVC, PS, LDPE, HDPE, PP, EVOH, PET, PA6, PA66, and PA66/6, in which a sequence of steps were developed for their individual recovery. Our computational tools allowed us to predict solubility values for the targeted polymers and guide our solvent selection and experimental conditions for each step. This process was then demonstrated with a post-industrial mixed plastic waste (MPW) feed in which solids were recovered in each step of the procedure, with LDPE, HDPE, and PET representing the majority.
+
+This method can be used to determine approximate compositions of the plastic waste feed and reduce the number of steps to only recover the main components. In an industrial scale process, minimizing the number of steps and solvents is of interest, considering needs for equipment, polymer drying, and solvent recovery. Additionally, it can be used to separate polymers of interest as a pretreatment for other recycling technologies. Future work will focus on applying this methodology to post-consumer mixed plastic waste.
+
+## CRediT authorship contribution statement
+
+Kevin L. Sanchez-Rivera: Writing - review & editing, Writing — original draft, Visualization, Methodology, Investigation, Conceptuali- zation. Panzheng Zhou: Writing — review & editing, Writing — original draft, Visualization, Methodology, Investigation, Conceptualization. Elizaveta Radkevich: Writing - review & editing, Visualization, Investigation. Anisha Sharma: Writing - review & editing, Investiga- tion. Ezra Bar-Ziv: Writing — review & editing, Investigation. Reid C. Van Lehn: Writing - review & editing, Investigation. George W. Huber: Writing - review & editing, Writing — original draft, Project adminis- tration, Investigation, Funding acquisition, Conceptualization.
+
+## Declaration of competing interest
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgements
+This material is based upon work supported by the U.S. Department of Energy, Office of Energy Efficiency and Renewable Energy, Bioenergy Technologies Office under Award Number DE-EE0009285."
+STRAP_paper_sec_7_p1,paragraph,unknown,[/TABLE],7,726,2452,False,False,"## Declaration of competing interest
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+Acknowledgements
+This material is based upon work supported by the U.S. Department of Energy, Office of Energy Efficiency and Renewable Energy, Bioenergy Technologies Office under Award Number DE-EE0009285.
+
+## Appendix A. Supplementary data
+
+Supplementary data to this article can be found online at https://doi. org/10.1016/j.wasman.2025.01.022.
+
+## Data availability
+
+Data will be made available on request.
+
+## References
+
+• Achilias, D.S., Giannoulis, A., Papageorgiou, G.Z., 2009. Recycling of polymers from plastic packaging materials using the dissolution-reprecipitation technique. Polym. Bull. 63, 449-465.
+• Billiet, S., Trenor, $.R., 2020. 100th Anniversary of Macromolecular Science Viewpoint: Needs for Plastics Packaging Circularity. ACS Macro Lett. 9, 1376-1390.
+• Brebu, M., Bhaskar, T., Murai, K., Muto, A., Sakata, Y., Uddin, M.A., 2004. The effect of PVC and/or PET on thermal degradation of polymer mixtures containing brominated ABS. Fuel 83, 2021-2028.
+• Chattopadhyay, J., Pathak, T.S., Srivastava, R., Singh, A.C., 2016. Catalytic co-pyrolysis of paper biomass and plastic mixtures (HDPE (high density polyethylene), PP (polypropylene) and PET (polyethylene terephthalate) and product analysis. Energy 103, 513-521.
+• Chen, W., Yang, Y., Lan, X., Zhang, B., Zhang, X., Mu, T., 2021. Biomass-derived y-valerolactone: efficient dissolution and accelerated alkaline hydrolysis of polyethylene terephthalate. Green Chem. 23, 4065-4073.
+• COSMOlogic GmbH & Co KG, 2019. COSMOtherm Version 19.0.5 (Revision 4825:4826).
+• Dahlbo, H., Poliakova, V., Myllari, V., Sahimaa, O., Anderson, R., 2018. Recycling potential of post-consumer plastic packaging waste in Finland. Waste Manag. 71, 52-61.
+• Dogu, O., Pelucchi, M., Van de Vijver, R., Van Steenberge, P.H.M., D’Hooge, D.R., Cuoci, A., Mehl, M., Frassoldati, A., Faravelli, T., Van Geem, K.M., 2021. The chemistry of chemical recycling of solid plastic waste via pyrolysis and gasification: State-of-the-art, challenges, and future directions. Prog. Energy Combust. Sci. 84, 100901.
+• Fortelny, I, Michdlkova, D., Kruli, Z., 2004. An efficient method of material recycling of municipal plastic waste. Polym. Degrad. Stab. 85, 975-979.
+
+## Waste Management 194 (2025) 290-297"
+STRAP_paper_sec_7_p2,paragraph,unknown,[/TABLE],7,798,2256,False,False,"## Waste Management 194 (2025) 290-297
+
+• Jeswani, H., Kriiger, C., Russ, M., Horlacher, M., Antony, F., Hann, S., Azapagic, A., 2021. Life cycle environmental impacts of chemical recycling via pyrolysis of mixed plastic waste in comparison with mechanical recycling and energy recovery. Sci. Total Environ. 769, 144483.
+• Kahlen, J., Masuch, K., Leonhard, K., 2010. Modelling cellulose solubilities in ionic liquids using COSMO-RS. Green Chem. 12, 2172-2181.
+• Kampouris, E.M., Papaspyrides, C.D., Lekakou, C.N., 1987. A model recovery process for scrap polystyrene foam by means of solvent systems. Conserv. Recycl. 10, 315-319.
+• Kampouris, E.M., Papaspyrides, C.D., Lekakou, C.N., 1988. A model process for the solvent recycling of polystyrene. Polym. Eng. Sci. 28, 534-537.
+• Kartalis, C.N., Poulakis, J.G., Tsenoglou, C.J., Papaspyrides, C.D., 2002. Pure component recovery from polyamide 6/6 6 mixtures by selective dissolution and reprecipitation. J. Appl. Polym. Sci. 86, 1924-1930.
+• Klamt, A., 1995. Conductor-like screening model for real solvents: a new approach to the quantitative calculation of solvation phenomena. J. Phys. Chem. 99, 2224-2235.
+• Klamt, A., Jonas, V., Birger, T., Lohrenz, J.C., 1998. Refinement and parametrization of COSMO-RS. J. Phys. Chem. A 102, 5074-5085.
+• Kremer, I., Tomié, T., Katanvié, Z., Erceg, M., Papuga, S., Vukovié, J.P., Schneider, D. 2021. Catalytic pyrolysis of mechanically non-recyclable waste plastics mixture: kinetics and pyrolysis in laboratory-scale reactor. J. Environ, Manage. 296, 113145.
+• Li, H., Aguirre-Villegas, H.A., Allen, R.D., Bai, X., Benson, C.H., Beckham, G.T., Bradshaw, S.L., Brown, J.L., Brown, R.C., Cecon, V.S., Curley, J.B., Curtzwiler, G.W., Dong, S., Gaddameedi, S., Garcia, J.E., Hermans, L, Kim, M.S., Ma, J., Mark, L.O., Mavrikakis, M., Olafasakin, 0.0., Osswald, T.A., Papanikolaou, K.G., Radhakrishnan, H., Sanchez Castillo, M.A., S4nchez-Rivera, K.L., Tumu, K.N., Van Lehn, R.C., Vorst, K.L., Wright, M.M., Wu, J., Zavala, V.M., Zhou, P., Huber, G.W., 2022. Expanding plastics recycling technologies: chemical aspects, technology status and challenges. Green Chem. 24, 8899-9002.
+• Lopez-Urionabarrenechea, A., de Marco, L., Caballero, B.M., Laresgoiti, MLF., Adrado"

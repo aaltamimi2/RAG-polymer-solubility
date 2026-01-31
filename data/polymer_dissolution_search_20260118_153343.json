@@ -1,0 +1,400 @@
+{
+  "search_metadata": {
+    "id": "696d51a72c2bb44afabe0869",
+    "status": "Success",
+    "json_endpoint": "https://serpapi.com/searches/e0f9c7b20b963201/696d51a72c2bb44afabe0869.json",
+    "created_at": "2026-01-18 21:33:27 UTC",
+    "processed_at": "2026-01-18 21:33:27 UTC",
+    "google_scholar_url": "https://scholar.google.com/scholar?q=%22polymer+dissolution%22&hl=en&num=21&as_ylo=2020&as_yhi=2025&scisbd=1",
+    "raw_html_file": "https://serpapi.com/searches/e0f9c7b20b963201/696d51a72c2bb44afabe0869.html",
+    "total_time_taken": 0.61
+  },
+  "analysis": {
+    "total_articles": 20,
+    "year_distribution": {
+      "2025": 16,
+      "2026": 1
+    },
+    "citation_stats": {
+      "total_citations": 3,
+      "avg_citations": 0.15,
+      "max_citations": 2,
+      "min_citations": 0
+    },
+    "pdf_available": 9,
+    "top_authors": [
+      [
+        "T Tashiro",
+        2
+      ],
+      [
+        "B Akilbekov",
+        1
+      ],
+      [
+        "A Amankeldiyeva",
+        1
+      ],
+      [
+        "T Ibrayem",
+        1
+      ],
+      [
+        "M Ohke",
+        1
+      ],
+      [
+        "Y Ishizaki-Betchaku",
+        1
+      ],
+      [
+        "S Nagano",
+        1
+      ],
+      [
+        "H Ebe",
+        1
+      ],
+      [
+        "S Xu",
+        1
+      ],
+      [
+        "Y Wang",
+        1
+      ]
+    ]
+  },
+  "articles": [
+    {
+      "title": "Multiscale Molecular Modeling of Amphiphilic Polycarboxybetaine Interactions in Hydrocarbon and Deep Eutectic Solvent Environments for Sustainable \u2026",
+      "authors": [
+        "B Akilbekov",
+        "A Amankeldiyeva",
+        "T Ibrayem"
+      ],
+      "year": "2025",
+      "snippet": "36 days ago - \u2026 chains enhance aggregation in octane, while strong interactions between hydroxide ions and carboxylate groups in deep eutectic solvent promote polymer dissolution and \u2026",
+      "link": "https://www.espublisher.com/uploads/article_html/es-food-agroforestry/10.30919-faf1940.htm",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "B Akilbekov, A Amankeldiyeva, T Ibrayem\u2026 - ES Food and \u2026, 2025 - espublisher.com"
+    },
+    {
+      "title": "Fabrication of noncrosslinked poly(N-dodecyl acrylamide) monolayer-thick sheets by exfoliation using poor solvents",
+      "authors": [
+        "M Ohke",
+        "Y Ishizaki-Betchaku",
+        "S Nagano",
+        "H Ebe"
+      ],
+      "year": "2025",
+      "snippet": "37 days ago - \u2026 that hexane, ethyl acetate, and 2-propanol effectively exfoliated micrometer-scale monolayer sheets, whereas the polar methanol solvent induced polymer dissolution into \u2026",
+      "link": "https://www.nature.com/articles/s41428-025-01121-w",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "M Ohke, Y Ishizaki-Betchaku, S Nagano, H Ebe\u2026 - Polymer Journal, 2025 - nature.com"
+    },
+    {
+      "title": "Efficient synthesis of ethylene glycol monoacetate via coal chemical feedstocks and feedstock-derived catalyst",
+      "authors": [
+        "S Xu",
+        "Y Wang",
+        "Z Zhang",
+        "J Zhao",
+        "L Shi"
+      ],
+      "year": "2026",
+      "snippet": "37 days ago - Ethylene glycol monoacetate (EGMA) is an important chemical intermediate and is widely used in polymer dissolution, biodiesel additives and other fields. Based on China\u2026",
+      "link": "https://www.sciencedirect.com/science/article/pii/S0016236125036907",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "S Xu, Y Wang, Z Zhang, J Zhao, L Shi - Fuel, 2026 - Elsevier"
+    },
+    {
+      "title": "Molecular feature influence on ArF photoresist polymer dissolution behavior",
+      "authors": [
+        "X Lin",
+        "Y Li",
+        "Y Huo",
+        "X Dong",
+        "L Mu",
+        "X Lu"
+      ],
+      "year": "2025",
+      "snippet": "45 days ago - This study examines the influence of lactone structure (GBLMA versus NLM) and RAFT end-groups on ArF photoresist dissolution using QCM and various spectroscopic \u2026",
+      "link": "https://www.spiedigitallibrary.org/conference-proceedings-of-spie/13991/139910L/Molecular-feature-influence-on-ArF-photoresist-polymer-dissolution-behavior/10.1117/12.3092889.short",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "X Lin, Y Li, Y Huo, X Dong, L Mu, X Lu\u2026 - Ninth International \u2026, 2025 - spiedigitallibrary.org"
+    },
+    {
+      "title": "APPLICATION OF THE HANSEN SOLUBILITY PARAMETERS APPROACH FOR SELECTING SINGLE AND BINARY SOLVENTS IN POLYMERIC MEMBRANE \u2026",
+      "authors": [
+        "SA Arat"
+      ],
+      "year": "N/A",
+      "snippet": "46 days ago - \u2026 used in membrane production can be quantitatively determined using Hansen solubility parameters (HSPs), which also allow the prediction of the polymer dissolution \u2026",
+      "link": "https://www.researchgate.net/profile/Seren-Acarer-Arat/publication/398259430_Application_of_the_Hansen_Solubility_Parameters_Approach_for_Selecting_Single_and_Binary_Solvents_in_Polymeric_Membrane_Production_Assessment_of_Polymer-Solvent_Compatibility/links/692f4f7e18a6405a30fa8d77/Application-of-the-Hansen-Solubility-Parameters-Approach-for-Selecting-Single-and-Binary-Solvents-in-Polymeric-Membrane-Production-Assessment-of-Polymer-Solvent-Compatibility.pdf",
+      "pdf_link": "https://www.researchgate.net/profile/Seren-Acarer-Arat/publication/398259430_Application_of_the_Hansen_Solubility_Parameters_Approach_for_Selecting_Single_and_Binary_Solvents_in_Polymeric_Membrane_Production_Assessment_of_Polymer-Solvent_Compatibility/links/692f4f7e18a6405a30fa8d77/Application-of-the-Hansen-Solubility-Parameters-Approach-for-Selecting-Single-and-Binary-Solvents-in-Polymeric-Membrane-Production-Assessment-of-Polymer-Solvent-Compatibility.pdf",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "SA Arat - researchgate.net"
+    },
+    {
+      "title": "Combining Nanoscale Curvature and Polymer Osmotic Pressure for Efficient Giant Vesicle Assembly Under Physiological Conditions",
+      "authors": [
+        "A Cooper",
+        "V Vijayananda",
+        "J Pazzi"
+      ],
+      "year": "2025",
+      "snippet": "67 days ago - \u2026 Consistent with our earlier finding that polymer dissolution on glass coverslips can promote GUV formation in salty solutions by exerting osmotic pressure, \u0394P, against the \u2026",
+      "link": "https://onlinelibrary.wiley.com/doi/abs/10.1002/smtd.202500664",
+      "pdf_link": "https://onlinelibrary.wiley.com/doi/pdf/10.1002/smtd.202500664",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 4,
+      "publication_info": "A Cooper, V Vijayananda, J Pazzi\u2026 - Small \u2026, 2025 - Wiley Online Library"
+    },
+    {
+      "title": "Computationally guided formulation of advanced developers for EUV resists",
+      "authors": [
+        "Y Jin",
+        "T Masuda",
+        "YT Ito",
+        "T Kozawa"
+      ],
+      "year": "2025",
+      "snippet": "72 days ago - \u2026 Figure (b) displays the illustration of the layers at the end of the polymer dissolution \u2026 is the essential driving force for polymer dissolution. Specifically, dissolution occurs \u2026",
+      "link": "https://www.spiedigitallibrary.org/conference-proceedings-of-spie/13686/136861A/Computationally-guided-formulation-of-advanced-developers-for-EUV-resists/10.1117/12.3070424.short",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 3,
+      "publication_info": "Y Jin, T Masuda, YT Ito, T Kozawa\u2026 - International \u2026, 2025 - spiedigitallibrary.org"
+    },
+    {
+      "title": "Encapsulation of Saccharomyces boulardii into sugar pellets coated with an enteric polymer",
+      "authors": [
+        "KL Bailon-Barceinas",
+        "Z S\u00e1nchez-Portilla"
+      ],
+      "year": "2025",
+      "snippet": "80 days ago - \u2026 In contrast, under alkaline pH conditions, polymer dissolution occurred, releasing S. boulardii 65%\u00b10.46% and 68%\u00b10.23% for the 5% and 10% enteric coatings, \u2026",
+      "link": "https://link.springer.com/article/10.1007/s11274-025-04649-4",
+      "pdf_link": "https://link.springer.com/content/pdf/10.1007/s11274-025-04649-4.pdf",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 3,
+      "publication_info": "KL Bailon-Barceinas, Z S\u00e1nchez-Portilla\u2026 - World Journal of \u2026, 2025 - Springer"
+    },
+    {
+      "title": "Tailor-designed Ionic Liquid Based Solvents for Polymer Dissolution",
+      "authors": [
+        "RS Mim",
+        "Y Sabri",
+        "M Al Kobaisi",
+        "T Greaves"
+      ],
+      "year": "N/A",
+      "snippet": "93 days ago - The worldwide demand for PV-generated power has seen a remarkable increase. Solar panels, while vital for renewable energy, introduce an additional environmental \u2026",
+      "link": "https://www.coil10.com/wp-content/uploads/2025/10/P73-Rubiat-Sadia-Mim.pdf",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "RS Mim, Y Sabri, M Al Kobaisi, T Greaves - coil10.com"
+    },
+    {
+      "title": "Ion transport and structural properties of highly concentrated organogel electrolytes based on Tetra-arm PEG networks",
+      "authors": [
+        "Y Deguchi",
+        "Y Yasui",
+        "T Tashiro",
+        "M Matsugami"
+      ],
+      "year": "2025",
+      "snippet": "93 days ago - \u2026 We report a new class of poly(ethylene glycol) (PEG)-based gel electrolytes formed via salting-in polymer dissolution in highly concentrated LiFSA/AN electrolytes (FSA: bis\u2026",
+      "link": "https://pubs.rsc.org/en/content/articlehtml/2025/cp/d5cp03562g",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 4,
+      "publication_info": "Y Deguchi, Y Yasui, T Tashiro, M Matsugami\u2026 - Physical Chemistry \u2026, 2025 - pubs.rsc.org"
+    },
+    {
+      "title": "A Neutron Reflection Study of the Dissolution of Miscible Glassy Polymer Films over a Range of Temperature",
+      "authors": [
+        "G Yuan",
+        "SK Satija",
+        "TR Murray",
+        "JF Douglas"
+      ],
+      "year": "2025",
+      "snippet": "96 days ago - \u2026 for high-resolution measurement methods on model materials and an appropriate theoretical framework to elucidate the fundamental nature of the polymer dissolution \u2026",
+      "link": "https://pubs.acs.org/doi/abs/10.1021/acs.macromol.5c02222",
+      "pdf_link": "https://pubs.acs.org/doi/pdf/10.1021/acs.macromol.5c02222",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 4,
+      "publication_info": "G Yuan, SK Satija, TR Murray, JF Douglas - Macromolecules, 2025 - ACS Publications"
+    },
+    {
+      "title": "Regularities of dissolution of the synthesized ammonium salt of carboxymethylcellulose in water",
+      "authors": [
+        "GM Shaban",
+        "RS Ahmad",
+        "AT Isa"
+      ],
+      "year": "N/A",
+      "snippet": "99 days ago - \u2026 The kinetic model of the polymer dissolution process in the system of solid polymers\u2013solvent has been developed and the kinetic regularities of NH4CMC dissolution \u2026",
+      "link": "https://sdu.edu.az/userfiles/file/scientific_publications/EX%202-25%20T-E_.pdf#page=34",
+      "pdf_link": "https://sdu.edu.az/userfiles/file/scientific_publications/EX%202-25%20T-E_.pdf#page=34",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "GM Shaban, RS Ahmad, AT Isa - ELM\u0130 X\u018fB\u018fRL\u018fR \u041d\u0410\u0423\u0427\u041d\u042b\u0415 \u0418\u0417\u0412\u0415\u0421\u0422\u0418\u042f \u2026 - sdu.edu.az"
+    },
+    {
+      "title": "LDH-chitosan bionanocomposites for oncologic applications: A refreshing perspective on the mutual influence through intermolecular forces toward controlled \u2026",
+      "authors": [
+        "DI Olariu",
+        "VM Platon",
+        "A Ibanescu",
+        "MD Vlad"
+      ],
+      "year": "2025",
+      "snippet": "134 days ago - \u2026 the metal chloride precursors of LDH on chitosan while the solution of metal precursors with and without H + provided the acidic environment for polymer dissolution. The \u2026",
+      "link": "https://www.sciencedirect.com/science/article/pii/S0141813025080523",
+      "pdf_link": "https://www.researchgate.net/profile/Luminita-Marin/publication/395309942_LDH-chitosan_bionanocomposites_for_oncologic_applications_A_refreshing_perspective_on_the_mutual_influence_through_intermolecular_forces_toward_controlled_morphology_and_dispersion/links/68cecd70f3032e2b4be2505e/LDH-chitosan-bionanocomposites-for-oncologic-applications-A-refreshing-perspective-on-the-mutual-influence-through-intermolecular-forces-toward-controlled-morphology-and-dispersion.pdf",
+      "cited_by_count": 1,
+      "cited_by_link": "https://scholar.google.com/scholar?cites=15504191312991562464&as_sdt=4000005&sciodt=0,18&hl=en&num=20",
+      "versions_count": 3,
+      "publication_info": "DI Olariu, VM Platon, A Ibanescu, MD Vlad\u2026 - International Journal of \u2026, 2025 - Elsevier"
+    },
+    {
+      "title": "HOW RHEOLOGY HELPS MAKING 3D PRINTED ADDITIVE-AND CROSSLINKER-FREE BIO-AEROGELS",
+      "authors": [
+        "M N\u00e9grier",
+        "S Yu",
+        "R Castellani",
+        "AS Pereira",
+        "R Valette"
+      ],
+      "year": "2025",
+      "snippet": "146 days ago - \u2026 Two main pathways are used to make bio-aerogels: either by polymer dissolution or from a suspension of \u201cnanoparticles\u201d (nanocellulose, nanochitin), followed by solvent \u2026",
+      "link": "https://hal.science/hal-05428080/",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "M N\u00e9grier, S Yu, R Castellani, AS Pereira, R Valette\u2026 - EPNOE 2025, 2025 - hal.science"
+    },
+    {
+      "title": "Tetra-arm Poly (ethylene glycol)-Based Ion Gel Electrolytes via Salting-in Polymer Dissolution in Sodium Salt-Containing Ionic Liquids",
+      "authors": [
+        "T Tashiro",
+        "M Osugi",
+        "S Sawayama"
+      ],
+      "year": "2025",
+      "snippet": "172 days ago - We report the development of tetra-arm poly(ethylene glycol) (TetraPEG)-based ion gel electrolytes formed in a pyrrolidinium-based ionic liquid (IL) via salting-in-induced \u2026",
+      "link": "https://pubs.acs.org/doi/abs/10.1021/acsapm.5c02595",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "T Tashiro, M Osugi, S Sawayama\u2026 - ACS Applied Polymer \u2026, 2025 - ACS Publications"
+    },
+    {
+      "title": "Enhancing Efficiency and Stability in Paper-Dye-Sensitized Solar Cells Using Metal Oxide Integration and Gel Electrolyte Optimization",
+      "authors": [
+        "Y Kou",
+        "T Oya"
+      ],
+      "year": "2025",
+      "snippet": "189 days ago - \u2026 In this modified synthesis protocol, we implemented sequential processing to optimize material homogeneity: first, Polymer dissolution: PVDF and PEG were dissolved in \u2026",
+      "link": "https://ieeexplore.ieee.org/abstract/document/11113707/",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "Y Kou, T Oya - 2025 IEEE 25th International Conference on \u2026, 2025 - ieeexplore.ieee.org"
+    },
+    {
+      "title": "Understanding the Dissolution Kinetics of a DINCH Plasticized PVC: Experimental Design and Applied Modeling",
+      "authors": [
+        "R Denolf",
+        "JC Doolaege",
+        "E Selmurzaeva"
+      ],
+      "year": "2025",
+      "snippet": "192 days ago - \u2026 Abstract: Polymer dissolution-precipitation recycling is a promising pathway to increase plastic recycling rates. One of the first steps in this process is the dissolution of the \u2026",
+      "link": "https://chemistry-europe.onlinelibrary.wiley.com/doi/abs/10.1002/cssc.202401756",
+      "pdf_link": "https://chemistry-europe.onlinelibrary.wiley.com/doi/am-pdf/10.1002/cssc.202401756",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 6,
+      "publication_info": "R Denolf, JC Doolaege, E Selmurzaeva\u2026 - \u2026, 2025 - Wiley Online Library"
+    },
+    {
+      "title": "Electrospinning Enables Embedding of PET Hydrolases in High-Melting PET Microfibers",
+      "authors": [
+        "AS Mizza",
+        "Y Ji",
+        "U Schwaneberg"
+      ],
+      "year": "2025",
+      "snippet": "194 days ago - \u2026 Alternatively, electrospinning is based on polymer dissolution rather than melt processing and is a promising approach to embed solvent-tolerant enzymes into polymers \u2026",
+      "link": "https://pubs.acs.org/doi/abs/10.1021/acssuschemeng.5c03233",
+      "pdf_link": null,
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 2,
+      "publication_info": "AS Mizza, Y Ji, U Schwaneberg - ACS Sustainable Chemistry & \u2026, 2025 - ACS Publications"
+    },
+    {
+      "title": "Differential Scanning Calorimetry for Characterizing Solvent\u2010Induced Decrystallization and Recrystallization of Polyolefins: Combination with In Situ Raman \u2026",
+      "authors": [
+        "S Ferchichi",
+        "F Collas",
+        "O Boyron"
+      ],
+      "year": "2025",
+      "snippet": "198 days ago - \u2026 We can detect the solvent strength of polymer dissolution from right to left, with decalin being the best solvent, xylene, TCB, n-decane, and finally n-dodecane being the \u2026",
+      "link": "https://onlinelibrary.wiley.com/doi/abs/10.1002/macp.202500088",
+      "pdf_link": "https://hal.science/hal-05227230v1/file/Sofiane%20Ferchichi%20DSC%20HAL.pdf",
+      "cited_by_count": 2,
+      "cited_by_link": "https://scholar.google.com/scholar?cites=2705873902680433176&as_sdt=4000005&sciodt=0,18&hl=en&num=20",
+      "versions_count": 0,
+      "publication_info": "S Ferchichi, F Collas, O Boyron\u2026 - Macromolecular \u2026, 2025 - Wiley Online Library"
+    },
+    {
+      "title": "Optimizing the Selection of Solvents for the Dissolution and Precipitation of Polyethylene",
+      "authors": [
+        "R Standish",
+        "J Yin",
+        "M Minceva",
+        "J Burger"
+      ],
+      "year": "2025",
+      "snippet": "205 days ago - \u2026 In the CAMPD problem we focus on a general approach to designing a polymer dissolution and precipitation system. This involves identifying the optimal solvent \u2026",
+      "link": "https://psecommunity.org/LAPSE:2025.0229v1",
+      "pdf_link": "https://psecommunity.org/wp-content/plugins/wpor/includes/file/2506/LAPSE-2025.0229-1v1.pdf",
+      "cited_by_count": 0,
+      "cited_by_link": "",
+      "versions_count": 0,
+      "publication_info": "R Standish, J Yin, M Minceva, J Burger\u2026 - Systems and Control \u2026, 2025 - psecommunity.org"
+    }
+  ]
+}

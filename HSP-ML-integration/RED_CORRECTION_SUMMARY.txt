@@ -1,0 +1,58 @@
+RED Correction Summary
+================================================================================
+
+PROBLEM IDENTIFIED:
+--------------------------------------------------------------------------------
+Original CSV used: Ra = 2×sqrt(ΔD² + ΔP² + ΔH²)
+  Equivalent to:   Ra² = 4×(ΔD² + ΔP² + ΔH²)
+  Factor of 4 applied to ALL terms
+
+CORRECT FORMULA (Hansen):
+--------------------------------------------------------------------------------
+Should be:        Ra² = 4×ΔD² + ΔP² + ΔH²
+  Or:             Ra = sqrt(4×ΔD² + ΔP² + ΔH²)
+  Factor of 4 applied ONLY to dispersion term
+
+IMPACT:
+--------------------------------------------------------------------------------
+Average Ra changed:  17.8655 → 10.4849 (1.70x)
+Average RED changed: 2.0987 → 1.2059 (1.74x)
+
+Soluble pairs (RED < 1.0):
+  WRONG:   103,186 (18.77%)
+  CORRECT: 285,349 (51.89%)
+  Change:  +182,163 pairs (33.13% of dataset)
+
+FILES CREATED:
+--------------------------------------------------------------------------------
+1. RED_values_complete_CORRECTED.csv - Corrected Ra and RED values
+   - Includes both Ra_WRONG and RED_WRONG for comparison
+   - 549,880 polymer-solvent pairs
+
+EXAMPLES:
+--------------------------------------------------------------------------------
+
+1. CELLIT BP-300 + Acetaldehyde
+   Ra:  4.6043 → 4.0162
+   RED: 0.4514 → 0.3937
+   Classification: 0.4514 < 1.0 (soluble) → 0.3937 < 1.0 (soluble)
+
+2. CELLIT BP-300 + Acetaldehyde oxime
+   Ra:  31.3904 → 15.7038
+   RED: 3.0775 → 1.5396
+   Classification: 3.0775 ≥ 1.0 (non-soluble) → 1.5396 ≥ 1.0 (non-soluble)
+
+3. CELLIT BP-300 + Acetamide
+   Ra:  34.1684 → 17.1272
+   RED: 3.3498 → 1.6791
+   Classification: 3.3498 ≥ 1.0 (non-soluble) → 1.6791 ≥ 1.0 (non-soluble)
+
+4. CELLIT BP-300 + N-Phenyl-acetamide
+   Ra:  14.1676 → 9.9086
+   RED: 1.3890 → 0.9714
+   Classification: 1.3890 ≥ 1.0 (non-soluble) → 0.9714 < 1.0 (soluble)
+
+5. CELLIT BP-300 + Acetic acid
+   Ra:  16.3279 → 8.9376
+   RED: 1.6008 → 0.8762
+   Classification: 1.6008 ≥ 1.0 (non-soluble) → 0.8762 < 1.0 (soluble)

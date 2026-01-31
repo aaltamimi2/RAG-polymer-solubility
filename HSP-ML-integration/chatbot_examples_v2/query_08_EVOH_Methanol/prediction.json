@@ -1,0 +1,25 @@
+{
+  "query_id": 8,
+  "query_text": "Is methanol compatible with EVOH?",
+  "polymer": "EVOH",
+  "solvent": "Methanol",
+  "polymer_hsp": {
+    "D": 16.2,
+    "P": 13.7,
+    "H": 19.2
+  },
+  "solvent_hsp": {
+    "D": 15.1,
+    "P": 12.3,
+    "H": 22.3
+  },
+  "r0": 8.9,
+  "prediction": {
+    "soluble": true,
+    "probability": 0.9806123747566362,
+    "confidence": 0.9743852768595807,
+    "red": 0.4551602045062718,
+    "ra": 4.050925820105819,
+    "r0": 8.9
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "query_id": 10,
+  "query_text": "Will PVC dissolve in THF?",
+  "polymer": "PVC",
+  "solvent": "Tetrahydrofuran",
+  "polymer_hsp": {
+    "D": 17.6,
+    "P": 12.5,
+    "H": 5.3
+  },
+  "solvent_hsp": {
+    "D": 16.8,
+    "P": 5.7,
+    "H": 8.0
+  },
+  "r0": 3.0,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.0,
+    "confidence": 0.3211893060078108,
+    "red": 2.4964419124470374,
+    "ra": 7.489325737341113,
+    "r0": 3.0
+  }
+}

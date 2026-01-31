@@ -1,0 +1,25 @@
+{
+  "query_id": 3,
+  "query_text": "Is acetone a good solvent for PVC?",
+  "polymer": "PVC",
+  "solvent": "Acetone",
+  "polymer_hsp": {
+    "D": 17.6,
+    "P": 12.5,
+    "H": 5.3
+  },
+  "solvent_hsp": {
+    "D": 15.5,
+    "P": 10.4,
+    "H": 7.0
+  },
+  "r0": 3.0,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.0,
+    "confidence": 0.3211893060078108,
+    "red": 1.6646654652245039,
+    "ra": 4.993996395673512,
+    "r0": 3.0
+  }
+}

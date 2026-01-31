@@ -1506,11 +1506,81 @@ class PDFProcessor:
             figures_with_images = sum(1 for f in figures if f.get('image_data'))
             logger.info(f"  Extracted {len(pages)} pages, {len(tables)} tables, {len(figures)} figures ({figures_with_images} with images)")
 
-            # Clean up: remove extracted images that don't have captions (likely logos/headers)
+            # Clean up: remove extracted images that don't have valid figure captions
+            # Valid captions must start with "Fig." or "Figure" followed by a number
+            import re
+            figure_caption_pattern = re.compile(r'^(Fig\.|Figure)\s*\d+', re.IGNORECASE)
+
+            # FALLBACK: Try to match orphaned images with captions found in page text
+            # This helps with older PDFs where unstructured doesn't associate captions properly
+            def find_captions_in_pages(pages_list):
+                """Extract Fig. X captions from page text with page numbers."""
+                captions_found = []
+                cap_pattern = re.compile(r'(Fig\.?\s*(\d+)\.?\s+[A-Z][^.]+(?:\.[^.]+)*\.)', re.IGNORECASE)
+                for page_num, page in enumerate(pages_list, 1):
+                    text = page.get('text', '')
+                    matches = cap_pattern.findall(text)
+                    for full_caption, fig_num in matches:
+                        full_caption = ' '.join(full_caption.split())  # Clean whitespace
+                        captions_found.append({
+                            'fig_num': int(fig_num),
+                            'caption': full_caption,
+                            'page': page_num
+                        })
+                return captions_found
+
+            # Find captions in text that might not be associated with images
+            text_captions = find_captions_in_pages(pages)
+            used_fig_nums = set()
+
+            # First pass: mark which fig numbers already have valid associations
+            for fig in figures:
+                caption = fig.get('caption', '').strip()
+                if figure_caption_pattern.match(caption):
+                    match = re.search(r'(\d+)', caption)
+                    if match:
+                        used_fig_nums.add(int(match.group(1)))
+
+            # Second pass: try to match orphaned images with text captions
+            fallback_matches = 0
+            for fig in figures:
+                caption = fig.get('caption', '').strip()
+                fig_page = fig.get('page', 0)
+
+                # Skip if already has valid caption or is on page 1 (likely logo)
+                if figure_caption_pattern.match(caption) or fig_page <= 1:
+                    continue
+
+                # Try to find a matching caption from same or adjacent page
+                best_match = None
+                for cap_info in text_captions:
+                    if cap_info['fig_num'] in used_fig_nums:
+                        continue  # Already used
+                    cap_page = cap_info['page']
+                    # Match if caption is on same page or within 1 page
+                    if abs(cap_page - fig_page) <= 1:
+                        if best_match is None or abs(cap_page - fig_page) < abs(best_match['page'] - fig_page):
+                            best_match = cap_info
+
+                if best_match:
+                    fig['caption'] = best_match['caption']
+                    used_fig_nums.add(best_match['fig_num'])
+                    fallback_matches += 1
+                    logger.info(f"    Fallback matched image (page {fig_page}) -> {best_match['caption'][:50]}...")
+
+            if fallback_matches > 0:
+                logger.info(f"  Fallback caption matching: {fallback_matches} additional figures matched")
+
             figures_with_captions = set()
             for fig in figures:
-                if fig.get('caption', '').strip() and fig.get('image_path'):
-                    figures_with_captions.add(fig.get('image_path'))
+                caption = fig.get('caption', '').strip()
+                if caption and fig.get('image_path'):
+                    # Check if caption looks like a real figure caption
+                    if figure_caption_pattern.match(caption):
+                        figures_with_captions.add(fig.get('image_path'))
+                    else:
+                        # Log invalid captions for debugging
+                        logger.info(f"    Filtered out invalid caption: {caption[:60]}...")
 
             # Delete images without captions
             if os.path.exists(figure_output_dir):
@@ -1523,9 +1593,10 @@ class PDFProcessor:
                         except Exception as e:
                             logger.warning(f"    Failed to remove {filename}: {e}")
 
-            # Also clear image_data for figures without captions to save memory
+            # Also clear image_data for figures without valid captions to save memory
             for fig in figures:
-                if not fig.get('caption', '').strip():
+                caption = fig.get('caption', '').strip()
+                if not caption or not figure_caption_pattern.match(caption):
                     fig['image_data'] = None
                     fig['image_path'] = None
 

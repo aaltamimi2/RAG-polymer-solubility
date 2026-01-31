@@ -1,0 +1,25 @@
+{
+  "query_id": 15,
+  "query_text": "Is DMF compatible with polyurethane?",
+  "polymer": "Polyurethane",
+  "solvent": "DMF",
+  "polymer_hsp": {
+    "D": 19.0,
+    "P": 8.5,
+    "H": 9.2
+  },
+  "solvent_hsp": {
+    "D": 17.4,
+    "P": 13.7,
+    "H": 11.3
+  },
+  "r0": 5.2,
+  "prediction": {
+    "soluble": false,
+    "probability": 1.8768311783805986e-06,
+    "confidence": 0.32118682635852874,
+    "red": 1.241688342873687,
+    "ra": 6.456779382943172,
+    "r0": 5.2
+  }
+}

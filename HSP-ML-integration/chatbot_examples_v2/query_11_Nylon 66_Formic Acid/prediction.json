@@ -1,0 +1,25 @@
+{
+  "query_id": 11,
+  "query_text": "What's the compatibility of Nylon 66 with formic acid?",
+  "polymer": "Nylon 66",
+  "solvent": "Formic Acid",
+  "polymer_hsp": {
+    "D": 17.0,
+    "P": 6.3,
+    "H": 12.7
+  },
+  "solvent_hsp": {
+    "D": 14.3,
+    "P": 11.9,
+    "H": 16.6
+  },
+  "r0": 6.8,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.004321542029140918,
+    "confidence": 0.31547973089344655,
+    "red": 1.2797497863140805,
+    "ra": 8.702298546935747,
+    "r0": 6.8
+  }
+}

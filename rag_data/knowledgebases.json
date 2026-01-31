@@ -21,8 +21,19 @@
       "chunk_count": 3091,
       "status": "active",
       "metadata": {}
+    },
+    "printed_plastics_deinking": {
+      "name": "printed_plastics_deinking",
+      "description": "Literature on deinking, ink removal, and printed plastics recycling",
+      "collection_name": "kb_printed_plastics_deinking",
+      "created_at": "2026-01-26T11:13:13.289989",
+      "modified_at": "2026-01-26T18:39:42.866421",
+      "paper_count": 27,
+      "chunk_count": 3788,
+      "status": "active",
+      "metadata": {}
     }
   },
-  "active_kb": "STRAP-CORE",
-  "last_modified": "2026-01-24T00:24:08.795367"
+  "active_kb": "printed_plastics_deinking",
+  "last_modified": "2026-01-26T21:47:28.983692"
 }

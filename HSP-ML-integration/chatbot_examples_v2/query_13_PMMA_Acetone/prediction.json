@@ -1,0 +1,25 @@
+{
+  "query_id": 13,
+  "query_text": "Will PMMA dissolve in acetone?",
+  "polymer": "PMMA",
+  "solvent": "Acetone",
+  "polymer_hsp": {
+    "D": 18.6,
+    "P": 10.5,
+    "H": 7.5
+  },
+  "solvent_hsp": {
+    "D": 15.5,
+    "P": 10.4,
+    "H": 7.0
+  },
+  "r0": 5.3,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.0,
+    "confidence": 0.3211893060078108,
+    "red": 1.1737608313204375,
+    "ra": 6.220932405998319,
+    "r0": 5.3
+  }
+}

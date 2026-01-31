@@ -1033,9 +1033,9 @@
       "fact_type": "interest",
       "content": "Working on recycling LDPE from agricultural films.",
       "confidence": 1.0,
-      "use_count": 1,
+      "use_count": 2,
       "created_at": "2026-01-25T05:08:30.452018",
-      "last_used_at": "2026-01-25T05:13:28.144414",
+      "last_used_at": "2026-01-26T02:38:57.515045",
       "source_turn_id": null
     },
     {
@@ -1044,9 +1044,9 @@
       "fact_type": "constraint",
       "content": "Requires solvents that work at 80\u00b0C.",
       "confidence": 1.0,
-      "use_count": 2,
+      "use_count": 4,
       "created_at": "2026-01-25T05:08:30.452029",
-      "last_used_at": "2026-01-25T05:25:51.136467",
+      "last_used_at": "2026-01-28T00:42:52.914267",
       "source_turn_id": null
     },
     {
@@ -1055,9 +1055,9 @@
       "fact_type": "preference",
       "content": "Values information on solvent solubility, boiling point, safety (G-Score), cost (Energy), and toxicity (LogP).",
       "confidence": 0.9,
-      "use_count": 2,
+      "use_count": 3,
       "created_at": "2026-01-25T05:08:30.452034",
-      "last_used_at": "2026-01-25T05:25:51.136463",
+      "last_used_at": "2026-01-26T02:38:57.515060",
       "source_turn_id": null
     },
     {
@@ -1077,9 +1077,9 @@
       "fact_type": "interest",
       "content": "Interested in comparing the solvent properties of toluene and cyclohexane for polymers.",
       "confidence": 0.9,
-      "use_count": 1,
+      "use_count": 3,
       "created_at": "2026-01-25T05:13:31.995307",
-      "last_used_at": "2026-01-25T05:25:51.136460",
+      "last_used_at": "2026-01-26T16:28:32.369586",
       "source_turn_id": null
     },
     {
@@ -1110,9 +1110,9 @@
       "fact_type": "preference",
       "content": "Prefers comparisons of solvents based on specific criteria like solubility at a given temperature.",
       "confidence": 0.8,
-      "use_count": 1,
+      "use_count": 3,
       "created_at": "2026-01-25T05:13:31.995328",
-      "last_used_at": "2026-01-25T05:25:51.136470",
+      "last_used_at": "2026-01-28T00:42:52.914270",
       "source_turn_id": null
     },
     {
@@ -1132,9 +1132,9 @@
       "fact_type": "interest",
       "content": "The user is interested in polyethylene (PE) dissolution temperatures, solvent ratios, and recovery yields, specifically from STRAP studies.",
       "confidence": 0.9,
-      "use_count": 0,
+      "use_count": 2,
       "created_at": "2026-01-25T05:26:19.933185",
-      "last_used_at": null,
+      "last_used_at": "2026-01-26T16:28:12.187644",
       "source_turn_id": null
     },
     {
@@ -1143,9 +1143,9 @@
       "fact_type": "interest",
       "content": "The user is working on processes involving solvent-based recovery of polymers, as indicated by the request to run TEA for heptane recovery.",
       "confidence": 0.9,
-      "use_count": 0,
+      "use_count": 2,
       "created_at": "2026-01-25T05:26:19.933195",
-      "last_used_at": null,
+      "last_used_at": "2026-01-26T16:28:32.369580",
       "source_turn_id": null
     },
     {
@@ -1176,8 +1176,228 @@
       "fact_type": "context",
       "content": "The user is likely involved in research or industrial processes related to polymer recycling or solvent recovery, given the nature of the query and the use of terms like RAG, STRAP studies, and TEA.",
       "confidence": 0.7,
-      "use_count": 0,
+      "use_count": 1,
       "created_at": "2026-01-25T05:26:19.933206",
+      "last_used_at": "2026-01-26T02:38:57.515064",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "6dd7aa92-ea75-445e-8a08-29ecb0df8824",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is interested in patents related to PET recycling technologies, specifically from Eastman.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-26T02:39:05.196028",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "e600b76c-6892-4c10-8c74-af7092ab7ae3",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user's research interests include chemical recycling of plastic waste streams and pyrolysis methods for recycled waste.",
+      "confidence": 0.9,
+      "use_count": 6,
+      "created_at": "2026-01-26T02:39:05.196040",
+      "last_used_at": "2026-01-28T00:42:52.914264",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "7e24c659-e209-47c3-9261-4dd426167f51",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is looking into technologies that can recycle mixed plastic waste streams and produce useful outputs like syngas or cracker effluent.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-26T02:39:05.196044",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "0a4319ba-8c54-4462-add0-8a2620cdc711",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is interested in dissolving LDPE (Low-Density Polyethylene).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-26T16:28:20.973541",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "92615d4d-4118-44a0-aadd-4e0593b4aa15",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is investigating solvent properties for LDPE dissolution at a specific temperature of 100\u00b0C.",
+      "confidence": 1.0,
+      "use_count": 4,
+      "created_at": "2026-01-26T16:28:20.973552",
+      "last_used_at": "2026-01-27T01:57:02.302985",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "8ca9acf6-d93e-4bc2-978d-62f48ed80544",
+      "user_id": "ali",
+      "fact_type": "constraint",
+      "content": "The user prioritizes low toxicity, specifically referencing LogP values, for solvent selection.",
+      "confidence": 1.0,
+      "use_count": 1,
+      "created_at": "2026-01-26T16:28:20.973556",
+      "last_used_at": "2026-01-27T01:55:53.260157",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "b4a9bf08-2c2b-4998-876b-4e1003458b3e",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "The user is interested in specific solvent properties such as solubility, boiling point, G-Score, LogP, and energy cost.",
+      "confidence": 1.0,
+      "use_count": 2,
+      "created_at": "2026-01-26T16:28:20.973559",
+      "last_used_at": "2026-01-28T00:43:07.028588",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "a7f3ab02-c5b5-4079-b91a-8179348c585d",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "The user appreciates a summary of recommendations based on different criteria like solubility, ease of recovery, safety, cost, and toxicity.",
+      "confidence": 0.9,
+      "use_count": 4,
+      "created_at": "2026-01-26T16:28:20.973562",
+      "last_used_at": "2026-01-28T00:43:07.061900",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "b5cf9cf3-8ce0-488b-ab22-94d605c811bf",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "User is researching dissolution of Polyethylene Terephthalate (PET).",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-26T16:28:42.352318",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "e913bb9c-a819-47fa-8e37-608002a7488a",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "User is interested in chemical recycling processes for PET, specifically glycolysis.",
+      "confidence": 0.9,
+      "use_count": 1,
+      "created_at": "2026-01-26T16:28:42.352330",
+      "last_used_at": "2026-01-27T01:55:53.260156",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "1499e4dd-49e2-43b0-a8b8-b60942b0a6fd",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "User is interested in PET-based materials, including nanoparticles and blends.",
+      "confidence": 0.8,
+      "use_count": 0,
+      "created_at": "2026-01-26T16:28:42.352334",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "786d91c7-cb29-4790-9c7a-baabdb6de1dc",
+      "user_id": "ali",
+      "fact_type": "context",
+      "content": "User is using Web of Science for literature searches.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-26T16:28:42.352338",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "9825fd2c-1968-450c-b4f0-fbc6b53178c8",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Investigating surfactants for both water-based and solvent-based inks on plastic films.",
+      "confidence": 1.0,
+      "use_count": 4,
+      "created_at": "2026-01-27T01:56:10.007266",
+      "last_used_at": "2026-01-28T00:42:52.914271",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "00607428-bbcf-4e25-baa1-9b80e3a3be99",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Interested in the effectiveness of anionic, cationic, nonionic, and amphoteric surfactants for de-inking.",
+      "confidence": 1.0,
+      "use_count": 3,
+      "created_at": "2026-01-27T01:56:10.007284",
+      "last_used_at": "2026-01-27T01:57:03.922631",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "babf7b29-c464-455a-9f31-29984990ac4b",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Exploring the impact of Critical Micelle Concentration (CMC) on surfactant effectiveness.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-27T01:56:10.007288",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "9e1ea49c-c2d1-479f-b665-61570d666b59",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "Considering the influence of pH, temperature, ink type, and plastic substrate on de-inking performance.",
+      "confidence": 1.0,
+      "use_count": 1,
+      "created_at": "2026-01-27T01:56:10.007291",
+      "last_used_at": "2026-01-27T01:57:02.302983",
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "d4cc66e6-0299-4872-b13d-fb313f84f516",
+      "user_id": "ali",
+      "fact_type": "context",
+      "content": "The user is working on a project involving the de-inking of plastic films, with a specific composition of 70% LDPE and 30% HDPE.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-27T01:56:10.007298",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "73307e0c-4663-45ca-bd74-7181bdece561",
+      "user_id": "ali",
+      "fact_type": "constraint",
+      "content": "The assistant's capabilities are limited to polymer-solvent solubility analysis and cannot answer questions about binders.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-27T01:57:03.893145",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "ffaae56a-14de-4c6a-bc47-63d16d817b33",
+      "user_id": "ali",
+      "fact_type": "interest",
+      "content": "The user is interested in solvents that can dissolve PET at 140\u00b0C.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-28T00:43:06.931792",
+      "last_used_at": null,
+      "source_turn_id": null
+    },
+    {
+      "fact_id": "95937da5-b948-48ab-af9d-368331d01ad2",
+      "user_id": "ali",
+      "fact_type": "preference",
+      "content": "The user requires specific data points for solvents, including G-scores and energy costs.",
+      "confidence": 1.0,
+      "use_count": 0,
+      "created_at": "2026-01-28T00:43:06.931818",
       "last_used_at": null,
       "source_turn_id": null
     }

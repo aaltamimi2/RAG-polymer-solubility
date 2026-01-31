@@ -1,0 +1,25 @@
+{
+  "query_id": 1,
+  "query_text": "Will HDPE dissolve in toluene?",
+  "polymer": "HDPE",
+  "solvent": "Toluene",
+  "polymer_hsp": {
+    "D": 18.0,
+    "P": 0.0,
+    "H": 2.0
+  },
+  "solvent_hsp": {
+    "D": 18.0,
+    "P": 1.4,
+    "H": 2.0
+  },
+  "r0": 2.0,
+  "prediction": {
+    "soluble": true,
+    "probability": 0.9993724237904706,
+    "confidence": 0.9991708530232649,
+    "red": 0.7,
+    "ra": 1.4,
+    "r0": 2.0
+  }
+}

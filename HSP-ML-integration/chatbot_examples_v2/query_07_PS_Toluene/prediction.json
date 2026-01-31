@@ -1,0 +1,25 @@
+{
+  "query_id": 7,
+  "query_text": "Will polystyrene dissolve in toluene?",
+  "polymer": "PS",
+  "solvent": "Toluene",
+  "polymer_hsp": {
+    "D": 21.3,
+    "P": 5.8,
+    "H": 4.3
+  },
+  "solvent_hsp": {
+    "D": 18.0,
+    "P": 1.4,
+    "H": 2.0
+  },
+  "r0": 5.4,
+  "prediction": {
+    "soluble": false,
+    "probability": 0.0003002802320558929,
+    "confidence": 0.32079257897641306,
+    "red": 1.5294323251819237,
+    "ra": 8.258934555982389,
+    "r0": 5.4
+  }
+}

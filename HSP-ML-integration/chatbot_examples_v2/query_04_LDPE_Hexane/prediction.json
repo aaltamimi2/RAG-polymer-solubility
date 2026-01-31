@@ -1,0 +1,25 @@
+{
+  "query_id": 4,
+  "query_text": "Will LDPE dissolve in hexane?",
+  "polymer": "LDPE",
+  "solvent": "Hexane",
+  "polymer_hsp": {
+    "D": 18.0,
+    "P": 0.0,
+    "H": 2.0
+  },
+  "solvent_hsp": {
+    "D": 14.9,
+    "P": 0.0,
+    "H": 0.0
+  },
+  "r0": 7.7,
+  "prediction": {
+    "soluble": true,
+    "probability": 0.9978088922579808,
+    "confidence": 0.9971051318829333,
+    "red": 0.846051816878043,
+    "ra": 6.514598989960931,
+    "r0": 7.7
+  }
+}
