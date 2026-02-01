@@ -108,7 +108,7 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
 
     # Check for separation + TEA combination
     has_separation_keyword = any(w in query_lower for w in [
-        "separate", "separation", "multilayer", "multi-layer", "sequence"
+        "separate", "separating", "separation", "multilayer", "multi-layer", "sequence"
     ])
     has_cost_keyword = any(w in query_lower for w in [
         "cost", "economic", "tea", "capex", "opex", "payback", "msp", "cheap", "expensive"
@@ -524,7 +524,7 @@ def extract_temperature(query: str, default: float = 80.0) -> float:
     # Look for patterns like "80C", "80°C", "80 C", "at 80 degrees"
     patterns = [
         r'(\d+)\s*°?\s*[Cc](?:elsius)?',
-        r'at\s+(\d+)\s*(?:degrees?)?',
+        r'at\s+(\d+)\s*degrees',  # Must have "degrees" to avoid matching "at 200 kg/hr"
         r'(\d+)\s*degrees',
     ]
     for pattern in patterns:
@@ -1323,19 +1323,28 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
     if is_collaborative:
         # CRITICAL FIX: Check if there are pending tool_calls - if so, return dict
         # to let conditional edges route to TEA tools first (same fix as separation)
+        # BUT: Limit tool runs to prevent infinite loops (max 2 rounds = ~6 tool calls)
+        MAX_TEA_TOOL_RESULTS = 6
         result_messages = result.get("messages", [])
         if result_messages:
             last_msg = result_messages[-1]
             if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
-                logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict for tool routing")
-                return {
-                    **result,
-                    "tea_results": {"status": "pending_tools"},
-                    "agent_timings": {
-                        **state.get("agent_timings", {}),
-                        "tea_pending": time.time(),
-                    },
-                }
+                # Check if we already have enough tool results - stop the loop
+                if len(tea_tool_messages) >= MAX_TEA_TOOL_RESULTS:
+                    logger.info(f"TEA: Reached max tool results ({len(tea_tool_messages)}), stopping tool loop")
+                    # Fall through to extraction instead of returning for more tools
+                    pass
+                else:
+                    # Still need more tool results
+                    logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict for tool routing")
+                    return {
+                        **result,
+                        "tea_results": {"status": "pending_tools"},
+                        "agent_timings": {
+                            **state.get("agent_timings", {}),
+                            "tea_pending": time.time(),
+                        },
+                    }
 
         # Extract structured TEA results from ALL messages
         messages = result.get("messages", [])
