@@ -557,6 +557,57 @@ Execution Trace: {self.trace_id}
         extra = "allow"
 
 
+class ReviewerFeedback(BaseModel):
+    """
+    Feedback from a reviewer agent on separation or TEA results.
+
+    P0 Enhancement: Enables review/revision loops for quality improvement.
+    Based on GPT-Researcher pattern.
+    """
+    is_acceptable: bool = Field(
+        default=True,
+        description="Whether results meet quality thresholds"
+    )
+    quality_score: float = Field(
+        default=1.0,
+        ge=0, le=1,
+        description="Overall quality score (0-1)"
+    )
+    issues: List[str] = Field(
+        default_factory=list,
+        description="Specific issues identified"
+    )
+    suggestions: List[str] = Field(
+        default_factory=list,
+        description="Suggestions for improvement"
+    )
+    requires_revision: bool = Field(
+        default=False,
+        description="True if results need revision before proceeding"
+    )
+    revision_instructions: Optional[str] = Field(
+        default=None,
+        description="Specific instructions for revision"
+    )
+
+    # Validation metrics for separation
+    solvents_count: int = Field(default=0, ge=0)
+    min_selectivity: Optional[float] = Field(default=None)
+    max_selectivity: Optional[float] = Field(default=None)
+    has_sequence: bool = Field(default=False)
+
+    # Retry configuration
+    retry_count: int = Field(default=0, ge=0)  # No upper limit - clamped in logic
+    max_retries: int = Field(default=2, ge=0)
+    retry_params: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Modified parameters for retry (e.g., wider temperature range)"
+    )
+
+    class Config:
+        extra = "allow"
+
+
 class SupervisorDecision(BaseModel):
     """
     Decision made by the supervisor for dynamic routing.
@@ -661,6 +712,8 @@ __all__ = [
     "HandoffMetrics",
     "ExecutionTrace",
     "SupervisorDecision",
+    # P0 Enhancement: Review/Revision loop
+    "ReviewerFeedback",
     # Helper functions
     "parse_to_separation_result",
     "parse_to_tea_result",

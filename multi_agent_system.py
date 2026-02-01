@@ -35,6 +35,7 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
+import os
 
 # Import structured schemas for inter-agent communication
 from agent_schemas import (
@@ -54,6 +55,8 @@ from agent_schemas import (
     # P3: Enhanced tracking schemas
     HandoffMetrics,
     ExecutionTrace,
+    # P0 Enhancement: Review/Revision loop
+    ReviewerFeedback,
 )
 import uuid
 
@@ -295,6 +298,384 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
 
 
 # ============================================================
+# P1: CHECKPOINTER CONFIGURATION
+# ============================================================
+
+class CheckpointerConfig:
+    """Configuration for persistent checkpointing.
+
+    P1 Enhancement: Supports PostgreSQL, Redis, or in-memory checkpointing.
+
+    Environment Variables:
+        CHECKPOINTER_TYPE: "memory" (default), "postgres", or "redis"
+        DATABASE_URL: PostgreSQL connection string (for postgres)
+        REDIS_URL: Redis connection string (for redis)
+    """
+
+    @staticmethod
+    def get_checkpointer():
+        """Get the appropriate checkpointer based on environment configuration."""
+        checkpointer_type = os.environ.get("CHECKPOINTER_TYPE", "memory").lower()
+
+        if checkpointer_type == "postgres":
+            try:
+                from langgraph.checkpoint.postgres import PostgresSaver
+                database_url = os.environ.get("DATABASE_URL")
+                if not database_url:
+                    logger.warning("DATABASE_URL not set, falling back to MemorySaver")
+                    return MemorySaver()
+                logger.info("Using PostgreSQL checkpointer for persistent state")
+                return PostgresSaver.from_conn_string(database_url)
+            except ImportError:
+                logger.warning("langgraph-checkpoint-postgres not installed, falling back to MemorySaver")
+                return MemorySaver()
+            except Exception as e:
+                logger.warning(f"Failed to initialize PostgreSQL checkpointer: {e}, falling back to MemorySaver")
+                return MemorySaver()
+
+        elif checkpointer_type == "redis":
+            try:
+                from langgraph.checkpoint.redis import RedisSaver
+                redis_url = os.environ.get("REDIS_URL")
+                if not redis_url:
+                    logger.warning("REDIS_URL not set, falling back to MemorySaver")
+                    return MemorySaver()
+                logger.info("Using Redis checkpointer for persistent state")
+                return RedisSaver.from_conn_string(redis_url)
+            except ImportError:
+                logger.warning("langgraph-checkpoint-redis not installed, falling back to MemorySaver")
+                return MemorySaver()
+            except Exception as e:
+                logger.warning(f"Failed to initialize Redis checkpointer: {e}, falling back to MemorySaver")
+                return MemorySaver()
+
+        else:
+            # Default: in-memory
+            logger.info("Using in-memory checkpointer (not persistent)")
+            return MemorySaver()
+
+
+# ============================================================
+# P2: CROSS-SESSION STORE FOR CACHING
+# ============================================================
+
+class SessionStore:
+    """
+    P2 Enhancement: Cross-session store for caching common results.
+
+    Provides:
+    - Caching separation results for common polymer sets
+    - Storing frequently used solvent properties
+    - Sharing configurations across sessions
+
+    Usage:
+        store = SessionStore()
+        store.cache_separation("PE,PP,PS", results)
+        cached = store.get_cached_separation("PE,PP,PS")
+    """
+
+    _instance = None
+    _cache: Dict[str, Any] = {}
+    _cache_times: Dict[str, float] = {}
+    _ttl_seconds: int = 3600  # 1 hour default TTL
+
+    def __new__(cls):
+        """Singleton pattern for shared store."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._cache = {}
+            cls._cache_times = {}
+        return cls._instance
+
+    @classmethod
+    def _normalize_polymers(cls, polymers: str) -> str:
+        """Normalize polymer string (sorted, uppercase)."""
+        if "," in polymers:
+            parts = sorted([p.strip().upper() for p in polymers.split(",")])
+            return ",".join(parts)
+        return polymers.strip().upper()
+
+    @classmethod
+    def _make_key(cls, prefix: str, identifier: str) -> str:
+        """Create a cache key."""
+        return f"{prefix}:{identifier}"
+
+    @classmethod
+    def cache_separation(cls, polymers: str, results: Dict[str, Any], temperature: float = 80.0) -> None:
+        """Cache separation results for a polymer set."""
+        normalized = cls._normalize_polymers(polymers)
+        key = cls._make_key("sep", f"{normalized}@{temperature}")
+        cls._cache[key] = results
+        cls._cache_times[key] = time.time()
+        logger.debug(f"SessionStore: Cached separation for {key}")
+
+    @classmethod
+    def get_cached_separation(cls, polymers: str, temperature: float = 80.0, max_age_seconds: int = None) -> Optional[Dict[str, Any]]:
+        """Get cached separation results if available and not stale."""
+        normalized = cls._normalize_polymers(polymers)
+        key = cls._make_key("sep", f"{normalized}@{temperature}")
+        if key not in cls._cache:
+            return None
+
+        # Check staleness
+        max_age = max_age_seconds or cls._ttl_seconds
+        cached_time = cls._cache_times.get(key, 0)
+        if time.time() - cached_time > max_age:
+            logger.debug(f"SessionStore: Cache expired for {key}")
+            del cls._cache[key]
+            del cls._cache_times[key]
+            return None
+
+        logger.debug(f"SessionStore: Cache hit for {key}")
+        return cls._cache[key]
+
+    @classmethod
+    def cache_tea(cls, solvents: str, throughput: float, results: Dict[str, Any]) -> None:
+        """Cache TEA results for a solvent set."""
+        normalized = cls._normalize_polymers(solvents)  # Works for solvents too
+        key = cls._make_key("tea", f"{normalized}@{throughput}")
+        cls._cache[key] = results
+        cls._cache_times[key] = time.time()
+
+    @classmethod
+    def get_cached_tea(cls, solvents: str, throughput: float, max_age_seconds: int = None) -> Optional[Dict[str, Any]]:
+        """Get cached TEA results if available."""
+        normalized = cls._normalize_polymers(solvents)  # Works for solvents too
+        key = cls._make_key("tea", f"{normalized}@{throughput}")
+        if key not in cls._cache:
+            return None
+
+        max_age = max_age_seconds or cls._ttl_seconds
+        cached_time = cls._cache_times.get(key, 0)
+        if time.time() - cached_time > max_age:
+            del cls._cache[key]
+            del cls._cache_times[key]
+            return None
+
+        return cls._cache[key]
+
+    @classmethod
+    def clear_cache(cls) -> None:
+        """Clear all cached data."""
+        cls._cache.clear()
+        cls._cache_times.clear()
+        logger.info("SessionStore: Cache cleared")
+
+    @classmethod
+    def get_cache_stats(cls) -> Dict[str, Any]:
+        """Get cache statistics."""
+        return {
+            "total_entries": len(cls._cache),
+            "separation_entries": sum(1 for k in cls._cache if k.startswith("sep:")),
+            "tea_entries": sum(1 for k in cls._cache if k.startswith("tea:")),
+            "oldest_entry_age_s": time.time() - min(cls._cache_times.values()) if cls._cache_times else 0,
+        }
+
+
+# ============================================================
+# P2: POLYMER-SOLVENT KNOWLEDGE GRAPH
+# ============================================================
+
+class PolymerKnowledgeGraph:
+    """
+    P2 Enhancement: Domain-specific knowledge graph for polymer-solvent relationships.
+
+    Provides:
+    - Automatic inference of related polymers
+    - Solvent compatibility checking
+    - Safety constraint propagation
+    - Common separation strategies
+
+    Based on CRISPR-GPT pattern of domain knowledge integration.
+    """
+
+    # Polymer family groupings
+    POLYMER_FAMILIES = {
+        "polyolefins": ["PE", "LDPE", "HDPE", "PP", "LLDPE"],
+        "polyesters": ["PET", "PBT", "PLA", "PBS", "PBAT"],
+        "styrenics": ["PS", "ABS", "SAN", "HIPS"],
+        "polyamides": ["PA6", "PA66", "Nylon6", "Nylon66"],
+        "vinyl": ["PVC", "PVDC", "PVDF"],
+        "engineering": ["PC", "PMMA", "POM"],
+        "barrier": ["EVOH", "PVOH"],
+        "biodegradable": ["PLA", "PHA", "PHB", "PBS", "PBAT"],
+    }
+
+    # Solvent-polymer compatibility matrix (simplified)
+    # Higher score = better dissolution
+    COMPATIBILITY = {
+        "xylene": {"PE": 0.7, "LDPE": 0.8, "HDPE": 0.6, "PP": 0.7, "PS": 0.9, "ABS": 0.6},
+        "toluene": {"PS": 0.95, "ABS": 0.7, "PMMA": 0.5, "PE": 0.4, "PP": 0.4},
+        "cyclohexane": {"PE": 0.8, "LDPE": 0.85, "HDPE": 0.75, "PP": 0.8, "PS": 0.6},
+        "thf": {"PVC": 0.9, "PMMA": 0.85, "PS": 0.7, "ABS": 0.8},
+        "acetone": {"PMMA": 0.9, "ABS": 0.5, "PS": 0.3, "PVC": 0.4},
+        "dmf": {"PVC": 0.7, "PMMA": 0.6, "PA6": 0.5, "PA66": 0.5},
+        "nmp": {"PA6": 0.8, "PA66": 0.8, "PVC": 0.6},
+        "dcm": {"PC": 0.9, "PMMA": 0.8, "PS": 0.85, "PVC": 0.7},
+        "chloroform": {"PC": 0.95, "PMMA": 0.85, "PS": 0.9},
+        "formic_acid": {"PA6": 0.95, "PA66": 0.95},
+        "phenol": {"PET": 0.8, "PA6": 0.7},
+    }
+
+    # Solvent safety scores (GSK-based, 1-10, higher = safer)
+    SOLVENT_SAFETY = {
+        "water": 10, "ethanol": 9, "isopropanol": 8, "acetone": 7,
+        "ethyl_acetate": 7, "methanol": 6, "toluene": 4, "xylene": 4,
+        "cyclohexane": 5, "hexane": 4, "thf": 5, "dcm": 3,
+        "chloroform": 2, "dmf": 4, "nmp": 5, "formic_acid": 4,
+        "phenol": 3,
+    }
+
+    # Common separation strategies
+    SEPARATION_STRATEGIES = {
+        ("PE", "PET"): {
+            "recommended_solvent": "xylene",
+            "temperature": 120,
+            "notes": "PE dissolves at high temp, PET remains solid",
+        },
+        ("PS", "PE"): {
+            "recommended_solvent": "toluene",
+            "temperature": 80,
+            "notes": "PS dissolves readily, PE less so",
+        },
+        ("PVC", "PE"): {
+            "recommended_solvent": "thf",
+            "temperature": 60,
+            "notes": "PVC dissolves in THF, PE does not",
+        },
+        ("PA6", "PE"): {
+            "recommended_solvent": "formic_acid",
+            "temperature": 25,
+            "notes": "PA6 dissolves in formic acid at room temp",
+        },
+    }
+
+    @classmethod
+    def get_polymer_family(cls, polymer: str) -> Optional[str]:
+        """Get the family a polymer belongs to."""
+        polymer_upper = polymer.upper()
+        for family, members in cls.POLYMER_FAMILIES.items():
+            if polymer_upper in [m.upper() for m in members]:
+                return family
+        return None
+
+    @classmethod
+    def get_related_polymers(cls, polymer: str) -> List[str]:
+        """Get polymers in the same family."""
+        family = cls.get_polymer_family(polymer)
+        if family:
+            return cls.POLYMER_FAMILIES[family]
+        return []
+
+    @classmethod
+    def get_compatible_solvents(cls, polymer: str, min_score: float = 0.5) -> List[Tuple[str, float]]:
+        """Get solvents compatible with a polymer, sorted by compatibility."""
+        polymer_upper = polymer.upper()
+        compatible = []
+        for solvent, polymers in cls.COMPATIBILITY.items():
+            score = polymers.get(polymer_upper, 0)
+            if score >= min_score:
+                compatible.append((solvent, score))
+        return sorted(compatible, key=lambda x: x[1], reverse=True)
+
+    @classmethod
+    def get_selectivity_hint(cls, target: str, others: List[str]) -> Optional[Dict[str, Any]]:
+        """Get selectivity hint for separating target from others."""
+        target_upper = target.upper()
+        others_upper = [p.upper() for p in others]
+
+        # Find solvents that dissolve target but not others
+        hints = []
+        for solvent, polymers in cls.COMPATIBILITY.items():
+            target_score = polymers.get(target_upper, 0)
+            other_scores = [polymers.get(p, 0) for p in others_upper]
+            max_other = max(other_scores) if other_scores else 0
+
+            selectivity = target_score - max_other
+            if selectivity > 0.2:  # Significant selectivity
+                hints.append({
+                    "solvent": solvent,
+                    "target_score": target_score,
+                    "max_other_score": max_other,
+                    "selectivity": selectivity,
+                    "safety": cls.SOLVENT_SAFETY.get(solvent, 5),
+                })
+
+        if hints:
+            # Sort by selectivity * safety
+            hints.sort(key=lambda x: x["selectivity"] * x["safety"] / 10, reverse=True)
+            return hints[0]
+        return None
+
+    @classmethod
+    def get_separation_strategy(cls, polymer1: str, polymer2: str) -> Optional[Dict[str, Any]]:
+        """Get recommended separation strategy for a polymer pair."""
+        p1, p2 = sorted([polymer1.upper(), polymer2.upper()])
+        key = (p1, p2)
+        if key in cls.SEPARATION_STRATEGIES:
+            return cls.SEPARATION_STRATEGIES[key]
+
+        # Try reverse order
+        key = (p2, p1)
+        if key in cls.SEPARATION_STRATEGIES:
+            return cls.SEPARATION_STRATEGIES[key]
+
+        # Generate hint if no explicit strategy
+        hint = cls.get_selectivity_hint(p1, [p2])
+        if hint:
+            return {
+                "recommended_solvent": hint["solvent"],
+                "temperature": 80,  # Default
+                "notes": f"Inferred from compatibility scores (selectivity: {hint['selectivity']:.2f})",
+                "inferred": True,
+            }
+        return None
+
+    @classmethod
+    def check_safety_constraints(cls, solvents: List[str]) -> Dict[str, Any]:
+        """Check safety constraints for a list of solvents."""
+        results = {
+            "all_safe": True,
+            "warnings": [],
+            "scores": {},
+        }
+
+        for solvent in solvents:
+            solvent_lower = solvent.lower().replace(" ", "_")
+            score = cls.SOLVENT_SAFETY.get(solvent_lower, 5)
+            results["scores"][solvent] = score
+
+            if score <= 3:
+                results["all_safe"] = False
+                results["warnings"].append(f"{solvent} has low safety score ({score}/10)")
+            elif score <= 5:
+                results["warnings"].append(f"{solvent} has moderate safety concerns ({score}/10)")
+
+        return results
+
+    @classmethod
+    def suggest_safer_alternatives(cls, solvent: str, target_polymer: str) -> List[Dict[str, Any]]:
+        """Suggest safer alternatives for a solvent."""
+        current_safety = cls.SOLVENT_SAFETY.get(solvent.lower().replace(" ", "_"), 5)
+        polymer_upper = target_polymer.upper()
+
+        alternatives = []
+        for alt_solvent, polymers in cls.COMPATIBILITY.items():
+            alt_safety = cls.SOLVENT_SAFETY.get(alt_solvent, 5)
+            if alt_safety > current_safety:
+                compat = polymers.get(polymer_upper, 0)
+                if compat >= 0.3:  # At least some compatibility
+                    alternatives.append({
+                        "solvent": alt_solvent,
+                        "safety_score": alt_safety,
+                        "compatibility": compat,
+                        "safety_improvement": alt_safety - current_safety,
+                    })
+
+        return sorted(alternatives, key=lambda x: x["safety_score"], reverse=True)[:3]
+
+
+# ============================================================
 # TOOL SUBSETS FOR SPECIALISTS
 # ============================================================
 
@@ -327,9 +708,9 @@ def initialize_tool_subsets(tool_categories: dict, all_tools: list):
         "database", "dissolution", "solvent_properties"
     ])
 
-    # Separation specialist
+    # Separation specialist (includes advanced algorithms from tools/ module)
     SEPARATION_TOOLS = get_category_tools([
-        "separation", "dissolution", "solvent_properties",
+        "separation", "advanced_separation", "dissolution", "solvent_properties",
         "visualization", "safety"
     ])
 
@@ -521,6 +902,32 @@ class MultiAgentState(MessagesState):
 
     # Finalized execution trace (P3: Set by smart_aggregator)
     execution_trace: Optional[Dict[str, Any]] = None
+
+    # =========================================================
+    # P0 Enhancement: Review/Revision Loop
+    # =========================================================
+
+    # Current retry count for separation (max 2 retries)
+    separation_retry_count: int = 0
+
+    # Reviewer feedback from last review
+    reviewer_feedback: Optional[Dict[str, Any]] = None
+
+    # Modified parameters for retry (e.g., wider temperature range)
+    retry_params: Dict[str, Any] = {}
+
+    # =========================================================
+    # P1 Enhancement: Parallel Execution & Supervisor
+    # =========================================================
+
+    # Supervisor decision (if using LLM-based supervisor)
+    supervisor_decision: Optional[Dict[str, Any]] = None
+
+    # Flag for parallel execution mode
+    parallel_execution: bool = False
+
+    # Results from parallel specialists (aggregated)
+    parallel_results: Dict[str, Any] = {}
 
 
 # ============================================================
@@ -968,6 +1375,286 @@ async def integrated_orchestrator_node(state: MultiAgentState) -> dict:
 
 
 # ============================================================
+# P1: PARALLEL ORCHESTRATOR FOR INDEPENDENT SPECIALISTS
+# ============================================================
+
+async def parallel_orchestrator_node(
+    state: MultiAgentState,
+    sql_agent_node,
+    specialists: List[str] = None
+) -> dict:
+    """
+    P1 Enhancement: Run independent specialists in parallel.
+
+    For collaboration modes where specialists don't depend on each other's output
+    (e.g., separation + literature), run them concurrently for faster results.
+
+    Args:
+        state: Current multi-agent state
+        sql_agent_node: The SQL agent node function
+        specialists: List of specialists to run in parallel
+
+    Returns:
+        Combined state with results from all parallel specialists
+    """
+    specialists = specialists or state.get("collaboration_specialists", [])
+    shared_context = state.get("shared_context", {})
+
+    logger.info(f"Parallel Orchestrator: Running {len(specialists)} specialists in parallel")
+
+    # Define specialist execution functions
+    async def run_separation():
+        """Run separation agent."""
+        state_copy = dict(state)
+        state_copy["selected_categories"] = [
+            "separation", "advanced_separation", "dissolution",
+            "solvent_properties", "visualization", "safety"
+        ]
+        polymers = shared_context.get("polymers", [])
+        temperature = shared_context.get("temperature", 80.0)
+
+        sep_task = SeparationTaskRequest(
+            polymers=polymers,
+            temperature=temperature,
+            top_k_solvents=3,
+            ranking_criterion="selectivity"
+        )
+        tool_instruction = HumanMessage(content=sep_task.to_instruction())
+        state_copy["messages"] = list(state.get("messages", [])) + [tool_instruction]
+
+        result = await sql_agent_node(state_copy)
+
+        # Parse separation results
+        messages = result.get("messages", [])
+        all_text = "\n".join(
+            msg.content for msg in messages
+            if hasattr(msg, 'content') and isinstance(msg.content, str)
+        )
+        separation_results = parse_separation_results(all_text)
+        separation_results["polymers"] = polymers
+        separation_results["temperature"] = temperature
+
+        return {"separation_results": separation_results, "messages": messages}
+
+    async def run_literature():
+        """Run literature agent."""
+        state_copy = dict(state)
+        state_copy["selected_categories"] = ["literature", "rag"]
+
+        query = shared_context.get("original_query", "")
+        polymers = shared_context.get("polymers", [])
+
+        from agent_schemas import LiteratureTaskRequest
+        lit_task = LiteratureTaskRequest(
+            search_topic=query,
+            polymers=polymers,
+            max_results=10,
+            search_rag_first=True
+        )
+        tool_instruction = HumanMessage(content=lit_task.to_instruction())
+        state_copy["messages"] = list(state.get("messages", [])) + [tool_instruction]
+
+        result = await sql_agent_node(state_copy)
+        messages = result.get("messages", [])
+
+        # Extract literature results
+        all_text = "\n".join(
+            msg.content for msg in messages
+            if hasattr(msg, 'content') and isinstance(msg.content, str)
+        )
+        literature_results = {
+            "papers_found": all_text.count("DOI") + all_text.count("doi"),
+            "key_findings": [],
+            "raw_response": all_text[:2000],
+        }
+
+        return {"literature_results": literature_results, "messages": messages}
+
+    async def run_tea():
+        """Run TEA agent (requires separation results)."""
+        state_copy = dict(state)
+        state_copy["selected_categories"] = ["economics", "strap", "visualization", "solvent_properties"]
+
+        # Get solvents from separation results if available
+        separation_results = state.get("separation_results", {})
+        solvents = separation_results.get("solvents", ["xylene", "cyclohexane"])
+
+        tea_task = TEATaskRequest(
+            solvents=solvents[:5],
+            throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
+            recovery_rate=0.95,
+            include_capex=True,
+            compare_solvents=True,
+        )
+        tool_instruction = HumanMessage(content=tea_task.to_instruction())
+        state_copy["messages"] = list(state.get("messages", [])) + [tool_instruction]
+
+        result = await sql_agent_node(state_copy)
+        messages = result.get("messages", [])
+
+        # Parse TEA results
+        all_text = "\n".join(
+            msg.content for msg in messages
+            if hasattr(msg, 'content') and isinstance(msg.content, str)
+        )
+        tea_results = parse_tea_results(all_text)
+
+        return {"tea_results": tea_results, "messages": messages}
+
+    # Map specialists to their execution functions
+    specialist_runners = {
+        "separation": run_separation,
+        "literature": run_literature,
+        "tea_lca": run_tea,
+    }
+
+    # Determine which specialists can run in parallel
+    # TEA depends on separation, so they can't be parallel
+    # Separation + Literature CAN be parallel
+    independent_specialists = []
+    dependent_specialists = []
+
+    for spec in specialists:
+        if spec == "tea_lca":
+            dependent_specialists.append(spec)  # TEA needs separation results
+        else:
+            independent_specialists.append(spec)
+
+    # Run independent specialists in parallel
+    parallel_results = {}
+    all_messages = list(state.get("messages", []))
+
+    if independent_specialists:
+        tasks = []
+        for spec in independent_specialists:
+            if spec in specialist_runners:
+                tasks.append(specialist_runners[spec]())
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    logger.error(f"Parallel specialist failed: {result}")
+                    continue
+                if isinstance(result, dict):
+                    parallel_results.update(result)
+                    all_messages.extend(result.get("messages", []))
+
+    # Run dependent specialists sequentially (TEA after separation)
+    for spec in dependent_specialists:
+        if spec in specialist_runners:
+            # Update state with parallel results before running dependent
+            state_with_results = dict(state)
+            state_with_results.update(parallel_results)
+            state_with_results["messages"] = all_messages
+
+            result = await specialist_runners[spec]()
+            if isinstance(result, dict):
+                parallel_results.update(result)
+                all_messages.extend(result.get("messages", []))
+
+    logger.info(f"Parallel Orchestrator: Completed {len(specialists)} specialists")
+
+    return {
+        **parallel_results,
+        "messages": all_messages,
+        "current_specialist_index": len(specialists),
+        "aggregation_required": True,
+    }
+
+
+# ============================================================
+# P1: LLM-BASED SUPERVISOR (Optional Dynamic Routing)
+# ============================================================
+
+async def supervisor_decision_node(
+    state: MultiAgentState,
+    llm_factory=None
+) -> Command:
+    """
+    P1 Enhancement: LLM-based supervisor for dynamic routing decisions.
+
+    Uses SupervisorDecision schema to determine next agent based on:
+    - Current results quality
+    - Remaining specialists to visit
+    - Query requirements
+
+    Only activated for complex queries (complexity >= 4) to avoid
+    latency overhead for simple queries.
+
+    Args:
+        state: Current multi-agent state
+        llm_factory: Function to create LLM (optional, for testing)
+
+    Returns:
+        Command with routing decision
+    """
+    from agent_schemas import SupervisorDecision
+
+    complexity = state.get("complexity", 3)
+    collaboration_mode = state.get("collaboration_mode")
+    separation_results = state.get("separation_results", {})
+    tea_results = state.get("tea_results", {})
+    reviewer_feedback = state.get("reviewer_feedback", {})
+
+    # Only use LLM supervisor for complex queries
+    if complexity < 4 or not collaboration_mode:
+        # Simple rule-based routing
+        if separation_results and not tea_results:
+            return Command(goto="collab_tea_agent")
+        elif tea_results:
+            return Command(goto="smart_aggregator")
+        else:
+            return Command(goto="collab_separation_agent")
+
+    # Build supervisor context
+    has_solvents = bool(separation_results.get("solvents", []))
+    has_cost = bool(tea_results.get("cost_per_kg"))
+    # Only consider quality score if reviewer feedback exists
+    has_reviewer_feedback = bool(reviewer_feedback)
+    quality_score = reviewer_feedback.get("quality_score", 1.0) if has_reviewer_feedback else 1.0
+
+    # Rule-based supervisor (can be replaced with LLM call)
+    if not has_solvents:
+        # Need separation first
+        decision = SupervisorDecision(
+            next_agent="collab_separation_agent",
+            reason="Separation results needed - no solvents found",
+            confidence=0.9
+        )
+    elif has_solvents and not has_cost:
+        # Have solvents, need TEA
+        decision = SupervisorDecision(
+            next_agent="collab_tea_agent",
+            reason=f"Proceeding to TEA with {len(separation_results.get('solvents', []))} solvents",
+            confidence=0.85
+        )
+    elif has_reviewer_feedback and quality_score < 0.5 and state.get("separation_retry_count", 0) < 2:
+        # Low quality with explicit feedback, consider retry
+        decision = SupervisorDecision(
+            next_agent="collab_separation_agent",
+            reason=f"Quality score {quality_score:.2f} below threshold, retrying",
+            is_reroute=True,
+            confidence=0.7
+        )
+    else:
+        # Ready for aggregation
+        decision = SupervisorDecision(
+            next_agent="smart_aggregator",
+            reason="All required analyses complete",
+            confidence=0.95
+        )
+
+    logger.info(f"Supervisor Decision: {decision.next_agent} (confidence={decision.confidence:.2f}, reason={decision.reason})")
+
+    return Command(
+        update={"supervisor_decision": decision.model_dump()},
+        goto=decision.next_agent
+    )
+
+
+# ============================================================
 # COLLABORATION-AWARE SPECIALIST NODES
 # ============================================================
 
@@ -988,9 +1675,9 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
     is_collaborative = state.get("collaboration_mode") is not None
     shared_context = state.get("shared_context", {})
 
-    # Set categories for separation
+    # Set categories for separation (includes advanced_separation for new algorithms)
     state_copy = dict(state)
-    state_copy["selected_categories"] = ["separation", "dissolution", "solvent_properties", "visualization", "safety"]
+    state_copy["selected_categories"] = ["separation", "advanced_separation", "dissolution", "solvent_properties", "visualization", "safety"]
 
     # P2: If in collaborative mode, use task-oriented instruction
     if is_collaborative:
@@ -1262,56 +1949,249 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
                 goto="collab_literature_agent"
             )
 
-        # Default: P2 TEA request (separation_tea mode)
-        tea_task = TEATaskRequest(
-            solvents=solvents_found[:5],  # Top 5 solvents
-            throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
-            recovery_rate=0.95,
-            include_capex=True,
-            include_lca=False,
-            compare_solvents=True,
-            polymers=separation_results.get("polymers", []),
-            temperature=separation_results.get("temperature", 80.0),
-            best_sequence=separation_results.get("best_sequence"),
-        )
-
-        # P3: Create enhanced handoff metrics
+        # P3: Create enhanced handoff metrics (consolidates P0 handoff_history)
+        # P0 Enhancement: Route to reviewer for quality validation before TEA
         handoff_metrics_entry = create_handoff_metrics(
             from_agent="separation",
-            to_agent="tea_lca",
+            to_agent="separation_reviewer",  # P0: Route to reviewer first
             start_time=agent_start_time,
-            tools_called=["plan_sequential_separation"],
+            tools_called=["plan_sequential_separation", "find_optimal_separation_sequence"],
             success=bool(solvents_found),
             task_type="separation",
             context_size=len(str(separation_results)) if separation_results else 0,
         )
         handoff_metrics_entry["query_summary"] = f"Separation of {len(shared_context.get('polymers', []))} polymers, found {len(solvents_found)} solvents"
 
-        # Create pending handoff with task params for TEA agent
-        pending_handoff = {
-            "from_agent": "separation",
-            "to_agent": "tea_lca",
-            "task_params": tea_task.model_dump(),
-        }
-
-        # Return Command for dynamic routing to TEA agent
+        # P0 Enhancement: Route to reviewer for quality validation
+        # The reviewer will decide whether to proceed to TEA or request revision
         return Command(
             update={
-                **filter_result_for_collab(result),
+                **result,
                 "separation_results": separation_results,
                 "current_specialist_index": state.get("current_specialist_index", 0) + 1,
-                "pending_handoff": pending_handoff,
                 "handoff_metrics": [handoff_metrics_entry],
                 "agent_timings": {
                     **state.get("agent_timings", {}),
                     "separation": time.time(),
                 },
             },
-            goto="collab_tea_agent"
+            goto="separation_reviewer"  # P0: Route to reviewer
         )
 
     # Non-collaborative mode: return dict
     return result
+
+
+# ============================================================
+# P0 ENHANCEMENT: SEPARATION REVIEWER NODE (Review/Revision Loop)
+# ============================================================
+
+# Quality thresholds for separation results
+SEPARATION_QUALITY_THRESHOLDS = {
+    "min_solvents": 2,           # Need at least 2 solvents to choose from
+    "min_selectivity": 5.0,      # Minimum selectivity percentage (was 0)
+    "max_retries": 2,            # Maximum retry attempts
+    "temperature_expansion": 20, # Degrees to expand temperature window on retry
+}
+
+
+async def separation_reviewer_node(state: MultiAgentState) -> Command:
+    """
+    Review separation results and decide whether to proceed or revise.
+
+    P0 Enhancement: Implements GPT-Researcher style review/revision loop.
+
+    Quality checks:
+    1. Minimum solvents found (>= 2)
+    2. Selectivity thresholds met (>= 5%)
+    3. Sequence completeness (all polymers covered)
+
+    Returns:
+        Command to either:
+        - goto="collab_tea_agent" if acceptable
+        - goto="collab_separation_agent" if revision needed (with modified params)
+        - goto="smart_aggregator" if max retries exceeded
+    """
+    separation_results = state.get("separation_results") or {}
+    shared_context = state.get("shared_context") or {}
+    retry_count = min(state.get("separation_retry_count", 0), 100)  # Clamp to reasonable max
+    max_retries = SEPARATION_QUALITY_THRESHOLDS["max_retries"]
+
+    # Extract metrics
+    solvents = separation_results.get("solvents", [])
+    selectivities = separation_results.get("selectivities", [])
+    best_sequence = separation_results.get("best_sequence", [])
+    polymers = separation_results.get("polymers", []) or shared_context.get("polymers", [])
+    temperature = separation_results.get("temperature", shared_context.get("temperature", 80.0))
+
+    # Calculate quality metrics
+    solvents_count = len(solvents)
+    min_selectivity = min(selectivities) if selectivities else 0.0
+    max_selectivity = max(selectivities) if selectivities else 0.0
+    has_sequence = bool(best_sequence and len(best_sequence) > 0)
+
+    # Build issues list
+    issues = []
+    suggestions = []
+
+    # Check 1: Minimum solvents
+    if solvents_count < SEPARATION_QUALITY_THRESHOLDS["min_solvents"]:
+        issues.append(f"Only {solvents_count} solvents found (minimum: {SEPARATION_QUALITY_THRESHOLDS['min_solvents']})")
+        suggestions.append("Try expanding temperature range to find more solvent options")
+
+    # Check 2: Selectivity threshold
+    if min_selectivity < SEPARATION_QUALITY_THRESHOLDS["min_selectivity"] and selectivities:
+        issues.append(f"Minimum selectivity {min_selectivity:.1f}% is below threshold ({SEPARATION_QUALITY_THRESHOLDS['min_selectivity']}%)")
+        suggestions.append("Consider different temperature or alternative solvents")
+
+    # Check 3: Sequence completeness
+    if polymers and has_sequence and len(best_sequence) < len(polymers) - 1:
+        issues.append(f"Sequence covers {len(best_sequence)} steps but {len(polymers)} polymers need separation")
+        suggestions.append("Ensure all polymer pairs have viable separation paths")
+
+    # Calculate quality score (0-1)
+    quality_score = 1.0
+    if solvents_count < 2:
+        quality_score -= 0.4
+    elif solvents_count < 3:
+        quality_score -= 0.2
+    if min_selectivity < 5 and selectivities:
+        quality_score -= 0.3
+    if not has_sequence:
+        quality_score -= 0.2
+    quality_score = max(0.0, quality_score)
+
+    # Decision logic
+    is_acceptable = len(issues) == 0 or quality_score >= 0.6
+    requires_revision = not is_acceptable and retry_count < max_retries
+
+    # Create reviewer feedback
+    feedback = ReviewerFeedback(
+        is_acceptable=is_acceptable,
+        quality_score=quality_score,
+        issues=issues,
+        suggestions=suggestions,
+        requires_revision=requires_revision,
+        solvents_count=solvents_count,
+        min_selectivity=min_selectivity if selectivities else None,
+        max_selectivity=max_selectivity if selectivities else None,
+        has_sequence=has_sequence,
+        retry_count=retry_count,
+        max_retries=max_retries,
+    )
+
+    # Log review decision
+    logger.info(f"Separation Review: quality={quality_score:.2f}, acceptable={is_acceptable}, "
+                f"issues={len(issues)}, retry={retry_count}/{max_retries}")
+    if issues:
+        for issue in issues:
+            logger.warning(f"  Issue: {issue}")
+
+    # Create handoff metrics for review
+    handoff_metrics_entry = create_handoff_metrics(
+        from_agent="separation_reviewer",
+        to_agent="collab_tea_agent" if is_acceptable else "collab_separation_agent",
+        start_time=state.get("agent_timings", {}).get("separation", time.time()),
+        tools_called=[],
+        success=is_acceptable,
+        error_message="; ".join(issues) if issues else None,
+        task_type="review",
+    )
+    handoff_metrics_entry["quality_score"] = quality_score
+
+    if requires_revision:
+        # Build retry parameters (expand temperature window)
+        current_temp = temperature
+        temp_expansion = SEPARATION_QUALITY_THRESHOLDS["temperature_expansion"]
+        new_temp_min = max(40, current_temp - temp_expansion)
+        new_temp_max = min(180, current_temp + temp_expansion)
+
+        retry_params = {
+            "temperature_range": (new_temp_min, new_temp_max),
+            "retry_reason": "; ".join(issues),
+            "previous_solvents": solvents,
+        }
+
+        feedback.retry_params = retry_params
+        feedback.revision_instructions = (
+            f"Retry separation planning with expanded temperature range "
+            f"({new_temp_min}°C to {new_temp_max}°C). "
+            f"Previous attempt found {solvents_count} solvents with selectivity {min_selectivity:.1f}%-{max_selectivity:.1f}%."
+        )
+
+        logger.info(f"Separation Reviewer: Requesting revision (attempt {retry_count + 1}/{max_retries})")
+
+        return Command(
+            update={
+                "separation_retry_count": retry_count + 1,
+                "reviewer_feedback": feedback.model_dump(),
+                "retry_params": retry_params,
+                "handoff_metrics": [handoff_metrics_entry],
+                # Clear previous results for retry
+                "separation_results": None,
+            },
+            goto="collab_separation_agent"
+        )
+
+    elif is_acceptable:
+        # Proceed to TEA agent
+        logger.info(f"Separation Reviewer: Results acceptable (quality={quality_score:.2f})")
+
+        # Create TEA task request
+        tea_task = TEATaskRequest(
+            solvents=solvents[:5],
+            throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
+            recovery_rate=0.95,
+            include_capex=True,
+            include_lca=False,
+            compare_solvents=True,
+            polymers=polymers,
+            temperature=temperature,
+            best_sequence=best_sequence,
+        )
+
+        pending_handoff = {
+            "from_agent": "separation_reviewer",
+            "to_agent": "tea_lca",
+            "task_params": tea_task.model_dump(),
+        }
+
+        return Command(
+            update={
+                "reviewer_feedback": feedback.model_dump(),
+                "pending_handoff": pending_handoff,
+                "handoff_metrics": [handoff_metrics_entry],
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "reviewer": time.time(),
+                },
+            },
+            goto="collab_tea_agent"
+        )
+
+    else:
+        # Max retries exceeded - proceed to aggregator with warning
+        logger.warning(f"Separation Reviewer: Max retries ({max_retries}) exceeded, proceeding with partial results")
+
+        feedback.revision_instructions = f"Max retries exceeded. Issues: {'; '.join(issues)}"
+
+        return Command(
+            update={
+                "reviewer_feedback": feedback.model_dump(),
+                "handoff_metrics": [handoff_metrics_entry],
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "reviewer": time.time(),
+                },
+                # Pass through to TEA even with suboptimal results
+                "pending_handoff": {
+                    "from_agent": "separation_reviewer",
+                    "to_agent": "tea_lca",
+                    "task_params": {"solvents": solvents[:5] if solvents else ["xylene", "cyclohexane"]},
+                },
+            },
+            goto="collab_tea_agent"
+        )
 
 
 async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Command:
@@ -2098,6 +2978,10 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
     handoff_metrics = state.get("handoff_metrics", [])
     agent_timings = state.get("agent_timings", {})
 
+    # P0 Enhancement: Get reviewer feedback
+    reviewer_feedback = state.get("reviewer_feedback", {})
+    retry_count = state.get("separation_retry_count", 0)
+
     # P2: Get task-oriented request from handoff
     pending_handoff = state.get("pending_handoff", {})
     task_params = pending_handoff.get("task_params", {})
@@ -2147,6 +3031,16 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
 
             if algorithm == "greedy":
                 output_parts.append(f"- **Algorithm:** Greedy (O(n²) for {len(polymers)} polymers)\n")
+
+            # P0 Enhancement: Include reviewer feedback
+            if reviewer_feedback:
+                quality_score = reviewer_feedback.get("quality_score", 1.0)
+                issues = reviewer_feedback.get("issues", [])
+                output_parts.append(f"- **Quality score:** {quality_score:.0%}\n")
+                if retry_count > 0:
+                    output_parts.append(f"- **Retries performed:** {retry_count}\n")
+                if issues:
+                    output_parts.append(f"- **Review notes:** {'; '.join(issues[:2])}\n")
 
             output_parts.append("\n")
 
@@ -2528,7 +3422,7 @@ def build_multi_agent_graph(
     # Separation specialist (single mode)
     async def separation_agent_node(state):
         state_copy = dict(state)
-        state_copy["selected_categories"] = ["separation", "dissolution", "solvent_properties", "visualization"]
+        state_copy["selected_categories"] = ["separation", "advanced_separation", "dissolution", "solvent_properties", "visualization"]
         return await sql_agent_node(state_copy)
 
     builder.add_node("separation_agent", separation_agent_node)
@@ -2563,6 +3457,9 @@ def build_multi_agent_graph(
 
     builder.add_node("collab_separation_agent", collab_separation_node)
     builder.add_node("collab_separation_tools", async_tool_node_class(SEPARATION_TOOLS or all_tools))
+
+    # P0 Enhancement: Separation reviewer for quality validation
+    builder.add_node("separation_reviewer", separation_reviewer_node)
 
     # Collaboration-aware TEA agent
     async def collab_tea_node(state):
@@ -2700,18 +3597,18 @@ def build_multi_agent_graph(
     )
 
     # P0: Collab Separation Agent with Command-aware routing
-    # When agent returns Command(goto="collab_tea_agent"), LangGraph routes automatically
-    # When agent needs tools, we route to tools first
-    def route_collab_sep(state) -> Literal["collab_separation_tools", "collab_tea_agent", "collab_literature_agent", "smart_aggregator", "__end__"]:
+    # P0 Enhancement: Routes to separation_reviewer for quality validation before TEA
+    # Also supports literature routing for 3-way collaboration
+    def route_collab_sep(state) -> Literal["collab_separation_tools", "separation_reviewer", "collab_tea_agent", "collab_literature_agent", "smart_aggregator", "__end__"]:
         """Route based on tool calls or Command. Command.goto takes precedence."""
         messages = state.get("messages", [])
         collab_mode = state.get("collaboration_mode", "")
 
         if not messages:
             # Check collaboration mode to determine next agent
-            if collab_mode == "separation_literature":
+            if collab_mode in ("separation_literature", "separation_literature_tea_lca"):
                 return "collab_literature_agent"
-            return "collab_tea_agent"
+            return "separation_reviewer"  # P0: Route to reviewer
 
         try:
             last_message = messages[-1]
@@ -2722,17 +3619,18 @@ def build_multi_agent_graph(
             pass
 
         # Route based on collaboration mode
-        if collab_mode == "separation_literature":
+        if collab_mode in ("separation_literature", "separation_literature_tea_lca"):
             return "collab_literature_agent"
 
-        # Default: hand off to TEA (Command will override this if returned)
-        return "collab_tea_agent"
+        # Default: hand off to reviewer (Command will override this if returned)
+        return "separation_reviewer"  # P0: Route to reviewer
 
     builder.add_conditional_edges(
         "collab_separation_agent",
         route_collab_sep,
         {
             "collab_separation_tools": "collab_separation_tools",
+            "separation_reviewer": "separation_reviewer",  # P0: Reviewer destination
             "collab_tea_agent": "collab_tea_agent",
             "collab_literature_agent": "collab_literature_agent",
             "smart_aggregator": "smart_aggregator",
@@ -2740,6 +3638,31 @@ def build_multi_agent_graph(
         }
     )
     builder.add_edge("collab_separation_tools", "collab_separation_agent")
+
+    # P0 Enhancement: Separation Reviewer with Command-based routing
+    # Reviewer decides: proceed to TEA, retry separation, or aggregator (max retries)
+    def route_reviewer(state) -> Literal["collab_separation_agent", "collab_tea_agent", "smart_aggregator", "__end__"]:
+        """Route based on reviewer decision. Command.goto takes precedence."""
+        # The reviewer returns Command objects, so LangGraph will use those
+        # This function is the fallback for non-Command returns
+        feedback = state.get("reviewer_feedback", {})
+        if feedback.get("requires_revision"):
+            return "collab_separation_agent"
+        elif feedback.get("is_acceptable"):
+            return "collab_tea_agent"
+        else:
+            return "smart_aggregator"
+
+    builder.add_conditional_edges(
+        "separation_reviewer",
+        route_reviewer,
+        {
+            "collab_separation_agent": "collab_separation_agent",
+            "collab_tea_agent": "collab_tea_agent",
+            "smart_aggregator": "smart_aggregator",
+            "__end__": END,
+        }
+    )
 
     # P0: Collab TEA Agent with Command-aware routing
     def route_collab_tea(state) -> Literal["collab_tea_tools", "smart_aggregator", "__end__"]:
@@ -2808,14 +3731,16 @@ def build_multi_agent_graph(
 
     # ========== COMPILE ==========
 
-    checkpointer = MemorySaver()
+    # P1: Use configurable checkpointer (supports postgres, redis, or memory)
+    checkpointer = CheckpointerConfig.get_checkpointer()
     graph = builder.compile(checkpointer=checkpointer)
 
     logger.info("✅ Multi-Agent Graph compiled successfully!")
     logger.info(f"  Paths: fast, standard, specialist (separation, tea, literature), INTEGRATED")
     logger.info(f"  Tool subsets: fast={len(FAST_PATH_TOOLS)}, sep={len(SEPARATION_TOOLS)}, "
                 f"tea={len(TEA_LCA_TOOLS)}, lit={len(LITERATURE_TOOLS)}")
-    logger.info(f"  Collaboration: separation -> tea_lca, separation <-> literature (multi-KB)")
+    logger.info(f"  Collaboration: separation -> reviewer -> tea_lca, separation <-> literature (multi-KB)")
+    logger.info(f"  Checkpointer: {type(checkpointer).__name__}")
 
     return graph
 
@@ -2838,9 +3763,21 @@ __all__ = [
     'collab_literature_agent_node',
     'select_knowledgebases',
     'parse_literature_results',
+    # P0 Enhancement: Review/Revision loop
+    'separation_reviewer_node',
+    'SEPARATION_QUALITY_THRESHOLDS',
+    # P1 Enhancement: Parallel execution & Supervisor
+    'parallel_orchestrator_node',
+    'supervisor_decision_node',
+    'CheckpointerConfig',
+    # P2 Enhancement: Cross-session store & Knowledge graph
+    'SessionStore',
+    'PolymerKnowledgeGraph',
+    # Prompts
     'SEPARATION_PLANNER_PROMPT',
     'TEA_LCA_ANALYST_PROMPT',
     'LITERATURE_RESEARCHER_PROMPT',
+    # Tool subsets
     'FAST_PATH_TOOLS',
     'SEPARATION_TOOLS',
     'TEA_LCA_TOOLS',

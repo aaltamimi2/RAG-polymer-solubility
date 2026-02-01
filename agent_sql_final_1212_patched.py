@@ -106,6 +106,12 @@ import tea_lca_module as tea_lca
 # RAG Module - Literature search with vector retrieval
 import rag_module as rag
 
+# Advanced Separation Tools - Modular algorithms for separation optimization
+try:
+    from tools.langchain_tools import ADVANCED_SEPARATION_TOOLS
+except ImportError:
+    ADVANCED_SEPARATION_TOOLS = []  # Fallback if tools module not available
+
 # ============================================================
 # Configuration
 # ============================================================
@@ -10815,12 +10821,20 @@ TOOL_CATEGORIES = {
     "ml_prediction": [
         predict_solubility_ml,
     ],
+    # Advanced separation tools from tools/ module
+    # Includes: find_optimal_separation_sequence, compare_separation_algorithms,
+    # optimize_separation_temperature, analyze_sequence_throughput,
+    # calculate_selectivity_detailed, rank_solvents_for_separation,
+    # build_compatibility_matrix, find_challenging_polymer_pairs,
+    # create_separation_tree_plot, create_selectivity_heatmap, create_process_flow_diagram
+    "advanced_separation": ADVANCED_SEPARATION_TOOLS,
 }
 
 # Category relationships - when one category is selected, related categories often needed
 CATEGORY_RELATIONSHIPS = {
     "dissolution": ["solvent_properties", "visualization"],
-    "separation": ["dissolution", "solvent_properties", "visualization"],
+    "separation": ["dissolution", "solvent_properties", "visualization", "advanced_separation"],
+    "advanced_separation": ["separation", "dissolution", "solvent_properties", "visualization"],
     "safety": ["solvent_properties"],
     "economics": ["visualization"],
     "strap": ["economics", "visualization"],
@@ -11827,3 +11841,35 @@ logger.info(f"📊 Plots Directory: {PLOTS_DIR}")
 logger.info("="*70)
 logger.info("✅ Agent module ready for import by FastAPI/other frameworks")
 logger.info("="*70 + "\n")
+
+# ============================================================
+# Multi-Agent Graph (for complex queries requiring collaboration)
+# ============================================================
+
+try:
+    from multi_agent_system import (
+        build_multi_agent_graph,
+        initialize_tool_subsets,
+    )
+
+    # Initialize tool subsets for specialist agents
+    initialize_tool_subsets(TOOL_CATEGORIES, SQL_AGENT_TOOLS)
+
+    # Factory function to create LLM with tools (used by multi-agent system)
+    def create_llm_with_tools(tools):
+        return llm.bind_tools(tools)
+
+    # Build the multi-agent graph
+    multi_agent_graph = build_multi_agent_graph(
+        sql_agent_node=sql_agent_node,
+        async_tool_node_class=AsyncToolNode,
+        all_tools=SQL_AGENT_TOOLS,
+        tool_categories=TOOL_CATEGORIES,
+        llm_factory=create_llm_with_tools
+    )
+
+    logger.info("✅ Multi-Agent Graph initialized and ready")
+
+except Exception as e:
+    logger.warning(f"Multi-agent system not available: {e}")
+    multi_agent_graph = None
