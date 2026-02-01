@@ -40,6 +40,7 @@ from langgraph.types import Command
 from agent_schemas import (
     SeparationResult,
     TEAResult,
+    LiteratureResult,
     HandoffPayload,
     SharedContext,
     SeparationStep,
@@ -48,6 +49,7 @@ from agent_schemas import (
     # P2: Task-oriented handoff schemas
     TEATaskRequest,
     SeparationTaskRequest,
+    LiteratureTaskRequest,
     AggregatorTaskRequest,
     # P3: Enhanced tracking schemas
     HandoffMetrics,
@@ -56,6 +58,20 @@ from agent_schemas import (
 import uuid
 
 logger = logging.getLogger(__name__)
+
+
+def filter_result_for_collab(result: dict) -> dict:
+    """
+    Filter base agent result to only include essential keys for collaboration nodes.
+
+    This prevents concurrent update conflicts when multiple nodes try to update the same keys.
+    We use an allow-list approach to be safe - only messages are passed through.
+    All other state (iteration tracking, timings, etc.) is managed by the collaboration nodes themselves.
+    """
+    # Only pass messages - everything else is managed by collaboration nodes
+    allowed_keys = {"messages"}
+    return {k: v for k, v in result.items() if k in allowed_keys}
+
 
 # ============================================================
 # COMPLEXITY SCORING AND SPECIALIST ROUTING
@@ -114,6 +130,25 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "cost", "economic", "tea", "capex", "opex", "payback", "msp", "cheap", "expensive"
     ])
 
+    # Separation + Literature integration - check this BEFORE 2-way checks
+    has_literature_keyword = any(w in query_lower for w in [
+        "literature", "research", "papers", "studies", "publications",
+        "rag", "knowledgebase", "indexed", "strap", "verify"
+    ])
+
+    # 3-WAY COLLABORATION: Separation + Literature + TEA
+    # This takes priority when all three domains are needed
+    if has_separation_keyword and has_literature_keyword and has_cost_keyword:
+        return RoutingDecision(
+            complexity=5,
+            path="integrated",
+            specialist=None,
+            categories=["separation", "dissolution", "literature", "rag", "economics", "strap", "visualization", "solvent_properties"],
+            reason="Integrated Separation + Literature + TEA analysis detected",
+            collaboration_specialists=["separation", "literature", "tea_lca"]
+        )
+
+    # 2-WAY: Separation + TEA/LCA
     if any(trigger in query_lower for trigger in integrated_sep_tea_triggers) or \
        (has_separation_keyword and has_cost_keyword):
         return RoutingDecision(
@@ -125,8 +160,8 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             collaboration_specialists=["separation", "tea_lca"]
         )
 
-    # Separation + Literature integration
-    if has_separation_keyword and any(w in query_lower for w in ["literature", "research", "papers", "studies"]):
+    # 2-WAY: Separation + Literature
+    if has_separation_keyword and has_literature_keyword:
         return RoutingDecision(
             complexity=5,
             path="integrated",
@@ -134,6 +169,20 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             categories=["separation", "dissolution", "literature", "rag"],
             reason="Integrated Separation + Literature research detected",
             collaboration_specialists=["separation", "literature"]
+        )
+
+    # Literature-first queries with polymer/solvent context (search first, then analyze)
+    has_deinking_keyword = any(w in query_lower for w in [
+        "deinking", "ink removal", "printed", "printing", "surfactant",
+        "flexographic", "gravure", "coating removal"
+    ])
+    if has_deinking_keyword:
+        return RoutingDecision(
+            complexity=4,
+            path="specialist",
+            specialist="literature",
+            categories=["literature", "rag"],
+            reason="Deinking/printed plastics literature query detected"
         )
 
     # ==========================================================
@@ -176,10 +225,12 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
 
     # Literature Research Specialist
     literature_triggers = [
-        "search literature", "find papers", "research on", "publications about",
-        "what does the literature", "scholarly articles", "peer-reviewed",
-        "web of science", "google scholar", "search rag", "ask literature",
-        "what papers", "recent research", "state of the art"
+        "search literature", "search the literature", "find papers", "research on",
+        "publications about", "what does the literature", "scholarly articles",
+        "peer-reviewed", "web of science", "google scholar", "search rag",
+        "ask literature", "what papers", "recent research", "state of the art",
+        "hansen solubility parameter", "in the literature", "from literature",
+        "literature search", "indexed papers", "knowledgebase"
     ]
     if any(trigger in query_lower for trigger in literature_triggers):
         return RoutingDecision(
@@ -422,7 +473,8 @@ class MultiAgentState(MessagesState):
     collaboration_specialists: List[str] = []
 
     # Index of current specialist in collaboration sequence
-    current_specialist_index: int = 0
+    # Using max reducer to handle concurrent updates (always take highest value)
+    current_specialist_index: Annotated[int, lambda a, b: max(a, b)] = 0
 
     # Structured results from Separation Agent (P1: Pydantic schema)
     separation_results: Optional[Dict[str, Any]] = None  # Holds SeparationResult.model_dump()
@@ -464,7 +516,8 @@ class MultiAgentState(MessagesState):
     handoff_metrics: Annotated[List[Dict[str, Any]], operator.add] = []
 
     # Timing for each agent (P3: Performance tracking)
-    agent_timings: Dict[str, float] = {}
+    # Using Annotated with dict merge to allow multiple nodes to update
+    agent_timings: Annotated[Dict[str, float], lambda a, b: {**a, **b}] = {}
 
     # Finalized execution trace (P3: Set by smart_aggregator)
     execution_trace: Optional[Dict[str, Any]] = None
@@ -1116,7 +1169,7 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
         if has_pending_tools:
             logger.info("Separation: Returning dict to allow tool routing (not Command)")
             return {
-                **result,
+                **filter_result_for_collab(result),
                 "separation_results": separation_results,
                 "agent_timings": {
                     **state.get("agent_timings", {}),
@@ -1145,7 +1198,7 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
             # Skip TEA and go directly to aggregator with warning
             return Command(
                 update={
-                    **result,
+                    **filter_result_for_collab(result),
                     "separation_results": separation_results,
                     "tea_results": {"error": "Skipped - no solvents from separation", "cost_per_kg": None},
                     "handoff_metrics": [handoff_metrics_entry],
@@ -1157,9 +1210,61 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
                 goto="smart_aggregator"
             )
 
-        # P2: Create task-oriented TEA request (reduces context bloat)
+        # Determine next agent based on collaboration mode
+        collaboration_mode = state.get("collaboration_mode", "separation_tea")
+        agent_start_time = state.get("agent_timings", {}).get("orchestrator", time.time())
+        solvents_found = separation_results.get("solvents", [])
+
+        # Handle both 2-way (separation_literature) and 3-way (separation_literature_tea_lca) modes
+        if collaboration_mode in ("separation_literature", "separation_literature_tea_lca"):
+            # Create literature task request - include verification context for 3-way mode
+            search_topic = f"Separation and solubility of {', '.join(separation_results.get('polymers', []))}"
+            if collaboration_mode == "separation_literature_tea_lca":
+                search_topic += " - verify dissolution selectivity for greedy sequence"
+
+            lit_task = LiteratureTaskRequest(
+                search_topic=search_topic,
+                polymers=separation_results.get("polymers", []),
+                solvents=solvents_found[:5] if solvents_found else [],
+                max_results=10,
+                search_rag_first=True,
+            )
+
+            handoff_metrics_entry = create_handoff_metrics(
+                from_agent="separation",
+                to_agent="literature",
+                start_time=agent_start_time,
+                tools_called=["plan_sequential_separation"],
+                success=bool(solvents_found),
+                task_type="separation",
+                context_size=len(str(separation_results)) if separation_results else 0,
+            )
+            handoff_metrics_entry["query_summary"] = f"Separation of {len(shared_context.get('polymers', []))} polymers -> literature"
+
+            pending_handoff = {
+                "from_agent": "separation",
+                "to_agent": "literature",
+                "task_params": lit_task.model_dump(),
+            }
+
+            return Command(
+                update={
+                    **filter_result_for_collab(result),
+                    "separation_results": separation_results,
+                    "current_specialist_index": state.get("current_specialist_index", 0) + 1,
+                    "pending_handoff": pending_handoff,
+                    "handoff_metrics": [handoff_metrics_entry],
+                    "agent_timings": {
+                        **state.get("agent_timings", {}),
+                        "separation": time.time(),
+                    },
+                },
+                goto="collab_literature_agent"
+            )
+
+        # Default: P2 TEA request (separation_tea mode)
         tea_task = TEATaskRequest(
-            solvents=separation_results.get("solvents", [])[:5],  # Top 5 solvents
+            solvents=solvents_found[:5],  # Top 5 solvents
             throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
             recovery_rate=0.95,
             include_capex=True,
@@ -1170,10 +1275,7 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
             best_sequence=separation_results.get("best_sequence"),
         )
 
-        # P3: Create enhanced handoff metrics (consolidates P0 handoff_history)
-        agent_start_time = state.get("agent_timings", {}).get("orchestrator", time.time())
-        solvents_found = separation_results.get("solvents", [])
-
+        # P3: Create enhanced handoff metrics
         handoff_metrics_entry = create_handoff_metrics(
             from_agent="separation",
             to_agent="tea_lca",
@@ -1183,7 +1285,6 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
             task_type="separation",
             context_size=len(str(separation_results)) if separation_results else 0,
         )
-        # Add query summary to metrics for traceability
         handoff_metrics_entry["query_summary"] = f"Separation of {len(shared_context.get('polymers', []))} polymers, found {len(solvents_found)} solvents"
 
         # Create pending handoff with task params for TEA agent
@@ -1196,7 +1297,7 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
         # Return Command for dynamic routing to TEA agent
         return Command(
             update={
-                **result,
+                **filter_result_for_collab(result),
                 "separation_results": separation_results,
                 "current_specialist_index": state.get("current_specialist_index", 0) + 1,
                 "pending_handoff": pending_handoff,
@@ -1338,7 +1439,7 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
                     # Still need more tool results
                     logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict for tool routing")
                     return {
-                        **result,
+                        **filter_result_for_collab(result),
                         "tea_results": {"status": "pending_tools"},
                         "agent_timings": {
                             **state.get("agent_timings", {}),
@@ -1473,7 +1574,7 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
         # Return Command for dynamic routing to aggregator
         return Command(
             update={
-                **result,
+                **filter_result_for_collab(result),
                 "tea_results": tea_results,
                 "current_specialist_index": state.get("current_specialist_index", 0) + 1,
                 "pending_handoff": pending_handoff,
@@ -1488,6 +1589,477 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
 
     # Non-collaborative mode: return dict
     return result
+
+
+# ============================================================
+# COLLABORATIVE LITERATURE AGENT
+# ============================================================
+
+# KB keywords for auto-selection
+KB_KEYWORDS = {
+    "STRAP-CORE": [
+        "strap", "solvent", "dissolution", "polymer recycling", "hansen",
+        "selectivity", "thermodynamic", "solubility parameter", "separation",
+        "multilayer", "film", "plastics recycling", "polymer-solvent"
+    ],
+    "printed_plastics_deinking": [
+        "deinking", "ink", "printed", "printing", "pigment", "surfactant",
+        "flexographic", "gravure", "coating", "adhesive", "label", "removal",
+        "washing", "cleaning", "detergent", "surface", "contamination"
+    ],
+}
+
+
+def select_knowledgebases(query: str, polymers: List[str] = None, solvents: List[str] = None) -> List[str]:
+    """
+    Auto-select relevant knowledgebases based on query content.
+
+    Args:
+        query: User query or search topic
+        polymers: Optional list of polymers mentioned
+        solvents: Optional list of solvents mentioned
+
+    Returns:
+        List of KB names to search (in priority order)
+    """
+    query_lower = query.lower()
+    scores = {}
+
+    for kb_name, keywords in KB_KEYWORDS.items():
+        score = 0
+        for keyword in keywords:
+            if keyword in query_lower:
+                score += 1
+        scores[kb_name] = score
+
+    # If query mentions polymers/solvents, boost STRAP-CORE
+    if polymers or solvents:
+        scores["STRAP-CORE"] = scores.get("STRAP-CORE", 0) + 2
+
+    # Sort by score and filter to those with matches
+    sorted_kbs = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+    selected = [kb for kb, score in sorted_kbs if score > 0]
+
+    # If no matches, default to both
+    if not selected:
+        selected = list(KB_KEYWORDS.keys())
+
+    logger.debug(f"KB selection for '{query[:50]}...': {selected} (scores: {scores})")
+    return selected
+
+
+def parse_literature_results(text: str) -> Dict[str, Any]:
+    """
+    Parse LLM output to extract structured literature results.
+
+    Args:
+        text: Raw LLM response text
+
+    Returns:
+        Dict with structured literature data
+    """
+    results = {
+        "papers_found": 0,
+        "key_findings": [],
+        "citations": [],
+        "polymers_mentioned": [],
+        "solvents_mentioned": [],
+        "temperatures_mentioned": [],
+        "confidence_score": 0.5,
+    }
+
+    # Count papers/passages
+    paper_patterns = [
+        r"(\d+)\s*(?:papers?|passages?|results?|sources?)\s*found",
+        r"found\s*(\d+)\s*(?:papers?|passages?|results?)",
+        r"passage\s*(\d+)\s*of",
+    ]
+    for pattern in paper_patterns:
+        match = re.search(pattern, text.lower())
+        if match:
+            results["papers_found"] = int(match.group(1))
+            break
+
+    # Extract key findings (bullet points)
+    findings = []
+    lines = text.split('\n')
+    in_findings_section = False
+    for line in lines:
+        line = line.strip()
+        if 'finding' in line.lower() or 'key' in line.lower():
+            in_findings_section = True
+            continue
+        if in_findings_section and line.startswith(('-', '*', '•', '1', '2', '3')):
+            # Clean the bullet point
+            finding = re.sub(r'^[-*•\d.)\s]+', '', line).strip()
+            if finding and len(finding) > 10:
+                findings.append(finding[:500])  # Truncate long findings
+        if in_findings_section and not line and findings:
+            in_findings_section = False
+    results["key_findings"] = findings[:10]  # Max 10 findings
+
+    # Extract polymer mentions
+    polymer_patterns = [
+        r'\b(PE|PP|PET|PS|PVC|LDPE|HDPE|LLDPE|PA6|PA66|Nylon|EVOH|PC|ABS|PMMA|PU|PLA)\b'
+    ]
+    polymers = set()
+    for pattern in polymer_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        polymers.update([m.upper() for m in matches])
+    results["polymers_mentioned"] = list(polymers)
+
+    # Extract solvent mentions (common solvents)
+    common_solvents = [
+        "xylene", "toluene", "cyclohexane", "hexane", "heptane", "decalin",
+        "dmf", "thf", "dmso", "acetone", "ethanol", "methanol", "chloroform",
+        "dichloromethane", "nmp", "dce", "benzene", "limonene", "turpentine"
+    ]
+    solvents = []
+    for solvent in common_solvents:
+        if solvent.lower() in text.lower():
+            solvents.append(solvent)
+    results["solvents_mentioned"] = solvents
+
+    # Extract temperature mentions
+    temp_patterns = [
+        r'(\d+)\s*°?\s*C\b',
+        r'(\d+)\s*degrees?\s*(?:celsius|C)\b',
+        r'at\s+(\d+)\s*degrees',
+    ]
+    temps = set()
+    for pattern in temp_patterns:
+        matches = re.findall(pattern, text, re.IGNORECASE)
+        for m in matches:
+            temp = int(m)
+            if 0 < temp < 400:  # Reasonable temperature range
+                temps.add(float(temp))
+    results["temperatures_mentioned"] = sorted(list(temps))
+
+    # Estimate confidence based on results quality
+    confidence = 0.3
+    if results["papers_found"] > 0:
+        confidence += 0.2
+    if len(results["key_findings"]) > 2:
+        confidence += 0.2
+    if results["polymers_mentioned"] or results["solvents_mentioned"]:
+        confidence += 0.2
+    results["confidence_score"] = min(confidence, 1.0)
+
+    results["raw_response"] = text[:5000] if len(text) > 5000 else text
+
+    return results
+
+
+async def collab_literature_agent_node(state: MultiAgentState, sql_agent_node) -> Command:
+    """
+    Literature specialist with Command-based handoff for collaboration.
+
+    Supports two output modes:
+    1. Direct user: When collaboration_mode is None, returns literature directly
+    2. Collaboration: Passes context to other agents (separation, TEA)
+
+    Key features:
+    - Auto-selects relevant knowledgebases based on query content
+    - Searches multiple KBs when relevant
+    - Extracts structured data for collaboration (polymers, solvents, temps)
+    - Returns Command for dynamic routing
+    """
+    import rag_module as rag
+
+    is_collaborative = state.get("collaboration_mode") is not None
+    shared_context = state.get("shared_context", {})
+    pending_handoff = state.get("pending_handoff", {})
+
+    # Set categories for literature
+    state_copy = dict(state)
+    state_copy["selected_categories"] = ["literature", "rag"]
+
+    # Get query from messages or handoff
+    messages = state.get("messages", [])
+    query = ""
+    if messages:
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                query = msg.content if hasattr(msg, 'content') else str(msg)
+                break
+
+    # Get task request from handoff if collaborative
+    lit_task = None
+    if is_collaborative and pending_handoff:
+        task_params = pending_handoff.get("task_params", {})
+        if task_params:
+            try:
+                lit_task = LiteratureTaskRequest(**task_params)
+            except Exception as e:
+                logger.warning(f"Could not parse LiteratureTaskRequest: {e}")
+
+    # Auto-select KBs based on query content
+    polymers = lit_task.polymers if lit_task else shared_context.get("polymers", [])
+    solvents = lit_task.solvents if lit_task else []
+    search_topic = lit_task.search_topic if lit_task else query
+
+    selected_kbs = select_knowledgebases(search_topic, polymers, solvents)
+    logger.info(f"Literature Agent: auto-selected KBs: {selected_kbs}")
+
+    # Build instruction with KB context
+    kb_instruction = f"Search these knowledgebases in order: {', '.join(selected_kbs)}"
+
+    if lit_task:
+        instruction = lit_task.to_instruction()
+    else:
+        # Build instruction from query
+        instruction = f"""
+**LITERATURE SEARCH TASK**
+
+**Topic:** {search_topic}
+
+**Search Strategy:**
+1. {kb_instruction}
+2. Use search_literature_rag tool for semantic search
+3. Use ask_literature for specific follow-up questions
+
+**Requirements:**
+- Search for relevant papers and passages
+- Extract key findings as bullet points
+- Note any polymers, solvents, or temperatures mentioned
+- Include source citations with page numbers
+
+**Format Response As:**
+## Key Findings
+- [finding 1]
+- [finding 2]
+...
+
+## Relevant Sources
+- [source 1, page X]
+...
+
+## Polymers/Solvents Mentioned
+[List any mentioned in the literature]
+"""
+
+    context_message = HumanMessage(content=instruction)
+
+    # Check for existing literature tool results to avoid infinite loop
+    current_messages = state.get("messages", [])
+    lit_tool_messages = [
+        msg for msg in current_messages
+        if isinstance(msg, ToolMessage) and
+           hasattr(msg, 'content') and isinstance(msg.content, str) and
+           any(marker in msg.content.lower() for marker in
+               ['literature search', 'passage', 'source:', 'found:', 'relevant'])
+    ]
+
+    MAX_LIT_TOOL_RESULTS = 8  # Limit tool calls to prevent infinite loops
+    has_lit_tool_results = len(lit_tool_messages) > 0
+
+    if not has_lit_tool_results:
+        state_copy["messages"] = [context_message]
+        logger.info("Literature: First run - using clean instruction")
+    else:
+        # Subsequent run: include tool results summary
+        tool_results_summary = "\n\n".join([
+            f"**Search Result:**\n{msg.content[:1500]}..."
+            if len(msg.content) > 1500 else f"**Search Result:**\n{msg.content}"
+            for msg in lit_tool_messages[:5]
+        ])
+
+        combined_message = HumanMessage(content=f"""
+{instruction}
+
+## Previous Search Results (analyze these):
+
+{tool_results_summary}
+
+Based on the search results above, provide a summary of:
+1. Key findings about deinking conditions
+2. Polymers and solvents mentioned
+3. Any experimental temperatures or parameters
+
+Do NOT search again. Summarize the results above.
+""")
+        state_copy["messages"] = [combined_message]
+        logger.info(f"Literature: Subsequent run - {len(lit_tool_messages)} tool results included")
+
+    # Execute literature agent
+    result = await sql_agent_node(state_copy)
+
+    # Check for pending tool calls with loop limit
+    result_messages = result.get("messages", [])
+    if result_messages:
+        last_msg = result_messages[-1]
+        if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
+            # Check if we've reached the limit
+            if len(lit_tool_messages) >= MAX_LIT_TOOL_RESULTS:
+                logger.info(f"Literature: Reached max tool results ({len(lit_tool_messages)}), stopping loop")
+                # Fall through to extraction
+            else:
+                # Return dict for tool routing
+                logger.info(f"Literature: {len(last_msg.tool_calls)} tool calls pending ({len(lit_tool_messages)}/{MAX_LIT_TOOL_RESULTS})")
+                return {
+                    **filter_result_for_collab(result),
+                    "literature_results": {"status": "pending_tools"},
+                    "agent_timings": {
+                        **state.get("agent_timings", {}),
+                        "literature_pending": time.time(),
+                    },
+                }
+
+    # Extract structured literature results
+    all_text = ""
+    for msg in result_messages:
+        if isinstance(msg, AIMessage):
+            all_text += msg.content + "\n"
+        elif hasattr(msg, 'content') and isinstance(msg.content, str):
+            all_text += msg.content + "\n"
+
+    lit_results = parse_literature_results(all_text)
+    lit_results["knowledgebases_searched"] = selected_kbs
+
+    logger.info(f"Literature Agent: papers={lit_results.get('papers_found')}, "
+               f"findings={len(lit_results.get('key_findings', []))}, "
+               f"confidence={lit_results.get('confidence_score', 0):.2f}")
+
+    # Create LiteratureResult schema
+    try:
+        lit_result_obj = LiteratureResult(
+            papers_found=lit_results.get("papers_found", 0),
+            key_findings=lit_results.get("key_findings", []),
+            citations=lit_results.get("citations", []),
+            knowledge_gaps=lit_results.get("knowledge_gaps", []),
+            knowledgebases_searched=lit_results.get("knowledgebases_searched", []),
+            confidence_score=lit_results.get("confidence_score", 0.5),
+            polymers_mentioned=lit_results.get("polymers_mentioned", []),
+            solvents_mentioned=lit_results.get("solvents_mentioned", []),
+            temperatures_mentioned=lit_results.get("temperatures_mentioned", []),
+            raw_response=lit_results.get("raw_response"),
+        )
+        lit_results = lit_result_obj.model_dump()
+    except Exception as e:
+        logger.warning(f"Could not create LiteratureResult schema: {e}")
+
+    if is_collaborative:
+        # Determine next agent based on collaboration mode
+        collab_mode = state.get("collaboration_mode")
+
+        if collab_mode == "separation_literature":
+            # Literature → smart_aggregator (literature supports separation)
+            next_agent = "smart_aggregator"
+            task_summary = f"Literature search complete: {lit_results.get('papers_found', 0)} papers"
+        elif collab_mode == "separation_literature_tea_lca":
+            # 3-WAY: Literature → TEA (after separation, before final aggregation)
+            next_agent = "collab_tea_agent"
+            task_summary = f"Literature verification: {lit_results.get('papers_found', 0)} papers found"
+            logger.info(f"3-way collaboration: Literature -> TEA")
+
+            # Get solvents from separation results for TEA
+            separation_results = state.get("separation_results", {})
+            solvents_for_tea = separation_results.get("solvents", [])[:5]
+            if not solvents_for_tea and lit_results.get("solvents_mentioned"):
+                solvents_for_tea = lit_results.get("solvents_mentioned", [])[:5]
+
+            # Create proper TEATaskRequest for the handoff
+            shared_context = state.get("shared_context", {})
+            tea_task = TEATaskRequest(
+                solvents=solvents_for_tea if solvents_for_tea else ["cyclohexane"],  # Default fallback
+                throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
+                recovery_rate=0.95,
+                include_capex=True,
+            )
+
+            # Override pending_handoff for TEA with proper format
+            pending_handoff = {
+                "from_agent": "literature",
+                "to_agent": next_agent,
+                "task_params": tea_task.model_dump(),
+                "literature_context": {
+                    "summary": task_summary,
+                    "key_findings": lit_results.get("key_findings", [])[:5],
+                    "solvents_verified": lit_results.get("solvents_mentioned", []),
+                },
+            }
+
+            return Command(
+                update={
+                    **filter_result_for_collab(result),
+                    "literature_results": lit_results,
+                    "current_specialist_index": state.get("current_specialist_index", 0) + 1,
+                    "pending_handoff": pending_handoff,
+                    "handoff_metrics": [create_handoff_metrics(
+                        from_agent="literature",
+                        to_agent=next_agent,
+                        start_time=state.get("agent_timings", {}).get("literature_start", time.time()),
+                        tools_called=["search_literature_rag"],
+                        success=lit_results.get("papers_found", 0) > 0,
+                        task_type="literature",
+                        context_size=len(str(lit_results)),
+                    )],
+                    "agent_timings": {
+                        **state.get("agent_timings", {}),
+                        "literature": time.time(),
+                    },
+                },
+                goto=next_agent
+            )
+        elif collab_mode == "literature_separation":
+            # Literature → separation (literature informs separation planning)
+            next_agent = "collab_separation_agent"
+            # Pass extracted context to separation
+            sep_task = SeparationTaskRequest(
+                polymers=lit_results.get("polymers_mentioned", []),
+                temperature=lit_results.get("temperatures_mentioned", [80.0])[0] if lit_results.get("temperatures_mentioned") else 80.0,
+            )
+            task_summary = f"Literature found polymers: {lit_results.get('polymers_mentioned', [])}"
+        else:
+            # Default: return to aggregator
+            next_agent = "smart_aggregator"
+            task_summary = "Literature search complete"
+
+        # Create handoff metrics
+        start_time = state.get("agent_timings", {}).get("literature_start", time.time())
+        handoff_metrics_entry = create_handoff_metrics(
+            from_agent="literature",
+            to_agent=next_agent,
+            start_time=start_time,
+            tools_called=["search_literature_rag", "ask_literature"],
+            success=lit_results.get("papers_found", 0) > 0,
+            task_type="literature",
+            context_size=len(str(lit_results)),
+        )
+        handoff_metrics_entry["query_summary"] = task_summary
+
+        # Create pending handoff
+        pending_handoff = {
+            "from_agent": "literature",
+            "to_agent": next_agent,
+            "task_params": {
+                "literature_summary": task_summary,
+                "key_findings": lit_results.get("key_findings", [])[:5],
+                "polymers_mentioned": lit_results.get("polymers_mentioned", []),
+                "solvents_mentioned": lit_results.get("solvents_mentioned", []),
+            },
+        }
+
+        return Command(
+            update={
+                **filter_result_for_collab(result),
+                "literature_results": lit_results,
+                "current_specialist_index": state.get("current_specialist_index", 0) + 1,
+                "pending_handoff": pending_handoff,
+                "handoff_metrics": [handoff_metrics_entry],
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "literature": time.time(),
+                },
+            },
+            goto=next_agent
+        )
+
+    # Non-collaborative mode: return dict
+    return {
+        **filter_result_for_collab(result),
+        "literature_results": lit_results,
+    }
 
 
 # ============================================================
@@ -1546,8 +2118,11 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
     # Build integrated response
     output_parts = []
 
-    if collaboration_mode == "separation_tea_lca" or collaboration_mode == "separation_tea":
-        output_parts.append("# Integrated Separation + Economic Analysis\n")
+    # Handle both 2-way (separation_tea) and 3-way (separation_literature_tea_lca) modes
+    if collaboration_mode in ("separation_tea_lca", "separation_tea", "separation_literature_tea_lca"):
+        is_3way = collaboration_mode == "separation_literature_tea_lca"
+        title = "# Integrated Separation + Literature + Economic Analysis\n" if is_3way else "# Integrated Separation + Economic Analysis\n"
+        output_parts.append(title)
         output_parts.append(f"*Analysis completed in {elapsed:.1f}s using multi-agent collaboration*\n\n")
 
         # P1: Use structured schema access (with dict fallback)
@@ -1574,6 +2149,30 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
                 output_parts.append(f"- **Algorithm:** Greedy (O(n²) for {len(polymers)} polymers)\n")
 
             output_parts.append("\n")
+
+        # Literature Summary (3-way mode only)
+        if is_3way:
+            literature_results = state.get("literature_results", {})
+            if literature_results:
+                output_parts.append("## Literature Verification Summary\n")
+                papers = literature_results.get("papers_found", 0)
+                kbs = literature_results.get("knowledgebases_searched", [])
+                findings = literature_results.get("key_findings", [])
+                confidence = literature_results.get("confidence_score", 0)
+                solvents_lit = literature_results.get("solvents_mentioned", [])
+
+                output_parts.append(f"- **Papers found:** {papers}\n")
+                output_parts.append(f"- **Knowledge bases searched:** {', '.join(kbs) if kbs else 'N/A'}\n")
+                output_parts.append(f"- **Confidence score:** {confidence:.2f}\n")
+                if solvents_lit:
+                    output_parts.append(f"- **Solvents verified in literature:** {', '.join(solvents_lit[:5])}\n")
+
+                if findings:
+                    output_parts.append("\n**Key Findings:**\n")
+                    for f in findings[:3]:
+                        output_parts.append(f"- {f[:150]}...\n" if len(f) > 150 else f"- {f}\n")
+
+                output_parts.append("\n")
 
         # TEA Summary (P1: Structured access)
         if tea_results:
@@ -1653,14 +2252,112 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
             output_parts.append("\n</details>\n")
 
         output_parts.append("\n---\n")
-        output_parts.append("*This analysis was performed by the DISSOLVE multi-agent system, "
-                          "combining Separation Planning and TEA/LCA specialists.*\n")
+        if is_3way:
+            output_parts.append("*This analysis was performed by the DISSOLVE multi-agent system, "
+                              "combining Separation Planning, Literature Verification, and TEA/LCA specialists.*\n")
+        else:
+            output_parts.append("*This analysis was performed by the DISSOLVE multi-agent system, "
+                              "combining Separation Planning and TEA/LCA specialists.*\n")
 
     elif collaboration_mode == "separation_literature":
+        # Get literature results from state
+        literature_results = state.get("literature_results", {})
+
         output_parts.append("# Integrated Separation + Literature Analysis\n")
-        output_parts.append(f"*Analysis completed in {elapsed:.1f}s*\n\n")
-        # Similar structure for separation + literature
-        output_parts.append("See specialist outputs above for detailed findings.\n")
+        output_parts.append(f"*Analysis completed in {elapsed:.1f}s using multi-agent collaboration*\n\n")
+
+        # Separation Summary
+        if separation_results:
+            output_parts.append("## Separation Analysis\n")
+            polymers = separation_results.get("polymers", [])
+            solvents = separation_results.get("solvents", [])
+            best_sequence = separation_results.get("best_sequence", [])
+
+            output_parts.append(f"- **Polymers analyzed:** {', '.join(polymers) if polymers else 'N/A'}\n")
+            output_parts.append(f"- **Solvents identified:** {', '.join(solvents[:5]) if solvents else 'N/A'}\n")
+            if best_sequence:
+                output_parts.append(f"- **Best sequence:** {' → '.join(best_sequence)}\n")
+            output_parts.append("\n")
+
+        # Literature Summary
+        if literature_results:
+            output_parts.append("## Literature Findings\n")
+            papers = literature_results.get("papers_found", 0)
+            kbs = literature_results.get("knowledgebases_searched", [])
+            findings = literature_results.get("key_findings", [])
+            confidence = literature_results.get("confidence_score", 0)
+
+            output_parts.append(f"- **Papers/passages found:** {papers}\n")
+            output_parts.append(f"- **Knowledgebases searched:** {', '.join(kbs) if kbs else 'N/A'}\n")
+            output_parts.append(f"- **Confidence:** {confidence:.1%}\n\n")
+
+            if findings:
+                output_parts.append("**Key Findings:**\n")
+                for finding in findings[:5]:
+                    output_parts.append(f"- {finding}\n")
+                output_parts.append("\n")
+
+            # Show polymers/solvents mentioned in literature
+            lit_polymers = literature_results.get("polymers_mentioned", [])
+            lit_solvents = literature_results.get("solvents_mentioned", [])
+            if lit_polymers:
+                output_parts.append(f"- **Polymers in literature:** {', '.join(lit_polymers)}\n")
+            if lit_solvents:
+                output_parts.append(f"- **Solvents in literature:** {', '.join(lit_solvents)}\n")
+
+        # Integrated Recommendation
+        output_parts.append("\n## Integrated Recommendation\n")
+        if separation_results and literature_results:
+            output_parts.append(
+                "The separation analysis has been enhanced with literature context. "
+                "See individual sections above for detailed findings.\n"
+            )
+        else:
+            output_parts.append("See specialist outputs above for details.\n")
+
+        output_parts.append("\n---\n")
+        output_parts.append("*This analysis was performed by the DISSOLVE multi-agent system, "
+                          "combining Separation Planning and Literature Search specialists.*\n")
+
+    elif collaboration_mode == "literature_only":
+        # Literature-only collaboration (direct search)
+        literature_results = state.get("literature_results", {})
+
+        output_parts.append("# Literature Search Results\n")
+        output_parts.append(f"*Search completed in {elapsed:.1f}s*\n\n")
+
+        if literature_results:
+            papers = literature_results.get("papers_found", 0)
+            kbs = literature_results.get("knowledgebases_searched", [])
+            findings = literature_results.get("key_findings", [])
+            confidence = literature_results.get("confidence_score", 0)
+
+            output_parts.append(f"**Papers/passages found:** {papers}\n")
+            output_parts.append(f"**Knowledgebases searched:** {', '.join(kbs)}\n")
+            output_parts.append(f"**Confidence:** {confidence:.1%}\n\n")
+
+            if findings:
+                output_parts.append("## Key Findings\n")
+                for finding in findings:
+                    output_parts.append(f"- {finding}\n")
+                output_parts.append("\n")
+
+            # Show context extracted
+            lit_polymers = literature_results.get("polymers_mentioned", [])
+            lit_solvents = literature_results.get("solvents_mentioned", [])
+            lit_temps = literature_results.get("temperatures_mentioned", [])
+
+            if lit_polymers or lit_solvents or lit_temps:
+                output_parts.append("## Context Extracted\n")
+                if lit_polymers:
+                    output_parts.append(f"- **Polymers:** {', '.join(lit_polymers)}\n")
+                if lit_solvents:
+                    output_parts.append(f"- **Solvents:** {', '.join(lit_solvents)}\n")
+                if lit_temps:
+                    output_parts.append(f"- **Temperatures:** {', '.join([f'{t}°C' for t in lit_temps])}\n")
+
+        output_parts.append("\n---\n")
+        output_parts.append("*Search performed by the DISSOLVE Literature Agent.*\n")
 
     # P3: Log execution trace for debugging
     if trace_id:
@@ -1874,6 +2571,13 @@ def build_multi_agent_graph(
     builder.add_node("collab_tea_agent", collab_tea_node)
     builder.add_node("collab_tea_tools", async_tool_node_class(TEA_LCA_TOOLS or all_tools))
 
+    # Collaboration-aware Literature agent
+    async def collab_literature_node(state):
+        return await collab_literature_agent_node(state, sql_agent_node)
+
+    builder.add_node("collab_literature_agent", collab_literature_node)
+    builder.add_node("collab_literature_tools", async_tool_node_class(LITERATURE_TOOLS or all_tools))
+
     # Smart aggregator for collaboration results
     builder.add_node("smart_aggregator", smart_aggregator_node)
 
@@ -1973,16 +2677,40 @@ def build_multi_agent_graph(
 
     # ========== INTEGRATED COLLABORATION EDGES (P0: Command-based routing) ==========
 
-    # Integrated orchestrator -> Collab Separation Agent
-    builder.add_edge("integrated_orchestrator", "collab_separation_agent")
+    # Integrated orchestrator -> First collaboration agent (based on mode)
+    def route_from_orchestrator(state) -> Literal["collab_separation_agent", "collab_literature_agent"]:
+        """Route to first specialist based on collaboration mode."""
+        collab_mode = state.get("collaboration_mode", "")
+        specialists = state.get("collaboration_specialists", [])
+
+        # Literature-first collaborations
+        if collab_mode == "literature_separation" or (specialists and specialists[0] == "literature"):
+            return "collab_literature_agent"
+
+        # Default: separation-first
+        return "collab_separation_agent"
+
+    builder.add_conditional_edges(
+        "integrated_orchestrator",
+        route_from_orchestrator,
+        {
+            "collab_separation_agent": "collab_separation_agent",
+            "collab_literature_agent": "collab_literature_agent",
+        }
+    )
 
     # P0: Collab Separation Agent with Command-aware routing
     # When agent returns Command(goto="collab_tea_agent"), LangGraph routes automatically
     # When agent needs tools, we route to tools first
-    def route_collab_sep(state) -> Literal["collab_separation_tools", "collab_tea_agent", "smart_aggregator", "__end__"]:
+    def route_collab_sep(state) -> Literal["collab_separation_tools", "collab_tea_agent", "collab_literature_agent", "smart_aggregator", "__end__"]:
         """Route based on tool calls or Command. Command.goto takes precedence."""
         messages = state.get("messages", [])
+        collab_mode = state.get("collaboration_mode", "")
+
         if not messages:
+            # Check collaboration mode to determine next agent
+            if collab_mode == "separation_literature":
+                return "collab_literature_agent"
             return "collab_tea_agent"
 
         try:
@@ -1993,6 +2721,10 @@ def build_multi_agent_graph(
         except (IndexError, TypeError, AttributeError):
             pass
 
+        # Route based on collaboration mode
+        if collab_mode == "separation_literature":
+            return "collab_literature_agent"
+
         # Default: hand off to TEA (Command will override this if returned)
         return "collab_tea_agent"
 
@@ -2002,6 +2734,7 @@ def build_multi_agent_graph(
         {
             "collab_separation_tools": "collab_separation_tools",
             "collab_tea_agent": "collab_tea_agent",
+            "collab_literature_agent": "collab_literature_agent",
             "smart_aggregator": "smart_aggregator",
             "__end__": END,
         }
@@ -2036,6 +2769,40 @@ def build_multi_agent_graph(
     )
     builder.add_edge("collab_tea_tools", "collab_tea_agent")
 
+    # P4: Collab Literature Agent with Command-aware routing
+    def route_collab_literature(state) -> Literal["collab_literature_tools", "collab_separation_agent", "smart_aggregator", "__end__"]:
+        """Route based on tool calls or Command."""
+        messages = state.get("messages", [])
+        if not messages:
+            return "smart_aggregator"
+
+        try:
+            last_message = messages[-1]
+            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+                return "collab_literature_tools"
+        except (IndexError, TypeError, AttributeError):
+            pass
+
+        # Check collaboration mode to determine next agent
+        collab_mode = state.get("collaboration_mode")
+        if collab_mode == "literature_separation":
+            return "collab_separation_agent"
+
+        # Default: aggregate (Command will override if returned)
+        return "smart_aggregator"
+
+    builder.add_conditional_edges(
+        "collab_literature_agent",
+        route_collab_literature,
+        {
+            "collab_literature_tools": "collab_literature_tools",
+            "collab_separation_agent": "collab_separation_agent",
+            "smart_aggregator": "smart_aggregator",
+            "__end__": END,
+        }
+    )
+    builder.add_edge("collab_literature_tools", "collab_literature_agent")
+
     # Smart aggregator -> END
     builder.add_edge("smart_aggregator", END)
 
@@ -2048,7 +2815,7 @@ def build_multi_agent_graph(
     logger.info(f"  Paths: fast, standard, specialist (separation, tea, literature), INTEGRATED")
     logger.info(f"  Tool subsets: fast={len(FAST_PATH_TOOLS)}, sep={len(SEPARATION_TOOLS)}, "
                 f"tea={len(TEA_LCA_TOOLS)}, lit={len(LITERATURE_TOOLS)}")
-    logger.info(f"  Collaboration: separation -> tea_lca (iterative handoff)")
+    logger.info(f"  Collaboration: separation -> tea_lca, separation <-> literature (multi-KB)")
 
     return graph
 
@@ -2068,6 +2835,9 @@ __all__ = [
     'smart_aggregator_node',
     'collab_separation_agent_node',
     'collab_tea_agent_node',
+    'collab_literature_agent_node',
+    'select_knowledgebases',
+    'parse_literature_results',
     'SEPARATION_PLANNER_PROMPT',
     'TEA_LCA_ANALYST_PROMPT',
     'LITERATURE_RESEARCHER_PROMPT',
@@ -2075,4 +2845,5 @@ __all__ = [
     'SEPARATION_TOOLS',
     'TEA_LCA_TOOLS',
     'LITERATURE_TOOLS',
+    'KB_KEYWORDS',
 ]
