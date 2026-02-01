@@ -3494,6 +3494,197 @@ async def plot_solvent_properties(
 
 
 # ============================================================
+# Greedy Separation Algorithm for Large Polymer Sets
+# ============================================================
+
+async def _greedy_separation_planning(
+    polymer_list: list,
+    temperature: float,
+    top_k_solvents: int,
+    table_name: str,
+    polymer_column: str,
+    solvent_column: str,
+    temperature_column: str,
+    solubility_column: str
+) -> str:
+    """
+    Greedy algorithm for separation planning when n > 6 polymers.
+
+    At each step, selects the polymer that can be most selectively separated
+    from all remaining polymers. This is O(n²) instead of O(n!).
+
+    Algorithm:
+    1. For each remaining polymer, find the best solvent to separate it from others
+    2. Pick the polymer with highest selectivity (easiest to separate)
+    3. Remove it from the mixture and repeat
+    """
+    import math
+
+    async_db = get_async_db()
+    n_polymers = len(polymer_list)
+
+    output = []
+    output.append("# 🧪 Greedy Separation Planning\n")
+    output.append(f"**Polymers:** {', '.join(polymer_list)}")
+    output.append(f"**Count:** {n_polymers} polymers")
+    output.append(f"**Algorithm:** Greedy (O(n²) ≈ {n_polymers**2} evaluations)")
+    output.append(f"**vs Exhaustive:** {n_polymers}! = {math.factorial(n_polymers):,} permutations avoided")
+    output.append(f"**Temperature:** {temperature}°C\n")
+
+    output.append("## Algorithm Explanation\n")
+    output.append("At each step, we select the polymer that can be **most selectively** separated")
+    output.append("from all remaining polymers. This greedy approach finds a good (not necessarily optimal)")
+    output.append("sequence efficiently.\n")
+
+    # Track the greedy sequence
+    remaining = list(polymer_list)
+    sequence = []
+    steps = []
+    used_solvents = set()
+
+    output.append("## Step-by-Step Greedy Selection\n")
+
+    step_num = 0
+    while len(remaining) > 1:
+        step_num += 1
+        output.append(f"### Step {step_num}: Evaluating {len(remaining)} candidates\n")
+        output.append(f"**Remaining mixture:** {{{', '.join(remaining)}}}\n")
+
+        # Evaluate each polymer as a potential target
+        candidates = []
+
+        for target in remaining:
+            others = [p for p in remaining if p != target]
+
+            # Build query to find best solvent for this target
+            others_filter = "', '".join(others)
+            all_polymers_filter = "', '".join([target] + others)
+
+            query = f"""
+            WITH target_sol AS (
+                SELECT {solvent_column} as solvent, AVG({solubility_column}) as t_sol
+                FROM {table_name}
+                WHERE {polymer_column} = '{target}'
+                AND {temperature_column} BETWEEN {temperature - 10} AND {temperature + 10}
+                GROUP BY {solvent_column}
+                HAVING AVG({solubility_column}) > 0
+            ),
+            others_max AS (
+                SELECT {solvent_column} as solvent, MAX({solubility_column}) as o_max
+                FROM {table_name}
+                WHERE {polymer_column} IN ('{others_filter}')
+                AND {temperature_column} BETWEEN {temperature - 10} AND {temperature + 10}
+                GROUP BY {solvent_column}
+            )
+            SELECT
+                t.solvent,
+                t.t_sol as target_solubility,
+                COALESCE(o.o_max, 0) as max_other_solubility,
+                (t.t_sol - COALESCE(o.o_max, 0)) as selectivity
+            FROM target_sol t
+            LEFT JOIN others_max o ON LOWER(t.solvent) = LOWER(o.solvent)
+            ORDER BY selectivity DESC
+            LIMIT 1
+            """
+
+            try:
+                result_df = await async_db.execute_async(query)
+                if len(result_df) > 0:
+                    row = result_df.iloc[0]
+                    candidates.append({
+                        'polymer': target,
+                        'solvent': row['solvent'],
+                        'selectivity': row['selectivity'],
+                        'target_sol': row['target_solubility'],
+                        'others': others
+                    })
+                else:
+                    candidates.append({
+                        'polymer': target,
+                        'solvent': 'N/A',
+                        'selectivity': -999,
+                        'target_sol': 0,
+                        'others': others
+                    })
+            except Exception as e:
+                candidates.append({
+                    'polymer': target,
+                    'solvent': 'error',
+                    'selectivity': -999,
+                    'target_sol': 0,
+                    'others': others,
+                    'error': str(e)
+                })
+
+        # Show candidate evaluations
+        output.append("| Polymer | Best Solvent | Selectivity |")
+        output.append("|---------|--------------|-------------|")
+        for c in sorted(candidates, key=lambda x: x['selectivity'], reverse=True):
+            sel_str = f"{c['selectivity']:.1f}%" if c['selectivity'] > -900 else "N/A"
+            output.append(f"| {c['polymer']} | {c['solvent']} | {sel_str} |")
+        output.append("")
+
+        # Pick the best candidate (highest selectivity)
+        best = max(candidates, key=lambda x: x['selectivity'])
+
+        if best['selectivity'] > -900:
+            output.append(f"✅ **Selected: {best['polymer']}** with {best['solvent']} (selectivity: {best['selectivity']:.1f}%)\n")
+        else:
+            output.append(f"⚠️ **Selected: {best['polymer']}** (no solubility data available)\n")
+
+        # Record the step
+        sequence.append(best['polymer'])
+        steps.append({
+            'step': step_num,
+            'target': best['polymer'],
+            'solvent': best['solvent'],
+            'selectivity': best['selectivity'],
+            'remaining_before': list(remaining)
+        })
+        used_solvents.add(best['solvent'])
+        remaining.remove(best['polymer'])
+
+    # Add the last polymer
+    if remaining:
+        sequence.append(remaining[0])
+        output.append(f"### Step {step_num + 1}: {remaining[0]} is isolated ✓\n")
+
+    # Summary
+    output.append("---\n")
+    output.append("## 📋 Greedy Separation Sequence Summary\n")
+    output.append(f"**Optimized Sequence:** {' → '.join(sequence)}\n")
+
+    output.append("### Step-by-Step Protocol\n")
+    output.append("| Step | Separate | Using Solvent | Selectivity |")
+    output.append("|------|----------|---------------|-------------|")
+
+    valid_steps = [s for s in steps if s['selectivity'] > -900]
+    for s in steps:
+        sel_str = f"{s['selectivity']:.1f}%" if s['selectivity'] > -900 else "N/A"
+        output.append(f"| {s['step']} | {s['target']} | {s['solvent']} | {sel_str} |")
+    output.append(f"| {len(steps) + 1} | {sequence[-1]} | (isolated) | ✓ |")
+    output.append("")
+
+    # Metrics
+    if valid_steps:
+        min_sel = min(s['selectivity'] for s in valid_steps)
+        avg_sel = sum(s['selectivity'] for s in valid_steps) / len(valid_steps)
+        unique_solvents = len(set(s['solvent'] for s in valid_steps if s['solvent'] != 'N/A'))
+
+        output.append("### Metrics\n")
+        output.append(f"- **Minimum selectivity:** {min_sel:.1f}%")
+        output.append(f"- **Average selectivity:** {avg_sel:.1f}%")
+        output.append(f"- **Unique solvents needed:** {unique_solvents}")
+        output.append(f"- **Evaluations performed:** ~{n_polymers * (n_polymers + 1) // 2}")
+
+    output.append("\n---\n")
+    output.append("*Note: Greedy algorithm finds a good sequence efficiently but may not be globally optimal.*")
+    output.append("*For ≤6 polymers, exhaustive search is used to find the true optimum.*")
+
+    return "\n".join(output)
+
+
+# ============================================================
 # Collect all tools
 # ============================================================
 
@@ -3542,10 +3733,18 @@ async def plan_sequential_separation(
     if n_polymers < 2:
         return "Error: Need at least 2 polymers for separation planning."
 
-    if n_polymers > 6:
-        return f"Error: Too many polymers ({n_polymers}). Maximum 6 for computational feasibility ({6}! = 720 sequences)."
+    # For >6 polymers, use greedy algorithm instead of exhaustive search
+    USE_GREEDY = n_polymers > 6
 
-    # Generate all permutations
+    if USE_GREEDY:
+        # Greedy algorithm: O(n²) instead of O(n!)
+        return await _greedy_separation_planning(
+            polymer_list, temperature, top_k_solvents,
+            table_name, polymer_column, solvent_column,
+            temperature_column, solubility_column
+        )
+
+    # Generate all permutations (only for ≤6 polymers)
     all_sequences = list(permutations(polymer_list))
     n_sequences = len(all_sequences)
 
@@ -11843,23 +12042,30 @@ logger.info("✅ Agent module ready for import by FastAPI/other frameworks")
 logger.info("="*70 + "\n")
 
 # ============================================================
-# Multi-Agent Graph (for complex queries requiring collaboration)
+# MULTI-AGENT SYSTEM INTEGRATION
 # ============================================================
 
 try:
     from multi_agent_system import (
         build_multi_agent_graph,
+        enhanced_complexity_router,
+        RoutingDecision,
+        MultiAgentState,
         initialize_tool_subsets,
+        SEPARATION_PLANNER_PROMPT,
+        TEA_LCA_ANALYST_PROMPT,
+        LITERATURE_RESEARCHER_PROMPT,
     )
 
     # Initialize tool subsets for specialist agents
     initialize_tool_subsets(TOOL_CATEGORIES, SQL_AGENT_TOOLS)
 
-    # Factory function to create LLM with tools (used by multi-agent system)
-    def create_llm_with_tools(tools):
+    def create_llm_with_tools(tools: list, system_prompt: str = None):
+        """Factory function to create LLM with tools bound."""
+        prompt = system_prompt or SQL_AGENT_SYSTEM_PROMPT
         return llm.bind_tools(tools)
 
-    # Build the multi-agent graph
+    # Build multi-agent graph
     multi_agent_graph = build_multi_agent_graph(
         sql_agent_node=sql_agent_node,
         async_tool_node_class=AsyncToolNode,
@@ -11868,8 +12074,50 @@ try:
         llm_factory=create_llm_with_tools
     )
 
-    logger.info("✅ Multi-Agent Graph initialized and ready")
+    # Flag to indicate multi-agent is available
+    MULTI_AGENT_AVAILABLE = True
 
-except Exception as e:
+    logger.info("="*70)
+    logger.info("🤖 MULTI-AGENT SYSTEM LOADED")
+    logger.info("="*70)
+    logger.info("  Paths: fast (simple) | standard (moderate) | specialist (complex)")
+    logger.info("  Specialists: separation | tea_lca | literature")
+    logger.info("  Use: multi_agent_graph instead of agent_graph for enhanced routing")
+    logger.info("="*70 + "\n")
+
+except ImportError as e:
     logger.warning(f"Multi-agent system not available: {e}")
     multi_agent_graph = None
+    MULTI_AGENT_AVAILABLE = False
+except Exception as e:
+    logger.error(f"Failed to initialize multi-agent system: {e}")
+    multi_agent_graph = None
+    MULTI_AGENT_AVAILABLE = False
+
+
+def get_routing_info(query: str) -> dict:
+    """
+    Get routing information for a query without executing it.
+
+    Useful for frontend to show which path will be taken.
+
+    Returns:
+        dict with complexity, path, specialist, reason
+    """
+    if not MULTI_AGENT_AVAILABLE:
+        return {
+            "complexity": 3,
+            "path": "standard",
+            "specialist": None,
+            "reason": "Multi-agent not available",
+            "multi_agent_active": False
+        }
+
+    decision = enhanced_complexity_router(query)
+    return {
+        "complexity": decision.complexity,
+        "path": decision.path,
+        "specialist": decision.specialist,
+        "reason": decision.reason,
+        "multi_agent_active": decision.path == "specialist"
+    }

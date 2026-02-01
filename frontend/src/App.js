@@ -186,6 +186,33 @@ function Message({ message, isUser, onDownloadCSV, onReportIssue }) {
                 ⚖️ {message.complexity.label} ({message.complexity.score}/5)
               </span>
             )}
+            {message.multiAgent && message.specialist && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  backgroundColor: 'rgba(99, 102, 241, 0.2)',
+                  color: 'var(--accent)'
+                }}
+                title={message.routingReason || `Specialist: ${message.specialist}`}
+              >
+                🤖 {message.specialist === 'separation' ? 'Separation Planner' :
+                    message.specialist === 'tea_lca' ? 'TEA/LCA Analyst' :
+                    message.specialist === 'literature' ? 'Literature Researcher' :
+                    message.specialist}
+              </span>
+            )}
+            {message.path && message.path !== 'standard' && !message.multiAgent && (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full font-medium"
+                style={{
+                  backgroundColor: message.path === 'fast' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+                  color: message.path === 'fast' ? 'var(--success)' : 'var(--accent)'
+                }}
+                title={message.routingReason || `Path: ${message.path}`}
+              >
+                {message.path === 'fast' ? '⚡ Fast Path' : `🔀 ${message.path}`}
+              </span>
+            )}
             {!isUser && onReportIssue && (
               <button
                 onClick={() => onReportIssue(message)}
@@ -1106,7 +1133,12 @@ function App() {
         elapsed: response.elapsed_time,
         iterations: response.iterations,
         complexity: complexity, // Include complexity in message
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // Multi-agent metadata
+        multiAgent: response.multi_agent || false,
+        path: response.path || 'standard',
+        specialist: response.specialist || null,
+        routingReason: response.routing_reason || ''
       };
 
       setMessages(prev => [...prev, assistantMessage]);

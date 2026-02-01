@@ -205,11 +205,47 @@ class TEAResult(BaseModel):
 
 
 class LiteratureResult(BaseModel):
-    """Structured output from the Literature Agent."""
+    """Structured output from the Literature Agent.
+
+    Enhanced for multi-knowledgebase support and collaboration.
+    """
     papers_found: int = Field(default=0, ge=0)
     key_findings: List[str] = Field(default_factory=list)
     citations: List[Dict[str, str]] = Field(default_factory=list)
     knowledge_gaps: List[str] = Field(default_factory=list)
+
+    # Multi-KB support
+    knowledgebases_searched: List[str] = Field(
+        default_factory=list,
+        description="List of knowledgebases queried"
+    )
+    external_sources_used: List[str] = Field(
+        default_factory=list,
+        description="External sources used (google_scholar, wos, patents)"
+    )
+    confidence_score: float = Field(
+        default=0.0, ge=0, le=1,
+        description="Overall confidence in results (0-1)"
+    )
+    suggested_refinements: List[str] = Field(
+        default_factory=list,
+        description="Suggested query refinements if low confidence"
+    )
+
+    # Context for collaboration with other agents
+    polymers_mentioned: List[str] = Field(
+        default_factory=list,
+        description="Polymers mentioned in literature findings"
+    )
+    solvents_mentioned: List[str] = Field(
+        default_factory=list,
+        description="Solvents mentioned in literature findings"
+    )
+    temperatures_mentioned: List[float] = Field(
+        default_factory=list,
+        description="Temperatures mentioned in literature (°C)"
+    )
+
     raw_response: Optional[str] = Field(default=None)
 
     class Config:
@@ -255,23 +291,35 @@ class TEATaskRequest(BaseModel):
 
     def to_instruction(self) -> str:
         """Convert task request to agent instruction."""
-        solvents_str = ", ".join(self.solvents[:5])
-        return f"""
-**TEA ANALYSIS TASK**
+        solvents_list = self.solvents[:5]
+        solvents_str = ", ".join(solvents_list)
 
-Analyze techno-economics for: {solvents_str}
+        # Build explicit tool call instructions
+        tool_calls = "\n".join([
+            f"  - analyze_solvent_recovery_tea(solvent='{s}', throughput_kg_hr={self.throughput_kg_hr})"
+            for s in solvents_list[:3]  # Show first 3 as examples
+        ])
+
+        return f"""
+**REQUIRED: TECHNO-ECONOMIC ANALYSIS**
+
+You MUST call the analyze_solvent_recovery_tea tool for these solvents: {solvents_str}
+
+**STEP 1 - REQUIRED TOOL CALLS:**
+{tool_calls}
+
+**Parameters:**
 - Throughput: {self.throughput_kg_hr} kg/hr
 - Recovery rate: {self.recovery_rate * 100}%
-- Include CAPEX: {self.include_capex}
-- Include LCA: {self.include_lca}
 
-For each solvent, call analyze_solvent_recovery_tea and report:
-1. Cost per kg polymer processed
-2. CAPEX and OPEX
-3. Payback period
+**STEP 2 - EXTRACT FROM EACH TOOL RESULT:**
+- Cost per kg polymer (look for "Cost per kg polymer: $X.XX/kg")
+- Total CAPEX and annual OPEX
+- Payback period in years
 
-{f'Compare solvents using compare_solvents_tea_lca.' if self.compare_solvents else ''}
-Recommend the most cost-effective option.
+{f'**STEP 3:** Call compare_solvents_tea_lca to compare all solvents.' if self.compare_solvents and len(solvents_list) > 1 else ''}
+
+**IMPORTANT:** You must call the tools above. Do NOT just describe what you would do.
 """
 
     class Config:
@@ -326,31 +374,74 @@ Report the optimal separation sequence and solvents.
 
 
 class LiteratureTaskRequest(BaseModel):
-    """Task-oriented request for literature search."""
+    """Task-oriented request for literature search.
+
+    Supports multi-knowledgebase search with auto-selection.
+    """
     search_topic: str = Field(description="Topic to search for")
     polymers: List[str] = Field(default_factory=list)
     solvents: List[str] = Field(default_factory=list)
     max_results: int = Field(default=10, ge=1, le=50)
     search_rag_first: bool = Field(default=True)
 
+    # Multi-KB support
+    knowledgebases: List[str] = Field(
+        default_factory=list,
+        description="Specific KBs to search (empty = auto-select)"
+    )
+    include_external: bool = Field(
+        default=False,
+        description="Include Google Scholar/WoS if RAG insufficient"
+    )
+
+    # Collaboration context
+    upstream_agent: Optional[str] = Field(
+        default=None,
+        description="Which agent requested this search (separation, tea)"
+    )
+
     def to_instruction(self) -> str:
         """Convert task request to agent instruction."""
         context = []
         if self.polymers:
-            context.append(f"Polymers: {', '.join(self.polymers)}")
+            context.append(f"Polymers of interest: {', '.join(self.polymers)}")
         if self.solvents:
-            context.append(f"Solvents: {', '.join(self.solvents)}")
+            context.append(f"Solvents of interest: {', '.join(self.solvents)}")
+
+        kb_instruction = ""
+        if self.knowledgebases:
+            kb_instruction = f"Search these knowledgebases: {', '.join(self.knowledgebases)}"
+        else:
+            kb_instruction = "Auto-select relevant knowledgebases based on query content."
+
+        external_instruction = ""
+        if self.include_external:
+            external_instruction = "If RAG results are insufficient, also search Google Scholar."
 
         return f"""
 **LITERATURE SEARCH TASK**
 
-Search for: {self.search_topic}
-{chr(10).join(context) if context else ''}
+**Topic:** {self.search_topic}
 
-{'Search internal RAG first with search_literature_rag.' if self.search_rag_first else ''}
-Max results: {self.max_results}
+**Context:**
+{chr(10).join(context) if context else 'No specific polymers/solvents specified.'}
 
-Report key findings with citations.
+**Search Strategy:**
+1. {kb_instruction}
+2. Use search_literature_rag or ask_literature tool for each KB.
+3. {external_instruction if external_instruction else 'Focus on internal RAG sources.'}
+
+**Requirements:**
+- Find up to {self.max_results} relevant papers/sections
+- Extract key findings related to the topic
+- Include citations with source and page numbers
+- Note any polymers, solvents, or temperatures mentioned
+
+**Output Format:**
+Provide a structured summary with:
+1. Key findings (bullet points)
+2. Relevant citations
+3. Any knowledge gaps identified
 """
 
     class Config:
