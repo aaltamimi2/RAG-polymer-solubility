@@ -138,33 +138,6 @@ sns.set_palette("husl")
 # Memory Management Utilities (NEW)
 # ============================================================
 
-def cleanup_old_plots(keep_latest: int = MAX_PLOTS_TO_KEEP):
-    """Remove old plots to free disk space."""
-    try:
-        plots = glob.glob(os.path.join(PLOTS_DIR, "*.png"))
-        plots += glob.glob(os.path.join(PLOTS_DIR, "*.html"))
-        
-        if len(plots) <= keep_latest:
-            return 0
-        
-        plots.sort(key=os.path.getmtime)
-        removed = 0
-        
-        for filepath in plots[:-keep_latest]:
-            try:
-                os.remove(filepath)
-                removed += 1
-            except OSError:
-                pass
-        
-        gc.collect()
-        logger.info(f"Cleaned up {removed} old plot files")
-        return removed
-    except Exception as e:
-        logger.warning(f"Error cleaning up plots: {e}")
-        return 0
-
-
 def truncate_output(text: str, max_length: int = MAX_TOOL_OUTPUT_LENGTH) -> str:
     """Truncate tool output to prevent memory issues."""
     if not isinstance(text, str):
@@ -175,77 +148,95 @@ def truncate_output(text: str, max_length: int = MAX_TOOL_OUTPUT_LENGTH) -> str:
     return text[:half] + f"\n\n... [TRUNCATED {len(text) - max_length} chars] ...\n\n" + text[-half:]
 
 
+def _format_tool_result(result) -> str:
+    """Format tool result with truncation if needed."""
+    if result is None:
+        return "Operation completed (no output)."
+    result_str = str(result)
+    if len(result_str) > MAX_TOOL_OUTPUT_LENGTH:
+        return truncate_output(result_str)
+    return result_str
+
+
+def _format_tool_error(func_name: str, error: Exception) -> str:
+    """Format tool error with suggestions."""
+    return (
+        f"ERROR in {func_name}:\n"
+        f"{str(error)[:500]}\n\n"
+        f"Suggestions:\n"
+        f"- Verify input parameters with describe_table()\n"
+        f"- Check values with check_column_values()\n"
+        f"- Use verify_data_accuracy() to confirm data exists"
+    )
+
+
 def safe_tool_wrapper(func):
     """Decorator for safe tool execution with error handling and memory cleanup (async-compatible)."""
-
-    # Check if function is async
     if asyncio.iscoroutinefunction(func):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
             try:
                 result = await func(*args, **kwargs)
-
-                if result is None:
-                    return "Operation completed (no output)."
-
-                result_str = str(result)
-
-                # Truncate if too long
-                if len(result_str) > MAX_TOOL_OUTPUT_LENGTH:
-                    result_str = truncate_output(result_str)
-
-                return result_str
-
+                return _format_tool_result(result)
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
-                return (
-                    f"ERROR in {func.__name__}:\n"
-                    f"{str(e)[:500]}\n\n"
-                    f"Suggestions:\n"
-                    f"- Verify input parameters with describe_table()\n"
-                    f"- Check values with check_column_values()\n"
-                    f"- Use verify_data_accuracy() to confirm data exists"
-                )
+                return _format_tool_error(func.__name__, e)
             finally:
                 gc.collect()
-
         return async_wrapper
     else:
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
-
-                if result is None:
-                    return "Operation completed (no output)."
-
-                result_str = str(result)
-
-                # Truncate if too long
-                if len(result_str) > MAX_TOOL_OUTPUT_LENGTH:
-                    result_str = truncate_output(result_str)
-
-                return result_str
-
+                return _format_tool_result(result)
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
-                return (
-                    f"ERROR in {func.__name__}:\n"
-                    f"{str(e)[:500]}\n\n"
-                    f"Suggestions:\n"
-                    f"- Verify input parameters with describe_table()\n"
-                    f"- Check values with check_column_values()\n"
-                    f"- Use verify_data_accuracy() to confirm data exists"
-                )
+                return _format_tool_error(func.__name__, e)
             finally:
                 gc.collect()
-
         return sync_wrapper
 
 
 # ============================================================
 # Fuzzy Matching Utilities for Solvent Name Normalization
 # ============================================================
+
+def _search_fuzzy_match_in_dataset(
+    sql_db,
+    query: str,
+    column_name: str,
+    dataset_name: str,
+    solvent_name_clean: str,
+    current_best_score: int
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """
+    Search a single dataset for fuzzy match.
+
+    Args:
+        sql_db: Database connection
+        query: SQL query to get solvent names
+        column_name: Column containing solvent names
+        dataset_name: Name of dataset for logging
+        solvent_name_clean: Normalized solvent name to match
+        current_best_score: Current best score to beat
+
+    Returns:
+        Tuple of (matched_name, score, dataset_name) or (None, current_best_score, None)
+    """
+    try:
+        result = sql_db.execute_query(query)
+        if result["success"] and len(result["dataframe"]) > 0:
+            names = result["dataframe"][column_name].tolist()
+            names_lower = [n.lower() for n in names]
+            match = process.extractOne(solvent_name_clean, names_lower, scorer=fuzz.ratio)
+            if match and match[1] > current_best_score:
+                idx = names_lower.index(match[0])
+                return names[idx], match[1], dataset_name
+    except Exception as e:
+        logger.debug(f"{dataset_name} search failed: {e}")
+    return None, current_best_score, None
+
 
 def fuzzy_match_solvent_name(solvent_name: str, dataset: str = "all", threshold: int = 80) -> Optional[Dict[str, Any]]:
     """
@@ -260,61 +251,27 @@ def fuzzy_match_solvent_name(solvent_name: str, dataset: str = "all", threshold:
         Dict with matched name, score, and dataset, or None if no good match found
     """
     try:
-        # Use global sql_db instance
         global sql_db
         best_match = None
         best_score = 0
         best_dataset = None
-
-        # Normalize input
         solvent_name_clean = solvent_name.strip().lower()
 
-        # Search GSK dataset
-        if dataset in ["gsk", "all"]:
-            try:
-                gsk_query = "SELECT DISTINCT solvent_common_name FROM gsk_dataset"
-                gsk_result = sql_db.execute_query(gsk_query)
-                if gsk_result["success"] and len(gsk_result["dataframe"]) > 0:
-                    gsk_names = gsk_result["dataframe"]["solvent_common_name"].tolist()
-                    match = process.extractOne(solvent_name_clean, [n.lower() for n in gsk_names], scorer=fuzz.ratio)
-                    if match and match[1] > best_score:
-                        best_score = match[1]
-                        best_match = gsk_names[[n.lower() for n in gsk_names].index(match[0])]
-                        best_dataset = "gsk_dataset"
-            except Exception as e:
-                logger.debug(f"GSK dataset search failed: {e}")
+        # Dataset configurations: (dataset_key, query, column_name, dataset_name)
+        dataset_configs = [
+            ("gsk", "SELECT DISTINCT solvent_common_name FROM gsk_dataset", "solvent_common_name", "gsk_dataset"),
+            ("solvent_data", "SELECT DISTINCT cosmobase_name FROM solvent_data", "cosmobase_name", "solvent_data"),
+            ("common_solvents", "SELECT DISTINCT solvent FROM common_solvents_database", "solvent", "common_solvents_database"),
+        ]
 
-        # Search solvent_data dataset
-        if dataset in ["solvent_data", "all"]:
-            try:
-                solvent_query = "SELECT DISTINCT cosmobase_name FROM solvent_data"
-                solvent_result = sql_db.execute_query(solvent_query)
-                if solvent_result["success"] and len(solvent_result["dataframe"]) > 0:
-                    solvent_names = solvent_result["dataframe"]["cosmobase_name"].tolist()
-                    match = process.extractOne(solvent_name_clean, [n.lower() for n in solvent_names], scorer=fuzz.ratio)
-                    if match and match[1] > best_score:
-                        best_score = match[1]
-                        best_match = solvent_names[[n.lower() for n in solvent_names].index(match[0])]
-                        best_dataset = "solvent_data"
-            except Exception as e:
-                logger.debug(f"Solvent_data search failed: {e}")
+        for ds_key, query, column, ds_name in dataset_configs:
+            if dataset in [ds_key, "all"]:
+                match, score, matched_ds = _search_fuzzy_match_in_dataset(
+                    sql_db, query, column, ds_name, solvent_name_clean, best_score
+                )
+                if match:
+                    best_match, best_score, best_dataset = match, score, matched_ds
 
-        # Search common_solvents_database
-        if dataset in ["common_solvents", "all"]:
-            try:
-                common_query = "SELECT DISTINCT solvent FROM common_solvents_database"
-                common_result = sql_db.execute_query(common_query)
-                if common_result["success"] and len(common_result["dataframe"]) > 0:
-                    common_names = common_result["dataframe"]["solvent"].tolist()
-                    match = process.extractOne(solvent_name_clean, [n.lower() for n in common_names], scorer=fuzz.ratio)
-                    if match and match[1] > best_score:
-                        best_score = match[1]
-                        best_match = common_names[[n.lower() for n in common_names].index(match[0])]
-                        best_dataset = "common_solvents_database"
-            except Exception as e:
-                logger.debug(f"Common solvents search failed: {e}")
-
-        # Return result if above threshold
         if best_score >= threshold:
             return {
                 "matched_name": best_match,

@@ -77,12 +77,349 @@ def filter_result_for_collab(result: dict) -> dict:
 
 
 # ============================================================
+# COST EXTRACTION PATTERNS (Consolidated)
+# ============================================================
+
+# Comprehensive patterns for cost extraction - ordered by specificity
+COST_EXTRACTION_PATTERNS = [
+    # Most specific patterns first (from actual TEA tool output)
+    r'cost\s+per\s+kg\s+polymer[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
+    r'cost\s+per\s+kg(?:\s+polymer)?[:\s]+\$?(\d+\.?\d*)\s*/?\s*kg',
+    r'cost\s+per\s+kg[:\s]*\$?(\d+\.?\d*)',
+    r'cost\s+of\s+\$?(\d+\.?\d*)\s*/\s*kg',
+    # Standard price patterns
+    r'\$(\d+\.?\d*)\s*/\s*kg',
+    r'(\d+\.?\d*)\s*\$/kg',
+    # MSP patterns
+    r'msp[:\s]+is[:\s]*\$?(\d+\.?\d*)',  # "MSP is $X"
+    r'msp[:\s]*\$?(\d+\.?\d*)',
+    r'minimum selling price[:\s]+\$?(\d+\.?\d*)',
+    # Processing cost patterns
+    r'processing\s+cost[:\s]*\$?(\d+\.?\d*)',
+    r'solvent\s+recovery\s+cost[:\s]*\$?(\d+\.?\d*)',
+    # Generic cost patterns (less specific)
+    r'total\s+cost[:\s]*\$?(\d+\.?\d*)',
+    r'operating\s+cost[:\s]*\$?(\d+\.?\d*)',
+    # Per kg patterns with different formats
+    r'(\d+\.?\d*)\s*usd\s*/\s*kg',
+    r'(\d+\.?\d*)\s*per\s+kg',
+]
+
+
+def extract_cost_from_text(text: str, min_cost: float = 0.001, max_cost: float = 1000) -> Optional[float]:
+    """
+    Extract cost per kg from text using standard patterns.
+
+    Args:
+        text: Text to search for cost patterns
+        min_cost: Minimum valid cost (default 0.001)
+        max_cost: Maximum valid cost (default 1000)
+
+    Returns:
+        Extracted cost value or None if not found
+    """
+    text_lower = text.lower()
+    for pattern in COST_EXTRACTION_PATTERNS:
+        match = re.search(pattern, text_lower)
+        if match:
+            try:
+                cost = float(match.group(1))
+                if min_cost < cost < max_cost:
+                    return cost
+            except ValueError:
+                pass
+    return None
+
+
+# ============================================================
+# INPUT PARSING AND ENTITY EXTRACTION
+# ============================================================
+
+@dataclass
+class ParsedQueryInput:
+    """Structured extraction of entities and parameters from user query."""
+    polymers: List[str] = field(default_factory=list)
+    solvents: List[str] = field(default_factory=list)
+    temperature: Optional[float] = None
+    temperature_range: Optional[Tuple[float, float]] = None
+    throughput_kg_hr: Optional[float] = None
+    constraints: List[str] = field(default_factory=list)
+    raw_query: str = ""
+    extraction_confidence: float = 0.0
+
+    def to_shared_context(self) -> Dict[str, Any]:
+        """Convert to shared_context dict for agent state."""
+        ctx = {}
+        if self.polymers:
+            ctx["polymers"] = self.polymers
+        if self.solvents:
+            ctx["preferred_solvents"] = self.solvents
+        if self.temperature:
+            ctx["temperature"] = self.temperature
+        if self.temperature_range:
+            ctx["temperature_range"] = self.temperature_range
+        if self.throughput_kg_hr:
+            ctx["throughput_kg_hr"] = self.throughput_kg_hr
+        if self.constraints:
+            ctx["constraints"] = self.constraints
+        return ctx
+
+
+class QueryInputParser:
+    """
+    Extract entities and parameters from user queries.
+
+    Extracts:
+    - Polymers: PE, PP, PS, PVC, PET, PMMA, PA, PC, ABS, etc.
+    - Solvents: toluene, xylene, cyclohexane, THF, etc.
+    - Temperature: "at 80°C", "below 100C", "60-90°C"
+    - Throughput: "100 kg/hr", "1000 kg/day", "industrial scale"
+    - Constraints: "avoid chlorinated", "green solvents", "food-safe"
+    """
+
+    # Common polymer names and abbreviations
+    POLYMER_PATTERNS = {
+        # Standard abbreviations
+        r'\b(PE|HDPE|LDPE|LLDPE)\b': 'PE',
+        r'\b(PP|polypropylene)\b': 'PP',
+        r'\b(PS|polystyrene)\b': 'PS',
+        r'\b(PVC|polyvinyl\s*chloride)\b': 'PVC',
+        r'\b(PET|PETE|polyethylene\s*terephthalate)\b': 'PET',
+        r'\b(PMMA|polymethyl\s*methacrylate|acrylic|plexiglass)\b': 'PMMA',
+        r'\b(PA|PA6|PA66|nylon|polyamide)\b': 'PA',
+        r'\b(PC|polycarbonate)\b': 'PC',
+        r'\b(ABS)\b': 'ABS',
+        r'\b(PU|polyurethane)\b': 'PU',
+        r'\b(PVDF|polyvinylidene\s*fluoride)\b': 'PVDF',
+        r'\b(PTFE|teflon)\b': 'PTFE',
+        r'\b(PLA|polylactic\s*acid)\b': 'PLA',
+        r'\b(PBS|polybutylene\s*succinate)\b': 'PBS',
+        r'\b(EVA|ethylene\s*vinyl\s*acetate)\b': 'EVA',
+        r'\b(SBR|styrene\s*butadiene)\b': 'SBR',
+        r'\b(NBR|nitrile)\b': 'NBR',
+        r'\b(EPDM)\b': 'EPDM',
+        # Full names (case insensitive matching done separately)
+        r'\bpolyethylene\b': 'PE',
+        r'\bpolypropylene\b': 'PP',
+        r'\bpolystyrene\b': 'PS',
+    }
+
+    # Common solvent names
+    SOLVENT_PATTERNS = {
+        r'\b(toluene)\b': 'toluene',
+        r'\b(xylene|xylenes)\b': 'xylene',
+        r'\b(cyclohexane)\b': 'cyclohexane',
+        r'\b(THF|tetrahydrofuran)\b': 'THF',
+        r'\b(DCM|dichloromethane|methylene\s*chloride)\b': 'DCM',
+        r'\b(chloroform)\b': 'chloroform',
+        r'\b(acetone)\b': 'acetone',
+        r'\b(MEK|methyl\s*ethyl\s*ketone)\b': 'MEK',
+        r'\b(ethanol)\b': 'ethanol',
+        r'\b(methanol)\b': 'methanol',
+        r'\b(IPA|isopropanol|isopropyl\s*alcohol)\b': 'IPA',
+        r'\b(DMF|dimethylformamide)\b': 'DMF',
+        r'\b(DMSO|dimethyl\s*sulfoxide)\b': 'DMSO',
+        r'\b(NMP|n-methyl.*pyrrolidone)\b': 'NMP',
+        r'\b(hexane|n-hexane)\b': 'hexane',
+        r'\b(heptane|n-heptane)\b': 'heptane',
+        r'\b(decalin|decahydronaphthalene)\b': 'decalin',
+        r'\b(limonene|d-limonene)\b': 'limonene',
+        r'\b(ethyl\s*acetate)\b': 'ethyl acetate',
+        r'\b(butyl\s*acetate)\b': 'butyl acetate',
+        r'\b(chlorobenzene)\b': 'chlorobenzene',
+        r'\b(tetrachloroethylene|perc)\b': 'tetrachloroethylene',
+        r'\b(water)\b': 'water',
+    }
+
+    # Temperature patterns
+    TEMP_PATTERNS = [
+        r'(\d+(?:\.\d+)?)\s*°?\s*[Cc](?:elsius)?',  # 80°C, 80C, 80 celsius
+        r'at\s+(\d+(?:\.\d+)?)\s*degrees?',  # at 80 degrees
+        r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # 60-90°C (range)
+        r'below\s+(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # below 100C
+        r'above\s+(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # above 60C
+        r'room\s*temp(?:erature)?',  # room temperature -> 25°C
+    ]
+
+    # Throughput patterns
+    THROUGHPUT_PATTERNS = [
+        r'(\d+(?:\.\d+)?)\s*kg\s*/?\s*h(?:r|our)?',  # 100 kg/hr
+        r'(\d+(?:\.\d+)?)\s*kg\s*/?\s*day',  # 1000 kg/day -> /24
+        r'(\d+(?:\.\d+)?)\s*t(?:on(?:ne)?s?)?\s*/?\s*h(?:r|our)?',  # 1 t/hr -> *1000
+        r'(\d+(?:\.\d+)?)\s*t(?:on(?:ne)?s?)?\s*/?\s*day',  # 10 t/day
+        r'industrial\s*scale',  # industrial scale -> 1000 kg/hr default
+        r'pilot\s*scale',  # pilot scale -> 100 kg/hr default
+        r'lab\s*scale',  # lab scale -> 1 kg/hr default
+    ]
+
+    # Constraint patterns
+    CONSTRAINT_PATTERNS = {
+        r'avoid\s+chlorinated': 'avoid_chlorinated',
+        r'no\s+chlorinated': 'avoid_chlorinated',
+        r'non-?\s*chlorinated': 'avoid_chlorinated',
+        r'chlorine-?\s*free': 'avoid_chlorinated',
+        r'green\s+solvent': 'green_solvents',
+        r'bio-?\s*based': 'bio_based',
+        r'sustainable': 'sustainable',
+        r'food[\s-]*safe': 'food_safe',
+        r'food[\s-]*grade': 'food_safe',
+        r'low[\s-]*voc': 'low_voc',
+        r'non-?\s*toxic': 'non_toxic',
+        r'low[\s-]*cost': 'low_cost',
+        r'cheap(?:est)?': 'low_cost',
+        r'economic(?:al)?': 'low_cost',
+        r'high[\s-]*recovery': 'high_recovery',
+        r'selective': 'high_selectivity',
+    }
+
+    @classmethod
+    def parse(cls, query: str) -> ParsedQueryInput:
+        """
+        Parse user query and extract all relevant entities.
+
+        Args:
+            query: Raw user query string
+
+        Returns:
+            ParsedQueryInput with extracted entities
+        """
+        result = ParsedQueryInput(raw_query=query)
+        query_lower = query.lower()
+        confidence_factors = []
+
+        # Extract polymers
+        polymers_found = set()
+        for pattern, polymer_name in cls.POLYMER_PATTERNS.items():
+            if re.search(pattern, query, re.IGNORECASE):
+                polymers_found.add(polymer_name)
+        result.polymers = sorted(list(polymers_found))
+        if result.polymers:
+            confidence_factors.append(0.3)
+
+        # Extract solvents
+        solvents_found = set()
+        for pattern, solvent_name in cls.SOLVENT_PATTERNS.items():
+            if re.search(pattern, query, re.IGNORECASE):
+                solvents_found.add(solvent_name)
+        result.solvents = sorted(list(solvents_found))
+        if result.solvents:
+            confidence_factors.append(0.2)
+
+        # Extract temperature
+        for pattern in cls.TEMP_PATTERNS:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                if 'room' in pattern:
+                    result.temperature = 25.0
+                elif len(match.groups()) == 2:
+                    # Temperature range
+                    try:
+                        t1, t2 = float(match.group(1)), float(match.group(2))
+                        result.temperature_range = (min(t1, t2), max(t1, t2))
+                        result.temperature = (t1 + t2) / 2
+                    except ValueError:
+                        pass
+                elif 'below' in pattern:
+                    try:
+                        result.temperature_range = (25.0, float(match.group(1)))
+                        result.temperature = float(match.group(1)) - 10
+                    except ValueError:
+                        pass
+                elif 'above' in pattern:
+                    try:
+                        result.temperature_range = (float(match.group(1)), 180.0)
+                        result.temperature = float(match.group(1)) + 20
+                    except ValueError:
+                        pass
+                else:
+                    try:
+                        result.temperature = float(match.group(1))
+                    except ValueError:
+                        pass
+                if result.temperature:
+                    confidence_factors.append(0.15)
+                break
+
+        # Extract throughput
+        for pattern in cls.THROUGHPUT_PATTERNS:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                if 'industrial' in pattern:
+                    result.throughput_kg_hr = 1000.0
+                elif 'pilot' in pattern:
+                    result.throughput_kg_hr = 100.0
+                elif 'lab' in pattern:
+                    result.throughput_kg_hr = 1.0
+                elif 'day' in pattern:
+                    try:
+                        value = float(match.group(1))
+                        if 'ton' in pattern.lower() or '/t' in query_lower:
+                            value *= 1000
+                        result.throughput_kg_hr = value / 24.0
+                    except ValueError:
+                        pass
+                elif 'ton' in pattern.lower() or match.group(0).lower().startswith(('t/', 't ')):
+                    try:
+                        result.throughput_kg_hr = float(match.group(1)) * 1000
+                    except ValueError:
+                        pass
+                else:
+                    try:
+                        result.throughput_kg_hr = float(match.group(1))
+                    except ValueError:
+                        pass
+                if result.throughput_kg_hr:
+                    confidence_factors.append(0.15)
+                break
+
+        # Extract constraints
+        constraints_found = set()
+        for pattern, constraint_name in cls.CONSTRAINT_PATTERNS.items():
+            if re.search(pattern, query, re.IGNORECASE):
+                constraints_found.add(constraint_name)
+        result.constraints = sorted(list(constraints_found))
+        if result.constraints:
+            confidence_factors.append(0.2)
+
+        # Calculate overall confidence
+        result.extraction_confidence = min(1.0, sum(confidence_factors))
+
+        logger.debug(f"QueryInputParser: polymers={result.polymers}, solvents={result.solvents}, "
+                    f"temp={result.temperature}, throughput={result.throughput_kg_hr}, "
+                    f"constraints={result.constraints}, confidence={result.extraction_confidence:.2f}")
+
+        return result
+
+    @classmethod
+    def needs_clarification(cls, parsed: ParsedQueryInput, route_path: str) -> List[str]:
+        """
+        Determine if clarification is needed based on parsed input and intended route.
+
+        Returns list of clarification prompts needed (empty if none needed).
+        """
+        clarifications = []
+
+        # Separation queries need polymers
+        if route_path in ("specialist", "integrated") and not parsed.polymers:
+            if any(w in parsed.raw_query.lower() for w in ["separate", "separation", "multilayer"]):
+                clarifications.append("Which polymers do you want to separate? (e.g., PE, PP, PS, PVC)")
+
+        # TEA queries benefit from throughput
+        if route_path == "integrated" and not parsed.throughput_kg_hr:
+            if any(w in parsed.raw_query.lower() for w in ["cost", "economic", "tea", "capex"]):
+                # Not blocking, just note we'll use default
+                pass  # Will use default 100 kg/hr
+
+        return clarifications
+
+
+# ============================================================
 # COMPLEXITY SCORING AND SPECIALIST ROUTING
 # ============================================================
 
 @dataclass
 class RoutingDecision:
-    """Result of complexity routing."""
+    """Result of complexity routing with confidence scoring."""
     complexity: int  # 1-5 scale
     path: Literal["fast", "standard", "specialist", "integrated"]
     specialist: Optional[str]  # "separation", "tea_lca", "literature", None
@@ -90,18 +427,67 @@ class RoutingDecision:
     reason: str  # Explanation for logging
     # NEW: For integrated multi-agent collaboration
     collaboration_specialists: List[str] = field(default_factory=list)
+    # Phase 2: Confidence scoring and parsed input
+    confidence: float = 1.0  # 0.0-1.0 routing confidence
+    parsed_input: Optional[ParsedQueryInput] = None  # Extracted entities
+    clarifications_needed: List[str] = field(default_factory=list)  # Questions for user
+
+    def to_preview(self) -> Dict[str, Any]:
+        """Generate preview dict for frontend display."""
+        preview = {
+            "path": self.path,
+            "complexity": self.complexity,
+            "confidence": self.confidence,
+            "reason": self.reason,
+        }
+        if self.collaboration_specialists:
+            preview["specialists"] = self.collaboration_specialists
+            preview["flow"] = " → ".join(self.collaboration_specialists) + " → Aggregator"
+        elif self.specialist:
+            preview["specialist"] = self.specialist
+        if self.parsed_input:
+            preview["extracted"] = {
+                "polymers": self.parsed_input.polymers,
+                "solvents": self.parsed_input.solvents,
+                "temperature": self.parsed_input.temperature,
+                "throughput_kg_hr": self.parsed_input.throughput_kg_hr,
+                "constraints": self.parsed_input.constraints,
+            }
+        if self.clarifications_needed:
+            preview["clarifications_needed"] = self.clarifications_needed
+        return preview
 
 
-def enhanced_complexity_router(query: str) -> RoutingDecision:
+def enhanced_complexity_router(query: str, parse_entities: bool = True) -> RoutingDecision:
     """
     Rule-based complexity scoring with specialist routing.
 
     Performance: ~1-2ms (no LLM call)
 
+    Args:
+        query: User query string
+        parse_entities: Whether to extract entities (polymers, solvents, etc.)
+
     Returns:
-        RoutingDecision with path, specialist, and complexity score
+        RoutingDecision with path, specialist, complexity score, and parsed input
     """
     query_lower = query.lower()
+
+    # Phase 1: Parse query for entity extraction
+    parsed_input = QueryInputParser.parse(query) if parse_entities else None
+
+    # Helper to calculate confidence based on keyword matches and entity extraction
+    def calc_confidence(keyword_matches: int, max_expected: int = 3) -> float:
+        """Calculate route confidence from keyword match count and parsed entities."""
+        keyword_conf = min(1.0, keyword_matches / max_expected) * 0.6
+        entity_conf = (parsed_input.extraction_confidence if parsed_input else 0) * 0.4
+        return min(1.0, keyword_conf + entity_conf)
+
+    # Helper to check clarifications for a route
+    def get_clarifications(path: str) -> List[str]:
+        if parsed_input:
+            return QueryInputParser.needs_clarification(parsed_input, path)
+        return []
 
     # ==========================================================
     # INTEGRATED PATH: Cross-domain queries requiring multiple specialists
@@ -148,7 +534,10 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             specialist=None,
             categories=["separation", "dissolution", "literature", "rag", "economics", "strap", "visualization", "solvent_properties"],
             reason="Integrated Separation + Literature + TEA analysis detected",
-            collaboration_specialists=["separation", "literature", "tea_lca"]
+            collaboration_specialists=["separation", "literature", "tea_lca"],
+            confidence=calc_confidence(3, 3),  # All 3 keywords matched
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("integrated"),
         )
 
     # 2-WAY: Separation + TEA/LCA
@@ -160,7 +549,10 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             specialist=None,
             categories=["separation", "dissolution", "economics", "strap", "visualization", "solvent_properties"],
             reason="Integrated Separation + TEA analysis detected",
-            collaboration_specialists=["separation", "tea_lca"]
+            collaboration_specialists=["separation", "tea_lca"],
+            confidence=calc_confidence(2, 2),  # Both keywords matched
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("integrated"),
         )
 
     # 2-WAY: Separation + Literature
@@ -171,7 +563,10 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             specialist=None,
             categories=["separation", "dissolution", "literature", "rag"],
             reason="Integrated Separation + Literature research detected",
-            collaboration_specialists=["separation", "literature"]
+            collaboration_specialists=["separation", "literature"],
+            confidence=calc_confidence(2, 2),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("integrated"),
         )
 
     # Literature-first queries with polymer/solvent context (search first, then analyze)
@@ -185,7 +580,10 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
             path="specialist",
             specialist="literature",
             categories=["literature", "rag"],
-            reason="Deinking/printed plastics literature query detected"
+            reason="Deinking/printed plastics literature query detected",
+            confidence=calc_confidence(1, 1),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("specialist"),
         )
 
     # ==========================================================
@@ -201,12 +599,16 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "which sequence", "optimal sequence", "best sequence"
     ]
     if any(trigger in query_lower for trigger in separation_triggers):
+        matched = sum(1 for t in separation_triggers if t in query_lower)
         return RoutingDecision(
             complexity=5,
             path="specialist",
             specialist="separation",
             categories=["separation", "dissolution", "solvent_properties", "visualization"],
-            reason="Multi-polymer separation planning detected"
+            reason="Multi-polymer separation planning detected",
+            confidence=calc_confidence(matched, 2),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("specialist"),
         )
 
     # TEA/LCA Specialist
@@ -218,12 +620,16 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "energy consumption", "gwp", "environmental impact assessment"
     ]
     if any(trigger in query_lower for trigger in tea_triggers):
+        matched = sum(1 for t in tea_triggers if t in query_lower)
         return RoutingDecision(
             complexity=4,
             path="specialist",
             specialist="tea_lca",
             categories=["economics", "strap", "visualization", "solvent_properties"],
-            reason="Techno-economic or LCA analysis detected"
+            reason="Techno-economic or LCA analysis detected",
+            confidence=calc_confidence(matched, 2),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("specialist"),
         )
 
     # Literature Research Specialist
@@ -236,12 +642,16 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "literature search", "indexed papers", "knowledgebase"
     ]
     if any(trigger in query_lower for trigger in literature_triggers):
+        matched = sum(1 for t in literature_triggers if t in query_lower)
         return RoutingDecision(
             complexity=4,
             path="specialist",
             specialist="literature",
             categories=["literature", "rag"],
-            reason="Literature research query detected"
+            reason="Literature research query detected",
+            confidence=calc_confidence(matched, 2),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("specialist"),
         )
 
     # ==========================================================
@@ -256,12 +666,16 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "correlation", "regression", "statistical"
     ]
     if any(trigger in query_lower for trigger in standard_triggers):
+        matched = sum(1 for t in standard_triggers if t in query_lower)
         return RoutingDecision(
             complexity=3,
             path="standard",
             specialist=None,
             categories=[],  # Will use existing router
-            reason="Standard complexity query"
+            reason="Standard complexity query",
+            confidence=calc_confidence(matched, 2),
+            parsed_input=parsed_input,
+            clarifications_needed=get_clarifications("standard"),
         )
 
     # ==========================================================
@@ -277,12 +691,16 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         "g-score for", "gscore for", "how many polymers", "how many solvents"
     ]
     if any(trigger in query_lower for trigger in simple_triggers):
+        matched = sum(1 for t in simple_triggers if t in query_lower)
         return RoutingDecision(
             complexity=2 if "top" in query_lower else 1,
             path="fast",
             specialist=None,
             categories=["database", "dissolution", "solvent_properties"],
-            reason="Simple lookup query"
+            reason="Simple lookup query",
+            confidence=calc_confidence(matched, 1),
+            parsed_input=parsed_input,
+            clarifications_needed=[],  # Simple queries don't need clarification
         )
 
     # ==========================================================
@@ -293,8 +711,35 @@ def enhanced_complexity_router(query: str) -> RoutingDecision:
         path="standard",
         specialist=None,
         categories=[],
-        reason="Default routing - unclassified query"
+        reason="Default routing - unclassified query",
+        confidence=0.5,  # Low confidence for default routing
+        parsed_input=parsed_input,
+        clarifications_needed=get_clarifications("standard"),
     )
+
+
+def get_routing_preview(query: str) -> Dict[str, Any]:
+    """
+    Get routing preview for frontend display.
+
+    This is a lightweight function for the frontend to show users
+    what path their query will take before execution.
+
+    Args:
+        query: User query string
+
+    Returns:
+        Dict with routing preview including:
+        - path: "fast", "standard", "specialist", or "integrated"
+        - complexity: 1-5 scale
+        - confidence: 0.0-1.0 routing confidence
+        - specialists: List of specialists for integrated path
+        - flow: Human-readable flow description
+        - extracted: Extracted entities (polymers, solvents, etc.)
+        - clarifications_needed: Questions to ask user (if any)
+    """
+    decision = enhanced_complexity_router(query, parse_entities=True)
+    return decision.to_preview()
 
 
 # ============================================================
@@ -939,6 +1384,19 @@ class MultiAgentState(MessagesState):
     # Iteration counter for TEA agent
     tea_iteration_count: int = 0
 
+    # Iteration counter for literature agent
+    lit_iteration_count: int = 0
+
+    # =========================================================
+    # Literature Reviewer Fields (Phase 3: Inter-agent validation)
+    # =========================================================
+
+    # Current retry count for literature (max 1 retry)
+    literature_retry_count: int = 0
+
+    # Validation summary from literature reviewer
+    literature_validation: Optional[Dict[str, Any]] = None
+
 
 # ============================================================
 # HELPER FUNCTIONS FOR CONTEXT EXTRACTION
@@ -1134,37 +1592,10 @@ def parse_tea_results(response_text: str) -> Dict[str, Any]:
 
     response_lower = response_text.lower()
 
-    # Pattern for cost extraction from TEA tool output
-    # Multiple patterns to catch different formats
-    cost_patterns = [
-        r'cost\s+per\s+kg(?:\s+polymer)?[:\s]+\$?(\d+\.?\d*)\s*/?\s*kg',  # Cost per kg polymer: $1.39/kg
-        r'cost\s+of\s+\$?(\d+\.?\d*)\s*/\s*kg',  # cost of $1.39/kg
-        r'\$(\d+\.?\d*)\s*/\s*kg',  # $1.39/kg
-        r'(\d+\.?\d*)\s*\$/kg',  # 1.39 $/kg
-        r'msp[:\s]+\$?(\d+\.?\d*)',  # MSP: $1.39
-    ]
-    for pattern in cost_patterns:
-        match = re.search(pattern, response_lower)
-        if match:
-            try:
-                cost = float(match.group(1))
-                if 0 < cost < 1000:  # Sanity check
-                    results["cost_per_kg"] = cost
-                    break
-            except ValueError:
-                pass
-
-    # Extract MSP values - look for patterns like "MSP: $2.45/kg" or "Xylene: 2.45"
-    msp_patterns = [
-        r'msp[:\s]+\$?(\d+\.?\d*)\s*/?\s*kg',
-        r'minimum selling price[:\s]+\$?(\d+\.?\d*)',
-        r'\$(\d+\.?\d*)\s*/\s*kg',
-    ]
-    for pattern in msp_patterns:
-        match = re.search(pattern, response_lower)
-        if match:
-            results["cost_per_kg"] = float(match.group(1))
-            break
+    # Use consolidated cost extraction helper
+    cost = extract_cost_from_text(response_text)
+    if cost:
+        results["cost_per_kg"] = cost
 
     # Extract solvent-specific costs from tables or lists
     # Pattern: "| Xylene | 2.45 |" or "Xylene: $2.45/kg"
@@ -2014,6 +2445,14 @@ SEPARATION_QUALITY_THRESHOLDS = {
     "temperature_expansion": 20, # Degrees to expand temperature window on retry
 }
 
+# Quality thresholds for literature results
+LITERATURE_QUALITY_THRESHOLDS = {
+    "min_papers": 2,             # Need at least 2 papers for confidence
+    "min_confidence": 0.4,       # Minimum literature confidence score
+    "min_solvent_overlap": 0.3,  # At least 30% of separation solvents verified
+    "max_retries": 1,            # Maximum retry attempts (literature is slower)
+}
+
 
 async def separation_reviewer_node(state: MultiAgentState) -> Command:
     """
@@ -2214,6 +2653,220 @@ async def separation_reviewer_node(state: MultiAgentState) -> Command:
         )
 
 
+async def literature_reviewer_node(state: MultiAgentState) -> Command:
+    """
+    Review literature results and validate against separation findings.
+
+    Inserted between Literature → TEA in 3-way collaboration mode.
+
+    Quality checks:
+    1. Minimum papers found (>= 2)
+    2. Confidence threshold met (>= 0.4)
+    3. Solvent overlap with separation results (>= 30%)
+    4. Cross-validation of findings
+
+    Returns:
+        Command to either:
+        - goto="collab_tea_agent" if acceptable
+        - goto="collab_literature_agent" if revision needed
+        - goto="smart_aggregator" if max retries exceeded
+    """
+    literature_results = state.get("literature_results") or {}
+    separation_results = state.get("separation_results") or {}
+    shared_context = state.get("shared_context") or {}
+    retry_count = min(state.get("literature_retry_count", 0), 10)
+    max_retries = LITERATURE_QUALITY_THRESHOLDS["max_retries"]
+
+    # Extract metrics
+    papers_found = literature_results.get("papers_found", 0)
+    confidence_score = literature_results.get("confidence_score", 0.0)
+    lit_solvents = set(s.lower() for s in literature_results.get("solvents_mentioned", []))
+    sep_solvents = set(s.lower() for s in separation_results.get("solvents", []))
+    key_findings = literature_results.get("key_findings", [])
+    kbs_searched = literature_results.get("knowledgebases_searched", [])
+
+    # Calculate solvent overlap
+    if sep_solvents and lit_solvents:
+        overlap = len(sep_solvents & lit_solvents) / len(sep_solvents)
+        verified_solvents = list(sep_solvents & lit_solvents)
+        unverified_solvents = list(sep_solvents - lit_solvents)
+    else:
+        overlap = 0.0
+        verified_solvents = []
+        unverified_solvents = list(sep_solvents)
+
+    # Build issues list
+    issues = []
+    suggestions = []
+
+    # Check 1: Minimum papers
+    if papers_found < LITERATURE_QUALITY_THRESHOLDS["min_papers"]:
+        issues.append(f"Only {papers_found} papers found (minimum: {LITERATURE_QUALITY_THRESHOLDS['min_papers']})")
+        suggestions.append("Try broader search terms or additional knowledge bases")
+
+    # Check 2: Confidence threshold
+    if confidence_score < LITERATURE_QUALITY_THRESHOLDS["min_confidence"]:
+        issues.append(f"Literature confidence {confidence_score:.2f} below threshold ({LITERATURE_QUALITY_THRESHOLDS['min_confidence']})")
+        suggestions.append("Search for more specific polymer-solvent combinations")
+
+    # Check 3: Solvent overlap
+    if sep_solvents and overlap < LITERATURE_QUALITY_THRESHOLDS["min_solvent_overlap"]:
+        issues.append(f"Only {overlap:.0%} of separation solvents verified in literature")
+        if unverified_solvents:
+            suggestions.append(f"Search for evidence on: {', '.join(unverified_solvents[:3])}")
+
+    # Calculate quality score
+    quality_score = 0.0
+    if papers_found >= 2:
+        quality_score += 0.3
+    elif papers_found >= 1:
+        quality_score += 0.15
+    quality_score += min(0.3, confidence_score * 0.4)
+    quality_score += min(0.2, overlap * 0.3)
+    if key_findings:
+        quality_score += min(0.2, len(key_findings) * 0.05)
+    quality_score = min(1.0, quality_score)
+
+    # Decision logic
+    is_acceptable = len(issues) == 0 or quality_score >= 0.5
+    requires_revision = not is_acceptable and retry_count < max_retries
+
+    # Create validation summary for downstream agents
+    validation_summary = {
+        "papers_found": papers_found,
+        "confidence_score": confidence_score,
+        "quality_score": quality_score,
+        "verified_solvents": verified_solvents,
+        "unverified_solvents": unverified_solvents,
+        "solvent_overlap": overlap,
+        "issues": issues,
+        "suggestions": suggestions,
+        "kbs_searched": kbs_searched,
+    }
+
+    # Create handoff metrics
+    handoff_metrics_entry = create_handoff_metrics(
+        from_agent="literature_reviewer",
+        to_agent="collab_tea_agent" if is_acceptable else "collab_literature_agent",
+        start_time=state.get("agent_timings", {}).get("literature", time.time()),
+        tools_called=[],
+        success=is_acceptable,
+        error_message="; ".join(issues) if issues else None,
+        task_type="review",
+    )
+    handoff_metrics_entry["quality_score"] = quality_score
+    handoff_metrics_entry["solvent_overlap"] = overlap
+
+    logger.info(f"Literature Review: quality={quality_score:.2f}, acceptable={is_acceptable}, "
+                f"papers={papers_found}, overlap={overlap:.0%}, issues={len(issues)}")
+
+    if requires_revision:
+        # Build retry parameters
+        retry_params = {
+            "focus_solvents": unverified_solvents[:3],
+            "retry_reason": "; ".join(issues),
+            "expand_search": True,
+        }
+
+        logger.info(f"Literature Reviewer: Requesting revision (attempt {retry_count + 1}/{max_retries})")
+
+        # Create revised literature task
+        lit_task = LiteratureTaskRequest(
+            search_topic=f"Polymer dissolution with {', '.join(unverified_solvents[:3])}",
+            polymers=separation_results.get("polymers", []),
+            solvents=unverified_solvents[:5],
+            max_results=15,  # Increase for retry
+            search_rag_first=True,
+        )
+
+        return Command(
+            update={
+                "literature_retry_count": retry_count + 1,
+                "literature_validation": validation_summary,
+                "pending_handoff": {
+                    "from_agent": "literature_reviewer",
+                    "to_agent": "literature",
+                    "task_params": lit_task.model_dump(),
+                },
+                "handoff_metrics": [handoff_metrics_entry],
+            },
+            goto="collab_literature_agent"
+        )
+
+    elif is_acceptable:
+        # Proceed to TEA agent
+        logger.info(f"Literature Reviewer: Results acceptable (quality={quality_score:.2f})")
+
+        # Prepare TEA task with literature-verified info
+        solvents_for_tea = verified_solvents if verified_solvents else separation_results.get("solvents", [])[:5]
+        if not solvents_for_tea:
+            solvents_for_tea = ["cyclohexane"]
+
+        tea_task = TEATaskRequest(
+            solvents=solvents_for_tea,
+            throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
+            recovery_rate=0.95,
+            include_capex=True,
+            include_lca=False,
+            compare_solvents=True,
+            polymers=separation_results.get("polymers", []),
+            temperature=separation_results.get("temperature", 80.0),
+            best_sequence=separation_results.get("best_sequence"),
+        )
+
+        pending_handoff = {
+            "from_agent": "literature_reviewer",
+            "to_agent": "tea_lca",
+            "task_params": tea_task.model_dump(),
+        }
+
+        return Command(
+            update={
+                "literature_validation": validation_summary,
+                "pending_handoff": pending_handoff,
+                "handoff_metrics": [handoff_metrics_entry],
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "literature_reviewer": time.time(),
+                },
+            },
+            goto="collab_tea_agent"
+        )
+
+    else:
+        # Max retries exceeded - proceed with warning
+        logger.warning(f"Literature Reviewer: Max retries ({max_retries}) exceeded, proceeding with partial results")
+
+        validation_summary["max_retries_exceeded"] = True
+
+        # Still try to get solvents for TEA
+        solvents_for_tea = verified_solvents or separation_results.get("solvents", [])[:5] or ["cyclohexane"]
+
+        tea_task = TEATaskRequest(
+            solvents=solvents_for_tea,
+            throughput_kg_hr=shared_context.get("throughput_kg_hr", 100.0),
+            recovery_rate=0.95,
+            include_capex=True,
+        )
+
+        return Command(
+            update={
+                "literature_validation": validation_summary,
+                "pending_handoff": {
+                    "from_agent": "literature_reviewer",
+                    "to_agent": "tea_lca",
+                    "task_params": tea_task.model_dump(),
+                },
+                "handoff_metrics": [handoff_metrics_entry],
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "literature_reviewer": time.time(),
+                },
+            },
+            goto="collab_tea_agent"
+        )
+
+
 async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Command:
     """
     TEA specialist with Command-based handoff for collaboration.
@@ -2380,38 +3033,12 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
         tea_results = parse_tea_results(all_text)
         tea_results["solvents_analyzed"] = separation_results.get("solvents", []) if separation_results else []
 
-        # Enhanced cost extraction with more patterns
+        # Enhanced cost extraction using consolidated helper
         if not tea_results.get("cost_per_kg"):
-            # Comprehensive patterns for cost extraction - ordered by specificity
-            cost_patterns = [
-                # Most specific patterns first (from actual TEA tool output)
-                r'cost\s+per\s+kg\s+polymer[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
-                r'cost\s+per\s+kg[:\s]*\$?(\d+\.?\d*)',
-                # Standard patterns
-                r'msp[:\s]*\$?(\d+\.?\d*)',
-                r'\$(\d+\.?\d*)\s*/\s*kg',
-                r'(\d+\.?\d*)\s*\$/kg',
-                # Processing cost patterns
-                r'processing\s+cost[:\s]*\$?(\d+\.?\d*)',
-                r'solvent\s+recovery\s+cost[:\s]*\$?(\d+\.?\d*)',
-                # Generic cost patterns (less specific)
-                r'total\s+cost[:\s]*\$?(\d+\.?\d*)',
-                r'operating\s+cost[:\s]*\$?(\d+\.?\d*)',
-                # Per kg patterns with different formats
-                r'(\d+\.?\d*)\s*usd\s*/\s*kg',
-                r'(\d+\.?\d*)\s*per\s+kg',
-            ]
-            for pattern in cost_patterns:
-                match = re.search(pattern, all_text.lower())
-                if match:
-                    try:
-                        cost = float(match.group(1))
-                        if 0.001 < cost < 1000:  # Wider range for small costs like $0.01/kg
-                            tea_results["cost_per_kg"] = cost
-                            logger.info(f"TEA cost extracted: ${cost}/kg (pattern: {pattern[:40]}...)")
-                            break
-                    except ValueError:
-                        pass
+            cost = extract_cost_from_text(all_text)
+            if cost:
+                tea_results["cost_per_kg"] = cost
+                logger.info(f"TEA cost extracted: ${cost}/kg")
 
         # Log if no cost found after all attempts
         if not tea_results.get("cost_per_kg"):
@@ -3014,9 +3641,12 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
     pending_handoff = state.get("pending_handoff", {})
     task_params = pending_handoff.get("task_params", {})
 
+    # Phase 5: Get output mode from task_params or shared_context
+    output_mode = task_params.get("output_mode") or state.get("shared_context", {}).get("output_mode", "detailed")
+
     elapsed = time.time() - start_time if start_time else 0
 
-    logger.info(f"Smart Aggregator: mode={collaboration_mode}, elapsed={elapsed:.2f}s, "
+    logger.info(f"Smart Aggregator: mode={collaboration_mode}, output={output_mode}, elapsed={elapsed:.2f}s, "
                 f"handoffs={len(handoff_metrics)}, task_params={bool(task_params)}")
 
     # If not in collaboration mode, pass through
@@ -3122,6 +3752,75 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
                 output_parts.append("\n**Cost by Solvent:**\n")
                 for solvent, msp in sorted(msp_values.items(), key=lambda x: x[1]):
                     output_parts.append(f"  - {solvent}: ${msp:.2f}/kg\n")
+
+            output_parts.append("\n")
+
+        # Phase 4: Cross-Validation Section (3-way mode)
+        if is_3way and separation_results and state.get("literature_results"):
+            literature_results = state.get("literature_results", {})
+            literature_validation = state.get("literature_validation", {})
+
+            output_parts.append("## Cross-Validation Summary\n")
+
+            # Get solvents from each source
+            sep_solvents = set(s.lower() for s in separation_results.get("solvents", []))
+            lit_solvents = set(s.lower() for s in literature_results.get("solvents_mentioned", []))
+            tea_solvents = set(s.lower() for s in (tea_results.get("solvents_analyzed", []) if tea_results else []))
+
+            # Calculate overlaps
+            sep_lit_overlap = sep_solvents & lit_solvents
+            all_overlap = sep_solvents & lit_solvents & tea_solvents if tea_solvents else sep_lit_overlap
+
+            # Get validation from literature reviewer if available
+            verified_solvents = literature_validation.get("verified_solvents", list(sep_lit_overlap))
+            unverified_solvents = literature_validation.get("unverified_solvents", list(sep_solvents - lit_solvents))
+
+            # Agreement scoring
+            if sep_solvents:
+                agreement_score = len(sep_lit_overlap) / len(sep_solvents)
+            else:
+                agreement_score = 0.0
+
+            # Display cross-validation results
+            output_parts.append(f"- **Separation ↔ Literature agreement:** {agreement_score:.0%}\n")
+            if verified_solvents:
+                output_parts.append(f"- **Verified solvents:** {', '.join(verified_solvents[:5])}\n")
+            if unverified_solvents:
+                output_parts.append(f"- **Unverified (use caution):** {', '.join(unverified_solvents[:3])}\n")
+
+            # Highlight discrepancies
+            lit_only = lit_solvents - sep_solvents
+            if lit_only:
+                output_parts.append(f"- **Additional solvents from literature:** {', '.join(list(lit_only)[:3])}\n")
+
+            # Overall confidence calculation
+            sep_quality = reviewer_feedback.get("quality_score", 0.7) if reviewer_feedback else 0.7
+            lit_confidence = literature_results.get("confidence_score", 0.5)
+            lit_quality = literature_validation.get("quality_score", 0.5)
+            tea_completeness = 0.8 if tea_results and tea_results.get("cost_per_kg") else 0.4
+
+            # Weighted confidence
+            overall_confidence = (sep_quality * 0.35 + lit_confidence * 0.25 +
+                                  lit_quality * 0.2 + tea_completeness * 0.2)
+            overall_confidence = min(1.0, overall_confidence * (1 + agreement_score * 0.2))
+
+            # Confidence level
+            if overall_confidence >= 0.8:
+                confidence_level = "High"
+            elif overall_confidence >= 0.6:
+                confidence_level = "Medium"
+            else:
+                confidence_level = "Low"
+
+            output_parts.append(f"\n**Overall Analysis Confidence:** {overall_confidence:.0%} ({confidence_level})\n")
+
+            # Warnings
+            if agreement_score < 0.3:
+                output_parts.append(f"\n> ⚠️ **Low agreement** between separation and literature results. "
+                                   f"Consider additional verification before industrial implementation.\n")
+            if literature_validation.get("max_retries_exceeded"):
+                output_parts.append(f"\n> ⚠️ **Limited literature evidence.** "
+                                   f"Recommendations based primarily on computational predictions.\n")
 
             output_parts.append("\n")
 
@@ -3286,10 +3985,6 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
         logger.info(f"Execution trace {trace_id}: {len(handoff_metrics)} handoffs, "
                    f"timings={agent_timings}")
 
-    # Create aggregated message
-    aggregated_content = "".join(output_parts)
-    aggregated_message = AIMessage(content=aggregated_content)
-
     # P3: Finalize execution trace in return state
     final_trace = {
         "trace_id": trace_id,
@@ -3298,6 +3993,87 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
         "agent_timings": agent_timings,
         "completed_at": datetime.now().isoformat(),
     }
+
+    # Phase 5: Output mode handling
+    if output_mode == "json":
+        # Return structured JSON output
+        literature_results = state.get("literature_results", {})
+        literature_validation = state.get("literature_validation", {})
+
+        json_output = {
+            "collaboration_mode": collaboration_mode,
+            "elapsed_seconds": elapsed,
+            "separation": {
+                "polymers": separation_results.get("polymers", []) if separation_results else [],
+                "solvents": separation_results.get("solvents", []) if separation_results else [],
+                "best_sequence": separation_results.get("best_sequence", []) if separation_results else [],
+                "best_solvent": separation_results.get("best_solvent") if separation_results else None,
+                "quality_score": reviewer_feedback.get("quality_score") if reviewer_feedback else None,
+            },
+            "literature": {
+                "papers_found": literature_results.get("papers_found", 0),
+                "confidence_score": literature_results.get("confidence_score", 0),
+                "solvents_verified": literature_validation.get("verified_solvents", []),
+                "key_findings": literature_results.get("key_findings", [])[:3],
+            } if collaboration_mode == "separation_literature_tea_lca" else None,
+            "economics": {
+                "best_solvent": tea_results.get("best_solvent") if tea_results else None,
+                "cost_per_kg": tea_results.get("cost_per_kg") if tea_results else None,
+                "total_capex": tea_results.get("total_capex") if tea_results else None,
+                "total_opex": tea_results.get("total_opex") if tea_results else None,
+                "payback_years": tea_results.get("payback_years") if tea_results else None,
+            } if tea_results else None,
+            "recommendation": {
+                "solvent": tea_results.get("best_solvent") if tea_results else (separation_results.get("solvents", [None])[0] if separation_results else None),
+                "sequence": separation_results.get("best_sequence", []) if separation_results else [],
+                "cost": tea_results.get("cost_per_kg") if tea_results else None,
+            },
+            "trace": final_trace,
+        }
+        aggregated_content = f"```json\n{json.dumps(json_output, indent=2)}\n```"
+
+    elif output_mode == "summary":
+        # Generate concise 3-5 bullet point summary
+        summary_bullets = []
+
+        # Best recommendation
+        best_solvent = tea_results.get("best_solvent") if tea_results else (
+            separation_results.get("solvents", [None])[0] if separation_results else None)
+        cost = tea_results.get("cost_per_kg") if tea_results else None
+        if best_solvent:
+            cost_str = f" at ${cost:.2f}/kg" if cost else ""
+            summary_bullets.append(f"**Recommended solvent:** {best_solvent}{cost_str}")
+
+        # Best sequence
+        if separation_results and separation_results.get("best_sequence"):
+            seq = separation_results.get("best_sequence", [])[:5]
+            summary_bullets.append(f"**Separation sequence:** {' → '.join(seq)}")
+
+        # Literature confidence (3-way only)
+        if collaboration_mode == "separation_literature_tea_lca":
+            literature_validation = state.get("literature_validation", {})
+            overlap = literature_validation.get("solvent_overlap", 0)
+            if overlap > 0:
+                summary_bullets.append(f"**Literature verification:** {overlap:.0%} of solvents confirmed")
+
+        # Economics
+        if tea_results:
+            if tea_results.get("payback_years"):
+                summary_bullets.append(f"**Payback period:** {tea_results['payback_years']:.1f} years")
+            elif tea_results.get("total_capex"):
+                summary_bullets.append(f"**Capital investment:** ${tea_results['total_capex']:,.0f}")
+
+        # Performance
+        summary_bullets.append(f"**Analysis time:** {elapsed:.1f}s ({len(handoff_metrics)} agent handoffs)")
+
+        aggregated_content = "# Summary\n\n" + "\n".join(f"- {b}" for b in summary_bullets)
+        aggregated_content += f"\n\n*Use output_mode='detailed' for full analysis.*"
+
+    else:
+        # Default: detailed output (existing behavior)
+        aggregated_content = "".join(output_parts)
+
+    aggregated_message = AIMessage(content=aggregated_content)
 
     return {
         "messages": messages + [aggregated_message],
@@ -3488,6 +4264,9 @@ def build_multi_agent_graph(
 
     # P0 Enhancement: Separation reviewer for quality validation
     builder.add_node("separation_reviewer", separation_reviewer_node)
+
+    # Phase 3: Literature reviewer for cross-validation
+    builder.add_node("literature_reviewer", literature_reviewer_node)
 
     # Collaboration-aware TEA agent
     async def collab_tea_node(state):
@@ -3721,7 +4500,7 @@ def build_multi_agent_graph(
     builder.add_edge("collab_tea_tools", "collab_tea_agent")
 
     # P4: Collab Literature Agent with Command-aware routing
-    def route_collab_literature(state) -> Literal["collab_literature_tools", "collab_separation_agent", "smart_aggregator", "__end__"]:
+    def route_collab_literature(state) -> Literal["collab_literature_tools", "literature_reviewer", "collab_separation_agent", "smart_aggregator", "__end__"]:
         """Route based on tool calls or Command."""
         messages = state.get("messages", [])
         if not messages:
@@ -3736,8 +4515,18 @@ def build_multi_agent_graph(
 
         # Check collaboration mode to determine next agent
         collab_mode = state.get("collaboration_mode")
+
+        # 3-way mode: Literature -> Literature Reviewer -> TEA
+        if collab_mode == "separation_literature_tea_lca":
+            return "literature_reviewer"
+
+        # 2-way mode: Literature -> Separation
         if collab_mode == "literature_separation":
             return "collab_separation_agent"
+
+        # 2-way mode: Separation -> Literature -> Aggregator
+        if collab_mode == "separation_literature":
+            return "smart_aggregator"
 
         # Default: aggregate (Command will override if returned)
         return "smart_aggregator"
@@ -3747,12 +4536,32 @@ def build_multi_agent_graph(
         route_collab_literature,
         {
             "collab_literature_tools": "collab_literature_tools",
+            "literature_reviewer": "literature_reviewer",
             "collab_separation_agent": "collab_separation_agent",
             "smart_aggregator": "smart_aggregator",
             "__end__": END,
         }
     )
     builder.add_edge("collab_literature_tools", "collab_literature_agent")
+
+    # Literature reviewer routes to TEA or back to literature
+    def route_literature_reviewer(state) -> Literal["collab_tea_agent", "collab_literature_agent", "smart_aggregator"]:
+        """Route based on review decision (Command will override)."""
+        # Default routing - Command from literature_reviewer_node will override
+        literature_validation = state.get("literature_validation", {})
+        if literature_validation.get("max_retries_exceeded"):
+            return "collab_tea_agent"  # Proceed despite issues
+        return "collab_tea_agent"  # Default: proceed to TEA
+
+    builder.add_conditional_edges(
+        "literature_reviewer",
+        route_literature_reviewer,
+        {
+            "collab_tea_agent": "collab_tea_agent",
+            "collab_literature_agent": "collab_literature_agent",
+            "smart_aggregator": "smart_aggregator",
+        }
+    )
 
     # Smart aggregator -> END
     builder.add_edge("smart_aggregator", END)
@@ -3767,7 +4576,8 @@ def build_multi_agent_graph(
     logger.info(f"  Paths: fast, standard, specialist (separation, tea, literature), INTEGRATED")
     logger.info(f"  Tool subsets: fast={len(FAST_PATH_TOOLS)}, sep={len(SEPARATION_TOOLS)}, "
                 f"tea={len(TEA_LCA_TOOLS)}, lit={len(LITERATURE_TOOLS)}")
-    logger.info(f"  Collaboration: separation -> reviewer -> tea_lca, separation <-> literature (multi-KB)")
+    logger.info(f"  Collaboration: separation -> sep_reviewer -> tea_lca")
+    logger.info(f"  3-Way: separation -> literature -> lit_reviewer -> tea_lca -> aggregator")
     logger.info(f"  Checkpointer: {type(checkpointer).__name__}")
 
     return graph
@@ -3791,9 +4601,16 @@ __all__ = [
     'collab_literature_agent_node',
     'select_knowledgebases',
     'parse_literature_results',
+    # Phase 1: Input parsing and entity extraction
+    'QueryInputParser',
+    'ParsedQueryInput',
+    'get_routing_preview',
     # P0 Enhancement: Review/Revision loop
     'separation_reviewer_node',
     'SEPARATION_QUALITY_THRESHOLDS',
+    # Phase 3: Literature reviewer for cross-validation
+    'literature_reviewer_node',
+    'LITERATURE_QUALITY_THRESHOLDS',
     # P1 Enhancement: Parallel execution & Supervisor
     'parallel_orchestrator_node',
     'supervisor_decision_node',

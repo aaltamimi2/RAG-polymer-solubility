@@ -25,7 +25,7 @@ Usage:
 """
 
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Union
+from typing import List, Dict, Optional, Any, Union, Literal
 from datetime import datetime
 from enum import Enum
 
@@ -461,6 +461,12 @@ class AggregatorTaskRequest(BaseModel):
 
     # Original query for context
     original_query: Optional[str] = Field(default=None)
+
+    # Phase 5: Output mode selection
+    output_mode: Literal["summary", "detailed", "json"] = Field(
+        default="detailed",
+        description="Output format: 'summary' for 3-5 bullet points, 'detailed' for full sections, 'json' for structured data"
+    )
 
     class Config:
         extra = "allow"
