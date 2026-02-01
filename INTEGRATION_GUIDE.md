@@ -1,12 +1,16 @@
-# Multi-Agent Enhancement Integration Guide
+# Multi-Agent System Integration Guide
 
-## Branch: `multiagent-1-dev`
+## Branch: `multiagent-1`
 
-This branch contains P0-P2 enhancements based on state-of-the-art multi-agent patterns (GPT-Researcher, LangGraph-Supervisor, LangGraph-Swarm).
+This branch contains consolidated multi-agent enhancements including:
+- P0-P2 enhancements (review/revision loops, parallel execution, knowledge graph)
+- 3-way collaboration (Separation → Literature → TEA)
+- Gemini message ordering fixes
+- Iteration counter fixes for handoff timing
 
 ---
 
-## Key Changes Summary
+## Part 1: P0-P2 Enhancements
 
 ### P0: Review/Revision Loop (Critical)
 **Purpose:** Quality gate before TEA analysis - validates separation results and triggers retries if needed.
@@ -19,92 +23,92 @@ This branch contains P0-P2 enhancements based on state-of-the-art multi-agent pa
 - Graph routing: Insert `separation_reviewer` node between `collab_separation_agent` → `collab_tea_agent`
 - State fields: Add `separation_retry_count`, `reviewer_feedback`, `retry_params` to `MultiAgentState`
 
----
-
-### P1: Checkpointing, Parallel Execution, Supervisor (Important)
-
+### P1: Checkpointing, Parallel Execution, Supervisor
 **Files:**
 - `multi_agent_system.py:80-150` - `CheckpointerConfig` class
 - `multi_agent_system.py:200-280` - `parallel_orchestrator_node()`, `supervisor_decision_node()`
 - `agent_schemas.py:611-640` - `SupervisorDecision` schema
 
-**Integration Points:**
-- Graph compilation: Use `CheckpointerConfig.get_checkpointer()` in `graph.compile(checkpointer=...)`
-- Env vars: `CHECKPOINTER_TYPE` (memory|postgres|redis), `DATABASE_URL`, `REDIS_URL`
-- State fields: Add `supervisor_decision`, `parallel_execution`, `parallel_results`
-
----
-
-### P2: SessionStore & PolymerKnowledgeGraph (Nice-to-have)
-
+### P2: Cross-Session Store & Knowledge Graph
 **Files:**
-- `multi_agent_system.py:311-413` - `SessionStore` class (singleton cache)
-- `multi_agent_system.py:419-600` - `PolymerKnowledgeGraph` class
-
-**Integration Points:**
-- Separation agent: Check `SessionStore.get_cached_separation()` before querying DB
-- Separation agent: Use `PolymerKnowledgeGraph.get_compatible_solvents()` for solvent hints
-- TEA agent: Check `SessionStore.get_cached_tea()` before calculations
-- Safety checks: Use `PolymerKnowledgeGraph.check_safety_constraints()`
+- `multi_agent_system.py:320-400` - `SessionStore`, `PolymerKnowledgeGraph` classes
 
 ---
 
-## Quick Start Integration
+## Part 2: 3-Way Collaboration
 
+**Purpose:** Enable separation planning with literature verification and economic analysis.
+
+**Flow:** Separation → Literature (STRAP-CORE) → TEA → Aggregator
+
+**Router Detection:**
 ```python
-# 1. Import new components
-from multi_agent_system import (
-    separation_reviewer_node,
-    SEPARATION_QUALITY_THRESHOLDS,
-    CheckpointerConfig,
-    SessionStore,
-    PolymerKnowledgeGraph,
-)
-from agent_schemas import ReviewerFeedback, SupervisorDecision
-
-# 2. Add reviewer to graph
-graph.add_node("separation_reviewer", separation_reviewer_node)
-graph.add_edge("collab_separation_agent", "separation_reviewer")
-# Reviewer routes to either retry (collab_separation_agent) or proceed (collab_tea_agent)
-
-# 3. Use checkpointer
-checkpointer = CheckpointerConfig.get_checkpointer()
-compiled = graph.compile(checkpointer=checkpointer)
-
-# 4. Optional: Use caching in agents
-cached = SessionStore.get_cached_separation("PE,PP", temperature=80.0)
-if cached:
-    return cached  # Skip DB query
+# Triggers on queries with separation + literature + cost keywords
+if has_separation_keyword and has_literature_keyword and has_cost_keyword:
+    collaboration_specialists=["separation", "literature", "tea_lca"]
 ```
 
----
-
-## Test Coverage
-
-| Component | Test File | Tests |
-|-----------|-----------|-------|
-| P0 Reviewer | `tests/test_reviewer.py` | 14 |
-| P0 Multi-loop | `tests/test_reviewer_loops.py` | 25 |
-| P0 Integration | `tests/test_reviewer_integration.py` | 10 |
-| P1 Checkpointer/Parallel/Supervisor | `tests/test_p1_enhancements.py` | 24 |
-| P2 SessionStore/KnowledgeGraph | `tests/test_p2_enhancements.py` | 33 |
-| **Total** | | **106** |
-
-Run all: `pytest tests/test_reviewer*.py tests/test_p1*.py tests/test_p2*.py -v`
+**Files:**
+- `multi_agent_system.py` - Router, agent handoffs, aggregator output
+- `test_literature_agent.py` - Test suite
 
 ---
 
-## State Field Additions
+## Part 3: Gemini Message Ordering Fixes
 
-Add to `MultiAgentState` TypedDict:
+**File:** `agent_sql_final_1212_patched.py` (lines ~11554-11640)
+
+**Problem:** `sanitize_messages_for_gemini()` was dropping ToolMessages as "orphaned" when searching backward for matching AIMessages stopped at HumanMessage boundaries.
+
+**Solution:** Two-pass sanitization approach:
 ```python
-# P0
-separation_retry_count: int  # Default 0
-reviewer_feedback: Dict[str, Any]  # ReviewerFeedback dict
-retry_params: Dict[str, Any]  # Temperature range, etc.
+# Pass 1: Collect all valid tool_call_ids from AIMessages
+valid_tool_call_ids = set()
+for msg in msgs:
+    if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls') and msg.tool_calls:
+        for tc in msg.tool_calls:
+            if tc.get('id'):
+                valid_tool_call_ids.add(tc.get('id'))
 
-# P1
-supervisor_decision: Dict[str, Any]  # SupervisorDecision dict
-parallel_execution: bool  # Whether parallel mode active
-parallel_results: Dict[str, Any]  # Results from parallel agents
+# Pass 2: Build sanitized list with bridge HumanMessages where needed
+```
+
+**Key changes:**
+- Remove early break on HumanMessage when searching for matching AIMessages
+- Insert bridge `HumanMessage("Continue.")` when AIMessage with tool_calls follows another AIMessage
+- Ensure messages end with user role for Gemini compatibility
+
+---
+
+## Part 4: Iteration Counter Fixes
+
+**File:** `multi_agent_system.py` (MultiAgentState, agent nodes)
+
+**Problem:** Handoff metrics were recorded on every iteration, not just the final pass.
+
+**Solution:** Added iteration counters to `MultiAgentState`:
+```python
+sep_iteration_count: int = 0
+tea_iteration_count: int = 0
+```
+
+Agent nodes now:
+- Return `dict` (not `Command`) when tools are pending
+- Only record handoff metrics on final pass
+- Have max iteration limits (10) to prevent infinite loops
+
+---
+
+## Integration Commands
+
+```bash
+# From another worktree
+git fetch origin
+git merge origin/multiagent-1
+
+# Or cherry-pick specific commits
+git cherry-pick f97a9be  # 3-way collaboration
+git cherry-pick 6a24b7f  # P0-P2 enhancements
+git cherry-pick 3aa75a2  # LangChain tools
+git cherry-pick e7f793f  # Integration fixes
 ```

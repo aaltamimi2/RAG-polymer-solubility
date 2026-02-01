@@ -929,6 +929,16 @@ class MultiAgentState(MessagesState):
     # Results from parallel specialists (aggregated)
     parallel_results: Dict[str, Any] = {}
 
+    # =========================================================
+    # Iteration Counters for Handoff Timing (prevents premature handoffs)
+    # =========================================================
+
+    # Iteration counter for separation agent (prevents infinite loops)
+    sep_iteration_count: int = 0
+
+    # Iteration counter for TEA agent
+    tea_iteration_count: int = 0
+
 
 # ============================================================
 # HELPER FUNCTIONS FOR CONTEXT EXTRACTION
@@ -1841,32 +1851,42 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
         except Exception as e:
             logger.warning(f"Could not create SeparationResult schema: {e}")
 
-        # Check if there are pending tool_calls - if so, don't validate yet
-        # Let the tools run first via the normal flow (conditional edges)
+        # Check if there are pending tool_calls
         result_messages = result.get("messages", [])
         has_pending_tools = False
         if result_messages:
             last_msg = result_messages[-1]
             if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
                 has_pending_tools = True
-                logger.info(f"Separation: {len(last_msg.tool_calls)} tool calls pending, deferring validation")
+
+        # Increment iteration counter and check for max iterations
+        sep_iter = state.get("sep_iteration_count", 0) + 1
+        max_sep_iter = 10  # Max iterations for separation agent
+
+        if sep_iter >= max_sep_iter:
+            logger.warning(f"Separation hit max iterations ({max_sep_iter}), forcing handoff")
+            has_pending_tools = False  # Force final pass
 
         # CRITICAL FIX: When tools are pending, return dict (NOT Command) to let
         # conditional edges route to tools. Command(goto=...) bypasses conditional edges!
         if has_pending_tools:
-            logger.info("Separation: Returning dict to allow tool routing (not Command)")
+            logger.info(f"Separation: {len(last_msg.tool_calls)} tool calls pending, returning dict (iter {sep_iter})")
             return {
                 **filter_result_for_collab(result),
-                "separation_results": separation_results,
+                "sep_iteration_count": sep_iter,
+                "separation_results": separation_results,  # Partial results
                 "agent_timings": {
                     **state.get("agent_timings", {}),
-                    "separation_pending": time.time(),
+                    "separation_iter": time.time(),
                 },
             }
 
-        # VALIDATION: Only check solvents on FINAL pass (no pending tools)
+        # FINAL PASS: Tools have completed, validate and handoff
+        logger.info(f"Separation: FINAL PASS (iter {sep_iter})")
         solvents_found = separation_results.get("solvents", [])
-        if not solvents_found and not has_pending_tools:
+
+        # VALIDATION: Check solvents on FINAL pass
+        if not solvents_found:
             logger.warning(f"Separation found no solvents on final pass - skipping TEA and going to aggregator")
 
             # Create handoff metrics for failed separation
@@ -2302,30 +2322,38 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
     result = await sql_agent_node(state_copy)
 
     if is_collaborative:
-        # CRITICAL FIX: Check if there are pending tool_calls - if so, return dict
-        # to let conditional edges route to TEA tools first (same fix as separation)
-        # BUT: Limit tool runs to prevent infinite loops (max 2 rounds = ~6 tool calls)
-        MAX_TEA_TOOL_RESULTS = 6
+        # Check if there are pending tool_calls
         result_messages = result.get("messages", [])
+        has_pending_tools = False
         if result_messages:
             last_msg = result_messages[-1]
             if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
-                # Check if we already have enough tool results - stop the loop
-                if len(tea_tool_messages) >= MAX_TEA_TOOL_RESULTS:
-                    logger.info(f"TEA: Reached max tool results ({len(tea_tool_messages)}), stopping tool loop")
-                    # Fall through to extraction instead of returning for more tools
-                    pass
-                else:
-                    # Still need more tool results
-                    logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict for tool routing")
-                    return {
-                        **filter_result_for_collab(result),
-                        "tea_results": {"status": "pending_tools"},
-                        "agent_timings": {
-                            **state.get("agent_timings", {}),
-                            "tea_pending": time.time(),
-                        },
-                    }
+                has_pending_tools = True
+
+        # Increment iteration counter and check for max iterations
+        tea_iter = state.get("tea_iteration_count", 0) + 1
+        max_tea_iter = 10  # Max iterations for TEA agent
+
+        if tea_iter >= max_tea_iter:
+            logger.warning(f"TEA hit max iterations ({max_tea_iter}), forcing handoff")
+            has_pending_tools = False  # Force final pass
+
+        # CRITICAL FIX: When tools are pending, return dict (NOT Command) to let
+        # conditional edges route to TEA tools first
+        if has_pending_tools:
+            logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict (iter {tea_iter})")
+            return {
+                **filter_result_for_collab(result),
+                "tea_iteration_count": tea_iter,
+                "tea_results": {"status": "pending_tools"},
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "tea_iter": time.time(),
+                },
+            }
+
+        # FINAL PASS: Tools have completed, extract and process results
+        logger.info(f"TEA: FINAL PASS (iter {tea_iter})")
 
         # Extract structured TEA results from ALL messages
         messages = result.get("messages", [])
