@@ -1111,6 +1111,19 @@ async def collab_separation_agent_node(state: MultiAgentState, sql_agent_node) -
                 has_pending_tools = True
                 logger.info(f"Separation: {len(last_msg.tool_calls)} tool calls pending, deferring validation")
 
+        # CRITICAL FIX: When tools are pending, return dict (NOT Command) to let
+        # conditional edges route to tools. Command(goto=...) bypasses conditional edges!
+        if has_pending_tools:
+            logger.info("Separation: Returning dict to allow tool routing (not Command)")
+            return {
+                **result,
+                "separation_results": separation_results,
+                "agent_timings": {
+                    **state.get("agent_timings", {}),
+                    "separation_pending": time.time(),
+                },
+            }
+
         # VALIDATION: Only check solvents on FINAL pass (no pending tools)
         solvents_found = separation_results.get("solvents", [])
         if not solvents_found and not has_pending_tools:
@@ -1249,16 +1262,81 @@ async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Comma
             )
 
         # P2: Use task's to_instruction() for consistent, minimal context
-        context_message = HumanMessage(content=tea_task.to_instruction())
-        # Append context to messages
-        messages = list(state_copy.get("messages", []))
-        messages.append(context_message)
-        state_copy["messages"] = messages
+        tea_instruction = tea_task.to_instruction()
+        context_message = HumanMessage(content=tea_instruction)
+
+        # Log what we're sending to TEA agent
+        logger.info(f"TEA Agent receiving instruction for solvents: {tea_task.solvents[:5]}")
+        logger.debug(f"TEA instruction: {tea_instruction[:200]}...")
+
+        # Check if there are TEA tool results already
+        current_messages = state.get("messages", [])
+        from langchain_core.messages import ToolMessage
+
+        # Find TEA-related ToolMessages by content markers
+        tea_tool_messages = [
+            msg for msg in current_messages
+            if isinstance(msg, ToolMessage) and
+               hasattr(msg, 'content') and isinstance(msg.content, str) and
+               any(marker in msg.content.lower() for marker in
+                   ['cost per kg polymer', 'capex', 'opex', 'payback', 'tea analysis',
+                    'solvent recovery', 'annual operating'])
+        ]
+
+        has_tea_tool_results = len(tea_tool_messages) > 0
+        logger.debug(f"TEA: {len(current_messages)} messages, {len(tea_tool_messages)} are TEA tool results")
+
+        if not has_tea_tool_results:
+            # First run: clean instruction only
+            state_copy["messages"] = [context_message]
+            logger.info("TEA: First run - using clean TEA instruction")
+        else:
+            # Subsequent run: Build a VALID message sequence for Gemini
+            # Structure: [HumanMessage(instruction + tool results summary)]
+            # This avoids the complex AIMessage/ToolMessage ordering issues
+            tool_results_summary = "\n\n".join([
+                f"**Tool Result:**\n{msg.content[:2000]}..."
+                if len(msg.content) > 2000 else f"**Tool Result:**\n{msg.content}"
+                for msg in tea_tool_messages[:5]
+            ])
+
+            combined_message = HumanMessage(content=f"""
+{tea_instruction}
+
+## Previous Tool Results (analyze these):
+
+{tool_results_summary}
+
+Based on the tool results above, extract and report:
+1. The cost per kg polymer for each solvent analyzed
+2. Which solvent is most cost-effective
+3. CAPEX and OPEX figures
+
+Do NOT call the tools again. Just analyze the results above and provide a summary.
+""")
+            state_copy["messages"] = [combined_message]
+            logger.info(f"TEA: Subsequent run - {len(tea_tool_messages)} tool results included in instruction")
 
     # Execute TEA agent
     result = await sql_agent_node(state_copy)
 
     if is_collaborative:
+        # CRITICAL FIX: Check if there are pending tool_calls - if so, return dict
+        # to let conditional edges route to TEA tools first (same fix as separation)
+        result_messages = result.get("messages", [])
+        if result_messages:
+            last_msg = result_messages[-1]
+            if hasattr(last_msg, 'tool_calls') and last_msg.tool_calls:
+                logger.info(f"TEA: {len(last_msg.tool_calls)} tool calls pending, returning dict for tool routing")
+                return {
+                    **result,
+                    "tea_results": {"status": "pending_tools"},
+                    "agent_timings": {
+                        **state.get("agent_timings", {}),
+                        "tea_pending": time.time(),
+                    },
+                }
+
         # Extract structured TEA results from ALL messages
         messages = result.get("messages", [])
         all_text = ""
@@ -1274,29 +1352,34 @@ async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Comma
 
         # Log tool outputs for debugging cost extraction issues
         if tool_outputs:
+            logger.info(f"TEA: Found {len(tool_outputs)} tool outputs")
             for i, output in enumerate(tool_outputs[:2]):  # Log first 2 tool outputs
                 sample = output[:500].replace('\n', ' ')
                 logger.info(f"TEA ToolMessage {i+1} ({len(output)} chars): {sample}...")
+        else:
+            logger.warning(f"TEA: No tool outputs found! LLM may not have called TEA tools.")
 
         tea_results = parse_tea_results(all_text)
         tea_results["solvents_analyzed"] = separation_results.get("solvents", []) if separation_results else []
 
         # Enhanced cost extraction with more patterns
         if not tea_results.get("cost_per_kg"):
-            # Comprehensive patterns for cost extraction
+            # Comprehensive patterns for cost extraction - ordered by specificity
             cost_patterns = [
+                # Most specific patterns first (from actual TEA tool output)
+                r'cost\s+per\s+kg\s+polymer[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
+                r'cost\s+per\s+kg[:\s]*\$?(\d+\.?\d*)',
                 # Standard patterns
                 r'msp[:\s]*\$?(\d+\.?\d*)',
-                r'cost[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
                 r'\$(\d+\.?\d*)\s*/\s*kg',
+                r'(\d+\.?\d*)\s*\$/kg',
                 # Processing cost patterns
                 r'processing\s+cost[:\s]*\$?(\d+\.?\d*)',
                 r'solvent\s+recovery\s+cost[:\s]*\$?(\d+\.?\d*)',
-                # Total cost patterns
+                # Generic cost patterns (less specific)
                 r'total\s+cost[:\s]*\$?(\d+\.?\d*)',
-                r'operating\s+cost[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
+                r'operating\s+cost[:\s]*\$?(\d+\.?\d*)',
                 # Per kg patterns with different formats
-                r'(\d+\.?\d*)\s*\$\s*/\s*kg',
                 r'(\d+\.?\d*)\s*usd\s*/\s*kg',
                 r'(\d+\.?\d*)\s*per\s+kg',
             ]
@@ -1305,9 +1388,9 @@ async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Comma
                 if match:
                     try:
                         cost = float(match.group(1))
-                        if 0.01 < cost < 1000:  # Wider sanity range
+                        if 0.001 < cost < 1000:  # Wider range for small costs like $0.01/kg
                             tea_results["cost_per_kg"] = cost
-                            logger.info(f"TEA cost extracted: ${cost}/kg (pattern: {pattern[:30]}...)")
+                            logger.info(f"TEA cost extracted: ${cost}/kg (pattern: {pattern[:40]}...)")
                             break
                     except ValueError:
                         pass
@@ -1315,9 +1398,9 @@ async def collab_tea_agent_node(state: MultiAgentState, sql_agent_node) -> Comma
         # Log if no cost found after all attempts
         if not tea_results.get("cost_per_kg"):
             logger.warning(f"TEA: No cost_per_kg extracted from {len(all_text)} chars of output")
-            # Log a sample of the text for debugging
-            sample = all_text[:300].replace('\n', ' ')
-            logger.debug(f"TEA output sample: {sample}...")
+            # Log more of the text for debugging
+            sample = all_text[:500].replace('\n', ' ')
+            logger.warning(f"TEA output sample: {sample}...")
 
         logger.info(f"TEA Agent (collab): cost_per_kg={tea_results.get('cost_per_kg')}, "
                    f"payback={tea_results.get('payback_years')}")
