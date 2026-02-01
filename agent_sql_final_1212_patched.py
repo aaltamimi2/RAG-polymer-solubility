@@ -11552,77 +11552,88 @@ async def sql_agent_node(state: AgentState):
         messages = messages[-MAX_MESSAGE_HISTORY:]
     
     # GEMINI FIX: Sanitize message history to ensure proper ordering
-    # Gemini requires function calls to come after user/function response turns
+    # Gemini requires: User → AI (with tool_calls) → ToolMessages → AI/User...
     def sanitize_messages_for_gemini(msgs):
         """
-        Ensure message history follows Gemini's required ordering:
-        - Function calls must come immediately after user turn or function response
-        - Remove orphaned tool messages without matching AI tool calls
+        Ensure message history follows Gemini's required ordering.
+        Uses a two-pass approach:
+        1. First pass: collect valid tool_call_ids from all AIMessages
+        2. Second pass: build sanitized list with proper ordering
         """
         if not msgs:
             return msgs
-        
+
+        # Pass 1: Collect all valid tool_call_ids from AIMessages
+        valid_tool_call_ids = set()
+        for msg in msgs:
+            if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls') and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    if tc.get('id'):
+                        valid_tool_call_ids.add(tc.get('id'))
+
+        # Pass 2: Build sanitized list
         sanitized = []
-        i = 0
-        
-        while i < len(msgs):
-            msg = msgs[i]
-            
-            # Always include HumanMessage
+
+        for msg in msgs:
+            # HumanMessage: Always include
             if isinstance(msg, HumanMessage):
                 sanitized.append(msg)
-                i += 1
                 continue
-            
-            # For AIMessage with tool_calls, ensure it follows user or tool response
+
+            # AIMessage with tool_calls
             if isinstance(msg, AIMessage):
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
-                    # Check what came before
-                    if sanitized:
+                    # Need to ensure it follows HumanMessage or ToolMessage
+                    if not sanitized:
+                        # First message - insert a context-setting HumanMessage
+                        sanitized.append(HumanMessage(content="Analyze the following request."))
+                        sanitized.append(msg)
+                    else:
                         last = sanitized[-1]
-                        # Valid: after HumanMessage or ToolMessage
                         if isinstance(last, (HumanMessage, ToolMessage)):
+                            # Valid position
+                            sanitized.append(msg)
+                        elif isinstance(last, AIMessage):
+                            # AI followed by AI with tools - insert bridge HumanMessage
+                            sanitized.append(HumanMessage(content="Continue."))
                             sanitized.append(msg)
                         else:
-                            # Invalid position - skip or add placeholder
-                            logger.warning("Skipping AI tool call in invalid position")
-                    else:
-                        # First message shouldn't be a tool call
-                        logger.warning("Skipping AI tool call as first message")
+                            sanitized.append(msg)
                 else:
-                    # Regular AI message without tool calls - always ok
+                    # Regular AI message without tool_calls - always ok
                     sanitized.append(msg)
-                i += 1
                 continue
-            
-            # For ToolMessage, ensure matching AI message with tool_calls exists before it
+
+            # ToolMessage: Only include if matching tool_call_id exists
             if isinstance(msg, ToolMessage):
-                # Check if we have a preceding AI message with matching tool call
-                has_matching_ai = False
-                for prev in reversed(sanitized):
-                    if isinstance(prev, AIMessage) and hasattr(prev, 'tool_calls') and prev.tool_calls:
-                        # Check if tool_call_id matches
-                        for tc in prev.tool_calls:
-                            if tc.get('id') == msg.tool_call_id:
-                                has_matching_ai = True
+                if msg.tool_call_id in valid_tool_call_ids:
+                    # Ensure there's a preceding AIMessage with tool_calls
+                    # Find the matching AIMessage in sanitized
+                    has_matching = False
+                    for prev in reversed(sanitized):
+                        if isinstance(prev, AIMessage) and hasattr(prev, 'tool_calls') and prev.tool_calls:
+                            for tc in prev.tool_calls:
+                                if tc.get('id') == msg.tool_call_id:
+                                    has_matching = True
+                                    break
+                            if has_matching:
                                 break
-                        if has_matching_ai:
-                            break
-                    elif isinstance(prev, HumanMessage):
-                        # Hit a human message without finding matching AI - orphaned tool response
-                        break
-                
-                if has_matching_ai:
-                    sanitized.append(msg)
-                else:
-                    logger.warning(f"Skipping orphaned ToolMessage: {msg.tool_call_id}")
-                i += 1
+
+                    if has_matching:
+                        sanitized.append(msg)
+                    # If no matching AIMessage in sanitized yet, skip (it was filtered earlier)
                 continue
-            
+
             # Other message types - include
             sanitized.append(msg)
-            i += 1
-        
+
+        # Final fix: Ensure messages end with user role
+        if sanitized and isinstance(sanitized[-1], AIMessage):
+            last_ai = sanitized[-1]
+            if not (hasattr(last_ai, 'tool_calls') and last_ai.tool_calls):
+                # Regular AI response at end - add continuation
+                sanitized.append(HumanMessage(content="Continue with the analysis."))
+
         return sanitized
     
     # Apply sanitization
