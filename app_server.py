@@ -35,6 +35,10 @@ from session_manager import session_manager
 # Memory Engine
 from memory_engine import get_memory_engine, UserProfile
 
+# Monitoring and Visualization
+from monitoring import trace_collector, event_store, get_metrics_summary
+from monitoring.models import TraceQuery, TraceListResponse, PathType
+
 # FastAPI and related
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -386,6 +390,18 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                     assistant_response=content
                 )
             )
+
+            # Store execution trace asynchronously (non-blocking)
+            execution_trace = result.get("execution_trace")
+            if execution_trace:
+                asyncio.create_task(
+                    trace_collector.store_async(
+                        execution_trace=execution_trace,
+                        session_id=session.session_id,
+                        query=message,
+                        result=result
+                    )
+                )
 
             return {
                 "response": content,
@@ -929,6 +945,307 @@ async def api_clear_plots():
         return {"success": True, "message": "All plots cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
+# Trace and Metrics API Endpoints
+# ============================================================
+
+@app.get("/api/traces")
+async def api_list_traces(
+    limit: int = 50,
+    offset: int = 0,
+    session_id: Optional[str] = None,
+    path: Optional[str] = None,
+    min_complexity: Optional[int] = None,
+    max_complexity: Optional[int] = None,
+    success_only: bool = False,
+):
+    """
+    List recent execution traces with optional filtering.
+
+    Query parameters:
+    - limit: Max traces to return (1-500, default 50)
+    - offset: Pagination offset
+    - session_id: Filter by session
+    - path: Filter by path type (fast, standard, specialist, integrated)
+    - min_complexity: Minimum complexity score (1-5)
+    - max_complexity: Maximum complexity score (1-5)
+    - success_only: Only return successful traces
+    """
+    try:
+        # Build query
+        path_filter = None
+        if path:
+            try:
+                path_filter = PathType(path.lower())
+            except ValueError:
+                pass
+
+        query = TraceQuery(
+            limit=min(max(limit, 1), 500),
+            offset=max(offset, 0),
+            session_id=session_id,
+            path=path_filter,
+            min_complexity=min_complexity,
+            max_complexity=max_complexity,
+            success_only=success_only,
+        )
+
+        # Query traces
+        traces = event_store.query(query)
+        total = event_store.count_active()
+
+        return {
+            "traces": [t.model_dump() for t in traces],
+            "total": total,
+            "limit": query.limit,
+            "offset": query.offset,
+            "has_more": query.offset + len(traces) < total,
+        }
+
+    except Exception as e:
+        logger.error(f"Error listing traces: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/traces/{trace_id}")
+async def api_get_trace(trace_id: str):
+    """
+    Get detailed information for a specific trace.
+
+    Path parameters:
+    - trace_id: The unique trace identifier
+    """
+    trace = event_store.get(trace_id)
+
+    if not trace:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Trace {trace_id} not found or expired"
+        )
+
+    return trace.model_dump()
+
+
+@app.get("/api/traces/{trace_id}/graph")
+async def api_get_trace_graph(
+    trace_id: str,
+    format: str = "svg",
+):
+    """
+    Get workflow graph visualization for a trace.
+
+    Path parameters:
+    - trace_id: The unique trace identifier
+
+    Query parameters:
+    - format: Output format (svg, png, pdf). Default: svg
+    """
+    trace = event_store.get(trace_id)
+
+    if not trace:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Trace {trace_id} not found or expired"
+        )
+
+    try:
+        from visualization import render_workflow_graph
+
+        # Validate format
+        format = format.lower()
+        if format not in ("svg", "png", "pdf"):
+            format = "svg"
+
+        # Render graph
+        image_data = render_workflow_graph(
+            trace=trace.model_dump(),
+            format=format,
+            show_legend=True,
+        )
+
+        # Set content type
+        content_types = {
+            "svg": "image/svg+xml",
+            "png": "image/png",
+            "pdf": "application/pdf",
+        }
+
+        from fastapi.responses import Response
+        return Response(
+            content=image_data,
+            media_type=content_types[format],
+            headers={
+                "Content-Disposition": f"inline; filename=workflow_{trace_id}.{format}"
+            }
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=501,
+            detail="Visualization dependencies not installed. Install networkx and matplotlib."
+        )
+    except Exception as e:
+        logger.error(f"Error generating graph for trace {trace_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/traces/{trace_id}/timeline")
+async def api_get_trace_timeline(
+    trace_id: str,
+    format: str = "svg",
+):
+    """
+    Get timeline/Gantt chart visualization for a trace.
+
+    Path parameters:
+    - trace_id: The unique trace identifier
+
+    Query parameters:
+    - format: Output format (svg, png, pdf). Default: svg
+    """
+    trace = event_store.get(trace_id)
+
+    if not trace:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Trace {trace_id} not found or expired"
+        )
+
+    try:
+        from visualization import render_timeline
+
+        # Validate format
+        format = format.lower()
+        if format not in ("svg", "png", "pdf"):
+            format = "svg"
+
+        # Render timeline
+        image_data = render_timeline(
+            trace=trace.model_dump(),
+            format=format,
+            show_legend=True,
+        )
+
+        # Set content type
+        content_types = {
+            "svg": "image/svg+xml",
+            "png": "image/png",
+            "pdf": "application/pdf",
+        }
+
+        from fastapi.responses import Response
+        return Response(
+            content=image_data,
+            media_type=content_types[format],
+            headers={
+                "Content-Disposition": f"inline; filename=timeline_{trace_id}.{format}"
+            }
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=501,
+            detail="Visualization dependencies not installed. Install matplotlib."
+        )
+    except Exception as e:
+        logger.error(f"Error generating timeline for trace {trace_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/traces/{trace_id}/routing")
+async def api_get_trace_routing(
+    trace_id: str,
+    format: str = "svg",
+):
+    """
+    Get routing decision visualization for a trace.
+
+    Path parameters:
+    - trace_id: The unique trace identifier
+
+    Query parameters:
+    - format: Output format (svg, png, pdf). Default: svg
+    """
+    trace = event_store.get(trace_id)
+
+    if not trace:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Trace {trace_id} not found or expired"
+        )
+
+    try:
+        from visualization import render_routing_decision
+
+        # Validate format
+        format = format.lower()
+        if format not in ("svg", "png", "pdf"):
+            format = "svg"
+
+        # Render routing
+        image_data = render_routing_decision(
+            trace=trace.model_dump(),
+            format=format,
+        )
+
+        # Set content type
+        content_types = {
+            "svg": "image/svg+xml",
+            "png": "image/png",
+            "pdf": "application/pdf",
+        }
+
+        from fastapi.responses import Response
+        return Response(
+            content=image_data,
+            media_type=content_types[format],
+            headers={
+                "Content-Disposition": f"inline; filename=routing_{trace_id}.{format}"
+            }
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=501,
+            detail="Visualization dependencies not installed. Install matplotlib."
+        )
+    except Exception as e:
+        logger.error(f"Error generating routing for trace {trace_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/metrics/summary")
+async def api_get_metrics_summary():
+    """
+    Get aggregated metrics summary for all stored traces.
+
+    Returns statistics including:
+    - Total and active trace counts
+    - Success rates (overall and by specialist)
+    - Duration percentiles (p50, p95, p99)
+    - Path and complexity distributions
+    - Agent usage statistics
+    """
+    try:
+        summary = get_metrics_summary()
+        return summary.model_dump()
+
+    except Exception as e:
+        logger.error(f"Error computing metrics summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/traces")
+async def api_clear_traces():
+    """Clear all stored traces (admin operation)."""
+    try:
+        event_store.clear()
+        return {"success": True, "message": "All traces cleared"}
+    except Exception as e:
+        logger.error(f"Error clearing traces: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.post("/api/report-issue", response_model=IssueReportResponse)
 async def api_report_issue(request: IssueReportRequest):
