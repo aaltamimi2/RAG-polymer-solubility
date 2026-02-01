@@ -78,6 +78,12 @@ class ChatResponse(BaseModel):
     images: List[str] = []
     elapsed_time: float
     iterations: int
+    # Multi-agent metadata
+    multi_agent: bool = False
+    complexity: int = 0
+    path: str = "standard"
+    specialist: Optional[str] = None
+    routing_reason: str = ""
 
 class SystemStatus(BaseModel):
     status: str
@@ -169,6 +175,9 @@ class MemoryDeleteResponse(BaseModel):
 _agent_loaded = False
 _sql_db = None
 _agent_graph = None
+_multi_agent_graph = None  # Multi-agent system
+_get_routing_info = None   # Routing info function
+_MULTI_AGENT_AVAILABLE = False
 _create_thread_id = None
 _SQL_AGENT_TOOLS = None
 _HumanMessage = None
@@ -176,7 +185,8 @@ _MAX_ITERATIONS = 15
 
 def load_agent():
     """Load agent components from the main module."""
-    global _agent_loaded, _sql_db, _agent_graph, _create_thread_id, _SQL_AGENT_TOOLS, _HumanMessage, _MAX_ITERATIONS
+    global _agent_loaded, _sql_db, _agent_graph, _multi_agent_graph, _get_routing_info, _MULTI_AGENT_AVAILABLE
+    global _create_thread_id, _SQL_AGENT_TOOLS, _HumanMessage, _MAX_ITERATIONS
     
     if _agent_loaded:
         return True
@@ -232,19 +242,30 @@ def load_agent():
         _create_thread_id = getattr(agent_module, 'create_thread_id', None)
         _SQL_AGENT_TOOLS = getattr(agent_module, 'SQL_AGENT_TOOLS', [])
         _MAX_ITERATIONS = getattr(agent_module, 'MAX_ITERATIONS', 15)
-        
+
+        # Multi-agent components
+        _multi_agent_graph = getattr(agent_module, 'multi_agent_graph', None)
+        _get_routing_info = getattr(agent_module, 'get_routing_info', None)
+        _MULTI_AGENT_AVAILABLE = getattr(agent_module, 'MULTI_AGENT_AVAILABLE', False)
+
         # Import HumanMessage
         from langchain_core.messages import HumanMessage
         _HumanMessage = HumanMessage
-        
+
         _agent_loaded = True
-        
+
         tables = list(_sql_db.table_schemas.keys()) if _sql_db else []
         tools = len(_SQL_AGENT_TOOLS) if _SQL_AGENT_TOOLS else 0
-        
+
         logger.info(f"✅ Agent loaded successfully!")
         logger.info(f"   Tables: {tables}")
         logger.info(f"   Tools: {tools}")
+
+        # Log multi-agent status
+        if _MULTI_AGENT_AVAILABLE:
+            logger.info(f"   🤖 Multi-agent system: ENABLED")
+        else:
+            logger.info(f"   Multi-agent system: disabled")
         
         return True
         
@@ -289,6 +310,15 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
             memory_context_str = memory_context.to_context_string() if not memory_context.is_empty() else ""
             logger.info(f"Memory user_id: {user_id}, context length: {len(memory_context_str)}")
 
+            # Get routing info for multi-agent metadata
+            routing_info = {"complexity": 3, "path": "standard", "specialist": None, "reason": "", "multi_agent_active": False}
+            if _MULTI_AGENT_AVAILABLE and _get_routing_info:
+                routing_info = _get_routing_info(message)
+                logger.info(f"Routing: complexity={routing_info['complexity']}, path={routing_info['path']}, specialist={routing_info.get('specialist')}")
+
+            # Choose graph based on multi-agent availability
+            active_graph = _multi_agent_graph if (_MULTI_AGENT_AVAILABLE and _multi_agent_graph) else _agent_graph
+
             # Async agent invocation with increased recursion limit and model selection
             config_with_limit = {
                 **session.config,
@@ -299,7 +329,7 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                 }
             }
 
-            result = await _agent_graph.ainvoke(
+            result = await active_graph.ainvoke(
                 {
                     "messages": [_HumanMessage(content=message)],
                     "iteration_count": 0,
@@ -392,7 +422,13 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                 "session_id": session.session_id,
                 "images": [os.path.basename(p) for p in new_plots],
                 "elapsed_time": elapsed,
-                "iterations": iterations
+                "iterations": iterations,
+                # Multi-agent metadata
+                "multi_agent": routing_info.get("multi_agent_active", False),
+                "complexity": routing_info.get("complexity", 3),
+                "path": routing_info.get("path", "standard"),
+                "specialist": routing_info.get("specialist"),
+                "routing_reason": routing_info.get("reason", "")
             }
 
         except Exception as e:
@@ -403,7 +439,12 @@ async def chat_with_agent(message: str, session_id: Optional[str] = None, model:
                 "session_id": session.session_id,
                 "images": [],
                 "elapsed_time": elapsed,
-                "iterations": 0
+                "iterations": 0,
+                "multi_agent": False,
+                "complexity": 0,
+                "path": "error",
+                "specialist": None,
+                "routing_reason": str(e)[:100]
             }
 
 def get_system_status() -> dict:
@@ -635,6 +676,83 @@ async def api_chat(request: ChatRequest):
         request.memory_user_id  # Pass persistent user ID for memory
     )
     return result
+
+
+class RoutingInfoRequest(BaseModel):
+    query: str
+
+
+class RoutingInfoResponse(BaseModel):
+    complexity: int
+    path: str
+    specialist: Optional[str]
+    reason: str
+    multi_agent_active: bool
+    multi_agent_available: bool
+
+
+@app.post("/api/routing-info")
+async def api_routing_info(request: RoutingInfoRequest):
+    """
+    Get routing information for a query without executing it.
+
+    Useful for frontend to show which agent path will be taken.
+
+    Returns:
+        complexity: 1-5 score
+        path: "fast", "standard", or "specialist"
+        specialist: "separation", "tea_lca", "literature", or None
+        reason: Brief explanation of routing decision
+        multi_agent_active: Whether a specialist agent will be used
+        multi_agent_available: Whether multi-agent system is available
+    """
+    if not load_agent():
+        return RoutingInfoResponse(
+            complexity=3,
+            path="standard",
+            specialist=None,
+            reason="Agent not loaded",
+            multi_agent_active=False,
+            multi_agent_available=False
+        )
+
+    if _MULTI_AGENT_AVAILABLE and _get_routing_info:
+        info = _get_routing_info(request.query)
+        return RoutingInfoResponse(
+            complexity=info.get("complexity", 3),
+            path=info.get("path", "standard"),
+            specialist=info.get("specialist"),
+            reason=info.get("reason", ""),
+            multi_agent_active=info.get("multi_agent_active", False),
+            multi_agent_available=True
+        )
+    else:
+        return RoutingInfoResponse(
+            complexity=3,
+            path="standard",
+            specialist=None,
+            reason="Multi-agent system not available",
+            multi_agent_active=False,
+            multi_agent_available=False
+        )
+
+
+@app.get("/api/multi-agent-status")
+async def api_multi_agent_status():
+    """Get multi-agent system status."""
+    if not load_agent():
+        return {
+            "available": False,
+            "reason": "Agent not loaded"
+        }
+
+    return {
+        "available": _MULTI_AGENT_AVAILABLE,
+        "paths": ["fast", "standard", "specialist"] if _MULTI_AGENT_AVAILABLE else ["standard"],
+        "specialists": ["separation", "tea_lca", "literature"] if _MULTI_AGENT_AVAILABLE else [],
+        "description": "Hybrid router with specialist agents for complex queries" if _MULTI_AGENT_AVAILABLE else "Single agent mode"
+    }
+
 
 @app.post("/api/evaluate-complexity")
 async def api_evaluate_complexity(request: ComplexityRequest):
