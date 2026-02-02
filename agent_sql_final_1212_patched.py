@@ -4138,6 +4138,114 @@ async def plan_sequential_separation(
             logger.error(f"Decision tree error: {e}", exc_info=True)
             output.append(f"⚠️ Could not create visualization: {e}")
 
+        # Generate TOP-K COMPARISON visualization (side-by-side)
+        if len(sequence_scores) >= 2:
+            try:
+                top_k = min(3, len(sequence_scores))  # Compare top 3
+                fig, ax = plt.subplots(figsize=(5 * top_k, 8), dpi=150)
+
+                ax.set_title(
+                    f'TOP {top_k} SEPARATION SEQUENCES COMPARISON\n' +
+                    f'Temperature: {temperature}°C | Polymers: {", ".join(polymer_list)}',
+                    fontsize=16, fontweight='bold', pad=20
+                )
+
+                ax.set_xlim(0, top_k * 5)
+                n_steps = len(polymer_list) - 1
+                ax.set_ylim(-1, n_steps + 2)
+                ax.axis('off')
+
+                # Column width for each sequence
+                col_width = 5
+
+                for col_idx, seq_data in enumerate(sequence_scores[:top_k]):
+                    x_offset = col_idx * col_width
+                    seq = seq_data["sequence"]
+                    min_sel = seq_data["min_selectivity"]
+                    seq_steps = seq_data["steps"]
+
+                    # Rank header
+                    medal = "🥇" if col_idx == 0 else "🥈" if col_idx == 1 else "🥉"
+                    header_color = '#2ecc71' if col_idx == 0 else '#95a5a6'
+                    ax.add_patch(plt.Rectangle((x_offset + 0.2, n_steps + 1), col_width - 0.4, 0.8,
+                                              facecolor=header_color, edgecolor='black', linewidth=2))
+                    ax.text(x_offset + col_width/2, n_steps + 1.4, f'{medal} Rank #{col_idx + 1}',
+                           ha='center', va='center', fontsize=14, fontweight='bold', color='white')
+
+                    # Sequence order
+                    ax.text(x_offset + col_width/2, n_steps + 0.6, ' → '.join(seq),
+                           ha='center', va='center', fontsize=10, fontweight='bold',
+                           bbox=dict(boxstyle='round', facecolor='white', edgecolor='gray'))
+
+                    # Each step
+                    for step_idx, step in enumerate(seq_steps):
+                        y_pos = n_steps - step_idx - 0.5
+                        target = step.get("target", "?")
+                        solvents_list = step.get("solvents", [])
+                        if solvents_list and isinstance(solvents_list, list):
+                            best_sol = solvents_list[0]
+                            solvent = best_sol.get("solvent", "N/A")
+                            selectivity = best_sol.get("selectivity", 0)
+                        else:
+                            solvent = "N/A"
+                            selectivity = 0
+
+                        # Color by selectivity
+                        if selectivity > 30:
+                            color = '#2ecc71'
+                        elif selectivity > 10:
+                            color = '#f1c40f'
+                        elif selectivity > 0:
+                            color = '#e67e22'
+                        else:
+                            color = '#e74c3c'
+
+                        # Step box
+                        ax.add_patch(plt.Rectangle((x_offset + 0.3, y_pos - 0.35), col_width - 0.6, 0.7,
+                                                  facecolor=color, edgecolor='black', linewidth=1.5, alpha=0.3))
+
+                        # Step number circle
+                        ax.add_patch(plt.Circle((x_offset + 0.7, y_pos), 0.2, facecolor=color, edgecolor='black'))
+                        ax.text(x_offset + 0.7, y_pos, str(step_idx + 1), ha='center', va='center',
+                               fontsize=10, fontweight='bold', color='white')
+
+                        # Target polymer
+                        ax.text(x_offset + 1.1, y_pos + 0.15, f'{target}',
+                               ha='left', va='center', fontsize=12, fontweight='bold')
+
+                        # Solvent + selectivity
+                        ax.text(x_offset + 1.1, y_pos - 0.15, f'{solvent} ({selectivity:.1f}%)',
+                               ha='left', va='center', fontsize=9, color='#34495e')
+
+                    # Min selectivity summary at bottom
+                    summary_color = '#2ecc71' if min_sel > 10 else '#f39c12' if min_sel > 0 else '#e74c3c'
+                    ax.add_patch(plt.Rectangle((x_offset + 0.3, -0.8), col_width - 0.6, 0.5,
+                                              facecolor=summary_color, edgecolor='black', linewidth=2))
+                    ax.text(x_offset + col_width/2, -0.55, f'Min Sel: {min_sel:.1f}%',
+                           ha='center', va='center', fontsize=11, fontweight='bold', color='white')
+
+                # Legend
+                legend_elements = [
+                    plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#2ecc71',
+                              markersize=12, markeredgecolor='black', label='Excellent (>30%)'),
+                    plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#f1c40f',
+                              markersize=12, markeredgecolor='black', label='Good (10-30%)'),
+                    plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#e67e22',
+                              markersize=12, markeredgecolor='black', label='Marginal (0-10%)'),
+                    plt.Line2D([0], [0], marker='s', color='w', markerfacecolor='#e74c3c',
+                              markersize=12, markeredgecolor='black', label='Poor (<0%)'),
+                ]
+                ax.legend(handles=legend_elements, loc='lower right', fontsize=9,
+                         frameon=True, fancybox=True, title='Selectivity', title_fontsize=10)
+
+                plt.tight_layout()
+                filepath = save_plot(fig, "separation_topk_comparison")
+                plt.close(fig)
+                output.append(f"\n📊 **Top-K Comparison**: {get_plot_url(filepath)}")
+
+            except Exception as e:
+                logger.error(f"Top-K comparison visualization error: {e}", exc_info=True)
+
     # Summary recommendations
     output.append("\n## Recommendations\n")
     if sequence_scores and sequence_scores[0]["min_selectivity"] > 10:
