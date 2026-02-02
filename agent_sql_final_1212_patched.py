@@ -7659,10 +7659,10 @@ async def analyze_solvent_recovery_tea(
         "throughput_kg_hr": polymer_throughput_kg_hr,
         "recovery_rate": recovery_fraction,
         "temperature": process_temp_c,
-        "cost_per_kg": economics.get('cost_per_kg_polymer'),
+        "cost_per_kg": economics.get('cost_per_kg_polymer_usd'),
         "total_capex": capital.get('total_capex'),
         "annual_opex": operating.get('total_annual'),
-        "payback_years": economics.get('payback_years'),
+        "payback_years": economics.get('simple_payback_years'),
         "cost_breakdown": {
             "energy": operating.get('energy_cost_annual', 0),
             "labor": operating.get('labor_cost_annual', 0),
