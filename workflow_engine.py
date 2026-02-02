@@ -686,10 +686,12 @@ class WorkflowEngine:
                         "algorithm_used": data.get("algorithm_used"),
                         "steps": steps,  # Include full step details
                         "solvent_mapping": solvent_mapping,  # Pre-computed polymer→solvent mapping
+                        "top_k_sequences": data.get("top_k_sequences", []),  # For TEA comparison
+                        "total_sequences_evaluated": data.get("total_sequences_evaluated", 1),
                         "tool_output": parsed.get("display", content),
                     }
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"    JSON parse failed for separation: {e} (content len={len(content)})")
 
         return None
 
@@ -850,18 +852,48 @@ class WorkflowEngine:
                     sep_results = state.get("separation_results")
                     if sep_results and agent_name == "tea_lca":
                         sequence = sep_results.get("best_sequence", [])
-                        # Use pre-computed solvent mapping from extraction (built from steps)
-                        solvent_mapping = sep_results.get("solvent_mapping", {})
+                        top_k_sequences = sep_results.get("top_k_sequences", [])
+                        polymers = sep_results.get("polymers", [])
 
-                        if solvent_mapping:
-                            mapping_str = ", ".join([f"'{p}': '{s}'" for p, s in solvent_mapping.items()])
+                        # If we have multiple sequences, build scenario configs for comparison
+                        if len(top_k_sequences) > 1:
+                            scenarios_json = []
+                            for seq_info in top_k_sequences:
+                                rank = seq_info.get("rank", 1)
+                                seq = seq_info.get("sequence", [])
+                                solvent_map = seq_info.get("solvent_mapping", {})
+                                min_sel = seq_info.get("min_selectivity", 0)
+                                scenarios_json.append({
+                                    "name": f"Seq{rank}: {' → '.join(seq)} (sel={min_sel:.1f}%)",
+                                    "polymers": polymers,
+                                    "recovery_solvents": solvent_map,
+                                })
+
+                            import json
+                            scenarios_str = json.dumps(scenarios_json, indent=2)
                             context_parts.append(
-                                f"\n\nSEPARATION RESULTS (use these solvents for TEA):\n"
-                                f"- Separation sequence: {' → '.join(sequence) if sequence else 'N/A'}\n"
-                                f"- Solvents by polymer: {solvent_mapping}\n"
-                                f"- Call analyze_strap_process with recovery_solvents={{{mapping_str}}}"
+                                f"\n\nSEPARATION RESULTS - TOP {len(top_k_sequences)} SEQUENCES TO COMPARE:\n"
+                                f"The separation specialist found {len(top_k_sequences)} candidate sequences.\n"
+                                f"Use compare_strap_scenarios to analyze and compare their economics:\n\n"
+                                f"scenario_configs = {scenarios_str}\n\n"
+                                f"Call compare_strap_scenarios(scenario_configs=scenario_configs) to compare TEA/LCA."
                             )
-                            logger.info(f"  [{agent_name}] Injected separation context: {solvent_mapping}")
+                            # Debug: show solvent mappings
+                            for sc in scenarios_json:
+                                logger.info(f"  [{agent_name}] Scenario '{sc['name']}' solvents: {sc['recovery_solvents']}")
+                            logger.info(f"  [{agent_name}] Injected {len(top_k_sequences)} sequences for comparison")
+                        else:
+                            # Single sequence - use direct analysis
+                            solvent_mapping = sep_results.get("solvent_mapping", {})
+                            if solvent_mapping:
+                                mapping_str = ", ".join([f"'{p}': '{s}'" for p, s in solvent_mapping.items()])
+                                context_parts.append(
+                                    f"\n\nSEPARATION RESULTS (use these solvents for TEA):\n"
+                                    f"- Separation sequence: {' → '.join(sequence) if sequence else 'N/A'}\n"
+                                    f"- Solvents by polymer: {solvent_mapping}\n"
+                                    f"- Call analyze_strap_process with recovery_solvents={{{mapping_str}}}"
+                                )
+                                logger.info(f"  [{agent_name}] Injected separation context: {solvent_mapping}")
 
                     context_parts.append(f"\n\nOriginal request: {original_query}")
 
@@ -990,7 +1022,8 @@ class WorkflowEngine:
                     sep_results = self._extract_separation_from_messages(messages)
                     if sep_results:
                         results["separation_results"] = sep_results
-                        logger.info(f"  [{agent_name}] Extracted separation_results with {len(sep_results.get('solvents', []))} solvents")
+                        top_k = sep_results.get("top_k_sequences", [])
+                        logger.info(f"  [{agent_name}] Extracted separation_results with {len(sep_results.get('solvents', []))} solvents, {len(top_k)} top-k sequences")
 
                 if not results.get("tea_results") and agent_name == "tea_lca":
                     tea_extracted = self._extract_tea_from_messages(messages)
@@ -1795,8 +1828,9 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             task_prompt=(
                 "You are the TEA/LCA SPECIALIST. Your task is to perform economic and environmental analysis.\n"
                 "Focus ONLY on techno-economic analysis (TEA) and lifecycle assessment (LCA).\n"
-                "IMPORTANT: If separation results are provided above, use the analyze_strap_process tool with\n"
-                "the recovery_solvents parameter to analyze those SPECIFIC solvents (e.g., recovery_solvents={'PS': 'propanone'}).\n"
+                "IMPORTANT: If MULTIPLE separation sequences are provided above, use compare_strap_scenarios\n"
+                "with the scenario_configs to compare economics between all candidate sequences.\n"
+                "If only ONE sequence is provided, use analyze_strap_process with recovery_solvents parameter.\n"
                 "Also use generate_lca_visualizations for LCA charts."
             ),
         ),

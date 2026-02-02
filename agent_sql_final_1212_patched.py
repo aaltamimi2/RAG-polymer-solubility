@@ -2140,7 +2140,7 @@ def analyze_selective_solubility_enhanced(
 
     # Return structured JSON
     import json
-    return json.dumps({"display": display, "data": structured_data})
+    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
 # ============================================================
@@ -3666,6 +3666,17 @@ async def _greedy_separation_planning(
     valid_steps = [s for s in steps if s['selectivity'] > -900]
     solvents_used = list(set(s['solvent'] for s in valid_steps if s['solvent'] != 'N/A'))
 
+    # Build solvent mapping from steps
+    solvent_mapping = {s['target']: s['solvent'] for s in valid_steps if s['solvent'] != 'N/A'}
+
+    # Top-k sequences (greedy only produces rank 1)
+    top_k_sequences = [{
+        "rank": 1,
+        "sequence": sequence,
+        "min_selectivity": min(s['selectivity'] for s in valid_steps) if valid_steps else 0,
+        "solvent_mapping": solvent_mapping,
+    }]
+
     structured_data = {
         "tool_name": "plan_sequential_separation",
         "success": True,
@@ -3686,11 +3697,13 @@ async def _greedy_separation_planning(
         "min_selectivity": min(s['selectivity'] for s in valid_steps) if valid_steps else None,
         "max_selectivity": max(s['selectivity'] for s in valid_steps) if valid_steps else None,
         "coverage_complete": len(sequence) == len(polymer_list),
+        "top_k_sequences": top_k_sequences,  # For TEA comparison
+        "total_sequences_evaluated": 1,  # Greedy only evaluates one path
     }
 
     # Return structured JSON
     import json
-    return json.dumps({"display": display, "data": structured_data})
+    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
 # ============================================================
@@ -3745,9 +3758,9 @@ async def plan_sequential_separation(
     if n_polymers < 2:
         return "Error: Need at least 2 polymers for separation planning."
 
-    # For >3 polymers, use greedy algorithm instead of exhaustive search
-    # (4! = 24 permutations is manageable, but 5! = 120 and 6! = 720 are too slow)
-    USE_GREEDY = n_polymers > 3
+    # For >4 polymers, use greedy algorithm instead of exhaustive search
+    # (4! = 24 permutations is manageable, 5! = 120 gets slow)
+    USE_GREEDY = n_polymers > 4
 
     if USE_GREEDY:
         # Greedy algorithm: O(n²) instead of O(n!)
@@ -4141,8 +4154,62 @@ async def plan_sequential_separation(
         output.append("  - Exploring different temperatures")
         output.append("  - Using multi-stage extraction")
         output.append("  - Combining solvents")
-    
-    return "\n".join(output)
+
+    display = "\n".join(output)
+
+    # Build structured data for programmatic access (exhaustive search results)
+    best_seq = sequence_scores[0] if sequence_scores else {}
+    best_steps = best_seq.get("steps", [])
+    valid_steps = [s for s in best_steps if s.get('selectivity', -1000) > -900]
+    solvents_used = list(set(s.get('solvent', 'N/A') for s in valid_steps if s.get('solvent') != 'N/A'))
+
+    # Build top-k sequences for TEA comparison
+    top_k_sequences = []
+    for rank, seq_data in enumerate(sequence_scores[:3], 1):  # Top 3
+        seq_steps = seq_data.get("steps", [])
+        solvent_mapping = {}
+        for step in seq_steps:
+            target = step.get("target")
+            # Steps have "solvents" list (not single "solvent")
+            solvents_list = step.get("solvents", [])
+            if solvents_list and isinstance(solvents_list, list):
+                # Get the best (first) solvent from the list
+                best_sol = solvents_list[0].get("solvent") if isinstance(solvents_list[0], dict) else None
+                if target and best_sol and best_sol not in ["N/A", "No data", "None found", "Error"]:
+                    solvent_mapping[target] = best_sol
+        top_k_sequences.append({
+            "rank": rank,
+            "sequence": seq_data.get("sequence", []),
+            "min_selectivity": seq_data.get("min_selectivity", 0),
+            "solvent_mapping": solvent_mapping,
+        })
+
+    structured_data = {
+        "tool_name": "plan_sequential_separation",
+        "success": True,
+        "polymers_analyzed": polymer_list,
+        "best_sequence": list(best_seq.get("sequence", [])),
+        "solvents": solvents_used,
+        "selectivities": [s.get('selectivity', 0) for s in valid_steps],
+        "temperature": temperature,
+        "algorithm_used": "exhaustive",
+        "steps": [
+            {
+                "step": i + 1,
+                "target": s.get("target", ""),
+                "solvent": s.get("solvent", ""),
+                "selectivity": s.get("selectivity", 0)
+            } for i, s in enumerate(best_steps)
+        ],
+        "min_selectivity": min(s.get('selectivity', 0) for s in valid_steps) if valid_steps else None,
+        "max_selectivity": max(s.get('selectivity', 0) for s in valid_steps) if valid_steps else None,
+        "coverage_complete": len(best_seq.get("sequence", [])) == len(polymer_list),
+        "top_k_sequences": top_k_sequences,  # For TEA comparison
+        "total_sequences_evaluated": len(sequence_scores),
+    }
+
+    import json
+    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
 @tool
@@ -7671,7 +7738,7 @@ async def analyze_solvent_recovery_tea(
     }
 
     import json
-    return json.dumps({"display": display, "data": structured_data})
+    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
 @tool
@@ -7792,7 +7859,7 @@ async def compare_solvents_tea_lca(
     }
 
     import json
-    return json.dumps({"display": display, "data": structured_data})
+    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
 @tool
@@ -8190,7 +8257,7 @@ async def analyze_strap_process(
 
     # Return structured JSON
     import json
-    return json.dumps({"display": output, "data": structured_data})
+    return json.dumps({"display": output, "data": structured_data}, ensure_ascii=False)
 
 
 @tool
@@ -8297,7 +8364,7 @@ async def calculate_strap_msp(
     }
 
     import json
-    return json.dumps({"display": output, "data": structured_data})
+    return json.dumps({"display": output, "data": structured_data}, ensure_ascii=False)
 
 
 @tool
@@ -8400,11 +8467,14 @@ async def compare_strap_scenarios(
         - polymers: List of polymers
         - feedstock_composition: Dict of polymer fractions (optional)
         - capacity_mt_yr: Plant capacity (optional, default 10000)
+        - recovery_solvents: Dict mapping polymer to solvent (optional, e.g., {'PS': 'propanone'})
 
     Example:
     [
-        {"name": "S1-PE Only", "polymers": ["PE"], "feedstock_composition": {"PE": 1.0}},
-        {"name": "S2-PE+EVOH", "polymers": ["PE", "EVOH"], "feedstock_composition": {"PE": 0.8, "EVOH": 0.2}}
+        {"name": "Seq1: PS→PP→PET", "polymers": ["PS", "PP", "PET", "HDPE"],
+         "recovery_solvents": {"PS": "propanone", "PP": "cyclohexane", "PET": "ch2cl2"}},
+        {"name": "Seq2: PP→PS→PET", "polymers": ["PP", "PS", "PET", "HDPE"],
+         "recovery_solvents": {"PP": "hexane", "PS": "propanone", "PET": "ch2cl2"}}
     ]
 
     WHEN TO USE:
@@ -8428,11 +8498,17 @@ async def compare_strap_scenarios(
         total = sum(fc.values())
         fc = {k: v / total for k, v in fc.items()}
 
-        # Auto-select solvents
+        # Get custom solvents if provided, else auto-select
+        custom_solvents = config.get('recovery_solvents', {})
         recovery_steps = []
         for polymer in polymers:
             pu = polymer.upper()
-            if pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            # Check for custom solvent mapping first
+            if custom_solvents and pu in custom_solvents:
+                solvent = custom_solvents[pu]
+            elif custom_solvents and polymer.lower() in custom_solvents:
+                solvent = custom_solvents[polymer.lower()]
+            elif pu in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
                 compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[pu]
                 solvent = compatible[0] if compatible else 'xylene'
             else:
