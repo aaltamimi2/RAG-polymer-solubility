@@ -612,6 +612,137 @@ async def api_status():
     """Get system status."""
     return get_system_status()
 
+
+@app.get("/api/health")
+async def api_deep_health():
+    """
+    Deep health check endpoint for production deployment.
+
+    Verifies:
+    - LLM API connectivity (Gemini)
+    - Database tables loaded
+    - RAG system available
+    - Multi-agent system available
+
+    Returns:
+        JSON with health status and component details
+
+    Usage:
+        - Kubernetes readiness/liveness probes
+        - Load balancer health checks
+        - Deployment verification
+    """
+    import asyncio
+    health = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "components": {},
+        "errors": []
+    }
+
+    # 1. Check basic system status
+    try:
+        basic_status = get_system_status()
+        health["components"]["database"] = {
+            "status": "healthy" if basic_status.get("tables_loaded", 0) > 0 else "degraded",
+            "tables_loaded": basic_status.get("tables_loaded", 0),
+            "tools_available": basic_status.get("tools_available", 0),
+        }
+        if basic_status.get("tables_loaded", 0) == 0:
+            health["errors"].append("No database tables loaded")
+    except Exception as e:
+        health["components"]["database"] = {"status": "unhealthy", "error": str(e)}
+        health["errors"].append(f"Database check failed: {e}")
+
+    # 2. Check LLM API connectivity (critical for production)
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        import os
+
+        if not os.getenv("GOOGLE_API_KEY"):
+            health["components"]["llm"] = {"status": "unhealthy", "error": "GOOGLE_API_KEY not set"}
+            health["errors"].append("LLM API key not configured")
+        else:
+            # Create a minimal LLM instance and test with a simple call
+            llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash-lite",
+                temperature=0,
+                max_output_tokens=10,
+            )
+
+            # Quick ping with timeout (don't wait forever)
+            try:
+                test_result = await asyncio.wait_for(
+                    asyncio.to_thread(llm.invoke, "Say OK"),
+                    timeout=10.0
+                )
+                health["components"]["llm"] = {
+                    "status": "healthy",
+                    "model": "gemini-2.0-flash-lite",
+                    "response_received": True,
+                }
+            except asyncio.TimeoutError:
+                health["components"]["llm"] = {"status": "degraded", "error": "LLM response timed out (>10s)"}
+                health["errors"].append("LLM API slow or unresponsive")
+            except Exception as llm_err:
+                health["components"]["llm"] = {"status": "unhealthy", "error": str(llm_err)[:200]}
+                health["errors"].append(f"LLM API error: {str(llm_err)[:100]}")
+
+    except ImportError as e:
+        health["components"]["llm"] = {"status": "unhealthy", "error": f"Missing dependency: {e}"}
+        health["errors"].append(f"LLM dependencies not installed")
+    except Exception as e:
+        health["components"]["llm"] = {"status": "unhealthy", "error": str(e)[:200]}
+        health["errors"].append(f"LLM check failed: {str(e)[:100]}")
+
+    # 3. Check RAG system
+    try:
+        from rag_module import get_rag_system
+        rag = get_rag_system()
+        if rag.is_ready():
+            health["components"]["rag"] = {
+                "status": "healthy",
+                "active_kb": rag.get_active_kb(),
+            }
+        else:
+            health["components"]["rag"] = {"status": "degraded", "message": "RAG not initialized"}
+    except Exception as e:
+        health["components"]["rag"] = {"status": "unhealthy", "error": str(e)[:200]}
+
+    # 4. Check multi-agent system
+    try:
+        if load_agent():
+            from agent_sql_final_1212_patched import MULTI_AGENT_AVAILABLE
+            health["components"]["multi_agent"] = {
+                "status": "healthy" if MULTI_AGENT_AVAILABLE else "degraded",
+                "available": MULTI_AGENT_AVAILABLE,
+            }
+        else:
+            health["components"]["multi_agent"] = {"status": "degraded", "message": "Agent not loaded"}
+    except Exception as e:
+        health["components"]["multi_agent"] = {"status": "unhealthy", "error": str(e)[:200]}
+
+    # Determine overall health
+    component_statuses = [c.get("status", "unknown") for c in health["components"].values()]
+    if "unhealthy" in component_statuses:
+        health["status"] = "unhealthy"
+    elif "degraded" in component_statuses:
+        health["status"] = "degraded"
+    else:
+        health["status"] = "healthy"
+
+    # Return appropriate HTTP status code
+    if health["status"] == "unhealthy":
+        # Return 503 Service Unavailable for unhealthy
+        from fastapi.responses import JSONResponse
+        return JSONResponse(content=health, status_code=503)
+    elif health["status"] == "degraded":
+        # Return 200 but with degraded status (service can still accept requests)
+        return health
+    else:
+        return health
+
+
 @app.get("/api/rag/status")
 async def api_rag_status():
     """Get RAG knowledgebase status."""

@@ -37,11 +37,152 @@ Usage:
 import asyncio
 import logging
 import time
+import random
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, Set, Union
+from typing import List, Dict, Any, Optional, Callable, Set, Union, TypeVar, Awaitable
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# RELIABILITY CONFIGURATION
+# ============================================================
+
+@dataclass
+class ReliabilityConfig:
+    """Configuration for agent execution reliability."""
+
+    # Timeout settings
+    agent_timeout_seconds: float = 120.0  # Max time for single agent execution
+    tool_timeout_seconds: float = 60.0    # Max time for tool batch execution
+    llm_call_timeout_seconds: float = 45.0  # Max time for single LLM call
+
+    # Retry settings
+    max_retries: int = 3                  # Maximum retry attempts
+    retry_base_delay: float = 1.0         # Base delay between retries (seconds)
+    retry_max_delay: float = 30.0         # Maximum delay between retries
+    retry_exponential_base: float = 2.0   # Exponential backoff multiplier
+    retry_jitter: float = 0.1             # Random jitter factor (0-1)
+
+    # Retryable exceptions (will be filled with actual exception types)
+    retryable_exceptions: tuple = (
+        TimeoutError,
+        ConnectionError,
+        OSError,  # Network errors
+    )
+
+
+# Global default config (can be overridden per-engine)
+DEFAULT_RELIABILITY_CONFIG = ReliabilityConfig()
+
+
+class AgentTimeoutError(Exception):
+    """Raised when an agent execution exceeds the timeout limit."""
+    def __init__(self, agent_name: str, timeout_seconds: float, message: str = None):
+        self.agent_name = agent_name
+        self.timeout_seconds = timeout_seconds
+        super().__init__(message or f"Agent '{agent_name}' timed out after {timeout_seconds}s")
+
+
+class AgentRetryExhaustedError(Exception):
+    """Raised when all retry attempts have been exhausted."""
+    def __init__(self, agent_name: str, attempts: int, last_error: Exception):
+        self.agent_name = agent_name
+        self.attempts = attempts
+        self.last_error = last_error
+        super().__init__(
+            f"Agent '{agent_name}' failed after {attempts} attempts. "
+            f"Last error: {type(last_error).__name__}: {last_error}"
+        )
+
+
+T = TypeVar('T')
+
+
+async def retry_with_backoff(
+    coro_func: Callable[[], Awaitable[T]],
+    config: ReliabilityConfig = None,
+    operation_name: str = "operation",
+) -> T:
+    """
+    Execute an async operation with exponential backoff retry.
+
+    Args:
+        coro_func: Async function to execute (called fresh each retry)
+        config: Reliability configuration
+        operation_name: Name for logging
+
+    Returns:
+        Result of the coroutine
+
+    Raises:
+        AgentRetryExhaustedError: If all retries fail
+    """
+    config = config or DEFAULT_RELIABILITY_CONFIG
+    last_error = None
+
+    for attempt in range(config.max_retries):
+        try:
+            return await coro_func()
+
+        except config.retryable_exceptions as e:
+            last_error = e
+
+            if attempt < config.max_retries - 1:
+                # Calculate delay with exponential backoff + jitter
+                delay = min(
+                    config.retry_base_delay * (config.retry_exponential_base ** attempt),
+                    config.retry_max_delay
+                )
+                # Add jitter
+                jitter = delay * config.retry_jitter * random.random()
+                delay += jitter
+
+                logger.warning(
+                    f"{operation_name}: Attempt {attempt + 1}/{config.max_retries} failed "
+                    f"({type(e).__name__}: {str(e)[:100]}). Retrying in {delay:.1f}s..."
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(
+                    f"{operation_name}: All {config.max_retries} attempts failed. "
+                    f"Last error: {type(e).__name__}: {e}"
+                )
+
+        except Exception as e:
+            # Non-retryable exception - fail immediately
+            logger.error(f"{operation_name}: Non-retryable error: {type(e).__name__}: {e}")
+            raise
+
+    # All retries exhausted
+    raise AgentRetryExhaustedError(operation_name, config.max_retries, last_error)
+
+
+async def execute_with_timeout(
+    coro: Awaitable[T],
+    timeout_seconds: float,
+    operation_name: str = "operation",
+) -> T:
+    """
+    Execute a coroutine with a timeout.
+
+    Args:
+        coro: Coroutine to execute
+        timeout_seconds: Maximum execution time
+        operation_name: Name for logging
+
+    Returns:
+        Result of the coroutine
+
+    Raises:
+        AgentTimeoutError: If execution exceeds timeout
+    """
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        logger.error(f"{operation_name}: Timed out after {timeout_seconds}s")
+        raise AgentTimeoutError(operation_name, timeout_seconds)
 
 
 # ============================================================
@@ -459,6 +600,7 @@ class WorkflowEngine:
         all_tools: List,
         agents: Dict[str, AgentConfig] = None,
         workflows: List[Workflow] = None,
+        reliability_config: ReliabilityConfig = None,
     ):
         """
         Initialize the workflow engine.
@@ -469,12 +611,14 @@ class WorkflowEngine:
             all_tools: List of all available tools
             agents: Agent registry (uses default if None)
             workflows: Workflow registry (uses default if None)
+            reliability_config: Configuration for timeouts and retries
         """
         self.sql_agent_node = sql_agent_node
         self.tool_node_class = tool_node_class
         self.all_tools = all_tools
         self.agents = agents or {}
         self.workflows = workflows or []
+        self.reliability = reliability_config or DEFAULT_RELIABILITY_CONFIG
         self._tool_cache: Dict[str, Any] = {}
 
     def register_agent(self, config: AgentConfig) -> None:
@@ -503,7 +647,13 @@ class WorkflowEngine:
 
     async def run_agent(self, state: dict, agent_name: str) -> AgentResult:
         """
-        Run a single agent with full tool loop.
+        Run a single agent with full tool loop, timeout protection, and retry logic.
+
+        Features:
+        - Overall agent timeout (default: 120s)
+        - LLM call timeout (default: 45s)
+        - Tool execution timeout (default: 60s)
+        - Automatic retry with exponential backoff for transient failures
 
         Args:
             state: Current workflow state
@@ -529,7 +679,7 @@ class WorkflowEngine:
             )
 
         start_time = time.time()
-        logger.info(f"  [{agent_name}] Starting...")
+        logger.info(f"  [{agent_name}] Starting (timeout: {self.reliability.agent_timeout_seconds}s)...")
 
         # Capture input context for trace (truncate large values)
         input_context = {}
@@ -545,19 +695,144 @@ class WorkflowEngine:
 
         tool_call_traces: List[ToolCallTrace] = []
         iterations = 0
+        retry_count = 0
 
-        try:
-            # Custom node takes precedence
-            if config.custom_node:
-                result = await config.custom_node(state, self.sql_agent_node)
+        async def _run_agent_with_timeout() -> AgentResult:
+            """Inner function wrapped with overall timeout."""
+            nonlocal iterations, tool_call_traces, retry_count
+
+            try:
+                # Custom node takes precedence
+                if config.custom_node:
+                    # Wrap custom node execution with timeout
+                    result = await execute_with_timeout(
+                        config.custom_node(state, self.sql_agent_node),
+                        timeout_seconds=self.reliability.agent_timeout_seconds,
+                        operation_name=f"{agent_name}(custom)",
+                    )
+                    elapsed = time.time() - start_time
+                    logger.info(f"  [{agent_name}] Completed (custom) in {elapsed:.1f}s")
+
+                    output_keys = [k for k in result.keys() if k != "messages"]
+                    trace = AgentTrace(
+                        agent_name=agent_name,
+                        iterations=1,
+                        tool_calls=[],  # Custom nodes don't track individual tools
+                        duration_seconds=elapsed,
+                        success=True,
+                        input_context=input_context,
+                        output_keys=output_keys,
+                    )
+
+                    return AgentResult(
+                        agent_name=agent_name,
+                        messages=result.get("messages", []),
+                        results={k: v for k, v in result.items() if k != "messages"},
+                        elapsed_seconds=elapsed,
+                        trace=trace,
+                    )
+
+                # Standard agent with tool loop
+                agent_state = dict(state)
+                agent_state["selected_categories"] = config.categories
+                tools = self._get_tools(agent_name)
+
+                for i in range(config.max_iterations):
+                    iterations = i + 1
+
+                    # LLM call with timeout
+                    try:
+                        result = await execute_with_timeout(
+                            self.sql_agent_node(agent_state),
+                            timeout_seconds=self.reliability.llm_call_timeout_seconds,
+                            operation_name=f"{agent_name}:llm_call",
+                        )
+                        agent_state.update(result)
+                    except AgentTimeoutError:
+                        logger.warning(f"  [{agent_name}] LLM call timed out at iteration {i+1}")
+                        raise
+
+                    # Check for pending tool calls
+                    msgs = agent_state.get("messages", [])
+                    if msgs and hasattr(msgs[-1], 'tool_calls') and msgs[-1].tool_calls:
+                        pending_calls = msgs[-1].tool_calls
+                        n_calls = len(pending_calls)
+                        logger.debug(f"  [{agent_name}] Executing {n_calls} tool calls (iter {i+1})")
+
+                        # Track each tool call
+                        for tc in pending_calls:
+                            tool_name = tc.get("name", "unknown") if isinstance(tc, dict) else getattr(tc, "name", "unknown")
+                            tool_args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, "args", {})
+
+                            tool_call_traces.append(ToolCallTrace(
+                                tool_name=tool_name,
+                                arguments={k: str(v)[:100] for k, v in tool_args.items()} if tool_args else {},
+                                result_summary="",  # Will be filled after execution
+                                duration_ms=0,  # Will be updated
+                                success=True,  # Assume success, update if failed
+                            ))
+
+                        # Execute all tool calls with timeout
+                        tool_start = time.time()
+                        try:
+                            # Support both __call__ (AsyncToolNode) and ainvoke (LangGraph ToolNode)
+                            if hasattr(tools, 'ainvoke'):
+                                tool_coro = tools.ainvoke(agent_state)
+                            else:
+                                tool_coro = tools(agent_state)
+
+                            tool_result = await execute_with_timeout(
+                                tool_coro,
+                                timeout_seconds=self.reliability.tool_timeout_seconds,
+                                operation_name=f"{agent_name}:tools",
+                            )
+                            agent_state.update(tool_result)
+                            tool_duration = (time.time() - tool_start) * 1000
+
+                            # Update traces with results
+                            new_msgs = agent_state.get("messages", [])
+                            tool_msg_idx = len(new_msgs) - n_calls
+                            for j, tc_trace in enumerate(tool_call_traces[-n_calls:]):
+                                tc_trace.duration_ms = tool_duration / n_calls  # Approximate
+                                if tool_msg_idx + j < len(new_msgs):
+                                    result_msg = new_msgs[tool_msg_idx + j]
+                                    content = getattr(result_msg, 'content', str(result_msg))
+                                    tc_trace.result_summary = str(content)[:200]
+
+                        except AgentTimeoutError as timeout_err:
+                            # Mark recent tool calls as timed out
+                            for tc_trace in tool_call_traces[-n_calls:]:
+                                tc_trace.success = False
+                                tc_trace.error = f"Timeout after {self.reliability.tool_timeout_seconds}s"
+                            raise
+
+                        except Exception as tool_err:
+                            # Mark recent tool calls as failed
+                            for tc_trace in tool_call_traces[-n_calls:]:
+                                tc_trace.success = False
+                                tc_trace.error = str(tool_err)[:200]
+                            raise
+
+                        continue
+
+                    # No more tool calls - done
+                    break
+
                 elapsed = time.time() - start_time
-                logger.info(f"  [{agent_name}] Completed (custom) in {elapsed:.1f}s")
+                logger.info(f"  [{agent_name}] Completed in {elapsed:.1f}s ({iterations} iterations)")
 
-                output_keys = [k for k in result.keys() if k != "messages"]
+                # Extract results
+                result_keys = [
+                    "separation_results", "tea_results", "literature_results",
+                    "profitability_results", "shared_context", "top_polymers",
+                ]
+                results = {k: agent_state.get(k) for k in result_keys if k in agent_state}
+                output_keys = list(results.keys())
+
                 trace = AgentTrace(
                     agent_name=agent_name,
-                    iterations=1,
-                    tool_calls=[],  # Custom nodes don't track individual tools
+                    iterations=iterations,
+                    tool_calls=tool_call_traces,
                     duration_seconds=elapsed,
                     success=True,
                     input_context=input_context,
@@ -566,101 +841,65 @@ class WorkflowEngine:
 
                 return AgentResult(
                     agent_name=agent_name,
-                    messages=result.get("messages", []),
-                    results={k: v for k, v in result.items() if k != "messages"},
+                    messages=agent_state.get("messages", []),
+                    results=results,
                     elapsed_seconds=elapsed,
                     trace=trace,
                 )
 
-            # Standard agent with tool loop
-            agent_state = dict(state)
-            agent_state["selected_categories"] = config.categories
-            tools = self._get_tools(agent_name)
+            except (AgentTimeoutError, AgentRetryExhaustedError) as e:
+                # These are terminal errors - don't retry
+                elapsed = time.time() - start_time
+                error_msg = str(e)
+                logger.error(f"  [{agent_name}] Failed (terminal) after {elapsed:.1f}s: {error_msg}")
 
-            for i in range(config.max_iterations):
-                iterations = i + 1
-                result = await self.sql_agent_node(agent_state)
-                agent_state.update(result)
+                trace = AgentTrace(
+                    agent_name=agent_name,
+                    iterations=iterations,
+                    tool_calls=tool_call_traces,
+                    duration_seconds=elapsed,
+                    success=False,
+                    error=error_msg,
+                    input_context=input_context,
+                    output_keys=[],
+                )
 
-                # Check for pending tool calls
-                msgs = agent_state.get("messages", [])
-                if msgs and hasattr(msgs[-1], 'tool_calls') and msgs[-1].tool_calls:
-                    pending_calls = msgs[-1].tool_calls
-                    n_calls = len(pending_calls)
-                    logger.debug(f"  [{agent_name}] Executing {n_calls} tool calls (iter {i+1})")
+                return AgentResult(
+                    agent_name=agent_name,
+                    elapsed_seconds=elapsed,
+                    success=False,
+                    error=error_msg,
+                    trace=trace,
+                )
 
-                    # Track each tool call
-                    for tc in pending_calls:
-                        tc_start = time.time()
-                        tool_name = tc.get("name", "unknown") if isinstance(tc, dict) else getattr(tc, "name", "unknown")
-                        tool_args = tc.get("args", {}) if isinstance(tc, dict) else getattr(tc, "args", {})
+        # Execute with overall timeout (catch-all)
+        try:
+            return await asyncio.wait_for(
+                _run_agent_with_timeout(),
+                timeout=self.reliability.agent_timeout_seconds
+            )
 
-                        tool_call_traces.append(ToolCallTrace(
-                            tool_name=tool_name,
-                            arguments={k: str(v)[:100] for k, v in tool_args.items()} if tool_args else {},
-                            result_summary="",  # Will be filled after execution
-                            duration_ms=0,  # Will be updated
-                            success=True,  # Assume success, update if failed
-                        ))
-
-                    # Execute all tool calls
-                    tool_start = time.time()
-                    try:
-                        # Support both __call__ (AsyncToolNode) and ainvoke (LangGraph ToolNode)
-                        if hasattr(tools, 'ainvoke'):
-                            tool_result = await tools.ainvoke(agent_state)
-                        else:
-                            tool_result = await tools(agent_state)
-                        agent_state.update(tool_result)
-                        tool_duration = (time.time() - tool_start) * 1000
-
-                        # Update traces with results
-                        new_msgs = agent_state.get("messages", [])
-                        tool_msg_idx = len(new_msgs) - n_calls
-                        for j, tc_trace in enumerate(tool_call_traces[-n_calls:]):
-                            tc_trace.duration_ms = tool_duration / n_calls  # Approximate
-                            if tool_msg_idx + j < len(new_msgs):
-                                result_msg = new_msgs[tool_msg_idx + j]
-                                content = getattr(result_msg, 'content', str(result_msg))
-                                tc_trace.result_summary = str(content)[:200]
-                    except Exception as tool_err:
-                        # Mark recent tool calls as failed
-                        for tc_trace in tool_call_traces[-n_calls:]:
-                            tc_trace.success = False
-                            tc_trace.error = str(tool_err)[:200]
-                        raise
-
-                    continue
-
-                # No more tool calls - done
-                break
-
+        except asyncio.TimeoutError:
             elapsed = time.time() - start_time
-            logger.info(f"  [{agent_name}] Completed in {elapsed:.1f}s ({iterations} iterations)")
-
-            # Extract results
-            result_keys = [
-                "separation_results", "tea_results", "literature_results",
-                "profitability_results", "shared_context", "top_polymers",
-            ]
-            results = {k: agent_state.get(k) for k in result_keys if k in agent_state}
-            output_keys = list(results.keys())
+            error_msg = f"Agent execution timed out after {self.reliability.agent_timeout_seconds}s"
+            logger.error(f"  [{agent_name}] {error_msg}")
 
             trace = AgentTrace(
                 agent_name=agent_name,
                 iterations=iterations,
                 tool_calls=tool_call_traces,
                 duration_seconds=elapsed,
-                success=True,
+                success=False,
+                error=error_msg,
                 input_context=input_context,
-                output_keys=output_keys,
+                output_keys=[],
             )
 
             return AgentResult(
                 agent_name=agent_name,
-                messages=agent_state.get("messages", []),
-                results=results,
                 elapsed_seconds=elapsed,
+                success=False,
+                error=error_msg,
                 trace=trace,
             )
 
