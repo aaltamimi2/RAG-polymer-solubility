@@ -60,6 +60,20 @@ from agent_schemas import (
 )
 import uuid
 
+# Import hybrid workflow engine
+from workflow_engine import (
+    create_hybrid_orchestrator,
+    HybridOrchestrator,
+    WorkflowEngine,
+    WorkflowPlanner,
+    AgentConfig,
+    Stage,
+    Workflow,
+    Trigger,
+    ContextFilter,
+    ALWAYS,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -77,58 +91,275 @@ def filter_result_for_collab(result: dict) -> dict:
 
 
 # ============================================================
-# COST EXTRACTION PATTERNS (Consolidated)
+# LLM-BASED STRUCTURED EXTRACTION
 # ============================================================
 
-# Comprehensive patterns for cost extraction - ordered by specificity
-COST_EXTRACTION_PATTERNS = [
-    # Most specific patterns first (from actual TEA tool output)
-    r'cost\s+per\s+kg\s+polymer[:\s]*\$?(\d+\.?\d*)\s*/?\s*kg',
-    r'cost\s+per\s+kg(?:\s+polymer)?[:\s]+\$?(\d+\.?\d*)\s*/?\s*kg',
-    r'cost\s+per\s+kg[:\s]*\$?(\d+\.?\d*)',
-    r'cost\s+of\s+\$?(\d+\.?\d*)\s*/\s*kg',
-    # Standard price patterns
-    r'\$(\d+\.?\d*)\s*/\s*kg',
-    r'(\d+\.?\d*)\s*\$/kg',
-    # MSP patterns
-    r'msp[:\s]+is[:\s]*\$?(\d+\.?\d*)',  # "MSP is $X"
-    r'msp[:\s]*\$?(\d+\.?\d*)',
-    r'minimum selling price[:\s]+\$?(\d+\.?\d*)',
-    # Processing cost patterns
-    r'processing\s+cost[:\s]*\$?(\d+\.?\d*)',
-    r'solvent\s+recovery\s+cost[:\s]*\$?(\d+\.?\d*)',
-    # Generic cost patterns (less specific)
-    r'total\s+cost[:\s]*\$?(\d+\.?\d*)',
-    r'operating\s+cost[:\s]*\$?(\d+\.?\d*)',
-    # Per kg patterns with different formats
-    r'(\d+\.?\d*)\s*usd\s*/\s*kg',
-    r'(\d+\.?\d*)\s*per\s+kg',
-]
+# Extractor LLM instance (created lazily)
+_extractor_llm = None
+
+def _get_extractor_llm():
+    """Get or create the extractor LLM instance."""
+    global _extractor_llm
+    if _extractor_llm is None:
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            _extractor_llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash-lite",
+                temperature=0,
+                max_tokens=2048,
+                timeout=15,
+                max_retries=2,
+            )
+            logger.info("LLMExtractor: Initialized with gemini-2.0-flash-lite")
+        except Exception as e:
+            logger.warning(f"LLMExtractor: Failed to initialize LLM: {e}")
+            _extractor_llm = None
+    return _extractor_llm
 
 
-def extract_cost_from_text(text: str, min_cost: float = 0.001, max_cost: float = 1000) -> Optional[float]:
+class LLMExtractor:
     """
-    Extract cost per kg from text using standard patterns.
+    LLM-based structured data extraction from agent responses.
 
-    Args:
-        text: Text to search for cost patterns
-        min_cost: Minimum valid cost (default 0.001)
-        max_cost: Maximum valid cost (default 1000)
-
-    Returns:
-        Extracted cost value or None if not found
+    Replaces regex-based parsing with intelligent extraction using
+    Pydantic schemas for type-safe, validated output.
     """
-    text_lower = text.lower()
-    for pattern in COST_EXTRACTION_PATTERNS:
-        match = re.search(pattern, text_lower)
-        if match:
-            try:
-                cost = float(match.group(1))
-                if min_cost < cost < max_cost:
-                    return cost
-            except ValueError:
-                pass
-    return None
+
+    SEPARATION_EXTRACT_PROMPT = '''Extract separation analysis data from this text.
+
+Text:
+{text}
+
+Return a JSON object with these fields (use null for missing values):
+- sequences: list of polymer separation sequences (e.g., [["PE", "PP", "PS"]])
+- solvents: list of solvents mentioned (e.g., ["xylene", "toluene"])
+- selectivities: list of selectivity values as decimals 0-1 (e.g., [0.95, 0.87])
+- polymers: list of all polymers mentioned
+- temperature: processing temperature in Celsius (number)
+- best_sequence: the recommended/optimal sequence
+- best_solvent: the recommended solvent
+- algorithm_used: "greedy" or "exhaustive" if mentioned
+
+Return ONLY valid JSON.'''
+
+    TEA_EXTRACT_PROMPT = '''Extract techno-economic analysis data from this text.
+
+Text:
+{text}
+
+Return a JSON object with these fields (use null for missing values):
+- cost_per_kg: cost per kg polymer in $/kg (number)
+- msp_values: dict of solvent name to MSP value (e.g., {{"xylene": 2.45}})
+- best_solvent: most cost-effective solvent name
+- total_capex: capital expenditure in $ (number)
+- total_opex: annual operating cost in $/yr (number)
+- payback_years: payback period in years (number)
+- throughput_kg_hr: throughput in kg/hr (number)
+- solvents_analyzed: list of solvents evaluated
+
+Return ONLY valid JSON.'''
+
+    LITERATURE_EXTRACT_PROMPT = '''Extract literature research data from this text.
+
+Text:
+{text}
+
+Return a JSON object with these fields (use null for missing values):
+- papers_found: number of papers/sources found (integer)
+- key_findings: list of key findings (strings)
+- citations: list of citation objects with "title", "authors", "year" fields
+- polymers_mentioned: list of polymer abbreviations mentioned
+- solvents_mentioned: list of solvents mentioned
+- temperatures_mentioned: list of temperatures in Celsius
+- confidence_score: confidence 0-1 based on source quality
+
+Return ONLY valid JSON.'''
+
+    QUERY_EXTRACT_PROMPT = '''Extract query parameters from this user question about polymer solubility.
+
+Query:
+{text}
+
+Return a JSON object with:
+- polymers: list of polymer abbreviations (PE, PP, PS, PVC, PET, PMMA, PA, PC, ABS, etc.)
+- solvents: list of solvent names (toluene, xylene, cyclohexane, THF, etc.)
+- temperature: temperature in Celsius if mentioned (number or null)
+- throughput_kg_hr: throughput in kg/hr (number or null). Convert: "industrial scale"=1000, "pilot scale"=100, "lab scale"=1
+- constraints: list of constraints like "green_solvents", "avoid_chlorinated", "food_safe", "low_cost"
+
+Return ONLY valid JSON.'''
+
+    @classmethod
+    def _parse_json_response(cls, response_text: str) -> Optional[Dict]:
+        """Parse JSON from LLM response."""
+        try:
+            text = response_text.strip()
+            # Remove markdown code blocks if present
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            return json.loads(text)
+        except json.JSONDecodeError:
+            logger.warning("LLMExtractor: Failed to parse JSON response")
+            return None
+
+    @classmethod
+    def _ensure_list(cls, val, default=None) -> List:
+        """Ensure value is a list, converting if needed."""
+        if val is None:
+            return default if default is not None else []
+        if isinstance(val, list):
+            return val
+        if isinstance(val, str):
+            # Try to parse arrow-separated sequence
+            if '→' in val or '->' in val:
+                return [p.strip() for p in re.split(r'\s*(?:→|->)\s*', val)]
+            return [val]
+        return []
+
+    @classmethod
+    def _ensure_dict(cls, val) -> Dict:
+        """Ensure value is a dict."""
+        if val is None:
+            return {}
+        if isinstance(val, dict):
+            return val
+        return {}
+
+    @classmethod
+    def extract_separation(cls, text: str) -> 'SeparationResult':
+        """Extract separation results from agent response text."""
+        from agent_schemas import SeparationResult
+
+        llm = _get_extractor_llm()
+        if llm is None:
+            return SeparationResult(raw_response=text)
+
+        try:
+            prompt = cls.SEPARATION_EXTRACT_PROMPT.format(text=text[:4000])
+            response = llm.invoke(prompt)
+            data = cls._parse_json_response(response.content)
+
+            if data:
+                # Handle best_sequence - could be string or list
+                best_seq = data.get("best_sequence")
+                if isinstance(best_seq, str):
+                    best_seq = cls._ensure_list(best_seq)
+
+                return SeparationResult(
+                    sequences=cls._ensure_list(data.get("sequences")),
+                    solvents=cls._ensure_list(data.get("solvents")),
+                    selectivities=cls._ensure_list(data.get("selectivities")),
+                    polymers=cls._ensure_list(data.get("polymers")),
+                    temperature=data.get("temperature") or 80.0,
+                    best_sequence=best_seq if best_seq else None,
+                    best_solvent=data.get("best_solvent"),
+                    algorithm_used=data.get("algorithm_used"),
+                    raw_response=text,
+                )
+        except Exception as e:
+            logger.warning(f"LLMExtractor: Separation extraction failed: {e}")
+
+        return SeparationResult(raw_response=text)
+
+    @classmethod
+    def extract_tea(cls, text: str) -> 'TEAResult':
+        """Extract TEA results from agent response text."""
+        from agent_schemas import TEAResult
+
+        llm = _get_extractor_llm()
+        if llm is None:
+            return TEAResult(raw_response=text)
+
+        try:
+            prompt = cls.TEA_EXTRACT_PROMPT.format(text=text[:4000])
+            response = llm.invoke(prompt)
+            data = cls._parse_json_response(response.content)
+
+            if data:
+                return TEAResult(
+                    cost_per_kg=data.get("cost_per_kg"),
+                    msp_values=cls._ensure_dict(data.get("msp_values")),
+                    best_solvent=data.get("best_solvent"),
+                    total_capex=data.get("total_capex"),
+                    total_opex=data.get("total_opex"),
+                    payback_years=data.get("payback_years"),
+                    throughput_kg_hr=data.get("throughput_kg_hr"),
+                    solvents_analyzed=cls._ensure_list(data.get("solvents_analyzed")),
+                    raw_response=text,
+                )
+        except Exception as e:
+            logger.warning(f"LLMExtractor: TEA extraction failed: {e}")
+
+        return TEAResult(raw_response=text)
+
+    @classmethod
+    def extract_literature(cls, text: str) -> 'LiteratureResult':
+        """Extract literature results from agent response text."""
+        from agent_schemas import LiteratureResult
+
+        llm = _get_extractor_llm()
+        if llm is None:
+            return LiteratureResult(raw_response=text)
+
+        try:
+            prompt = cls.LITERATURE_EXTRACT_PROMPT.format(text=text[:4000])
+            response = llm.invoke(prompt)
+            data = cls._parse_json_response(response.content)
+
+            if data:
+                return LiteratureResult(
+                    papers_found=data.get("papers_found", 0),
+                    key_findings=data.get("key_findings", []),
+                    citations=data.get("citations", []),
+                    polymers_mentioned=data.get("polymers_mentioned", []),
+                    solvents_mentioned=data.get("solvents_mentioned", []),
+                    temperatures_mentioned=data.get("temperatures_mentioned", []),
+                    confidence_score=data.get("confidence_score", 0.5),
+                    raw_response=text,
+                )
+        except Exception as e:
+            logger.warning(f"LLMExtractor: Literature extraction failed: {e}")
+
+        return LiteratureResult(raw_response=text)
+
+    @classmethod
+    def extract_query_params(cls, query: str) -> Dict[str, Any]:
+        """Extract parameters from user query."""
+        llm = _get_extractor_llm()
+        if llm is None:
+            # Fallback to basic extraction
+            return {
+                "polymers": [],
+                "solvents": [],
+                "temperature": 80.0,
+                "throughput_kg_hr": 100.0,
+                "constraints": [],
+            }
+
+        try:
+            prompt = cls.QUERY_EXTRACT_PROMPT.format(text=query)
+            response = llm.invoke(prompt)
+            data = cls._parse_json_response(response.content)
+
+            if data:
+                return {
+                    "polymers": data.get("polymers", []),
+                    "solvents": data.get("solvents", []),
+                    "temperature": data.get("temperature") or 80.0,
+                    "throughput_kg_hr": data.get("throughput_kg_hr") or 100.0,
+                    "constraints": data.get("constraints", []),
+                }
+        except Exception as e:
+            logger.warning(f"LLMExtractor: Query extraction failed: {e}")
+
+        return {
+            "polymers": [],
+            "solvents": [],
+            "temperature": 80.0,
+            "throughput_kg_hr": 100.0,
+            "constraints": [],
+        }
 
 
 # ============================================================
@@ -165,252 +396,261 @@ class ParsedQueryInput:
         return ctx
 
 
-class QueryInputParser:
-    """
-    Extract entities and parameters from user queries.
+# ============================================================
+# LLM-AS-A-JUDGE ROUTER
+# ============================================================
 
-    Extracts:
-    - Polymers: PE, PP, PS, PVC, PET, PMMA, PA, PC, ABS, etc.
-    - Solvents: toluene, xylene, cyclohexane, THF, etc.
-    - Temperature: "at 80°C", "below 100C", "60-90°C"
-    - Throughput: "100 kg/hr", "1000 kg/day", "industrial scale"
-    - Constraints: "avoid chlorinated", "green solvents", "food-safe"
-    """
+import hashlib
 
-    # Common polymer names and abbreviations
-    POLYMER_PATTERNS = {
-        # Standard abbreviations
-        r'\b(PE|HDPE|LDPE|LLDPE)\b': 'PE',
-        r'\b(PP|polypropylene)\b': 'PP',
-        r'\b(PS|polystyrene)\b': 'PS',
-        r'\b(PVC|polyvinyl\s*chloride)\b': 'PVC',
-        r'\b(PET|PETE|polyethylene\s*terephthalate)\b': 'PET',
-        r'\b(PMMA|polymethyl\s*methacrylate|acrylic|plexiglass)\b': 'PMMA',
-        r'\b(PA|PA6|PA66|nylon|polyamide)\b': 'PA',
-        r'\b(PC|polycarbonate)\b': 'PC',
-        r'\b(ABS)\b': 'ABS',
-        r'\b(PU|polyurethane)\b': 'PU',
-        r'\b(PVDF|polyvinylidene\s*fluoride)\b': 'PVDF',
-        r'\b(PTFE|teflon)\b': 'PTFE',
-        r'\b(PLA|polylactic\s*acid)\b': 'PLA',
-        r'\b(PBS|polybutylene\s*succinate)\b': 'PBS',
-        r'\b(EVA|ethylene\s*vinyl\s*acetate)\b': 'EVA',
-        r'\b(SBR|styrene\s*butadiene)\b': 'SBR',
-        r'\b(NBR|nitrile)\b': 'NBR',
-        r'\b(EPDM)\b': 'EPDM',
-        # Full names (case insensitive matching done separately)
-        r'\bpolyethylene\b': 'PE',
-        r'\bpolypropylene\b': 'PP',
-        r'\bpolystyrene\b': 'PS',
-    }
+# Router LLM instance (created lazily)
+_router_llm = None
 
-    # Common solvent names
-    SOLVENT_PATTERNS = {
-        r'\b(toluene)\b': 'toluene',
-        r'\b(xylene|xylenes)\b': 'xylene',
-        r'\b(cyclohexane)\b': 'cyclohexane',
-        r'\b(THF|tetrahydrofuran)\b': 'THF',
-        r'\b(DCM|dichloromethane|methylene\s*chloride)\b': 'DCM',
-        r'\b(chloroform)\b': 'chloroform',
-        r'\b(acetone)\b': 'acetone',
-        r'\b(MEK|methyl\s*ethyl\s*ketone)\b': 'MEK',
-        r'\b(ethanol)\b': 'ethanol',
-        r'\b(methanol)\b': 'methanol',
-        r'\b(IPA|isopropanol|isopropyl\s*alcohol)\b': 'IPA',
-        r'\b(DMF|dimethylformamide)\b': 'DMF',
-        r'\b(DMSO|dimethyl\s*sulfoxide)\b': 'DMSO',
-        r'\b(NMP|n-methyl.*pyrrolidone)\b': 'NMP',
-        r'\b(hexane|n-hexane)\b': 'hexane',
-        r'\b(heptane|n-heptane)\b': 'heptane',
-        r'\b(decalin|decahydronaphthalene)\b': 'decalin',
-        r'\b(limonene|d-limonene)\b': 'limonene',
-        r'\b(ethyl\s*acetate)\b': 'ethyl acetate',
-        r'\b(butyl\s*acetate)\b': 'butyl acetate',
-        r'\b(chlorobenzene)\b': 'chlorobenzene',
-        r'\b(tetrachloroethylene|perc)\b': 'tetrachloroethylene',
-        r'\b(water)\b': 'water',
-    }
+def _get_router_llm():
+    """Get or create the router LLM instance."""
+    global _router_llm
+    if _router_llm is None:
+        try:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            # Use fast model for routing decisions
+            _router_llm = ChatGoogleGenerativeAI(
+                model="gemini-2.0-flash-lite",
+                temperature=0,
+                max_tokens=1024,
+                timeout=15,  # 15 second timeout for routing (API min is 10s)
+                max_retries=2,
+            )
+            logger.info("LLMRouter: Initialized with gemini-2.0-flash-lite")
+        except Exception as e:
+            logger.warning(f"LLMRouter: Failed to initialize LLM: {e}")
+            _router_llm = None
+    return _router_llm
 
-    # Temperature patterns
-    TEMP_PATTERNS = [
-        r'(\d+(?:\.\d+)?)\s*°?\s*[Cc](?:elsius)?',  # 80°C, 80C, 80 celsius
-        r'at\s+(\d+(?:\.\d+)?)\s*degrees?',  # at 80 degrees
-        r'(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # 60-90°C (range)
-        r'below\s+(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # below 100C
-        r'above\s+(\d+(?:\.\d+)?)\s*°?\s*[Cc]',  # above 60C
-        r'room\s*temp(?:erature)?',  # room temperature -> 25°C
-    ]
 
-    # Throughput patterns
-    THROUGHPUT_PATTERNS = [
-        r'(\d+(?:\.\d+)?)\s*kg\s*/?\s*h(?:r|our)?',  # 100 kg/hr
-        r'(\d+(?:\.\d+)?)\s*kg\s*/?\s*day',  # 1000 kg/day -> /24
-        r'(\d+(?:\.\d+)?)\s*t(?:on(?:ne)?s?)?\s*/?\s*h(?:r|our)?',  # 1 t/hr -> *1000
-        r'(\d+(?:\.\d+)?)\s*t(?:on(?:ne)?s?)?\s*/?\s*day',  # 10 t/day
-        r'industrial\s*scale',  # industrial scale -> 1000 kg/hr default
-        r'pilot\s*scale',  # pilot scale -> 100 kg/hr default
-        r'lab\s*scale',  # lab scale -> 1 kg/hr default
-    ]
+# LLM Router prompt template
+LLM_ROUTER_PROMPT = '''You are a routing system for a polymer solubility analysis chatbot. Analyze the user's query and decide the optimal processing path.
 
-    # Constraint patterns
-    CONSTRAINT_PATTERNS = {
-        r'avoid\s+chlorinated': 'avoid_chlorinated',
-        r'no\s+chlorinated': 'avoid_chlorinated',
-        r'non-?\s*chlorinated': 'avoid_chlorinated',
-        r'chlorine-?\s*free': 'avoid_chlorinated',
-        r'green\s+solvent': 'green_solvents',
-        r'bio-?\s*based': 'bio_based',
-        r'sustainable': 'sustainable',
-        r'food[\s-]*safe': 'food_safe',
-        r'food[\s-]*grade': 'food_safe',
-        r'low[\s-]*voc': 'low_voc',
-        r'non-?\s*toxic': 'non_toxic',
-        r'low[\s-]*cost': 'low_cost',
-        r'cheap(?:est)?': 'low_cost',
-        r'economic(?:al)?': 'low_cost',
-        r'high[\s-]*recovery': 'high_recovery',
-        r'selective': 'high_selectivity',
-    }
+## Available Paths
+
+1. **FAST** (complexity 1-2): Quick database lookups, simple queries
+   - Examples: "List all polymers", "What solvents dissolve PE?", "Top 5 solvents for PS", "Schema for table", "Boiling point of toluene"
+
+2. **STANDARD** (complexity 3): Moderate analysis requiring multiple tools
+   - Examples: "Compare PE vs PP solubility", "Show temperature curve for LDPE", "Rank solvents by selectivity", "Heatmap of polymer-solvent pairs"
+
+3. **SPECIALIST** (complexity 4-5): Domain-specific expertise - use ONE specialist
+   - **separation**: Multi-polymer separation planning, optimal sequences, decision trees
+   - **tea_lca**: Techno-economic analysis, cost calculations, LCA, environmental impact, payback period
+   - **literature**: Research papers, literature search, RAG queries, indexed knowledge
+
+4. **INTEGRATED** (complexity 5): Cross-domain requiring 2+ specialists working together
+   - Examples: "Cost-effective separation of PE/PP/PS", "Literature-backed separation with economics", "Compare published separation methods with TEA"
+
+## Entity Extraction
+Extract any mentioned:
+- Polymers: PE, HDPE, LDPE, PP, PS, PVC, PET, PMMA, PA, PC, ABS, PU, PVDF, PTFE, PLA, etc.
+- Solvents: toluene, xylene, cyclohexane, THF, DCM, acetone, hexane, limonene, etc.
+- Temperature: numeric values in Celsius (default 80 if separation mentioned but no temp given)
+- Throughput: kg/hr or scale (lab=1, pilot=100, industrial=1000 kg/hr)
+- Constraints: green solvents, avoid chlorinated, food-safe, low-cost, etc.
+
+## User Query
+{query}
+
+## Response Format
+Respond with ONLY valid JSON (no markdown, no explanation):
+{{"path": "fast|standard|specialist|integrated", "complexity": 1-5, "specialist": "separation|tea_lca|literature|null", "collaboration_specialists": [], "reason": "brief explanation", "confidence": 0.0-1.0, "entities": {{"polymers": [], "solvents": [], "temperature": null, "throughput_kg_hr": null, "constraints": []}}}}'''
+
+
+class RouterCache:
+    """TTL cache for routing decisions to avoid repeated LLM calls."""
+
+    _cache: Dict[str, Tuple[Dict, float]] = {}
+    TTL_SECONDS = 300  # 5 minutes
 
     @classmethod
-    def parse(cls, query: str) -> ParsedQueryInput:
+    def _normalize_query(cls, query: str) -> str:
+        """Normalize query for cache key."""
+        return query.lower().strip()
+
+    @classmethod
+    def _make_key(cls, query: str) -> str:
+        normalized = cls._normalize_query(query)
+        return hashlib.md5(normalized.encode()).hexdigest()
+
+    @classmethod
+    def get(cls, query: str) -> Optional[Dict]:
+        key = cls._make_key(query)
+        if key in cls._cache:
+            result, timestamp = cls._cache[key]
+            if time.time() - timestamp < cls.TTL_SECONDS:
+                logger.debug(f"RouterCache: Cache hit for query")
+                return result
+            del cls._cache[key]
+        return None
+
+    @classmethod
+    def set(cls, query: str, result: Dict) -> None:
+        key = cls._make_key(query)
+        cls._cache[key] = (result, time.time())
+
+    @classmethod
+    def clear(cls) -> None:
+        cls._cache.clear()
+
+
+class LLMRouter:
+    """
+    LLM-as-a-judge router for intelligent query routing.
+
+    Uses an LLM to analyze queries and determine:
+    - Routing path (fast/standard/specialist/integrated)
+    - Complexity score (1-5)
+    - Required specialists
+    - Entity extraction (polymers, solvents, temperature, etc.)
+
+    Features:
+    - Caching to avoid repeated LLM calls for identical queries
+    - Fallback to default routing if LLM fails
+    - Timeout protection (5 seconds max)
+    """
+
+    @classmethod
+    def _parse_llm_response(cls, response_text: str) -> Optional[Dict]:
+        """Parse JSON response from LLM."""
+        try:
+            # Clean up response - remove markdown code blocks if present
+            text = response_text.strip()
+            if text.startswith("```"):
+                # Remove ```json and ``` markers
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+
+            return json.loads(text)
+        except json.JSONDecodeError as e:
+            logger.warning(f"LLMRouter: Failed to parse JSON: {e}")
+            return None
+
+    @classmethod
+    def _create_parsed_input(cls, entities: Dict, query: str) -> ParsedQueryInput:
+        """Convert LLM entities dict to ParsedQueryInput."""
+        return ParsedQueryInput(
+            polymers=entities.get("polymers", []) or [],
+            solvents=entities.get("solvents", []) or [],
+            temperature=entities.get("temperature"),
+            throughput_kg_hr=entities.get("throughput_kg_hr"),
+            constraints=entities.get("constraints", []) or [],
+            raw_query=query,
+            extraction_confidence=0.9,  # High confidence from LLM extraction
+        )
+
+    @classmethod
+    def _fallback_decision(cls, query: str, error_reason: str = "LLM unavailable") -> 'RoutingDecision':
+        """Return a safe fallback routing decision."""
+        logger.info(f"LLMRouter: Using fallback routing - {error_reason}")
+        return RoutingDecision(
+            complexity=3,
+            path="standard",
+            specialist=None,
+            categories=[],
+            reason=f"Fallback routing ({error_reason})",
+            collaboration_specialists=[],
+            confidence=0.3,  # Low confidence for fallback
+            parsed_input=ParsedQueryInput(raw_query=query),
+            clarifications_needed=[],
+        )
+
+    @classmethod
+    def route(cls, query: str) -> 'RoutingDecision':
         """
-        Parse user query and extract all relevant entities.
+        Route a query using LLM-as-a-judge.
 
         Args:
-            query: Raw user query string
+            query: User query string
 
         Returns:
-            ParsedQueryInput with extracted entities
+            RoutingDecision with path, specialist, complexity, and extracted entities
         """
-        result = ParsedQueryInput(raw_query=query)
-        query_lower = query.lower()
-        confidence_factors = []
+        # Check cache first
+        cached = RouterCache.get(query)
+        if cached:
+            return cls._dict_to_routing_decision(cached, query)
 
-        # Extract polymers
-        polymers_found = set()
-        for pattern, polymer_name in cls.POLYMER_PATTERNS.items():
-            if re.search(pattern, query, re.IGNORECASE):
-                polymers_found.add(polymer_name)
-        result.polymers = sorted(list(polymers_found))
-        if result.polymers:
-            confidence_factors.append(0.3)
+        # Get LLM
+        llm = _get_router_llm()
+        if llm is None:
+            return cls._fallback_decision(query, "LLM not initialized")
 
-        # Extract solvents
-        solvents_found = set()
-        for pattern, solvent_name in cls.SOLVENT_PATTERNS.items():
-            if re.search(pattern, query, re.IGNORECASE):
-                solvents_found.add(solvent_name)
-        result.solvents = sorted(list(solvents_found))
-        if result.solvents:
-            confidence_factors.append(0.2)
+        # Call LLM
+        try:
+            prompt = LLM_ROUTER_PROMPT.format(query=query)
+            response = llm.invoke(prompt)
+            response_text = response.content if hasattr(response, 'content') else str(response)
 
-        # Extract temperature
-        for pattern in cls.TEMP_PATTERNS:
-            match = re.search(pattern, query, re.IGNORECASE)
-            if match:
-                if 'room' in pattern:
-                    result.temperature = 25.0
-                elif len(match.groups()) == 2:
-                    # Temperature range
-                    try:
-                        t1, t2 = float(match.group(1)), float(match.group(2))
-                        result.temperature_range = (min(t1, t2), max(t1, t2))
-                        result.temperature = (t1 + t2) / 2
-                    except ValueError:
-                        pass
-                elif 'below' in pattern:
-                    try:
-                        result.temperature_range = (25.0, float(match.group(1)))
-                        result.temperature = float(match.group(1)) - 10
-                    except ValueError:
-                        pass
-                elif 'above' in pattern:
-                    try:
-                        result.temperature_range = (float(match.group(1)), 180.0)
-                        result.temperature = float(match.group(1)) + 20
-                    except ValueError:
-                        pass
-                else:
-                    try:
-                        result.temperature = float(match.group(1))
-                    except ValueError:
-                        pass
-                if result.temperature:
-                    confidence_factors.append(0.15)
-                break
+            # Parse response
+            parsed = cls._parse_llm_response(response_text)
+            if parsed is None:
+                return cls._fallback_decision(query, "JSON parse error")
 
-        # Extract throughput
-        for pattern in cls.THROUGHPUT_PATTERNS:
-            match = re.search(pattern, query, re.IGNORECASE)
-            if match:
-                if 'industrial' in pattern:
-                    result.throughput_kg_hr = 1000.0
-                elif 'pilot' in pattern:
-                    result.throughput_kg_hr = 100.0
-                elif 'lab' in pattern:
-                    result.throughput_kg_hr = 1.0
-                elif 'day' in pattern:
-                    try:
-                        value = float(match.group(1))
-                        if 'ton' in pattern.lower() or '/t' in query_lower:
-                            value *= 1000
-                        result.throughput_kg_hr = value / 24.0
-                    except ValueError:
-                        pass
-                elif 'ton' in pattern.lower() or match.group(0).lower().startswith(('t/', 't ')):
-                    try:
-                        result.throughput_kg_hr = float(match.group(1)) * 1000
-                    except ValueError:
-                        pass
-                else:
-                    try:
-                        result.throughput_kg_hr = float(match.group(1))
-                    except ValueError:
-                        pass
-                if result.throughput_kg_hr:
-                    confidence_factors.append(0.15)
-                break
+            # Cache the result
+            RouterCache.set(query, parsed)
 
-        # Extract constraints
-        constraints_found = set()
-        for pattern, constraint_name in cls.CONSTRAINT_PATTERNS.items():
-            if re.search(pattern, query, re.IGNORECASE):
-                constraints_found.add(constraint_name)
-        result.constraints = sorted(list(constraints_found))
-        if result.constraints:
-            confidence_factors.append(0.2)
+            return cls._dict_to_routing_decision(parsed, query)
 
-        # Calculate overall confidence
-        result.extraction_confidence = min(1.0, sum(confidence_factors))
-
-        logger.debug(f"QueryInputParser: polymers={result.polymers}, solvents={result.solvents}, "
-                    f"temp={result.temperature}, throughput={result.throughput_kg_hr}, "
-                    f"constraints={result.constraints}, confidence={result.extraction_confidence:.2f}")
-
-        return result
+        except Exception as e:
+            logger.warning(f"LLMRouter: Error during routing: {e}")
+            return cls._fallback_decision(query, f"LLM error: {str(e)[:50]}")
 
     @classmethod
-    def needs_clarification(cls, parsed: ParsedQueryInput, route_path: str) -> List[str]:
-        """
-        Determine if clarification is needed based on parsed input and intended route.
+    def _dict_to_routing_decision(cls, d: Dict, query: str) -> 'RoutingDecision':
+        """Convert parsed dict to RoutingDecision."""
+        path = d.get("path", "standard")
+        specialist = d.get("specialist")
+        if specialist == "null" or specialist is None:
+            specialist = None
 
-        Returns list of clarification prompts needed (empty if none needed).
-        """
-        clarifications = []
+        # Build categories based on path and specialist
+        categories = cls._get_categories_for_path(path, specialist)
 
-        # Separation queries need polymers
-        if route_path in ("specialist", "integrated") and not parsed.polymers:
-            if any(w in parsed.raw_query.lower() for w in ["separate", "separation", "multilayer"]):
-                clarifications.append("Which polymers do you want to separate? (e.g., PE, PP, PS, PVC)")
+        # Get collaboration specialists
+        collab = d.get("collaboration_specialists", [])
+        if not collab and path == "integrated":
+            # Infer from specialist if not provided
+            if specialist:
+                collab = [specialist]
 
-        # TEA queries benefit from throughput
-        if route_path == "integrated" and not parsed.throughput_kg_hr:
-            if any(w in parsed.raw_query.lower() for w in ["cost", "economic", "tea", "capex"]):
-                # Not blocking, just note we'll use default
-                pass  # Will use default 100 kg/hr
+        # Create parsed input from entities
+        entities = d.get("entities", {})
+        parsed_input = cls._create_parsed_input(entities, query)
 
-        return clarifications
+        return RoutingDecision(
+            complexity=d.get("complexity", 3),
+            path=path,
+            specialist=specialist,
+            categories=categories,
+            reason=d.get("reason", "LLM routing"),
+            collaboration_specialists=collab if collab else [],
+            confidence=d.get("confidence", 0.8),
+            parsed_input=parsed_input,
+            clarifications_needed=[],
+        )
+
+    @classmethod
+    def _get_categories_for_path(cls, path: str, specialist: Optional[str]) -> List[str]:
+        """Get tool categories for a routing path."""
+        if path == "fast":
+            return ["database", "dissolution", "solvent_properties"]
+        elif path == "standard":
+            return []  # Full access
+        elif path == "specialist":
+            if specialist == "separation":
+                return ["separation", "dissolution", "solvent_properties", "visualization"]
+            elif specialist == "tea_lca":
+                return ["economics", "strap", "visualization", "solvent_properties"]
+            elif specialist == "literature":
+                return ["literature", "rag"]
+        elif path == "integrated":
+            return ["separation", "dissolution", "literature", "rag", "economics", "strap", "visualization", "solvent_properties"]
+        return []
 
 
 # ============================================================
@@ -460,262 +700,21 @@ class RoutingDecision:
 
 def enhanced_complexity_router(query: str, parse_entities: bool = True) -> RoutingDecision:
     """
-    Rule-based complexity scoring with specialist routing.
+    LLM-based complexity scoring with specialist routing.
 
-    Performance: ~1-2ms (no LLM call)
+    Uses an LLM-as-a-judge approach for intelligent query analysis and routing.
+    Includes caching to minimize latency for repeated queries.
+
+    Performance: ~200-500ms (with caching, ~1ms for cache hits)
 
     Args:
         query: User query string
-        parse_entities: Whether to extract entities (polymers, solvents, etc.)
+        parse_entities: Whether to extract entities (always True with LLM router)
 
     Returns:
         RoutingDecision with path, specialist, complexity score, and parsed input
     """
-    query_lower = query.lower()
-
-    # Phase 1: Parse query for entity extraction
-    parsed_input = QueryInputParser.parse(query) if parse_entities else None
-
-    # Helper to calculate confidence based on keyword matches and entity extraction
-    def calc_confidence(keyword_matches: int, max_expected: int = 3) -> float:
-        """Calculate route confidence from keyword match count and parsed entities."""
-        keyword_conf = min(1.0, keyword_matches / max_expected) * 0.6
-        entity_conf = (parsed_input.extraction_confidence if parsed_input else 0) * 0.4
-        return min(1.0, keyword_conf + entity_conf)
-
-    # Helper to check clarifications for a route
-    def get_clarifications(path: str) -> List[str]:
-        if parsed_input:
-            return QueryInputParser.needs_clarification(parsed_input, path)
-        return []
-
-    # ==========================================================
-    # INTEGRATED PATH: Cross-domain queries requiring multiple specialists
-    # ==========================================================
-
-    # Separation + TEA/LCA integration triggers
-    integrated_sep_tea_triggers = [
-        "cost-effective separation",
-        "cost effective separation",
-        "cheapest way to separate",
-        "cheapest separation",
-        "economical separation",
-        "economic separation",
-        "lowest cost separation",
-        "separation with tea",
-        "separation with economics",
-        "compare separation costs",
-        "separation cost comparison",
-        "msp for separation",
-        "profitable separation",
-        "viable separation",
-    ]
-
-    # Check for separation + TEA combination
-    has_separation_keyword = any(w in query_lower for w in [
-        "separate", "separating", "separation", "multilayer", "multi-layer", "sequence"
-    ])
-    has_cost_keyword = any(w in query_lower for w in [
-        "cost", "economic", "tea", "capex", "opex", "payback", "msp", "cheap", "expensive"
-    ])
-
-    # Separation + Literature integration - check this BEFORE 2-way checks
-    has_literature_keyword = any(w in query_lower for w in [
-        "literature", "research", "papers", "studies", "publications",
-        "rag", "knowledgebase", "indexed", "strap", "verify"
-    ])
-
-    # 3-WAY COLLABORATION: Separation + Literature + TEA
-    # This takes priority when all three domains are needed
-    if has_separation_keyword and has_literature_keyword and has_cost_keyword:
-        return RoutingDecision(
-            complexity=5,
-            path="integrated",
-            specialist=None,
-            categories=["separation", "dissolution", "literature", "rag", "economics", "strap", "visualization", "solvent_properties"],
-            reason="Integrated Separation + Literature + TEA analysis detected",
-            collaboration_specialists=["separation", "literature", "tea_lca"],
-            confidence=calc_confidence(3, 3),  # All 3 keywords matched
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("integrated"),
-        )
-
-    # 2-WAY: Separation + TEA/LCA
-    if any(trigger in query_lower for trigger in integrated_sep_tea_triggers) or \
-       (has_separation_keyword and has_cost_keyword):
-        return RoutingDecision(
-            complexity=5,
-            path="integrated",
-            specialist=None,
-            categories=["separation", "dissolution", "economics", "strap", "visualization", "solvent_properties"],
-            reason="Integrated Separation + TEA analysis detected",
-            collaboration_specialists=["separation", "tea_lca"],
-            confidence=calc_confidence(2, 2),  # Both keywords matched
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("integrated"),
-        )
-
-    # 2-WAY: Separation + Literature
-    if has_separation_keyword and has_literature_keyword:
-        return RoutingDecision(
-            complexity=5,
-            path="integrated",
-            specialist=None,
-            categories=["separation", "dissolution", "literature", "rag"],
-            reason="Integrated Separation + Literature research detected",
-            collaboration_specialists=["separation", "literature"],
-            confidence=calc_confidence(2, 2),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("integrated"),
-        )
-
-    # Literature-first queries with polymer/solvent context (search first, then analyze)
-    has_deinking_keyword = any(w in query_lower for w in [
-        "deinking", "ink removal", "printed", "printing", "surfactant",
-        "flexographic", "gravure", "coating removal"
-    ])
-    if has_deinking_keyword:
-        return RoutingDecision(
-            complexity=4,
-            path="specialist",
-            specialist="literature",
-            categories=["literature", "rag"],
-            reason="Deinking/printed plastics literature query detected",
-            confidence=calc_confidence(1, 1),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("specialist"),
-        )
-
-    # ==========================================================
-    # SPECIALIST PATH: Complex multi-step queries (complexity 4-5)
-    # ==========================================================
-
-    # Separation Planning Specialist
-    separation_triggers = [
-        "sequential separation", "separation sequence", "separation strategy",
-        "multilayer", "multi-layer", "3-polymer", "4-polymer", "5-polymer",
-        "decision tree", "all permutations", "separation pathways",
-        "isolate each polymer", "separate all", "plan separation",
-        "which sequence", "optimal sequence", "best sequence"
-    ]
-    if any(trigger in query_lower for trigger in separation_triggers):
-        matched = sum(1 for t in separation_triggers if t in query_lower)
-        return RoutingDecision(
-            complexity=5,
-            path="specialist",
-            specialist="separation",
-            categories=["separation", "dissolution", "solvent_properties", "visualization"],
-            reason="Multi-polymer separation planning detected",
-            confidence=calc_confidence(matched, 2),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("specialist"),
-        )
-
-    # TEA/LCA Specialist
-    tea_triggers = [
-        "techno-economic", "technoeconomic", "tea analysis", "run tea",
-        "lca analysis", "life cycle", "carbon footprint", "co2 emission",
-        "payback period", "capital cost", "operating cost", "capex", "opex",
-        "economic analysis", "cost analysis", "solvent recovery cost",
-        "energy consumption", "gwp", "environmental impact assessment"
-    ]
-    if any(trigger in query_lower for trigger in tea_triggers):
-        matched = sum(1 for t in tea_triggers if t in query_lower)
-        return RoutingDecision(
-            complexity=4,
-            path="specialist",
-            specialist="tea_lca",
-            categories=["economics", "strap", "visualization", "solvent_properties"],
-            reason="Techno-economic or LCA analysis detected",
-            confidence=calc_confidence(matched, 2),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("specialist"),
-        )
-
-    # Literature Research Specialist
-    literature_triggers = [
-        "search literature", "search the literature", "find papers", "research on",
-        "publications about", "what does the literature", "scholarly articles",
-        "peer-reviewed", "web of science", "google scholar", "search rag",
-        "ask literature", "what papers", "recent research", "state of the art",
-        "hansen solubility parameter", "in the literature", "from literature",
-        "literature search", "indexed papers", "knowledgebase"
-    ]
-    if any(trigger in query_lower for trigger in literature_triggers):
-        matched = sum(1 for t in literature_triggers if t in query_lower)
-        return RoutingDecision(
-            complexity=4,
-            path="specialist",
-            specialist="literature",
-            categories=["literature", "rag"],
-            reason="Literature research query detected",
-            confidence=calc_confidence(matched, 2),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("specialist"),
-        )
-
-    # ==========================================================
-    # STANDARD PATH: Moderate complexity (complexity 3)
-    # ==========================================================
-
-    standard_triggers = [
-        "compare", "comparison", "rank by", "ranked by",
-        "temperature curve", "temperature window", "vs temperature",
-        "selective", "selectivity", "separate", "separation",
-        "heatmap", "dashboard", "multi-panel",
-        "correlation", "regression", "statistical"
-    ]
-    if any(trigger in query_lower for trigger in standard_triggers):
-        matched = sum(1 for t in standard_triggers if t in query_lower)
-        return RoutingDecision(
-            complexity=3,
-            path="standard",
-            specialist=None,
-            categories=[],  # Will use existing router
-            reason="Standard complexity query",
-            confidence=calc_confidence(matched, 2),
-            parsed_input=parsed_input,
-            clarifications_needed=get_clarifications("standard"),
-        )
-
-    # ==========================================================
-    # FAST PATH: Simple queries (complexity 1-2)
-    # ==========================================================
-
-    simple_triggers = [
-        "list tables", "what tables", "describe table", "schema",
-        "list polymers", "what polymers", "available polymers", "list all polymers",
-        "list solvents", "what solvents", "available solvents", "list all solvents",
-        "solubility of", "dissolve", "top 10", "top 5", "top 20",
-        "boiling point of", "logp of", "properties of",
-        "g-score for", "gscore for", "how many polymers", "how many solvents"
-    ]
-    if any(trigger in query_lower for trigger in simple_triggers):
-        matched = sum(1 for t in simple_triggers if t in query_lower)
-        return RoutingDecision(
-            complexity=2 if "top" in query_lower else 1,
-            path="fast",
-            specialist=None,
-            categories=["database", "dissolution", "solvent_properties"],
-            reason="Simple lookup query",
-            confidence=calc_confidence(matched, 1),
-            parsed_input=parsed_input,
-            clarifications_needed=[],  # Simple queries don't need clarification
-        )
-
-    # ==========================================================
-    # DEFAULT: Standard path for unclassified queries
-    # ==========================================================
-    return RoutingDecision(
-        complexity=3,
-        path="standard",
-        specialist=None,
-        categories=[],
-        reason="Default routing - unclassified query",
-        confidence=0.5,  # Low confidence for default routing
-        parsed_input=parsed_input,
-        clarifications_needed=get_clarifications("standard"),
-    )
+    return LLMRouter.route(query)
 
 
 def get_routing_preview(query: str) -> Dict[str, Any]:
@@ -1121,6 +1120,278 @@ class PolymerKnowledgeGraph:
 
 
 # ============================================================
+# TEA-FIRST PROFITABILITY SCREENING
+# ============================================================
+
+# Polymer market values ($/kg recycled material, 2024 estimates)
+POLYMER_MARKET_VALUES = {
+    "HDPE": 1.10,
+    "LDPE": 0.95,
+    "PE": 1.00,
+    "PP": 1.05,
+    "PET": 0.85,
+    "PS": 0.75,
+    "PVC": 0.55,
+    "ABS": 1.80,
+    "PC": 2.50,
+    "PMMA": 2.20,
+    "PA6": 2.00,
+    "PA66": 2.10,
+    "EVOH": 3.00,   # High barrier value
+    "PVDF": 4.50,   # Engineering polymer
+    "PLA": 1.50,    # Bioplastic premium
+    "PHA": 2.80,
+    "PBAT": 1.20,
+}
+
+# Separation difficulty scores (1-10, higher = harder to separate)
+POLYMER_SEPARATION_DIFFICULTY = {
+    "PE": 4,
+    "LDPE": 5,
+    "HDPE": 3,
+    "PP": 4,
+    "PET": 3,
+    "PS": 3,
+    "PVC": 6,       # Chlorine issues
+    "ABS": 5,
+    "PC": 4,
+    "PMMA": 4,
+    "PA6": 5,       # Needs specific solvents
+    "PA66": 5,
+    "EVOH": 7,      # Barrier layer, complex
+    "PVDF": 6,
+    "PLA": 4,
+    "PHA": 5,
+    "PBAT": 5,
+}
+
+# Processing costs ($/kg, includes solvent, energy, labor)
+POLYMER_PROCESSING_COSTS = {
+    "PE": 0.35,
+    "LDPE": 0.40,
+    "HDPE": 0.30,
+    "PP": 0.35,
+    "PET": 0.30,
+    "PS": 0.25,
+    "PVC": 0.50,
+    "ABS": 0.45,
+    "PC": 0.55,
+    "PMMA": 0.50,
+    "PA6": 0.60,
+    "PA66": 0.60,
+    "EVOH": 0.80,
+    "PVDF": 0.90,
+    "PLA": 0.45,
+    "PHA": 0.65,
+    "PBAT": 0.55,
+}
+
+
+def calculate_polymer_profitability(polymer: str, throughput_kg_hr: float = 100.0) -> Dict[str, Any]:
+    """
+    Calculate profitability score for a polymer.
+
+    Args:
+        polymer: Polymer abbreviation (e.g., "PE", "PP")
+        throughput_kg_hr: Processing throughput in kg/hr
+
+    Returns:
+        Dict with market_value, processing_cost, profit_margin, ROI_score
+    """
+    polymer_upper = polymer.upper()
+
+    # Get values with defaults
+    market_value = POLYMER_MARKET_VALUES.get(polymer_upper, 0.80)
+    processing_cost = POLYMER_PROCESSING_COSTS.get(polymer_upper, 0.40)
+    difficulty = POLYMER_SEPARATION_DIFFICULTY.get(polymer_upper, 5)
+
+    # Calculate profit margin
+    profit_margin = market_value - processing_cost
+
+    # ROI score: profit margin adjusted by difficulty and throughput
+    # Higher throughput = better economics (economy of scale)
+    scale_factor = min(throughput_kg_hr / 100, 3.0)  # Cap at 3x
+    difficulty_penalty = difficulty / 10  # 0-1 range
+
+    roi_score = profit_margin * scale_factor * (1 - difficulty_penalty * 0.3)
+
+    return {
+        "polymer": polymer_upper,
+        "market_value_usd_kg": market_value,
+        "processing_cost_usd_kg": processing_cost,
+        "profit_margin_usd_kg": round(profit_margin, 2),
+        "separation_difficulty": difficulty,
+        "roi_score": round(roi_score, 3),
+        "throughput_factor": round(scale_factor, 2),
+    }
+
+
+def rank_polymers_by_profitability(
+    polymers: List[str],
+    throughput_kg_hr: float = 100.0,
+    top_n: int = 3
+) -> List[Dict[str, Any]]:
+    """
+    Rank polymers by profitability and return top N.
+
+    Args:
+        polymers: List of polymer abbreviations
+        throughput_kg_hr: Processing throughput
+        top_n: Number of top polymers to return
+
+    Returns:
+        List of top N polymers ranked by ROI score
+    """
+    profitability_data = []
+
+    for polymer in polymers:
+        data = calculate_polymer_profitability(polymer, throughput_kg_hr)
+        profitability_data.append(data)
+
+    # Sort by ROI score descending
+    ranked = sorted(profitability_data, key=lambda x: x["roi_score"], reverse=True)
+
+    return ranked[:top_n]
+
+
+# LLM prompt for profitability assessment
+PROFITABILITY_SCREENING_PROMPT = '''You are a polymer recycling economics expert. Analyze the economic viability of separating and recycling these polymers from a multi-layer plastic waste stream.
+
+## Polymers to Evaluate
+{polymers}
+
+## Processing Parameters
+- Throughput: {throughput_kg_hr} kg/hr
+- Scale: {scale_description}
+
+## Evaluation Criteria
+For each polymer, consider:
+1. Market value of recycled material ($/kg)
+2. Separation complexity (solvents needed, temperature, steps)
+3. Processing costs (solvent recovery, energy, labor)
+4. Environmental regulations (hazardous solvents penalties)
+5. End-market demand
+
+## Pre-calculated Profitability Data
+{profitability_data}
+
+## Task
+Based on this analysis, return a JSON object with:
+{{
+    "ranked_polymers": [
+        {{"polymer": "XXX", "rank": 1, "expected_profit_usd_kg": 0.00, "recommendation": "PROCESS|SKIP|CONDITIONAL", "reasoning": "brief explanation"}}
+    ],
+    "top_3_for_separation": ["polymer1", "polymer2", "polymer3"],
+    "skip_polymers": ["polymers to skip and why"],
+    "total_expected_profit_usd_hr": 0.0,
+    "confidence": 0.0-1.0
+}}
+
+Focus on identifying the TOP 3 most profitable polymers for separation.
+Return ONLY valid JSON.'''
+
+
+async def profitability_screening_node(state: dict, sql_agent_node=None) -> dict:
+    """
+    TEA-first profitability screening node.
+
+    Evaluates economic viability of each polymer BEFORE separation planning.
+    Filters to top N most profitable polymers for separation.
+
+    This enables:
+    - Skip low-value polymers early (e.g., PVC with disposal costs)
+    - Focus separation effort on high-value targets
+    - Parallel execution with literature search
+    """
+    logger.info("Profitability Screening: Starting TEA-first analysis")
+    start_time = time.time()
+
+    shared_context = state.get("shared_context", {})
+    polymers = shared_context.get("polymers", [])
+    throughput = shared_context.get("throughput_kg_hr", 100.0)
+
+    if not polymers or len(polymers) < 1:
+        logger.warning("Profitability Screening: No polymers found in shared_context")
+        return {
+            "profitability_results": {"error": "No polymers to evaluate"},
+            "top_polymers": [],
+            "profitability_screening_complete": True,
+        }
+
+    # Calculate profitability for all polymers
+    all_profitability = [calculate_polymer_profitability(p, throughput) for p in polymers]
+
+    # Get top 3 by ROI score
+    top_3 = rank_polymers_by_profitability(polymers, throughput, top_n=3)
+    top_polymer_names = [p["polymer"] for p in top_3]
+
+    # Determine scale description
+    if throughput >= 500:
+        scale_desc = "industrial scale"
+    elif throughput >= 50:
+        scale_desc = "pilot scale"
+    else:
+        scale_desc = "lab scale"
+
+    # Format profitability data for LLM
+    profitability_str = json.dumps(all_profitability, indent=2)
+
+    # Optionally use LLM for nuanced analysis
+    llm = _get_extractor_llm()
+    llm_analysis = None
+
+    if llm and len(polymers) > 3:
+        try:
+            prompt = PROFITABILITY_SCREENING_PROMPT.format(
+                polymers=", ".join(polymers),
+                throughput_kg_hr=throughput,
+                scale_description=scale_desc,
+                profitability_data=profitability_str,
+            )
+            response = llm.invoke(prompt)
+            response_text = response.content if hasattr(response, 'content') else str(response)
+
+            # Parse JSON response
+            text = response_text.strip()
+            if text.startswith("```"):
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
+            llm_analysis = json.loads(text)
+
+            # Use LLM's top 3 if available
+            if "top_3_for_separation" in llm_analysis:
+                top_polymer_names = llm_analysis["top_3_for_separation"][:3]
+
+        except Exception as e:
+            logger.warning(f"Profitability Screening: LLM analysis failed: {e}, using fallback")
+
+    elapsed = time.time() - start_time
+    logger.info(f"Profitability Screening: Completed in {elapsed:.2f}s")
+    logger.info(f"  All polymers: {polymers}")
+    logger.info(f"  Top 3 for separation: {top_polymer_names}")
+
+    # Update shared context with filtered polymers
+    updated_context = dict(shared_context)
+    updated_context["original_polymers"] = polymers
+    updated_context["polymers"] = top_polymer_names  # Only top 3 for separation
+    updated_context["profitability_data"] = all_profitability
+
+    return {
+        "profitability_results": {
+            "all_polymers_analyzed": len(polymers),
+            "top_polymers": top_polymer_names,
+            "profitability_data": all_profitability,
+            "llm_analysis": llm_analysis,
+            "elapsed_seconds": round(elapsed, 2),
+        },
+        "top_polymers": top_polymer_names,
+        "shared_context": updated_context,
+        "profitability_screening_complete": True,
+        "agent_timings": {"profitability_screening": elapsed},
+    }
+
+
+# ============================================================
 # TOOL SUBSETS FOR SPECIALISTS
 # ============================================================
 
@@ -1186,22 +1457,30 @@ YOUR ONLY TASK: Plan optimal sequential separation strategies for multilayer pol
 
 ## WORKFLOW
 1. **ALWAYS** call `plan_sequential_separation()` first with the polymer list and temperature
-2. The tool will enumerate ALL permutations and rank them by worst-case selectivity
+2. The tool automatically selects the algorithm:
+   - **≤3 polymers**: Exhaustive search (evaluates all permutations)
+   - **>3 polymers**: Greedy algorithm (O(n²) - fast and efficient)
 3. Use the results to explain the best sequence and solvent choices
 4. If asked for visualization, use `plot_selectivity_heatmap()` or the decision tree from step 1
 
+## ALGORITHM SELECTION (AUTOMATIC)
+- 2-3 polymers: Exhaustive (6 permutations max) - finds global optimum
+- 4+ polymers: Greedy - finds good solution in O(n²) time
+- DO NOT attempt to enumerate permutations manually for >3 polymers
+
 ## KEY PARAMETERS
 - **Temperature**: Use the specified temperature (default 80°C for better selectivity)
-- **Polymers**: Extract polymer names from the query (LDPE, HDPE, PET, PP, PS, PVC, PC, Nylon66, EVOH)
+- **Polymers**: Extract polymer names from the query (LDPE, HDPE, PET, PP, PS, PVC, PC, Nylon66, EVOH, PA6)
 - **Top-k solvents**: Default to 5 per step
 
 ## RESPONSE FORMAT
 1. Best sequence with reasoning
 2. Step-by-step solvent recommendations with properties
 3. Selectivity scores and warnings
-4. Alternative sequences if applicable
+4. Alternative sequences if applicable (for ≤3 polymers only)
 
 DO NOT: Run general database queries, perform statistical analysis, or search literature.
+DO NOT: Manually enumerate permutations - let the tool handle algorithm selection.
 FOCUS: Separation planning only. Be concise and actionable."""
 
 
@@ -1397,277 +1676,63 @@ class MultiAgentState(MessagesState):
     # Validation summary from literature reviewer
     literature_validation: Optional[Dict[str, Any]] = None
 
+    # =========================================================
+    # Workflow Telemetry Fields (Hybrid Orchestrator)
+    # =========================================================
+
+    # Orchestration metadata from hybrid workflow executor
+    orchestration: Optional[Dict[str, Any]] = None
+
+    # Workflow trace summary
+    workflow_trace: Optional[Dict[str, Any]] = None
+
+    # Detailed workflow trace (for debugging)
+    workflow_trace_detailed: Optional[Dict[str, Any]] = None
+
+    # Top polymers from profitability screening
+    top_polymers: Optional[List[str]] = None
+
+    # Profitability results from TEA-first screening
+    profitability_results: Optional[Dict[str, Any]] = None
+
 
 # ============================================================
-# HELPER FUNCTIONS FOR CONTEXT EXTRACTION
+# HELPER FUNCTIONS FOR CONTEXT EXTRACTION (LLM-based)
 # ============================================================
 
 def extract_polymers(query: str) -> List[str]:
-    """Extract polymer names from query."""
-    # Sort by length (longest first) to match LDPE before PE, Nylon66 before Nylon6
-    known_polymers = [
-        "Nylon66", "Nylon6", "PA66", "PA6",  # Long names first
-        "LDPE", "HDPE", "EVOH", "PMMA", "PBAT",
-        "PET", "PVC", "ABS", "PLA", "PBS", "PHA", "PHB", "PVDF",
-        "PE", "PP", "PS", "PC",  # Short names last (to avoid substring conflicts)
-    ]
-    query_upper = query.upper()
-    found = []
-    found_positions = set()  # Track matched positions to avoid overlaps
-
-    for polymer in known_polymers:
-        polymer_upper = polymer.upper()
-        # Find all occurrences
-        start = 0
-        while True:
-            pos = query_upper.find(polymer_upper, start)
-            if pos == -1:
-                break
-            end_pos = pos + len(polymer_upper)
-
-            # Check if this position overlaps with already found polymer
-            position_range = set(range(pos, end_pos))
-            if not position_range & found_positions:
-                # Check word boundary (not part of a longer word)
-                before_ok = pos == 0 or not query_upper[pos-1].isalnum()
-                after_ok = end_pos == len(query_upper) or not query_upper[end_pos].isalnum()
-
-                if before_ok and after_ok:
-                    found.append(polymer)
-                    found_positions.update(position_range)
-                    break  # Only add once per polymer type
-            start = pos + 1
-
-    return found if found else ["LDPE", "PET", "EVOH"]  # Default
+    """Extract polymer names from query using LLM."""
+    params = LLMExtractor.extract_query_params(query)
+    polymers = params.get("polymers", [])
+    return polymers if polymers else ["LDPE", "PET", "EVOH"]  # Default
 
 
 def extract_temperature(query: str, default: float = 80.0) -> float:
-    """Extract temperature from query."""
-    query_lower = query.lower()
-
-    # Check for room temperature keywords first
-    if any(phrase in query_lower for phrase in ["room temperature", "ambient", "room temp", "25 c", "25c"]):
-        return 25.0
-
-    # Look for patterns like "80C", "80°C", "80 C", "at 80 degrees"
-    patterns = [
-        r'(\d+)\s*°?\s*[Cc](?:elsius)?',
-        r'at\s+(\d+)\s*degrees',  # Must have "degrees" to avoid matching "at 200 kg/hr"
-        r'(\d+)\s*degrees',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, query)
-        if match:
-            return float(match.group(1))
-    return default
+    """Extract temperature from query using LLM."""
+    params = LLMExtractor.extract_query_params(query)
+    return params.get("temperature") or default
 
 
 def extract_throughput(query: str, default: float = 100.0) -> float:
-    """Extract throughput from query."""
-    # Look for patterns like "100 kg/hr", "500kg/hr"
-    patterns = [
-        r'(\d+)\s*kg/h',
-        r'(\d+)\s*kg per hour',
-        r'throughput[:\s]+(\d+)',
-    ]
-    for pattern in patterns:
-        match = re.search(pattern, query.lower())
-        if match:
-            return float(match.group(1))
-    return default
+    """Extract throughput from query using LLM."""
+    params = LLMExtractor.extract_query_params(query)
+    return params.get("throughput_kg_hr") or default
 
 
 def parse_separation_results(response_text: str) -> Dict[str, Any]:
     """
-    Parse separation agent response to extract structured results.
+    Parse separation agent response using LLM extraction.
 
     Returns dict with sequences, solvents, selectivities for TEA evaluation.
     """
-    results = {
-        "sequences": [],
-        "solvents": [],  # Primary key for solvents
-        "selectivities": [],
-        "algorithm_used": None,
-        "best_sequence": None,
-        "raw_response": response_text
-    }
-
-    response_lower = response_text.lower()
-
-    # Detect algorithm used (greedy vs exhaustive)
-    # Look for specific patterns in the tool output
-    if "greedy separation" in response_lower or "algorithm:** greedy" in response_lower:
-        results["algorithm_used"] = "greedy"
-    elif "greedy" in response_lower and ("o(n²)" in response_lower or "o(n^2)" in response_lower):
-        results["algorithm_used"] = "greedy"
-    elif "exhaustive" in response_lower or "all permutations" in response_lower:
-        results["algorithm_used"] = "exhaustive"
-    elif "n!" in response_text or "permutation" in response_lower:
-        results["algorithm_used"] = "exhaustive"
-
-    # Pattern 0: Full sequence with arrows (PS → PVC → PP → EVOH → LDPE → PET → HDPE → PA6 → PA66)
-    # This is more specific for greedy output
-    full_seq_pattern = r'\*\*(?:Optimized\s+)?Sequence:\*\*\s*([A-Z0-9]+(?:\s*→\s*[A-Z0-9]+)+)'
-    full_seq_match = re.search(full_seq_pattern, response_text)
-    if full_seq_match:
-        seq_str = full_seq_match.group(1)
-        seq = [p.strip() for p in re.split(r'\s*→\s*', seq_str)]
-        if len(seq) > 1:
-            results["best_sequence"] = seq
-            results["sequences"].append(seq)
-
-    # Pattern 1: Arrow sequences (PE -> EVOH -> PET)
-    arrow_pattern = r'([A-Z]{2,6})\s*[-→>]+\s*([A-Z]{2,6})(?:\s*[-→>]+\s*([A-Z]{2,6}))?'
-    arrow_matches = re.findall(arrow_pattern, response_text.upper())
-
-    for match in arrow_matches:
-        seq = [m for m in match if m]  # Filter empty groups
-        if seq and seq not in results["sequences"]:
-            results["sequences"].append(seq)
-
-    # Pattern 2: Extract solvents - expanded list with various forms
-    common_solvents = [
-        # Hydrocarbons
-        "cyclohexane", "hexane", "heptane", "pentane", "octane",
-        "toluene", "xylene", "benzene", "decalin", "tetralin",
-        # Polar aprotic
-        "dmso", "dmf", "nmp", "thf", "mek", "dmac", "dma", "sulfolane",
-        # Alcohols
-        "acetone", "ethanol", "methanol", "isopropanol", "butanol", "propanol",
-        # Halogenated
-        "dcm", "chloroform", "dichloromethane", "trichloroethylene",
-        "dichloroacetic acid", "trifluoroacetic acid",
-        # Esters & ethers
-        "ethyl acetate", "diethyl ether", "dioxane",
-        # Glycols
-        "ethylene glycol", "propylene glycol", "glycerol",
-        # Others
-        "water", "limonene", "gamma-valerolactone", "gvl", "cyrene"
-    ]
-
-    found_solvents = set()
-    for solvent in common_solvents:
-        if solvent in response_lower:
-            found_solvents.add(solvent)
-
-    results["solvents"] = list(found_solvents)
-
-    # Pattern 3: Extract selectivity values (various formats)
-    selectivity_patterns = [
-        r'selectivity[:\s]+(\d+\.?\d*)%?',
-        r'(\d+\.?\d*)\s*%?\s*selectiv',
-        r'\(selectivity[:\s]*(\d+\.?\d*)',
-        r'selectivity\s*[=:]\s*(\d+\.?\d*)',
-    ]
-    selectivities = set()
-    for pattern in selectivity_patterns:
-        matches = re.findall(pattern, response_lower)
-        for m in matches:
-            try:
-                val = float(m)
-                if 0 < val <= 1:
-                    selectivities.add(val)
-                elif 1 < val <= 100:
-                    selectivities.add(val / 100)  # Convert percentage
-            except ValueError:
-                pass
-
-    results["selectivities"] = sorted(list(selectivities), reverse=True)
-
-    return results
+    result = LLMExtractor.extract_separation(response_text)
+    return result.model_dump()
 
 
 def parse_tea_results(response_text: str) -> Dict[str, Any]:
-    """Parse TEA agent response to extract structured cost data."""
-    results = {
-        "msp_values": {},
-        "best_solvent": None,
-        "cost_breakdown": {},
-        "total_capex": None,
-        "total_opex": None,
-        "payback_years": None,
-        "cost_per_kg": None,
-        "raw_response": response_text
-    }
-
-    response_lower = response_text.lower()
-
-    # Use consolidated cost extraction helper
-    cost = extract_cost_from_text(response_text)
-    if cost:
-        results["cost_per_kg"] = cost
-
-    # Extract solvent-specific costs from tables or lists
-    # Pattern: "| Xylene | 2.45 |" or "Xylene: $2.45/kg"
-    common_solvents = [
-        "xylene", "toluene", "cyclohexane", "hexane", "dmso", "dmf",
-        "nmp", "thf", "mek", "acetone", "ethanol", "dcm", "chloroform",
-        "limonene", "gvl", "decalin", "dichloroacetic acid"
-    ]
-
-    for solvent in common_solvents:
-        # Look for "solvent | price" or "solvent: $price"
-        patterns = [
-            rf'{solvent}\s*\|\s*\$?(\d+\.?\d*)',
-            rf'{solvent}[:\s]+\$?(\d+\.?\d*)\s*/?\s*kg',
-            rf'\|\s*{solvent}\s*\|\s*\$?(\d+\.?\d*)',
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, response_lower)
-            if match:
-                results["msp_values"][solvent] = float(match.group(1))
-                break
-
-    # Find best/recommended solvent
-    best_patterns = [
-        r'(?:best|optimal|recommend(?:ed)?|lowest)[:\s]+(\w+)',
-        r'(\w+)(?:\s+|-)?based process (?:has |offers |provides )(?:lowest|best)',
-        r'recommend(?:ation)?[:\s]+(?:use\s+)?(\w+)',
-    ]
-    for pattern in best_patterns:
-        match = re.search(pattern, response_lower)
-        if match:
-            candidate = match.group(1).lower()
-            if candidate in common_solvents:
-                results["best_solvent"] = candidate
-                break
-
-    # Extract CAPEX
-    capex_patterns = [
-        r'capex[:\s]+\$?(\d[\d,]*)',
-        r'capital\s+cost[:\s]+\$?(\d[\d,]*)',
-    ]
-    for pattern in capex_patterns:
-        match = re.search(pattern, response_lower)
-        if match:
-            results["total_capex"] = float(match.group(1).replace(",", ""))
-            break
-
-    # Extract OPEX
-    opex_patterns = [
-        r'opex[:\s]+\$?(\d[\d,]*)',
-        r'operating\s+cost[:\s]+\$?(\d[\d,]*)',
-    ]
-    for pattern in opex_patterns:
-        match = re.search(pattern, response_lower)
-        if match:
-            results["total_opex"] = float(match.group(1).replace(",", ""))
-            break
-
-    # Extract payback
-    payback_pattern = r'payback[:\s]+(\d+\.?\d*)\s*years?'
-    payback_match = re.search(payback_pattern, response_lower)
-    if payback_match:
-        results["payback_years"] = float(payback_match.group(1))
-
-    # Build cost breakdown if we have components
-    if results["total_capex"] or results["total_opex"]:
-        results["cost_breakdown"] = {
-            "capex": results["total_capex"],
-            "opex": results["total_opex"],
-        }
-
-    return results
+    """Parse TEA agent response using LLM extraction."""
+    result = LLMExtractor.extract_tea(response_text)
+    return result.model_dump()
 
 
 # ============================================================
@@ -1753,12 +1818,20 @@ def create_execution_trace(
 
 async def integrated_orchestrator_node(state: MultiAgentState) -> dict:
     """
-    Orchestrates sequential specialist execution with context passing.
+    Orchestrates specialist execution with parallel support where applicable.
 
-    Flow:
-    1. Parse user intent to determine specialist order
-    2. Initialize shared context with extracted parameters
-    3. Set up collaboration state for sequential execution
+    Flow Options:
+    1. STANDARD: Separation → TEA → Aggregator
+    2. PARALLEL: (Separation + Literature) in parallel → TEA → Aggregator
+    3. TEA-FIRST: (Profitability + Literature) in parallel → Separation (top 3) → Aggregator
+       - Triggered when >3 polymers detected
+       - Filters to top 3 most profitable polymers before separation
+       - Saves compute by skipping low-value polymers
+
+    Parallel execution opportunities:
+    - Separation + Literature: Independent, can run in parallel
+    - TEA-first Profitability + Literature: Independent, can run in parallel
+    - Final TEA always depends on Separation results
     """
     messages = state.get("messages", [])
 
@@ -1777,15 +1850,19 @@ async def integrated_orchestrator_node(state: MultiAgentState) -> dict:
             break
 
     # Determine collaboration specialists from routing decision
-    # (Already set by router, but we can validate here)
     collaboration_specialists = state.get("collaboration_specialists", ["separation", "tea_lca"])
 
-    # Extract shared context from query
+    # Extract shared context from query using LLM extractor
+    query_params = LLMExtractor.extract_query_params(query)
+    polymers = query_params.get("polymers", [])
+    throughput = query_params.get("throughput_kg_hr", 100.0)
+
     shared_context = {
         "original_query": query,
-        "polymers": extract_polymers(query),
-        "temperature": extract_temperature(query, default=80.0),
-        "throughput_kg_hr": extract_throughput(query, default=100.0),
+        "polymers": polymers,
+        "temperature": query_params.get("temperature", 80.0),
+        "throughput_kg_hr": throughput,
+        "constraints": query_params.get("constraints", []),
         "timestamp": datetime.now().isoformat(),
     }
 
@@ -1793,11 +1870,37 @@ async def integrated_orchestrator_node(state: MultiAgentState) -> dict:
 
     # P3: Create execution trace for this session
     trace_id = str(uuid.uuid4())[:12]
-    complexity = state.get("complexity", 5)
+
+    # ====== TEA-FIRST MODE DETECTION ======
+    # If >3 polymers, use profitability screening to filter to top 3
+    # This runs TEA-style analysis BEFORE separation
+    n_polymers = len(polymers)
+    tea_first_mode = n_polymers > 3 and "separation" in collaboration_specialists
+
+    # Determine parallel execution eligibility
+    # Option A: Separation + Literature in parallel (standard)
+    # Option B: Profitability + Literature in parallel (TEA-first mode)
+    has_literature = "literature" in collaboration_specialists
+    can_parallel = (
+        ("separation" in collaboration_specialists and has_literature) or
+        (tea_first_mode and has_literature)
+    )
+
+    # Log orchestrator decision
+    if tea_first_mode:
+        logger.info(f"Integrated Orchestrator: TEA-FIRST MODE (n_polymers={n_polymers})")
+        logger.info(f"  Flow: Profitability Screening → Separation (top 3) → Aggregator")
+        if has_literature:
+            logger.info(f"  Parallel: Profitability + Literature will run in parallel")
+    else:
+        logger.info(f"Integrated Orchestrator: STANDARD MODE")
 
     logger.info(f"Integrated Orchestrator: mode={collaboration_mode}, "
                 f"specialists={collaboration_specialists}, "
-                f"trace_id={trace_id}, context={shared_context}")
+                f"tea_first={tea_first_mode}, "
+                f"parallel_eligible={can_parallel}, "
+                f"n_polymers={n_polymers}, "
+                f"trace_id={trace_id}")
 
     return {
         "collaboration_mode": collaboration_mode,
@@ -1812,6 +1915,11 @@ async def integrated_orchestrator_node(state: MultiAgentState) -> dict:
         # P3: Enhanced tracking
         "trace_id": trace_id,
         "agent_timings": {"orchestrator": time.time()},
+        # Parallel execution flag
+        "parallel_execution": can_parallel,
+        # TEA-first mode flags
+        "tea_first_mode": tea_first_mode,
+        "original_polymer_count": n_polymers,
     }
 
 
@@ -3033,19 +3141,11 @@ Do NOT call the tools again. Just analyze the results above and provide a summar
         tea_results = parse_tea_results(all_text)
         tea_results["solvents_analyzed"] = separation_results.get("solvents", []) if separation_results else []
 
-        # Enhanced cost extraction using consolidated helper
-        if not tea_results.get("cost_per_kg"):
-            cost = extract_cost_from_text(all_text)
-            if cost:
-                tea_results["cost_per_kg"] = cost
-                logger.info(f"TEA cost extracted: ${cost}/kg")
-
-        # Log if no cost found after all attempts
-        if not tea_results.get("cost_per_kg"):
+        # Log extraction results
+        if tea_results.get("cost_per_kg"):
+            logger.info(f"TEA cost extracted: ${tea_results['cost_per_kg']}/kg")
+        else:
             logger.warning(f"TEA: No cost_per_kg extracted from {len(all_text)} chars of output")
-            # Log more of the text for debugging
-            sample = all_text[:500].replace('\n', ' ')
-            logger.warning(f"TEA output sample: {sample}...")
 
         logger.info(f"TEA Agent (collab): cost_per_kg={tea_results.get('cost_per_kg')}, "
                    f"payback={tea_results.get('payback_years')}")
@@ -4250,39 +4350,83 @@ def build_multi_agent_graph(
     builder.add_node("literature_agent", literature_agent_node)
     builder.add_node("literature_tools", async_tool_node_class(LITERATURE_TOOLS or all_tools))
 
-    # ========== INTEGRATED COLLABORATION PATH ==========
+    # ========== INTEGRATED COLLABORATION PATH (HYBRID WORKFLOW ENGINE) ==========
 
-    # Integrated orchestrator (initializes collaboration)
-    builder.add_node("integrated_orchestrator", integrated_orchestrator_node)
+    # Create hybrid orchestrator with workflow engine
+    # This replaces ~600 lines of manual executor nodes with declarative workflows
+    hybrid_orchestrator = create_hybrid_orchestrator(
+        sql_agent_node=sql_agent_node,
+        tool_node_class=async_tool_node_class,
+        all_tools=all_tools,
+        profitability_node=profitability_screening_node,
+        planning_threshold=0.7,  # Use LLM planner if confidence < 0.7
+    )
 
-    # Collaboration-aware separation agent
-    async def collab_separation_node(state):
-        return await collab_separation_agent_node(state, sql_agent_node)
+    # Register agents with proper tool categories
+    hybrid_orchestrator.engine.agents["separation"].categories = [
+        "separation", "advanced_separation", "dissolution", "solvent_properties", "visualization"
+    ]
+    hybrid_orchestrator.engine.agents["tea_lca"].categories = [
+        "economics", "strap", "visualization", "solvent_properties"
+    ]
+    hybrid_orchestrator.engine.agents["literature"].categories = [
+        "literature", "rag"
+    ]
 
-    builder.add_node("collab_separation_agent", collab_separation_node)
-    builder.add_node("collab_separation_tools", async_tool_node_class(SEPARATION_TOOLS or all_tools))
+    # Hybrid workflow executor node - replaces all manual executors
+    async def hybrid_workflow_executor(state):
+        """
+        Unified workflow executor using the hybrid orchestrator.
 
-    # P0 Enhancement: Separation reviewer for quality validation
-    builder.add_node("separation_reviewer", separation_reviewer_node)
+        Replaces:
+        - parallel_executor_node
+        - tea_first_executor_node
+        - collab_separation_agent + tools
+        - collab_tea_agent + tools
+        - collab_literature_agent + tools
+        - All the complex routing logic between them
 
-    # Phase 3: Literature reviewer for cross-validation
-    builder.add_node("literature_reviewer", literature_reviewer_node)
+        The hybrid orchestrator:
+        1. Tries predefined workflows first (fast, predictable)
+        2. Falls back to LLM planner for novel queries
+        3. Executes the selected workflow with parallel/sequential stages
+        """
+        # Extract query from messages
+        query = ""
+        messages = state.get("messages", [])
+        for msg in reversed(messages):
+            if isinstance(msg, HumanMessage):
+                query = msg.content
+                break
 
-    # Collaboration-aware TEA agent
-    async def collab_tea_node(state):
-        return await collab_tea_agent_node(state, sql_agent_node)
+        # Build context for workflow selection
+        shared_context = state.get("shared_context", {})
+        context = {
+            "polymers": shared_context.get("polymers", []),
+            "specialists": state.get("collaboration_specialists", []),
+            "constraints": shared_context.get("constraints", []),
+        }
 
-    builder.add_node("collab_tea_agent", collab_tea_node)
-    builder.add_node("collab_tea_tools", async_tool_node_class(TEA_LCA_TOOLS or all_tools))
+        # Execute via hybrid orchestrator
+        logger.info(f"Hybrid Workflow Executor: Starting with context={context}")
+        result = await hybrid_orchestrator.orchestrate(
+            state=state,
+            query=query,
+            context=context,
+        )
 
-    # Collaboration-aware Literature agent
-    async def collab_literature_node(state):
-        return await collab_literature_agent_node(state, sql_agent_node)
+        # Log orchestration decision
+        orchestration = result.get("orchestration", {})
+        logger.info(f"Hybrid Workflow Executor: Completed")
+        logger.info(f"  Workflow: {orchestration.get('workflow_name')}")
+        logger.info(f"  Used planner: {orchestration.get('used_planner')}")
+        logger.info(f"  Total time: {orchestration.get('total_time_seconds', 0):.1f}s")
 
-    builder.add_node("collab_literature_agent", collab_literature_node)
-    builder.add_node("collab_literature_tools", async_tool_node_class(LITERATURE_TOOLS or all_tools))
+        return result
 
-    # Smart aggregator for collaboration results
+    builder.add_node("hybrid_workflow_executor", hybrid_workflow_executor)
+
+    # Smart aggregator for workflow results
     builder.add_node("smart_aggregator", smart_aggregator_node)
 
     # Legacy aggregator for single specialists
@@ -4303,7 +4447,7 @@ def build_multi_agent_graph(
         specialist = state.get("specialist")
 
         if path == "integrated":
-            return "integrated_orchestrator"
+            return "hybrid_workflow_executor"
         elif path == "fast":
             return "fast_agent"
         elif path == "specialist" and specialist:
@@ -4326,7 +4470,7 @@ def build_multi_agent_graph(
             "separation_agent": "separation_agent",
             "tea_agent": "tea_agent",
             "literature_agent": "literature_agent",
-            "integrated_orchestrator": "integrated_orchestrator",
+            "hybrid_workflow_executor": "hybrid_workflow_executor",
         }
     )
 
@@ -4379,191 +4523,12 @@ def build_multi_agent_graph(
 
     builder.add_edge("aggregator", END)
 
-    # ========== INTEGRATED COLLABORATION EDGES (P0: Command-based routing) ==========
+    # ========== INTEGRATED COLLABORATION EDGES (SIMPLIFIED) ==========
+    # The hybrid workflow executor handles all workflow logic internally,
+    # so we just need a simple edge to smart_aggregator
 
-    # Integrated orchestrator -> First collaboration agent (based on mode)
-    def route_from_orchestrator(state) -> Literal["collab_separation_agent", "collab_literature_agent"]:
-        """Route to first specialist based on collaboration mode."""
-        collab_mode = state.get("collaboration_mode", "")
-        specialists = state.get("collaboration_specialists", [])
-
-        # Literature-first collaborations
-        if collab_mode == "literature_separation" or (specialists and specialists[0] == "literature"):
-            return "collab_literature_agent"
-
-        # Default: separation-first
-        return "collab_separation_agent"
-
-    builder.add_conditional_edges(
-        "integrated_orchestrator",
-        route_from_orchestrator,
-        {
-            "collab_separation_agent": "collab_separation_agent",
-            "collab_literature_agent": "collab_literature_agent",
-        }
-    )
-
-    # P0: Collab Separation Agent with Command-aware routing
-    # P0 Enhancement: Routes to separation_reviewer for quality validation before TEA
-    # Also supports literature routing for 3-way collaboration
-    def route_collab_sep(state) -> Literal["collab_separation_tools", "separation_reviewer", "collab_tea_agent", "collab_literature_agent", "smart_aggregator", "__end__"]:
-        """Route based on tool calls or Command. Command.goto takes precedence."""
-        messages = state.get("messages", [])
-        collab_mode = state.get("collaboration_mode", "")
-
-        if not messages:
-            # Check collaboration mode to determine next agent
-            if collab_mode in ("separation_literature", "separation_literature_tea_lca"):
-                return "collab_literature_agent"
-            return "separation_reviewer"  # P0: Route to reviewer
-
-        try:
-            last_message = messages[-1]
-            # If last message has tool calls, route to tools
-            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                return "collab_separation_tools"
-        except (IndexError, TypeError, AttributeError):
-            pass
-
-        # Route based on collaboration mode
-        if collab_mode in ("separation_literature", "separation_literature_tea_lca"):
-            return "collab_literature_agent"
-
-        # Default: hand off to reviewer (Command will override this if returned)
-        return "separation_reviewer"  # P0: Route to reviewer
-
-    builder.add_conditional_edges(
-        "collab_separation_agent",
-        route_collab_sep,
-        {
-            "collab_separation_tools": "collab_separation_tools",
-            "separation_reviewer": "separation_reviewer",  # P0: Reviewer destination
-            "collab_tea_agent": "collab_tea_agent",
-            "collab_literature_agent": "collab_literature_agent",
-            "smart_aggregator": "smart_aggregator",
-            "__end__": END,
-        }
-    )
-    builder.add_edge("collab_separation_tools", "collab_separation_agent")
-
-    # P0 Enhancement: Separation Reviewer with Command-based routing
-    # Reviewer decides: proceed to TEA, retry separation, or aggregator (max retries)
-    def route_reviewer(state) -> Literal["collab_separation_agent", "collab_tea_agent", "smart_aggregator", "__end__"]:
-        """Route based on reviewer decision. Command.goto takes precedence."""
-        # The reviewer returns Command objects, so LangGraph will use those
-        # This function is the fallback for non-Command returns
-        feedback = state.get("reviewer_feedback", {})
-        if feedback.get("requires_revision"):
-            return "collab_separation_agent"
-        elif feedback.get("is_acceptable"):
-            return "collab_tea_agent"
-        else:
-            return "smart_aggregator"
-
-    builder.add_conditional_edges(
-        "separation_reviewer",
-        route_reviewer,
-        {
-            "collab_separation_agent": "collab_separation_agent",
-            "collab_tea_agent": "collab_tea_agent",
-            "smart_aggregator": "smart_aggregator",
-            "__end__": END,
-        }
-    )
-
-    # P0: Collab TEA Agent with Command-aware routing
-    def route_collab_tea(state) -> Literal["collab_tea_tools", "smart_aggregator", "__end__"]:
-        """Route based on tool calls or Command."""
-        messages = state.get("messages", [])
-        if not messages:
-            return "smart_aggregator"
-
-        try:
-            last_message = messages[-1]
-            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                return "collab_tea_tools"
-        except (IndexError, TypeError, AttributeError):
-            pass
-
-        # Default: aggregate (Command will override if returned)
-        return "smart_aggregator"
-
-    builder.add_conditional_edges(
-        "collab_tea_agent",
-        route_collab_tea,
-        {
-            "collab_tea_tools": "collab_tea_tools",
-            "smart_aggregator": "smart_aggregator",
-            "__end__": END,
-        }
-    )
-    builder.add_edge("collab_tea_tools", "collab_tea_agent")
-
-    # P4: Collab Literature Agent with Command-aware routing
-    def route_collab_literature(state) -> Literal["collab_literature_tools", "literature_reviewer", "collab_separation_agent", "smart_aggregator", "__end__"]:
-        """Route based on tool calls or Command."""
-        messages = state.get("messages", [])
-        if not messages:
-            return "smart_aggregator"
-
-        try:
-            last_message = messages[-1]
-            if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
-                return "collab_literature_tools"
-        except (IndexError, TypeError, AttributeError):
-            pass
-
-        # Check collaboration mode to determine next agent
-        collab_mode = state.get("collaboration_mode")
-
-        # 3-way mode: Literature -> Literature Reviewer -> TEA
-        if collab_mode == "separation_literature_tea_lca":
-            return "literature_reviewer"
-
-        # 2-way mode: Literature -> Separation
-        if collab_mode == "literature_separation":
-            return "collab_separation_agent"
-
-        # 2-way mode: Separation -> Literature -> Aggregator
-        if collab_mode == "separation_literature":
-            return "smart_aggregator"
-
-        # Default: aggregate (Command will override if returned)
-        return "smart_aggregator"
-
-    builder.add_conditional_edges(
-        "collab_literature_agent",
-        route_collab_literature,
-        {
-            "collab_literature_tools": "collab_literature_tools",
-            "literature_reviewer": "literature_reviewer",
-            "collab_separation_agent": "collab_separation_agent",
-            "smart_aggregator": "smart_aggregator",
-            "__end__": END,
-        }
-    )
-    builder.add_edge("collab_literature_tools", "collab_literature_agent")
-
-    # Literature reviewer routes to TEA or back to literature
-    def route_literature_reviewer(state) -> Literal["collab_tea_agent", "collab_literature_agent", "smart_aggregator"]:
-        """Route based on review decision (Command will override)."""
-        # Default routing - Command from literature_reviewer_node will override
-        literature_validation = state.get("literature_validation", {})
-        if literature_validation.get("max_retries_exceeded"):
-            return "collab_tea_agent"  # Proceed despite issues
-        return "collab_tea_agent"  # Default: proceed to TEA
-
-    builder.add_conditional_edges(
-        "literature_reviewer",
-        route_literature_reviewer,
-        {
-            "collab_tea_agent": "collab_tea_agent",
-            "collab_literature_agent": "collab_literature_agent",
-            "smart_aggregator": "smart_aggregator",
-        }
-    )
-
-    # Smart aggregator -> END
+    # Hybrid workflow executor -> Smart aggregator -> END
+    builder.add_edge("hybrid_workflow_executor", "smart_aggregator")
     builder.add_edge("smart_aggregator", END)
 
     # ========== COMPILE ==========
@@ -4576,8 +4541,9 @@ def build_multi_agent_graph(
     logger.info(f"  Paths: fast, standard, specialist (separation, tea, literature), INTEGRATED")
     logger.info(f"  Tool subsets: fast={len(FAST_PATH_TOOLS)}, sep={len(SEPARATION_TOOLS)}, "
                 f"tea={len(TEA_LCA_TOOLS)}, lit={len(LITERATURE_TOOLS)}")
-    logger.info(f"  Collaboration: separation -> sep_reviewer -> tea_lca")
-    logger.info(f"  3-Way: separation -> literature -> lit_reviewer -> tea_lca -> aggregator")
+    logger.info(f"  HYBRID WORKFLOW ENGINE: Predefined workflows + LLM planner fallback")
+    logger.info(f"    Workflows: tea_first (>3 polymers), parallel_sep_lit, standard_sep_tea, literature_only")
+    logger.info(f"    Planning threshold: 0.7 (uses LLM planner if confidence < 0.7)")
     logger.info(f"  Checkpointer: {type(checkpointer).__name__}")
 
     return graph
@@ -4588,36 +4554,41 @@ def build_multi_agent_graph(
 # ============================================================
 
 __all__ = [
+    # Core routing and state
     'enhanced_complexity_router',
     'RoutingDecision',
     'MultiAgentState',
     'build_multi_agent_graph',
     'initialize_tool_subsets',
     'multi_agent_router_node',
-    'integrated_orchestrator_node',
     'smart_aggregator_node',
+    # LLM Router (replaces rule-based routing)
+    'LLMRouter',
+    'RouterCache',
+    'ParsedQueryInput',
+    'get_routing_preview',
+    # LLM Extractor (replaces regex parsing)
+    'LLMExtractor',
+    # Collaboration agents (used by workflow engine)
     'collab_separation_agent_node',
     'collab_tea_agent_node',
     'collab_literature_agent_node',
-    'select_knowledgebases',
-    'parse_literature_results',
-    # Phase 1: Input parsing and entity extraction
-    'QueryInputParser',
-    'ParsedQueryInput',
-    'get_routing_preview',
-    # P0 Enhancement: Review/Revision loop
+    # Reviewers
     'separation_reviewer_node',
     'SEPARATION_QUALITY_THRESHOLDS',
-    # Phase 3: Literature reviewer for cross-validation
     'literature_reviewer_node',
     'LITERATURE_QUALITY_THRESHOLDS',
-    # P1 Enhancement: Parallel execution & Supervisor
-    'parallel_orchestrator_node',
-    'supervisor_decision_node',
-    'CheckpointerConfig',
-    # P2 Enhancement: Cross-session store & Knowledge graph
+    # Knowledge and caching
     'SessionStore',
     'PolymerKnowledgeGraph',
+    'CheckpointerConfig',
+    # Profitability screening
+    'profitability_screening_node',
+    'calculate_polymer_profitability',
+    'rank_polymers_by_profitability',
+    'POLYMER_MARKET_VALUES',
+    'POLYMER_SEPARATION_DIFFICULTY',
+    'POLYMER_PROCESSING_COSTS',
     # Prompts
     'SEPARATION_PLANNER_PROMPT',
     'TEA_LCA_ANALYST_PROMPT',
@@ -4627,5 +4598,8 @@ __all__ = [
     'SEPARATION_TOOLS',
     'TEA_LCA_TOOLS',
     'LITERATURE_TOOLS',
+    # Utilities
+    'select_knowledgebases',
+    'parse_literature_results',
     'KB_KEYWORDS',
 ]

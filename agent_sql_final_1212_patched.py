@@ -3465,7 +3465,7 @@ async def _greedy_separation_planning(
     solubility_column: str
 ) -> str:
     """
-    Greedy algorithm for separation planning when n > 6 polymers.
+    Greedy algorithm for separation planning when n > 3 polymers.
 
     At each step, selects the polymer that can be most selectively separated
     from all remaining polymers. This is O(n²) instead of O(n!).
@@ -3636,7 +3636,7 @@ async def _greedy_separation_planning(
 
     output.append("\n---\n")
     output.append("*Note: Greedy algorithm finds a good sequence efficiently but may not be globally optimal.*")
-    output.append("*For ≤6 polymers, exhaustive search is used to find the true optimum.*")
+    output.append("*For ≤3 polymers, exhaustive search is used to find the true optimum.*")
 
     return "\n".join(output)
 
@@ -3659,10 +3659,13 @@ async def plan_sequential_separation(
     solubility_column: str = "solubility____"
 ) -> str:
     """
-    Plan all possible sequential separation sequences for multiple polymers.
+    Plan optimal sequential separation sequences for multiple polymers.
 
-    Enumerates all n! permutations and finds optimal solvents for each separation step.
-    Creates a decision tree visualization showing all possible separation paths.
+    Algorithm selection (automatic):
+    - ≤3 polymers: Exhaustive search (all n! permutations)
+    - >3 polymers: Greedy algorithm (O(n²) - fast and scalable)
+
+    Creates a decision tree visualization showing separation paths.
     Enforces solvent diversity - each step uses a DIFFERENT solvent for physical feasibility.
 
     Parameters:
@@ -3675,7 +3678,7 @@ async def plan_sequential_separation(
     - "Plan sequential separation for LDPE, HDPE, PP, and PS"
     - "What's the best order to separate mixed plastics?"
     - "Design a multi-step polymer separation process"
-    - "Create a separation decision tree for 4 polymers"
+    - Any number of polymers (automatically uses greedy for >3)
 
     Returns: Comprehensive separation plan with rankings and decision tree visualization
     """
@@ -3690,8 +3693,9 @@ async def plan_sequential_separation(
     if n_polymers < 2:
         return "Error: Need at least 2 polymers for separation planning."
 
-    # For >6 polymers, use greedy algorithm instead of exhaustive search
-    USE_GREEDY = n_polymers > 6
+    # For >3 polymers, use greedy algorithm instead of exhaustive search
+    # (4! = 24 permutations is manageable, but 5! = 120 and 6! = 720 are too slow)
+    USE_GREEDY = n_polymers > 3
 
     if USE_GREEDY:
         # Greedy algorithm: O(n²) instead of O(n!)
@@ -3701,7 +3705,7 @@ async def plan_sequential_separation(
             temperature_column, solubility_column
         )
 
-    # Generate all permutations (only for ≤6 polymers)
+    # Generate all permutations (only for ≤3 polymers)
     all_sequences = list(permutations(polymer_list))
     n_sequences = len(all_sequences)
 
@@ -4143,8 +4147,9 @@ async def analyze_integrated_separation(
     if n_polymers < 2:
         return "❌ Need at least 2 polymers for separation analysis."
 
-    if n_polymers > 6:
-        return f"❌ Too many polymers ({n_polymers}). Maximum 6 for computational feasibility."
+    # For >3 polymers, recommend using greedy-based plan_sequential_separation instead
+    if n_polymers > 3:
+        return f"⚠️ For {n_polymers} polymers, use `plan_sequential_separation` which uses efficient greedy algorithm. This exhaustive analysis tool is limited to ≤3 polymers."
 
     # Get available temperatures from database
     temp_query = f"""
@@ -11808,9 +11813,43 @@ async def sql_agent_node(state: AgentState):
     
     # Apply sanitization
     messages = sanitize_messages_for_gemini(messages)
-    
-    # Ensure each message in the list is valid
-    valid_messages = [msg for msg in messages if msg is not None]
+
+    # Ensure each message in the list is valid and has content
+    def has_valid_content(msg):
+        """Check if message has valid content for Gemini."""
+        if msg is None:
+            return False
+        # AIMessage with tool_calls is valid even without text content
+        if isinstance(msg, AIMessage) and hasattr(msg, 'tool_calls') and msg.tool_calls:
+            return True
+        # ToolMessage is valid with any content (including empty for some tools)
+        if isinstance(msg, ToolMessage):
+            return True
+        # HumanMessage and regular AIMessage need non-empty content
+        content = getattr(msg, 'content', None)
+        if content is None:
+            return False
+        if isinstance(content, str) and content.strip():
+            return True
+        if isinstance(content, list) and len(content) > 0:
+            return True
+        return False
+
+    valid_messages = [msg for msg in messages if has_valid_content(msg)]
+
+    # If no valid messages, ensure we have at least a human message
+    if not valid_messages or not any(isinstance(m, HumanMessage) for m in valid_messages):
+        # Find original human message from state
+        original_query = state.get("original_query", "")
+        if not original_query:
+            # Try to find from messages
+            for msg in reversed(messages):
+                if isinstance(msg, HumanMessage) and getattr(msg, 'content', ''):
+                    original_query = msg.content
+                    break
+        if not original_query:
+            original_query = "Continue the analysis based on previous tool results."
+        valid_messages = [HumanMessage(content=original_query)]
 
     try:
         # Get model from config if specified, otherwise use default
