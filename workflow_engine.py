@@ -672,6 +672,9 @@ class WorkflowEngine:
                 parsed = json.loads(content)
                 if isinstance(parsed, dict) and "data" in parsed and "display" in parsed:
                     data = parsed["data"]
+                    # Build solvent mapping from steps (most reliable source)
+                    steps = data.get("steps", [])
+                    solvent_mapping = {s["target"]: s["solvent"] for s in steps if "target" in s and "solvent" in s}
                     # Map structured data to expected format
                     return {
                         "solvents": data.get("solvents", []),
@@ -681,6 +684,8 @@ class WorkflowEngine:
                         "best_sequence": data.get("best_sequence"),
                         "best_solvent": data.get("best_solvent"),
                         "algorithm_used": data.get("algorithm_used"),
+                        "steps": steps,  # Include full step details
+                        "solvent_mapping": solvent_mapping,  # Pre-computed polymer→solvent mapping
                         "tool_output": parsed.get("display", content),
                     }
             except (json.JSONDecodeError, TypeError):
@@ -837,10 +842,31 @@ class WorkflowEngine:
                         if hasattr(msg, 'content') and isinstance(msg, WFHumanMessage):
                             original_query = msg.content
                             break
+
+                    # Build context from previous stage results
+                    context_parts = [config.task_prompt]
+
+                    # Include separation results for TEA specialist
+                    sep_results = state.get("separation_results")
+                    if sep_results and agent_name == "tea_lca":
+                        sequence = sep_results.get("best_sequence", [])
+                        # Use pre-computed solvent mapping from extraction (built from steps)
+                        solvent_mapping = sep_results.get("solvent_mapping", {})
+
+                        if solvent_mapping:
+                            mapping_str = ", ".join([f"'{p}': '{s}'" for p, s in solvent_mapping.items()])
+                            context_parts.append(
+                                f"\n\nSEPARATION RESULTS (use these solvents for TEA):\n"
+                                f"- Separation sequence: {' → '.join(sequence) if sequence else 'N/A'}\n"
+                                f"- Solvents by polymer: {solvent_mapping}\n"
+                                f"- Call analyze_strap_process with recovery_solvents={{{mapping_str}}}"
+                            )
+                            logger.info(f"  [{agent_name}] Injected separation context: {solvent_mapping}")
+
+                    context_parts.append(f"\n\nOriginal request: {original_query}")
+
                     # Create a focused task message
-                    task_message = WFHumanMessage(
-                        content=f"{config.task_prompt}\n\nOriginal request: {original_query}"
-                    )
+                    task_message = WFHumanMessage(content="".join(context_parts))
                     agent_state["messages"] = [task_message]
                     logger.info(f"  [{agent_name}] Injected task prompt: {config.task_prompt[:50]}...")
 
@@ -1769,8 +1795,9 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             task_prompt=(
                 "You are the TEA/LCA SPECIALIST. Your task is to perform economic and environmental analysis.\n"
                 "Focus ONLY on techno-economic analysis (TEA) and lifecycle assessment (LCA).\n"
-                "Use analyze_solvent_recovery_tea for economic analysis and generate_lca_visualizations for LCA.\n"
-                "The separation analysis has already been done - focus on costs, payback, and environmental impact."
+                "IMPORTANT: If separation results are provided above, use the analyze_strap_process tool with\n"
+                "the recovery_solvents parameter to analyze those SPECIFIC solvents (e.g., recovery_solvents={'PS': 'propanone'}).\n"
+                "Also use generate_lca_visualizations for LCA charts."
             ),
         ),
         "literature": AgentConfig(

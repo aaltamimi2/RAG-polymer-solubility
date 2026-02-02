@@ -8014,7 +8014,8 @@ async def plot_tea_cashflow(
 async def analyze_strap_process(
     polymers: List[str],
     feedstock_composition: Dict[str, float] = None,
-    capacity_mt_yr: float = 10000.0
+    capacity_mt_yr: float = 10000.0,
+    recovery_solvents: Dict[str, str] = None
 ) -> str:
     """
     Run full STRAP (Solvent-Targeted Recovery and Precipitation) TEA/LCA analysis.
@@ -8033,6 +8034,8 @@ async def analyze_strap_process(
     - feedstock_composition: Polymer fractions (e.g., {'PE': 0.8, 'PET': 0.1, 'EVOH': 0.1})
                             If not provided, equal distribution assumed
     - capacity_mt_yr: Plant capacity in metric tons/year (default: 10000)
+    - recovery_solvents: Optional dict mapping polymer to solvent (e.g., {'PS': 'propanone', 'PP': 'cyclohexane'})
+                        If not provided, auto-selects from default compatible solvents
 
     WHEN TO USE:
     - "Run STRAP analysis for PE/EVOH at 10,000 mt/yr"
@@ -8040,6 +8043,7 @@ async def analyze_strap_process(
     - "Analyze STRAP process for PE, PET, and EVOH recovery"
     - "Full TEA/LCA for polymer recovery from plastic waste"
     - "Cost and carbon footprint for STRAP polymer separation"
+    - "Run TEA with solvents: PS->propanone, PP->cyclohexane"
     """
     # Build feedstock composition if not provided
     if feedstock_composition is None:
@@ -8050,17 +8054,25 @@ async def analyze_strap_process(
     total = sum(feedstock_composition.values())
     feedstock_composition = {k: v / total for k, v in feedstock_composition.items()}
 
-    # Auto-select solvents for each polymer using POLYMER_PROPERTIES
+    # Select solvents for each polymer - use custom if provided, else auto-select
     recovery_steps = []
     for polymer in polymers:
-        if polymer.upper() in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
-            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[polymer.upper()]
+        polymer_upper = polymer.upper()
+
+        # Check for custom solvent mapping first
+        if recovery_solvents and polymer_upper in recovery_solvents:
+            solvent = recovery_solvents[polymer_upper]
+        elif recovery_solvents and polymer.lower() in recovery_solvents:
+            solvent = recovery_solvents[polymer.lower()]
+        elif polymer_upper in tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents:
+            # Auto-select from defaults
+            compatible = tea_lca.DEFAULT_POLYMER_PROPS.compatible_solvents[polymer_upper]
             solvent = compatible[0] if compatible else 'xylene'
         else:
             solvent = 'xylene'  # Default solvent
 
         recovery_steps.append({
-            'polymer': polymer.upper(),
+            'polymer': polymer_upper,
             'solvent': solvent,
             'recover': True
         })
