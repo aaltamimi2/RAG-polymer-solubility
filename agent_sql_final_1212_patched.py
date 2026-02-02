@@ -4235,11 +4235,16 @@ async def plan_sequential_separation(
                             selectivity = best_sol.get("selectivity", 0)
                             step_temp = best_sol.get("temperature", temperature)
                             optimal_temp = best_sol.get("optimal_temp", step_temp)
+                            optimal_sel = best_sol.get("optimal_selectivity", selectivity)
                         else:
                             solvent = "N/A"
                             selectivity = 0
                             step_temp = temperature
                             optimal_temp = temperature
+                            optimal_sel = 0
+
+                        # Check if there's a better optimal temp
+                        has_optimal = abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity
 
                         # Color by selectivity
                         if selectivity > 30:
@@ -4251,23 +4256,31 @@ async def plan_sequential_separation(
                         else:
                             color = '#e74c3c'
 
-                        # Step box
-                        ax.add_patch(plt.Rectangle((x_offset + 0.3, y_pos - 0.35), col_width - 0.6, 0.7,
+                        # Step box - taller if showing optimal
+                        box_height = 0.85 if has_optimal else 0.7
+                        ax.add_patch(plt.Rectangle((x_offset + 0.3, y_pos - 0.4), col_width - 0.6, box_height,
                                                   facecolor=color, edgecolor='black', linewidth=1.5, alpha=0.3))
 
                         # Step number circle
-                        ax.add_patch(plt.Circle((x_offset + 0.7, y_pos), 0.2, facecolor=color, edgecolor='black'))
-                        ax.text(x_offset + 0.7, y_pos, str(step_idx + 1), ha='center', va='center',
+                        y_circle = y_pos + 0.05 if has_optimal else y_pos
+                        ax.add_patch(plt.Circle((x_offset + 0.7, y_circle), 0.2, facecolor=color, edgecolor='black'))
+                        ax.text(x_offset + 0.7, y_circle, str(step_idx + 1), ha='center', va='center',
                                fontsize=10, fontweight='bold', color='white')
 
                         # Target polymer
-                        ax.text(x_offset + 1.1, y_pos + 0.15, f'{target}',
+                        y_target = y_pos + 0.22 if has_optimal else y_pos + 0.15
+                        ax.text(x_offset + 1.1, y_target, f'{target}',
                                ha='left', va='center', fontsize=12, fontweight='bold')
 
                         # Solvent + selectivity + temperature
-                        temp_note = f' @{step_temp:.0f}°C' if step_temp else ''
-                        ax.text(x_offset + 1.1, y_pos - 0.15, f'{solvent} ({selectivity:.1f}%{temp_note})',
+                        y_solvent = y_pos + 0.0 if has_optimal else y_pos - 0.15
+                        ax.text(x_offset + 1.1, y_solvent, f'{solvent} ({selectivity:.1f}% @{step_temp:.0f}°C)',
                                ha='left', va='center', fontsize=8, color='#34495e')
+
+                        # Show optimal temp if different and better
+                        if has_optimal:
+                            ax.text(x_offset + 1.1, y_pos - 0.22, f'Opt: {optimal_sel:.1f}% @{optimal_temp:.0f}°C',
+                                   ha='left', va='center', fontsize=7, color='#27ae60', style='italic')
 
                     # Min selectivity summary at bottom
                     summary_color = '#2ecc71' if min_sel > 10 else '#f39c12' if min_sel > 0 else '#e74c3c'
