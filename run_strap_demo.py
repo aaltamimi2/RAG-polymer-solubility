@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = Path("plots/tests-1.2")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Complex STRAP-CORE integrated query (Level 4) - Uses reliable polymers PP/PS
-STRAP_QUERY = """Design a two-stage STRAP process for PP/PS mixed plastic separation at 100°C.
+# Complex STRAP-CORE integrated query (Level 5) - 4 polymers for multi-stage separation
+STRAP_QUERY = """Design a STRAP process for separating a 4-polymer mixture: PP, PS, PET, and HDPE at 100°C.
 
-Stage 1: Find solvents that dissolve PP at 100°C with high selectivity over PS. List the top 3 candidates.
+Stage 1: Find the optimal separation sequence. Which polymer should be dissolved first? Identify selective solvents for each step.
 
-Stage 2: Run TEA analysis at 5000 kg/hr for cyclohexane recovery. Include cost per kg and payback period.
+Stage 2: Run TEA analysis at 5000 kg/hr for the recommended solvent. Include cost per kg and payback period.
 
-Generate LCA comparison visualizations for the recommended solvent."""
+Generate LCA comparison visualizations."""
 
 
 def generate_architecture_visualizations(telemetry_data: dict, output_dir: Path):
@@ -560,8 +560,33 @@ async def run_query():
         # Also extract handoff_metrics from state if available
         handoff_metrics = result.get("handoff_metrics", [])
 
-        # Save telemetry data
+        # Get detailed workflow trace (includes per-agent timing, tool calls, etc.)
+        workflow_trace_detailed = result.get("workflow_trace_detailed", {})
+
+        # Save telemetry data with full message history
         telemetry_file = OUTPUT_DIR / "telemetry_strap.json"
+
+        # Serialize messages for telemetry
+        serialized_messages = []
+        for i, msg in enumerate(messages):
+            msg_data = {
+                "index": i,
+                "type": type(msg).__name__,
+                "content": msg.content if hasattr(msg, 'content') else str(msg),
+            }
+            # Add tool-specific fields
+            if hasattr(msg, 'name'):
+                msg_data["tool_name"] = msg.name
+            if hasattr(msg, 'tool_call_id'):
+                msg_data["tool_call_id"] = msg.tool_call_id
+            if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                msg_data["tool_calls"] = [
+                    {"name": tc.get("name", tc.get("function", {}).get("name")),
+                     "args": tc.get("args", tc.get("function", {}).get("arguments"))}
+                    for tc in msg.tool_calls
+                ]
+            serialized_messages.append(msg_data)
+
         telemetry_data = {
             "query": STRAP_QUERY,
             "timestamp": datetime.now().isoformat(),
@@ -569,9 +594,11 @@ async def run_query():
             "iterations": result.get("iteration_count", 0),
             "routing": routing if routing else {},
             "execution_trace": execution_trace,
+            "workflow_trace_detailed": workflow_trace_detailed,  # Per-agent timing, tool calls
             "handoff_metrics": handoff_metrics,
             "message_count": len(messages),
-            "thread_id": str(thread_id)
+            "thread_id": str(thread_id),
+            "messages": serialized_messages,  # Full message history
         }
 
         with open(telemetry_file, 'w') as f:
