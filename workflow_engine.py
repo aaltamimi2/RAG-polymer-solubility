@@ -658,7 +658,7 @@ class WorkflowEngine:
             # Look for selective solubility or separation tool output
             if any(marker in content for marker in [
                 'Selective Solubility', 'Top solvents', 'Dissolution Analysis',
-                'Solvent Analysis', 'selectivity', 'dissolves'
+                'Solvent Analysis', 'selectivity', 'dissolves', 'Dissolution'
             ]):
                 solvents = []
                 selectivities = []
@@ -703,11 +703,32 @@ class WorkflowEngine:
 
                 # Only return if we found useful data
                 if solvents:
+                    # Extract polymers from content
+                    polymers = []
+                    polymer_names = {'pe', 'pp', 'ps', 'pet', 'pvc', 'hdpe', 'ldpe', 'evoh',
+                                    'nylon', 'pc', 'abs', 'pmma', 'pa', 'pes', 'pla'}
+                    # Look for "Target: X" pattern
+                    target_match = re.search(r'Target:\s*(\w+)', content)
+                    if target_match and target_match.group(1).lower() in polymer_names:
+                        polymers.append(target_match.group(1).upper())
+                    # Look for "Comparing against: X" pattern
+                    compare_match = re.search(r'Comparing against:\s*(\w+)', content)
+                    if compare_match and compare_match.group(1).lower() in polymer_names:
+                        polymers.append(compare_match.group(1).upper())
+                    # Look for "Solvents for X Dissolution" pattern
+                    dissolution_match = re.search(r'Solvents for (\w+) Dissolution', content)
+                    if dissolution_match and dissolution_match.group(1).lower() in polymer_names:
+                        poly = dissolution_match.group(1).upper()
+                        if poly not in polymers:
+                            polymers.append(poly)
+                    if not polymers:
+                        polymers = ["polymer"]
+
                     return {
                         "solvents": solvents[:5],
                         "selectivities": selectivities[:5] if selectivities else None,
                         "temperature": temperature,
-                        "polymers": ["LDPE", "EVOH"],  # From typical query context
+                        "polymers": polymers,
                         "tool_output": content[:1000],
                     }
         return None

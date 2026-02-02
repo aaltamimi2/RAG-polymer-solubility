@@ -25,14 +25,14 @@ logger = logging.getLogger(__name__)
 OUTPUT_DIR = Path("plots/tests-1.2")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Complex STRAP-CORE integrated query (Level 4) - Simplified for reliable tool execution
-STRAP_QUERY = """Design a two-stage STRAP process for LDPE/EVOH multilayer film separation at 110°C.
+# Complex STRAP-CORE integrated query (Level 4) - Uses reliable polymers PP/PS
+STRAP_QUERY = """Design a two-stage STRAP process for PP/PS mixed plastic separation at 100°C.
 
-Stage 1: Find the top 3 solvents that dissolve LDPE at 110°C with highest selectivity over EVOH. Rank by G-score safety.
+Stage 1: Find solvents that dissolve PP at 100°C with high selectivity over PS. List the top 3 candidates.
 
-Stage 2: Run TEA analysis at 5000 kg/hr for the best solvent option. Include cost per kg and payback period.
+Stage 2: Run TEA analysis at 5000 kg/hr for cyclohexane recovery. Include cost per kg and payback period.
 
-Create visualizations showing the separation selectivity and LCA comparison."""
+Generate LCA comparison visualizations for the recommended solvent."""
 
 
 def generate_architecture_visualizations(telemetry_data: dict, output_dir: Path):
