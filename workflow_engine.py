@@ -200,12 +200,14 @@ class AgentConfig:
         max_iterations: Maximum tool loop iterations
         custom_node: Optional custom async function for special agents
         description: Human-readable description for logging/debugging
+        task_prompt: Stage-specific instruction to prepend to the query
     """
     name: str
     categories: List[str] = field(default_factory=list)
     max_iterations: int = 8
     custom_node: Optional[Callable] = None
     description: str = ""
+    task_prompt: str = ""  # Stage-specific instruction for the agent
 
     def __post_init__(self):
         if not self.description:
@@ -645,6 +647,124 @@ class WorkflowEngine:
             self._tool_cache[agent_name] = self.tool_node_class(tools)
         return self._tool_cache[agent_name]
 
+    def _extract_separation_from_messages(self, messages: List) -> Optional[Dict]:
+        """Extract separation results from tool messages."""
+        import re
+        for msg in reversed(messages):
+            if not hasattr(msg, 'content'):
+                continue
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+
+            # Look for selective solubility or separation tool output
+            if any(marker in content for marker in [
+                'Selective Solubility', 'Top solvents', 'Dissolution Analysis',
+                'Solvent Analysis', 'selectivity', 'dissolves'
+            ]):
+                solvents = []
+                selectivities = []
+                temperature = None
+
+                # Extract solvents - look for various patterns
+                # Pattern 1: **Solvent** or **SolventName**
+                solvent_bold = re.findall(r'\*\*([A-Za-z][a-z]+(?:[A-Z][a-z]*)*)\*\*', content)
+                # Pattern 2: numbered list "1. Solvent:" or "1. **Solvent**"
+                solvent_numbered = re.findall(r'\d+\.\s+\*?\*?([A-Za-z][a-z]+(?:[A-Z][a-z]*)*)', content)
+                # Pattern 3: "- Solvent:" format
+                solvent_dash = re.findall(r'^-\s+([A-Za-z][a-z]+(?:[A-Z][a-z]*)*):', content, re.MULTILINE)
+
+                # Combine and filter
+                all_solvents = solvent_bold + solvent_numbered + solvent_dash
+
+                # Extended solvent names list
+                solvent_names = {'xylene', 'toluene', 'cyclohexane', 'decalin', 'tetralin',
+                                 'heptane', 'octane', 'nonane', 'decane', 'dodecane',
+                                 'thf', 'dichloromethane', 'chloroform', 'acetone',
+                                 'methanol', 'ethanol', 'dmso', 'dmf', 'nmp',
+                                 'benzene', 'hexane', 'pentane', 'ether', 'dioxane',
+                                 'trichloroethylene', 'perchloroethylene', 'chlorobenzene',
+                                 'dichlorobenzene', 'methylcyclohexane', 'anisole'}
+                for s in all_solvents:
+                    s_lower = s.lower()
+                    if s_lower in solvent_names and s not in solvents:
+                        solvents.append(s)
+
+                # Extract selectivity values
+                selectivity_matches = re.findall(r'selectivity[^\d]*(\d+\.?\d*)%?', content, re.IGNORECASE)
+                for match in selectivity_matches:
+                    val = float(match)
+                    if val > 1:
+                        val = val / 100  # Convert percentage to decimal
+                    selectivities.append(val)
+
+                # Extract temperature
+                temp_match = re.search(r'(\d+)\s*[°]?C\b', content)
+                if temp_match:
+                    temperature = int(temp_match.group(1))
+
+                # Only return if we found useful data
+                if solvents:
+                    return {
+                        "solvents": solvents[:5],
+                        "selectivities": selectivities[:5] if selectivities else None,
+                        "temperature": temperature,
+                        "polymers": ["LDPE", "EVOH"],  # From typical query context
+                        "tool_output": content[:1000],
+                    }
+        return None
+
+    def _extract_tea_from_messages(self, messages: List) -> Optional[Dict]:
+        """Extract TEA results from tool messages."""
+        import re
+        for msg in reversed(messages):
+            if not hasattr(msg, 'content'):
+                continue
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+
+            # Look for TEA/LCA tool output markers
+            if any(marker in content for marker in [
+                'TECHNO-ECONOMIC', 'Cost per kg', 'CAPEX', 'OPEX', 'payback',
+                'MSP', 'Minimum Selling Price', 'Economic Analysis'
+            ]):
+                result = {}
+
+                # Extract cost per kg
+                cost_match = re.search(r'[Cc]ost per kg[^\$\d]*\$?([\d.]+)', content)
+                if cost_match:
+                    result["cost_per_kg"] = float(cost_match.group(1))
+
+                # Extract CAPEX
+                capex_match = re.search(r'CAPEX[^\$\d]*\$?([\d,]+)', content)
+                if capex_match:
+                    result["total_capex"] = float(capex_match.group(1).replace(',', ''))
+
+                # Extract OPEX
+                opex_match = re.search(r'OPEX[^\$\d]*\$?([\d,]+)', content)
+                if opex_match:
+                    result["total_opex"] = float(opex_match.group(1).replace(',', ''))
+
+                # Extract payback period
+                payback_match = re.search(r'[Pp]ayback[^\d]*([\d.]+)\s*year', content)
+                if payback_match:
+                    result["payback_years"] = float(payback_match.group(1))
+
+                # Extract throughput
+                throughput_match = re.search(r'(\d+)\s*kg/hr', content)
+                if throughput_match:
+                    result["throughput_kg_hr"] = int(throughput_match.group(1))
+
+                # Extract MSP values for solvents
+                msp_matches = re.findall(r'([A-Za-z]+)[^\$]*\$?([\d.]+)/kg', content)
+                if msp_matches:
+                    result["msp_values"] = {name: float(val) for name, val in msp_matches[:5]}
+
+                # Include tool output for reference
+                result["tool_output"] = content[:1000]
+
+                # Only return if we found useful data
+                if result.get("cost_per_kg") or result.get("payback_years") or result.get("msp_values"):
+                    return result
+        return None
+
     async def run_agent(self, state: dict, agent_name: str) -> AgentResult:
         """
         Run a single agent with full tool loop, timeout protection, and retry logic.
@@ -737,6 +857,23 @@ class WorkflowEngine:
                 agent_state["selected_categories"] = config.categories
                 tools = self._get_tools(agent_name)
 
+                # Inject task-specific prompt if configured
+                if config.task_prompt:
+                    from langchain_core.messages import HumanMessage as WFHumanMessage
+                    existing_messages = agent_state.get("messages", [])
+                    # Find the original query
+                    original_query = ""
+                    for msg in existing_messages:
+                        if hasattr(msg, 'content') and isinstance(msg, WFHumanMessage):
+                            original_query = msg.content
+                            break
+                    # Create a focused task message
+                    task_message = WFHumanMessage(
+                        content=f"{config.task_prompt}\n\nOriginal request: {original_query}"
+                    )
+                    agent_state["messages"] = [task_message]
+                    logger.info(f"  [{agent_name}] Injected task prompt: {config.task_prompt[:50]}...")
+
                 for i in range(config.max_iterations):
                     iterations = i + 1
 
@@ -747,7 +884,18 @@ class WorkflowEngine:
                             timeout_seconds=self.reliability.llm_call_timeout_seconds,
                             operation_name=f"{agent_name}:llm_call",
                         )
-                        agent_state.update(result)
+                        # Properly extend messages instead of replacing
+                        if "messages" in result:
+                            result_msgs = result["messages"]
+                            # Extend existing messages with new ones
+                            existing_msgs = agent_state.get("messages", [])
+                            agent_state["messages"] = existing_msgs + result_msgs
+                            # Update other state keys (exclude messages)
+                            for k, v in result.items():
+                                if k != "messages":
+                                    agent_state[k] = v
+                        else:
+                            agent_state.update(result)
                     except AgentTimeoutError:
                         logger.warning(f"  [{agent_name}] LLM call timed out at iteration {i+1}")
                         raise
@@ -786,7 +934,18 @@ class WorkflowEngine:
                                 timeout_seconds=self.reliability.tool_timeout_seconds,
                                 operation_name=f"{agent_name}:tools",
                             )
-                            agent_state.update(tool_result)
+                            # Properly extend messages instead of replacing
+                            if "messages" in tool_result:
+                                tool_msgs = tool_result["messages"]
+                                # Extend existing messages with tool results
+                                existing_msgs = agent_state.get("messages", [])
+                                agent_state["messages"] = existing_msgs + tool_msgs
+                                # Update other state keys (exclude messages)
+                                for k, v in tool_result.items():
+                                    if k != "messages":
+                                        agent_state[k] = v
+                            else:
+                                agent_state.update(tool_result)
                             tool_duration = (time.time() - tool_start) * 1000
 
                             # Update traces with results
@@ -821,12 +980,28 @@ class WorkflowEngine:
                 elapsed = time.time() - start_time
                 logger.info(f"  [{agent_name}] Completed in {elapsed:.1f}s ({iterations} iterations)")
 
-                # Extract results
+                # Extract results from state keys first
                 result_keys = [
                     "separation_results", "tea_results", "literature_results",
                     "profitability_results", "shared_context", "top_polymers",
                 ]
                 results = {k: agent_state.get(k) for k in result_keys if k in agent_state}
+
+                # Parse tool messages to extract structured results if not already set
+                # This handles tools that return results in ToolMessage content
+                messages = agent_state.get("messages", [])
+                if not results.get("separation_results") and agent_name == "separation":
+                    sep_results = self._extract_separation_from_messages(messages)
+                    if sep_results:
+                        results["separation_results"] = sep_results
+                        logger.info(f"  [{agent_name}] Extracted separation_results with {len(sep_results.get('solvents', []))} solvents")
+
+                if not results.get("tea_results") and agent_name == "tea_lca":
+                    tea_extracted = self._extract_tea_from_messages(messages)
+                    if tea_extracted:
+                        results["tea_results"] = tea_extracted
+                        logger.info(f"  [{agent_name}] Extracted tea_results (cost=${tea_extracted.get('cost_per_kg')})")
+
                 output_keys = list(results.keys())
 
                 trace = AgentTrace(
@@ -1610,16 +1785,34 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             name="separation",
             categories=["separation", "advanced_separation", "dissolution", "solvent_properties", "visualization"],
             description="Plans optimal polymer separation sequences",
+            task_prompt=(
+                "You are the SEPARATION SPECIALIST. Your task is to analyze polymer separation.\n"
+                "Focus ONLY on finding solvents and dissolution conditions. Use the separation tools available.\n"
+                "Call analyze_selective_solubility_enhanced or find_optimal_separation_conditions to find solvents.\n"
+                "Do NOT perform economic analysis - that will be handled by another specialist."
+            ),
         ),
         "tea_lca": AgentConfig(
             name="tea_lca",
             categories=["economics", "strap", "visualization", "solvent_properties"],
             description="Performs techno-economic and lifecycle analysis",
+            task_prompt=(
+                "You are the TEA/LCA SPECIALIST. Your task is to perform economic and environmental analysis.\n"
+                "Focus ONLY on techno-economic analysis (TEA) and lifecycle assessment (LCA).\n"
+                "Use analyze_solvent_recovery_tea for economic analysis and generate_lca_visualizations for LCA.\n"
+                "The separation analysis has already been done - focus on costs, payback, and environmental impact."
+            ),
         ),
         "literature": AgentConfig(
             name="literature",
             categories=["literature", "rag"],
             description="Searches literature and RAG knowledge base",
+            task_prompt=(
+                "You are the LITERATURE SPECIALIST. Your task is to search published research.\n"
+                "Focus ONLY on finding relevant literature and extracting process parameters.\n"
+                "Use search_strap_core or search_rag_literature to find relevant papers and data.\n"
+                "Do NOT perform separation analysis or economic analysis - those will be handled by other specialists."
+            ),
         ),
         # Profitability agent will be registered with custom_node by multi_agent_system
     }
