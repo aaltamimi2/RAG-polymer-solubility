@@ -3794,17 +3794,20 @@ async def plan_sequential_separation(
         """Find top-k solvents for separating target from remaining polymers (ASYNC).
 
         Enforces solvent diversity by excluding solvents already used in previous steps.
+        Also finds optimal temperature for comparison.
         """
         if used_solvents is None:
             used_solvents = set()
 
         if not remaining:
-            return [{"solvent": "N/A", "selectivity": float('inf'), "target_sol": 100, "max_other": 0, "note": "Last polymer - no separation needed"}]
+            return [{"solvent": "N/A", "selectivity": float('inf'), "target_sol": 100, "max_other": 0,
+                    "temperature": temperature, "optimal_temp": temperature, "note": "Last polymer - no separation needed"}]
 
         all_polymers = [target] + remaining
         polymer_filter = "', '".join(all_polymers)
 
-        query = f"""
+        # Query at USER-SPECIFIED temperature
+        query_specified = f"""
         SELECT {solvent_column}, {polymer_column}, AVG({solubility_column}) as avg_sol
         FROM {table_name}
         WHERE {polymer_column} IN ('{polymer_filter}')
@@ -3812,14 +3815,44 @@ async def plan_sequential_separation(
         GROUP BY {solvent_column}, {polymer_column}
         """
 
+        # Query across ALL temperatures (25-160°C) to find optimal
+        query_all_temps = f"""
+        SELECT {solvent_column}, {polymer_column}, {temperature_column} as temp, AVG({solubility_column}) as avg_sol
+        FROM {table_name}
+        WHERE {polymer_column} IN ('{polymer_filter}')
+        AND {temperature_column} BETWEEN 25 AND 160
+        GROUP BY {solvent_column}, {polymer_column}, {temperature_column}
+        """
+
         try:
-            df = await async_db.execute_async(query)
+            df = await async_db.execute_async(query_specified)
+            df_all = await async_db.execute_async(query_all_temps)
         except Exception as e:
             return [{"solvent": "Error", "selectivity": 0, "target_sol": 0, "max_other": 0, "error": str(e)}]
 
         if len(df) == 0:
             return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
 
+        # Find optimal temp-solvent combinations from all temps data
+        optimal_by_solvent = {}
+        if len(df_all) > 0:
+            for temp in df_all['temp'].unique():
+                temp_df = df_all[df_all['temp'] == temp]
+                for solvent in temp_df[solvent_column].unique():
+                    solvent_data = temp_df[temp_df[solvent_column] == solvent]
+                    target_data = solvent_data[solvent_data[polymer_column] == target]
+                    if len(target_data) == 0:
+                        continue
+                    target_sol = target_data['avg_sol'].values[0]
+                    other_data = solvent_data[solvent_data[polymer_column].isin(remaining)]
+                    max_other = other_data['avg_sol'].max() if len(other_data) > 0 else 0
+                    selectivity = target_sol - max_other
+
+                    # Track best temp for each solvent
+                    if solvent not in optimal_by_solvent or selectivity > optimal_by_solvent[solvent]['selectivity']:
+                        optimal_by_solvent[solvent] = {'temp': temp, 'selectivity': selectivity}
+
+        # Process results at user-specified temperature
         results = []
         for solvent in df[solvent_column].unique():
             solvent_data = df[df[solvent_column] == solvent]
@@ -3836,11 +3869,18 @@ async def plan_sequential_separation(
                 max_other = other_data['avg_sol'].max()
 
             selectivity = target_sol - max_other
+
+            # Get optimal temp for this solvent
+            opt_info = optimal_by_solvent.get(solvent, {'temp': temperature, 'selectivity': selectivity})
+
             results.append({
                 "solvent": solvent,
                 "selectivity": selectivity,
                 "target_sol": target_sol,
-                "max_other": max_other
+                "max_other": max_other,
+                "temperature": temperature,  # User-specified
+                "optimal_temp": opt_info['temp'],  # Best temp found
+                "optimal_selectivity": opt_info['selectivity'],  # Selectivity at optimal temp
             })
 
         # Sort by selectivity (descending)
@@ -4066,6 +4106,9 @@ async def plan_sequential_separation(
                 top_solvent = step["solvents"][0] if step["solvents"] else {"solvent": "N/A", "selectivity": 0}
                 solvent_name = top_solvent["solvent"]
                 selectivity = top_solvent.get("selectivity", 0)
+                step_temp = top_solvent.get("temperature", temperature)
+                optimal_temp = top_solvent.get("optimal_temp", step_temp)
+                optimal_sel = top_solvent.get("optimal_selectivity", selectivity)
                 color = get_color(selectivity)
 
                 # Arrow down with solvent info
@@ -4085,13 +4128,17 @@ async def plan_sequential_separation(
                 ax.text(2.7, y_pos, f'SEPARATE: {target}',
                        ha='left', va='center', fontsize=14, fontweight='bold')
 
-                # Solvent label box (right side - clear separation from step box)
-                ax.add_patch(plt.Rectangle((6.2, y_pos + 0.55), 3.3, 0.5,
+                # Solvent label box (right side - expanded to show temperature)
+                ax.add_patch(plt.Rectangle((6.2, y_pos + 0.35), 3.5, 0.75,
                                           facecolor='white', edgecolor=color, linewidth=2))
-                ax.text(7.85, y_pos + 0.8, f'Solvent: {solvent_name}',
+                ax.text(7.95, y_pos + 0.95, f'Solvent: {solvent_name}',
                        ha='center', va='center', fontsize=11, fontweight='bold')
-                ax.text(7.85, y_pos + 0.6, f'Selectivity: {selectivity:.1f}%',
+                ax.text(7.95, y_pos + 0.72, f'Sel: {selectivity:.1f}% @ {step_temp:.0f}°C',
                        ha='center', va='center', fontsize=10, color=color, fontweight='bold')
+                # Show optimal temp if different
+                if abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity:
+                    ax.text(7.95, y_pos + 0.5, f'(Optimal: {optimal_sel:.1f}% @ {optimal_temp:.0f}°C)',
+                           ha='center', va='center', fontsize=8, color='#27ae60', style='italic')
 
                 # Remaining polymers (positioned below step box, no overlap)
                 if remaining:
@@ -4186,9 +4233,13 @@ async def plan_sequential_separation(
                             best_sol = solvents_list[0]
                             solvent = best_sol.get("solvent", "N/A")
                             selectivity = best_sol.get("selectivity", 0)
+                            step_temp = best_sol.get("temperature", temperature)
+                            optimal_temp = best_sol.get("optimal_temp", step_temp)
                         else:
                             solvent = "N/A"
                             selectivity = 0
+                            step_temp = temperature
+                            optimal_temp = temperature
 
                         # Color by selectivity
                         if selectivity > 30:
@@ -4213,9 +4264,10 @@ async def plan_sequential_separation(
                         ax.text(x_offset + 1.1, y_pos + 0.15, f'{target}',
                                ha='left', va='center', fontsize=12, fontweight='bold')
 
-                        # Solvent + selectivity
-                        ax.text(x_offset + 1.1, y_pos - 0.15, f'{solvent} ({selectivity:.1f}%)',
-                               ha='left', va='center', fontsize=9, color='#34495e')
+                        # Solvent + selectivity + temperature
+                        temp_note = f' @{step_temp:.0f}°C' if step_temp else ''
+                        ax.text(x_offset + 1.1, y_pos - 0.15, f'{solvent} ({selectivity:.1f}%{temp_note})',
+                               ha='left', va='center', fontsize=8, color='#34495e')
 
                     # Min selectivity summary at bottom
                     summary_color = '#2ecc71' if min_sel > 10 else '#f39c12' if min_sel > 0 else '#e74c3c'
