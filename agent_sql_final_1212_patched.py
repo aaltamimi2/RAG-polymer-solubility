@@ -3638,7 +3638,37 @@ async def _greedy_separation_planning(
     output.append("*Note: Greedy algorithm finds a good sequence efficiently but may not be globally optimal.*")
     output.append("*For ≤3 polymers, exhaustive search is used to find the true optimum.*")
 
-    return "\n".join(output)
+    display = "\n".join(output)
+
+    # Build structured data for programmatic access
+    valid_steps = [s for s in steps if s['selectivity'] > -900]
+    solvents_used = list(set(s['solvent'] for s in valid_steps if s['solvent'] != 'N/A'))
+
+    structured_data = {
+        "tool_name": "plan_sequential_separation",
+        "success": True,
+        "polymers_analyzed": polymer_list,
+        "best_sequence": sequence,
+        "solvents": solvents_used,
+        "selectivities": [s['selectivity'] for s in valid_steps],
+        "temperature": temperature,
+        "algorithm_used": "greedy",
+        "steps": [
+            {
+                "step": s['step'],
+                "target": s['target'],
+                "solvent": s['solvent'],
+                "selectivity": s['selectivity']
+            } for s in steps
+        ],
+        "min_selectivity": min(s['selectivity'] for s in valid_steps) if valid_steps else None,
+        "max_selectivity": max(s['selectivity'] for s in valid_steps) if valid_steps else None,
+        "coverage_complete": len(sequence) == len(polymer_list),
+    }
+
+    # Return structured JSON
+    import json
+    return json.dumps({"display": display, "data": structured_data})
 
 
 # ============================================================
@@ -8024,7 +8054,43 @@ async def analyze_strap_process(
             sources = ", ".join([f"{k.replace('_', ' ').title()}={v:.3f}" for k, v in breakdown.items()])
             output += f"{polymer}: {sources}\n"
 
-    return output
+    # Build structured data for programmatic access
+    # Extract GWP values by polymer
+    gwp_by_polymer = {}
+    virgin_gwp = {}
+    gwp_reduction_pct = {}
+    for polymer in polymers:
+        pu = polymer.upper()
+        if pu in lca_by_polymer:
+            gwp_by_polymer[pu] = lca_by_polymer[pu].get('gwp_kg_co2eq', 0)
+            virgin_gwp[pu] = tea_lca.LCA_EMISSION_FACTORS['virgin_gwp'].get(pu, 2.0)
+            gwp_reduction_pct[pu] = virgin_comp.get(pu, {}).get('gwp_reduction_pct', 0)
+
+    structured_data = {
+        "tool_name": "analyze_strap_process",
+        "success": True,
+        "polymers": [p.upper() for p in polymers],
+        "feedstock_composition": feedstock_composition,
+        "capacity_mt_yr": capacity_mt_yr,
+        "tci_millions": tci_millions,
+        "equipment_cost_millions": capital.get('total_equipment_cost_usd', 0) / 1e6,
+        "unit_operating_cost": tea_econ.get('unit_operating_cost_usd_kg', 0),
+        "annual_operating_cost_millions": tea_econ.get('annual_operating_cost_usd', 0) / 1e6,
+        "annual_revenue_millions": tea_econ.get('annual_revenue_usd', 0) / 1e6,
+        "net_annual_profit_millions": tea_econ.get('net_annual_profit_usd', 0) / 1e6,
+        "simple_payback_years": tea_econ.get('simple_payback_years', 0),
+        "roi_pct": tea_econ.get('return_on_investment_pct', 0),
+        "msp_by_polymer": msp_by_polymer,
+        "msp_weighted_avg": msp_data.get('msp_weighted_avg_usd_kg'),
+        "gwp_by_polymer": gwp_by_polymer,
+        "virgin_gwp": virgin_gwp,
+        "gwp_reduction_pct": gwp_reduction_pct,
+        "recovery_steps": [{"polymer": s['polymer'], "solvent": s['solvent']} for s in recovery_steps],
+    }
+
+    # Return structured JSON
+    import json
+    return json.dumps({"display": output, "data": structured_data})
 
 
 @tool

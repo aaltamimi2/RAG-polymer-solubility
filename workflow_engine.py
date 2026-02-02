@@ -648,13 +648,46 @@ class WorkflowEngine:
         return self._tool_cache[agent_name]
 
     def _extract_separation_from_messages(self, messages: List) -> Optional[Dict]:
-        """Extract separation results from tool messages."""
+        """Extract separation results from tool messages.
+
+        Tries structured JSON extraction first, falls back to regex for legacy tools.
+        Only processes ToolMessages to avoid matching LLM summaries.
+        """
         import re
+        import json
+        from langchain_core.messages import ToolMessage
+
         for msg in reversed(messages):
             if not hasattr(msg, 'content'):
                 continue
+
+            # Only process ToolMessages (skip AIMessages which may contain summaries)
+            is_tool_message = isinstance(msg, ToolMessage) or getattr(msg, 'type', None) == 'tool'
+            if not is_tool_message:
+                continue
+
             content = msg.content if isinstance(msg.content, str) else str(msg.content)
 
+            # PHASE 1: Try structured JSON extraction (new format)
+            try:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict) and "data" in parsed and "display" in parsed:
+                    data = parsed["data"]
+                    # Map structured data to expected format
+                    return {
+                        "solvents": data.get("solvents", []),
+                        "selectivities": data.get("selectivities", []),
+                        "polymers": data.get("polymers_analyzed", data.get("polymers", [])),
+                        "temperature": data.get("temperature"),
+                        "best_sequence": data.get("best_sequence"),
+                        "best_solvent": data.get("best_solvent"),
+                        "algorithm_used": data.get("algorithm_used"),
+                        "tool_output": parsed.get("display", content),
+                    }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # PHASE 2: Regex fallback for legacy tools
             # Look for selective solubility or separation tool output
             if any(marker in content for marker in [
                 'Selective Solubility', 'Top solvents', 'Dissolution Analysis',
@@ -760,13 +793,52 @@ class WorkflowEngine:
         return None
 
     def _extract_tea_from_messages(self, messages: List) -> Optional[Dict]:
-        """Extract TEA results from tool messages."""
+        """Extract TEA results from tool messages.
+
+        Tries structured JSON extraction first, falls back to regex for legacy tools.
+        Only processes ToolMessages to avoid matching LLM summaries.
+        """
         import re
+        import json
+        from langchain_core.messages import ToolMessage
+
         for msg in reversed(messages):
             if not hasattr(msg, 'content'):
                 continue
+
+            # Only process ToolMessages (skip AIMessages which may contain summaries)
+            is_tool_message = isinstance(msg, ToolMessage) or getattr(msg, 'type', None) == 'tool'
+            if not is_tool_message:
+                continue
+
             content = msg.content if isinstance(msg.content, str) else str(msg.content)
 
+            # PHASE 1: Try structured JSON extraction (new format)
+            try:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict) and "data" in parsed and "display" in parsed:
+                    data = parsed["data"]
+                    # Map structured data to expected format
+                    # Handle both TEAToolOutput and STRAPToolOutput schemas
+                    tci = data.get("tci_millions")
+                    opex = data.get("annual_operating_cost_millions")
+                    return {
+                        "cost_per_kg": data.get("unit_operating_cost", data.get("cost_per_kg")),
+                        "total_capex": tci * 1e6 if tci else data.get("total_capex"),
+                        "total_opex": opex * 1e6 if opex else data.get("annual_opex"),
+                        "payback_years": data.get("simple_payback_years", data.get("payback_years")),
+                        "roi_pct": data.get("roi_pct"),
+                        "throughput_kg_hr": data.get("throughput_kg_hr"),
+                        "capacity_mt_yr": data.get("capacity_mt_yr"),
+                        "msp_values": data.get("msp_by_polymer", data.get("msp_values", {})),
+                        "gwp_by_polymer": data.get("gwp_by_polymer", {}),
+                        "gwp_reduction_pct": data.get("gwp_reduction_pct", {}),
+                        "tool_output": parsed.get("display", content),
+                    }
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+            # PHASE 2: Regex fallback for legacy tools
             # Look for TEA/LCA tool output markers (including STRAP format)
             if any(marker in content for marker in [
                 'TECHNO-ECONOMIC', 'Cost per kg', 'CAPEX', 'OPEX', 'payback',

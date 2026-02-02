@@ -827,6 +827,83 @@ class ComparisonToolOutput(ToolOutputBase):
     weights: Dict[str, float] = Field(default_factory=dict)
 
 
+class STRAPToolOutput(ToolOutputBase):
+    """Validated output from STRAP (Solvent-Targeted Recovery and Precipitation) tools."""
+    tool_name: str = Field(default="strap_tool")
+
+    # Core inputs
+    polymers: List[str] = Field(default_factory=list, description="Polymers in feedstock")
+    feedstock_composition: Dict[str, float] = Field(default_factory=dict, description="Polymer fractions")
+    capacity_mt_yr: float = Field(default=10000.0, description="Plant capacity in metric tons/year")
+
+    # Capital costs
+    tci_millions: Optional[float] = Field(default=None, description="Total Capital Investment in $M")
+    equipment_cost_millions: Optional[float] = Field(default=None, description="Equipment cost in $M")
+
+    # Operating economics
+    unit_operating_cost: Optional[float] = Field(default=None, description="UOC in $/kg")
+    annual_operating_cost_millions: Optional[float] = Field(default=None, description="Annual OPEX in $M/yr")
+    annual_revenue_millions: Optional[float] = Field(default=None, description="Annual revenue in $M/yr")
+    net_annual_profit_millions: Optional[float] = Field(default=None, description="Net profit in $M/yr")
+    simple_payback_years: Optional[float] = Field(default=None, description="Simple payback period")
+    roi_pct: Optional[float] = Field(default=None, description="Return on investment %")
+
+    # MSP by polymer
+    msp_by_polymer: Dict[str, float] = Field(default_factory=dict, description="MSP in $/kg by polymer")
+    msp_weighted_avg: Optional[float] = Field(default=None, description="Weighted average MSP")
+
+    # LCA results
+    gwp_by_polymer: Dict[str, float] = Field(default_factory=dict, description="GWP kg CO2eq/kg by polymer")
+    virgin_gwp: Dict[str, float] = Field(default_factory=dict, description="Virgin polymer GWP for comparison")
+    gwp_reduction_pct: Dict[str, float] = Field(default_factory=dict, description="GWP reduction vs virgin")
+
+    # Recovery steps
+    recovery_steps: List[Dict[str, str]] = Field(default_factory=list, description="Polymer -> Solvent mappings")
+
+
+class StructuredToolReturn(BaseModel):
+    """
+    Standard return format for tools that provide both display and structured data.
+
+    This replaces regex-based extraction with clean programmatic access.
+
+    Usage:
+        # In tool implementation:
+        display = format_output(results)
+        data = STRAPToolOutput(...).model_dump()
+        return StructuredToolReturn(display=display, data=data).to_json()
+
+        # In extraction:
+        parsed = StructuredToolReturn.from_json(tool_output)
+        if parsed:
+            cost = parsed.data.get("unit_operating_cost")
+    """
+    display: str = Field(description="Formatted string for LLM/user display")
+    data: Dict[str, Any] = Field(description="Structured data for programmatic access")
+
+    def to_json(self) -> str:
+        """Serialize to JSON string for tool return."""
+        import json
+        return json.dumps({"display": self.display, "data": self.data})
+
+    @classmethod
+    def from_json(cls, content: str) -> Optional["StructuredToolReturn"]:
+        """Try to parse a JSON string as StructuredToolReturn."""
+        import json
+        try:
+            parsed = json.loads(content)
+            if isinstance(parsed, dict) and "display" in parsed and "data" in parsed:
+                return cls(display=parsed["display"], data=parsed["data"])
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return None
+
+    @classmethod
+    def from_tool_output(cls, display: str, output: ToolOutputBase) -> "StructuredToolReturn":
+        """Create from a display string and a Pydantic tool output schema."""
+        return cls(display=display, data=output.model_dump())
+
+
 # ============================================================
 # P3: HANDOFF VALIDATION
 # ============================================================
