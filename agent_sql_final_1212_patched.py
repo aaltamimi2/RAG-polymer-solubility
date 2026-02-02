@@ -2118,7 +2118,29 @@ def analyze_selective_solubility_enhanced(
     del df
     gc.collect()
 
-    return "\n".join(output)
+    display = "\n".join(output)
+
+    # Build structured data for programmatic access
+    top_solvents = selectivity_data[:10] if selectivity_data else []
+    structured_data = {
+        "tool_name": "analyze_selective_solubility_enhanced",
+        "success": True,
+        "polymers_analyzed": [target_polymer] + comp_list,
+        "solvents": [s['solvent'] for s in top_solvents],
+        "selectivities": [s['selectivity_difference'] for s in top_solvents],
+        "best_solvent": top_solvents[0]['solvent'] if top_solvents else None,
+        "best_selectivity": top_solvents[0]['selectivity_difference'] if top_solvents else None,
+        "temperature": (temp_min + temp_max) / 2,
+        "temperature_range": [temp_min, temp_max],
+        "target_polymer": target_polymer,
+        "comparison_polymers": comp_list,
+        "algorithm_used": "selective_solubility",
+        "coverage_complete": len(top_solvents) > 0,
+    }
+
+    # Return structured JSON
+    import json
+    return json.dumps({"display": display, "data": structured_data})
 
 
 # ============================================================
@@ -7623,7 +7645,33 @@ async def analyze_solvent_recovery_tea(
         recovery_fraction=recovery_fraction,
         process_temp_c=process_temp_c
     )
-    return tea_lca.format_tea_results(results)
+    display = tea_lca.format_tea_results(results)
+
+    # Build structured data
+    capital = results.get('capital_costs', {})
+    operating = results.get('operating_costs', {})
+    economics = results.get('economics', {})
+
+    structured_data = {
+        "tool_name": "analyze_solvent_recovery_tea",
+        "success": True,
+        "solvent": solvent,
+        "throughput_kg_hr": polymer_throughput_kg_hr,
+        "recovery_rate": recovery_fraction,
+        "temperature": process_temp_c,
+        "cost_per_kg": economics.get('cost_per_kg_polymer'),
+        "total_capex": capital.get('total_capex'),
+        "annual_opex": operating.get('total_annual'),
+        "payback_years": economics.get('payback_years'),
+        "cost_breakdown": {
+            "energy": operating.get('energy_cost_annual', 0),
+            "labor": operating.get('labor_cost_annual', 0),
+            "solvent_makeup": operating.get('solvent_makeup_cost_annual', 0),
+        },
+    }
+
+    import json
+    return json.dumps({"display": display, "data": structured_data})
 
 
 @tool
@@ -7664,7 +7712,26 @@ async def analyze_solvent_recovery_lca(
         recovery_fraction=recovery_fraction,
         process_temp_c=process_temp_c
     )
-    return tea_lca.format_lca_results(results)
+    display = tea_lca.format_lca_results(results)
+
+    # Build structured data
+    emissions = results.get('emissions', {})
+    energy = results.get('energy', {})
+
+    structured_data = {
+        "tool_name": "analyze_solvent_recovery_lca",
+        "success": True,
+        "solvent": solvent,
+        "throughput_kg_hr": polymer_throughput_kg_hr,
+        "recovery_rate": recovery_fraction,
+        "co2_kg_per_kg": emissions.get('total_co2_kg_per_kg'),
+        "energy_mj_per_kg": energy.get('total_mj_per_kg'),
+        "emissions_breakdown": emissions,
+        "energy_breakdown": energy,
+    }
+
+    import json
+    return json.dumps({"display": display, "data": structured_data})
 
 
 @tool
@@ -7704,7 +7771,28 @@ async def compare_solvents_tea_lca(
         recovery_fraction=recovery_fraction,
         process_temp_c=process_temp_c
     )
-    return tea_lca.format_comparison_results(results)
+    display = tea_lca.format_comparison_results(results)
+
+    # Build structured data
+    comparison = results.get('comparison', [])
+    rankings = results.get('rankings', {})
+
+    structured_data = {
+        "tool_name": "compare_solvents_tea_lca",
+        "success": True,
+        "solvents": solvents,
+        "throughput_kg_hr": polymer_throughput_kg_hr,
+        "recovery_rate": recovery_fraction,
+        "comparison": comparison,
+        "best_by_cost": rankings.get('by_cost', [None])[0] if rankings.get('by_cost') else None,
+        "best_by_emissions": rankings.get('by_emissions', [None])[0] if rankings.get('by_emissions') else None,
+        "best_overall": rankings.get('overall', [None])[0] if rankings.get('overall') else None,
+        "cost_ranking": rankings.get('by_cost', []),
+        "emissions_ranking": rankings.get('by_emissions', []),
+    }
+
+    import json
+    return json.dumps({"display": display, "data": structured_data})
 
 
 @tool
@@ -8175,7 +8263,29 @@ async def calculate_strap_msp(
     output += "- Positive margin indicates potential profit at market prices\n"
     output += f"- Calculated at {target_irr*100:.0f}% IRR over 20-year project life\n"
 
-    return output
+    # Build structured data
+    margins = {}
+    for polymer in polymers:
+        pu = polymer.upper()
+        msp = msp_by_polymer.get(pu, 0)
+        market = market_prices.get(pu, 1.0)
+        margins[pu] = market - msp
+
+    structured_data = {
+        "tool_name": "calculate_strap_msp",
+        "success": True,
+        "polymers": [p.upper() for p in polymers],
+        "capacity_mt_yr": capacity_mt_yr,
+        "target_irr": target_irr,
+        "msp_by_polymer": msp_by_polymer,
+        "msp_weighted_avg": msp_results.get('msp_weighted_avg_usd_kg'),
+        "market_prices": {p.upper(): market_prices.get(p.upper(), 1.0) for p in polymers},
+        "margins": margins,
+        "recovery_steps": [{"polymer": s['polymer'], "solvent": s['solvent']} for s in recovery_steps],
+    }
+
+    import json
+    return json.dumps({"display": output, "data": structured_data})
 
 
 @tool

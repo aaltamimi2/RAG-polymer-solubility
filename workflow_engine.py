@@ -650,10 +650,9 @@ class WorkflowEngine:
     def _extract_separation_from_messages(self, messages: List) -> Optional[Dict]:
         """Extract separation results from tool messages.
 
-        Tries structured JSON extraction first, falls back to regex for legacy tools.
+        Uses structured JSON extraction from tools that return {"display": ..., "data": ...}.
         Only processes ToolMessages to avoid matching LLM summaries.
         """
-        import re
         import json
         from langchain_core.messages import ToolMessage
 
@@ -668,7 +667,7 @@ class WorkflowEngine:
 
             content = msg.content if isinstance(msg.content, str) else str(msg.content)
 
-            # PHASE 1: Try structured JSON extraction (new format)
+            # Structured JSON extraction
             try:
                 parsed = json.loads(content)
                 if isinstance(parsed, dict) and "data" in parsed and "display" in parsed:
@@ -687,118 +686,14 @@ class WorkflowEngine:
             except (json.JSONDecodeError, TypeError):
                 pass
 
-            # PHASE 2: Regex fallback for legacy tools
-            # Look for selective solubility or separation tool output
-            if any(marker in content for marker in [
-                'Selective Solubility', 'Top solvents', 'Dissolution Analysis',
-                'Solvent Analysis', 'selectivity', 'dissolves', 'Dissolution',
-                'Separation Planning', 'Separation Sequence', 'STRAP PROCESS',
-                'dissolved first', 'separation step'
-            ]):
-                solvents = []
-                selectivities = []
-                temperature = None
-
-                # Extract solvents - look for various patterns
-                # Pattern 1: **Solvent** or **SolventName**
-                solvent_bold = re.findall(r'\*\*([A-Za-z][a-z]+(?:[A-Z][a-z]*)*)\*\*', content)
-                # Pattern 2: numbered list "1. Solvent:" or "1. **Solvent**"
-                solvent_numbered = re.findall(r'\d+\.\s+\*?\*?([A-Za-z][a-z]+(?:[A-Z][a-z]*)*)', content)
-                # Pattern 3: "- Solvent:" format
-                solvent_dash = re.findall(r'^-\s+([A-Za-z][a-z]+(?:[A-Z][a-z]*)*):', content, re.MULTILINE)
-                # Pattern 4: "Solvent: X" or "using X" (capture word after keywords)
-                solvent_using = re.findall(r'(?:using|with|solvent:?)\s+([A-Za-z]+)', content, re.IGNORECASE)
-
-                # Combine and filter
-                all_solvents = solvent_bold + solvent_numbered + solvent_dash + solvent_using
-
-                # Extended solvent names list
-                solvent_names = {'xylene', 'toluene', 'cyclohexane', 'decalin', 'tetralin',
-                                 'heptane', 'octane', 'nonane', 'decane', 'dodecane',
-                                 'thf', 'dichloromethane', 'chloroform', 'acetone',
-                                 'methanol', 'ethanol', 'dmso', 'dmf', 'nmp',
-                                 'benzene', 'hexane', 'pentane', 'ether', 'dioxane',
-                                 'trichloroethylene', 'perchloroethylene', 'chlorobenzene',
-                                 'dichlorobenzene', 'methylcyclohexane', 'anisole'}
-                for s in all_solvents:
-                    s_lower = s.lower()
-                    if s_lower in solvent_names and s not in solvents:
-                        solvents.append(s)
-
-                # Extract selectivity values
-                selectivity_matches = re.findall(r'selectivity[^\d]*(\d+\.?\d*)%?', content, re.IGNORECASE)
-                for match in selectivity_matches:
-                    val = float(match)
-                    if val > 1:
-                        val = val / 100  # Convert percentage to decimal
-                    selectivities.append(val)
-
-                # Extract temperature
-                temp_match = re.search(r'(\d+)\s*[°]?C\b', content)
-                if temp_match:
-                    temperature = int(temp_match.group(1))
-
-                # Only return if we found useful data
-                if solvents:
-                    # Extract polymers from content
-                    polymers = []
-                    polymer_names = {'pe', 'pp', 'ps', 'pet', 'pvc', 'hdpe', 'ldpe', 'evoh',
-                                    'nylon', 'pc', 'abs', 'pmma', 'pa', 'pes', 'pla'}
-                    # Look for "Target: X" pattern
-                    target_match = re.search(r'Target:\s*(\w+)', content)
-                    if target_match and target_match.group(1).lower() in polymer_names:
-                        polymers.append(target_match.group(1).upper())
-                    # Look for "Comparing against: X" pattern
-                    compare_match = re.search(r'Comparing against:\s*(\w+)', content)
-                    if compare_match and compare_match.group(1).lower() in polymer_names:
-                        polymers.append(compare_match.group(1).upper())
-                    # Look for "Solvents for X Dissolution" pattern
-                    dissolution_match = re.search(r'Solvents for (\w+) Dissolution', content)
-                    if dissolution_match and dissolution_match.group(1).lower() in polymer_names:
-                        poly = dissolution_match.group(1).upper()
-                        if poly not in polymers:
-                            polymers.append(poly)
-                    # Look for "**Polymers:** PP, PS, PET, HDPE" pattern (from plan_sequential_separation)
-                    polymers_list_match = re.search(r'\*\*Polymers:\*\*\s*([A-Za-z0-9,\s]+)', content)
-                    if polymers_list_match:
-                        for p in polymers_list_match.group(1).split(','):
-                            p = p.strip().upper()
-                            if p.lower() in polymer_names and p not in polymers:
-                                polymers.append(p)
-                    if not polymers:
-                        polymers = ["polymer"]
-
-                    # Extract separation sequence (e.g., "PP → PS → PET → HDPE" or "Step 1: PP using cyclohexane")
-                    best_sequence = []
-                    # Pattern: "Step N: TARGET using SOLVENT" from greedy algorithm
-                    step_matches = re.findall(r'Step\s+\d+:\s+(\w+)\s+using\s+(\w+)', content, re.IGNORECASE)
-                    if step_matches:
-                        best_sequence = [p.upper() for p, s in step_matches]
-                    # Pattern: "X → Y → Z" sequence notation
-                    if not best_sequence:
-                        seq_match = re.search(r'(\w+)\s*→\s*(\w+)(?:\s*→\s*(\w+))?(?:\s*→\s*(\w+))?', content)
-                        if seq_match:
-                            for g in seq_match.groups():
-                                if g and g.upper() in [p.upper() for p in polymer_names]:
-                                    best_sequence.append(g.upper())
-
-                    return {
-                        "solvents": solvents[:5],
-                        "selectivities": selectivities[:5] if selectivities else None,
-                        "temperature": temperature,
-                        "polymers": polymers,
-                        "best_sequence": best_sequence if best_sequence else None,
-                        "tool_output": content,  # Full output for publication
-                    }
         return None
 
     def _extract_tea_from_messages(self, messages: List) -> Optional[Dict]:
         """Extract TEA results from tool messages.
 
-        Tries structured JSON extraction first, falls back to regex for legacy tools.
+        Uses structured JSON extraction from tools that return {"display": ..., "data": ...}.
         Only processes ToolMessages to avoid matching LLM summaries.
         """
-        import re
         import json
         from langchain_core.messages import ToolMessage
 
@@ -813,7 +708,7 @@ class WorkflowEngine:
 
             content = msg.content if isinstance(msg.content, str) else str(msg.content)
 
-            # PHASE 1: Try structured JSON extraction (new format)
+            # Structured JSON extraction
             try:
                 parsed = json.loads(content)
                 if isinstance(parsed, dict) and "data" in parsed and "display" in parsed:
@@ -838,80 +733,6 @@ class WorkflowEngine:
             except (json.JSONDecodeError, TypeError):
                 pass
 
-            # PHASE 2: Regex fallback for legacy tools
-            # Look for TEA/LCA tool output markers (including STRAP format)
-            if any(marker in content for marker in [
-                'TECHNO-ECONOMIC', 'Cost per kg', 'CAPEX', 'OPEX', 'payback',
-                'MSP', 'Minimum Selling Price', 'Economic Analysis',
-                'STRAP PROCESS', 'Unit Operating Cost', 'OPERATING ECONOMICS',
-                'CAPITAL COSTS', 'Simple Payback', 'Total Capital'
-            ]):
-                result = {}
-
-                # Extract cost per kg - multiple formats
-                # Format 1: "Cost per kg: $X.XX"
-                cost_match = re.search(r'[Cc]ost per kg[^\$\d]*\$?(\d+\.?\d*)', content)
-                if cost_match:
-                    result["cost_per_kg"] = float(cost_match.group(1))
-                # Format 2: STRAP "Unit Operating Cost (UOC): $X.XXXX/kg"
-                if not result.get("cost_per_kg"):
-                    uoc_match = re.search(r'Unit Operating Cost[^$]*\$(\d+\.?\d*)/kg', content)
-                    if uoc_match:
-                        result["cost_per_kg"] = float(uoc_match.group(1))
-
-                # Extract CAPEX / Total Capital (STRAP outputs in $XM format)
-                capex_match = re.search(r'(?:CAPEX|Total Capital[^:]*)[^\$]*\$(\d+(?:,\d{3})*(?:\.\d+)?)\s*(M)?', content)
-                if capex_match:
-                    val = capex_match.group(1).replace(',', '')
-                    val_float = float(val)
-                    # If "M" suffix, value is in millions
-                    if capex_match.group(2) == 'M':
-                        val_float *= 1e6
-                    result["total_capex"] = val_float
-
-                # Extract OPEX / Annual Operating Cost (STRAP outputs in $XM/yr format)
-                opex_match = re.search(r'(?:OPEX|Annual Operating Cost)[^\$]*\$(\d+(?:,\d{3})*(?:\.\d+)?)\s*(M)?', content)
-                if opex_match:
-                    val = opex_match.group(1).replace(',', '')
-                    val_float = float(val)
-                    # If "M" suffix, value is in millions
-                    if opex_match.group(2) == 'M':
-                        val_float *= 1e6
-                    result["total_opex"] = val_float
-
-                # Extract payback period - multiple formats
-                # Format 1: "Payback: X.XX years" or "Simple Payback: X.XX years"
-                payback_match = re.search(r'(?:Simple )?[Pp]ayback[:\s]+(\d+\.?\d*)\s*years?', content)
-                if payback_match:
-                    result["payback_years"] = float(payback_match.group(1))
-
-                # Extract ROI
-                roi_match = re.search(r'ROI[:\s]+(\d+\.?\d*)%', content)
-                if roi_match:
-                    result["roi_pct"] = float(roi_match.group(1))
-
-                # Extract throughput
-                throughput_match = re.search(r'(\d+)\s*kg/hr', content)
-                if throughput_match:
-                    result["throughput_kg_hr"] = int(throughput_match.group(1))
-
-                # Extract capacity (metric tons/year)
-                capacity_match = re.search(r'Capacity[:\s]+(\d+(?:,\d{3})*)\s*metric tons/year', content)
-                if capacity_match:
-                    result["capacity_mt_yr"] = int(capacity_match.group(1).replace(',', ''))
-
-                # Extract MSP values - require digit after $ to avoid matching just "."
-                # Pattern: "POLYMER: $X.XXXX/kg"
-                msp_matches = re.findall(r'([A-Z]{2,5}):\s*\$(\d+\.\d+)/kg', content)
-                if msp_matches:
-                    result["msp_values"] = {name: float(val) for name, val in msp_matches[:5]}
-
-                # Include full tool output for publication
-                result["tool_output"] = content
-
-                # Only return if we found useful data
-                if result.get("cost_per_kg") or result.get("payback_years") or result.get("msp_values"):
-                    return result
         return None
 
     async def run_agent(self, state: dict, agent_name: str) -> AgentResult:
