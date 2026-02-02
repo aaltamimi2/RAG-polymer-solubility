@@ -39,9 +39,10 @@ logger = logging.getLogger(__name__)
 # Output directory
 OUTPUT_DIR = "/home/aaltamimi2/polymer-solubility-app/plots/test-1.1"
 
-# Complex 10-polymer query for publication
+# Complex multi-polymer query for publication (using polymers in common solvents database)
+# Available: LDPE, HDPE, PP, PS, PET, PVC, EVOH, Nylon6, Nylon66, PC, PES
 PUBLICATION_QUERY = """
-I need to design a selective dissolution process for recycling multilayer packaging waste containing 10 polymers: LDPE, HDPE, PP, PS, PET, PVC, PVDC, EVOH, PA6, and PMMA.
+I need to design a selective dissolution process for recycling multilayer packaging waste containing these polymers: LDPE, HDPE, PP, PS, PET, PVC, EVOH, Nylon6, PC, and PES.
 
 Requirements:
 1. **Solvent Selection**: Prioritize greener solvents (low toxicity, bio-based preferred). Avoid chlorinated solvents if possible.
@@ -89,7 +90,7 @@ async def run_publication_test():
     initial_state = {
         "messages": [HumanMessage(content=PUBLICATION_QUERY)],
         "shared_context": {
-            "polymers": ["LDPE", "HDPE", "PP", "PS", "PET", "PVC", "PVDC", "EVOH", "PA6", "PMMA"],
+            "polymers": ["LDPE", "HDPE", "PP", "PS", "PET", "PVC", "EVOH", "Nylon6", "PC", "PES"],
             "constraints": [
                 "greener solvents",
                 "low toxicity",
@@ -206,7 +207,7 @@ async def run_publication_test():
                 workflow_name=orchestration.get("workflow_name", "integrated_workflow"),
                 query=PUBLICATION_QUERY,
                 context={
-                    "polymers": ["LDPE", "HDPE", "PP", "PS", "PET", "PVC", "PVDC", "EVOH", "PA6", "PMMA"],
+                    "polymers": ["LDPE", "HDPE", "PP", "PS", "PET", "PVC", "EVOH", "Nylon6", "PC", "PES"],
                     "specialists": ["separation", "tea_lca", "literature"],
                     "throughput": "500 kg/hr",
                 },

@@ -54,7 +54,7 @@ class ReliabilityConfig:
     """Configuration for agent execution reliability."""
 
     # Timeout settings
-    agent_timeout_seconds: float = 120.0  # Max time for single agent execution
+    agent_timeout_seconds: float = 300.0  # Max time for single agent execution (increased for RAG)
     tool_timeout_seconds: float = 60.0    # Max time for tool batch execution
     llm_call_timeout_seconds: float = 45.0  # Max time for single LLM call
 
@@ -1786,10 +1786,13 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             categories=["separation", "advanced_separation", "dissolution", "solvent_properties", "visualization"],
             description="Plans optimal polymer separation sequences",
             task_prompt=(
-                "You are the SEPARATION SPECIALIST. Your task is to analyze polymer separation.\n"
-                "Focus ONLY on finding solvents and dissolution conditions. Use the separation tools available.\n"
-                "Call analyze_selective_solubility_enhanced or find_optimal_separation_conditions to find solvents.\n"
-                "Do NOT perform economic analysis - that will be handled by another specialist."
+                "You are the SEPARATION SPECIALIST. You MUST call tools to analyze polymer separation.\n\n"
+                "REQUIRED ACTIONS:\n"
+                "1. Call `analyze_selective_solubility_enhanced` with the polymers from the query\n"
+                "2. Call `find_optimal_separation_conditions` to optimize dissolution temperatures\n"
+                "3. Call `plan_sequential_separation` to design the separation sequence\n\n"
+                "Your response MUST include actual tool outputs with solvents, selectivities, and temperatures.\n"
+                "Do NOT just describe what you would do - actually call the tools and report their results."
             ),
         ),
         "tea_lca": AgentConfig(
@@ -1797,10 +1800,13 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             categories=["economics", "strap", "visualization", "solvent_properties"],
             description="Performs techno-economic and lifecycle analysis",
             task_prompt=(
-                "You are the TEA/LCA SPECIALIST. Your task is to perform economic and environmental analysis.\n"
-                "Focus ONLY on techno-economic analysis (TEA) and lifecycle assessment (LCA).\n"
-                "Use analyze_solvent_recovery_tea for economic analysis and generate_lca_visualizations for LCA.\n"
-                "The separation analysis has already been done - focus on costs, payback, and environmental impact."
+                "You are the TEA/LCA SPECIALIST. You MUST call tools to perform economic analysis.\n\n"
+                "REQUIRED ACTIONS:\n"
+                "1. Call `analyze_solvent_recovery_tea` with throughput=500 (kg/hr) and a common solvent like xylene or toluene\n"
+                "2. Call `compare_solvents_tea_lca` to compare economics of different solvents\n"
+                "3. Report CAPEX, OPEX, cost per kg, and payback period from the tool outputs\n\n"
+                "Your response MUST include actual numbers from the tool outputs.\n"
+                "Do NOT estimate or make up numbers - use the tool results."
             ),
         ),
         "literature": AgentConfig(
@@ -1808,10 +1814,12 @@ def create_default_agents() -> Dict[str, AgentConfig]:
             categories=["literature", "rag"],
             description="Searches literature and RAG knowledge base",
             task_prompt=(
-                "You are the LITERATURE SPECIALIST. Your task is to search published research.\n"
-                "Focus ONLY on finding relevant literature and extracting process parameters.\n"
-                "Use search_strap_core or search_rag_literature to find relevant papers and data.\n"
-                "Do NOT perform separation analysis or economic analysis - those will be handled by other specialists."
+                "You are the LITERATURE SPECIALIST. You MUST call tools to search published research.\n\n"
+                "REQUIRED ACTIONS:\n"
+                "1. Call `search_literature_rag` with queries about the polymers in the user's request\n"
+                "2. Extract key findings: solvents used, temperatures, process conditions\n"
+                "3. Report paper titles and key data points from the search results\n\n"
+                "Limit to 2-3 searches to avoid timeout. Focus on the most relevant polymers."
             ),
         ),
         # Profitability agent will be registered with custom_node by multi_agent_system
