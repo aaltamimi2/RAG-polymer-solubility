@@ -8551,6 +8551,33 @@ async def compare_strap_scenarios(
     if 'best_payback' in comparison:
         output += f"- **Fastest Payback:** {comparison['best_payback']}\n"
 
+    # Generate comparison visualizations
+    output += "\n## Comparison Visualizations\n\n"
+    viz_paths = {}
+
+    try:
+        # Economics comparison bar chart (UOC, ROI, Payback)
+        econ_path = tea_lca.plot_scenario_economics_comparison(comparison_table)
+        if econ_path:
+            viz_paths['economics'] = econ_path
+            output += f"- **Economics Comparison**: `{get_plot_url(econ_path)}`\n"
+    except Exception as e:
+        logger.warning(f"Could not generate economics comparison chart: {e}")
+
+    try:
+        # GWP comparison bar chart
+        gwp_path = tea_lca.plot_scenario_gwp_comparison(scenario_configs)
+        if gwp_path:
+            viz_paths['gwp'] = gwp_path
+            output += f"- **GWP/LCA Comparison**: `{get_plot_url(gwp_path)}`\n"
+    except Exception as e:
+        logger.warning(f"Could not generate GWP comparison chart: {e}")
+
+    if viz_paths:
+        output += f"\nGenerated {len(viz_paths)} comparison visualization(s).\n"
+    else:
+        output += "\n*No visualizations generated.*\n"
+
     return output
 
 

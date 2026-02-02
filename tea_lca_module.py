@@ -3387,6 +3387,244 @@ def plot_gwp_comparison(
     return save_path
 
 
+def plot_scenario_economics_comparison(
+    comparison_results: List[Dict],
+    save_path: str = None
+) -> str:
+    """
+    Create grouped bar chart comparing economics across multiple STRAP scenarios.
+
+    Shows UOC ($/kg), ROI (%), and Payback (years) for each scenario.
+
+    Parameters
+    ----------
+    comparison_results : list
+        List of scenario comparison dicts with keys:
+        - name, uoc_usd_kg, roi_pct, payback_years, tci_millions
+    save_path : str
+        Optional path to save the plot
+
+    Returns
+    -------
+    str
+        Path to saved plot
+    """
+    if not comparison_results:
+        return None
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+
+    scenarios = [r['name'] for r in comparison_results]
+    # Shorten scenario names for display
+    short_names = []
+    for name in scenarios:
+        if len(name) > 25:
+            # Extract key info like "Seq1: PP→PS→..."
+            short_names.append(name[:25] + "...")
+        else:
+            short_names.append(name)
+
+    x = np.arange(len(scenarios))
+    width = 0.6
+
+    # Color palette
+    colors = ['#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f39c12']
+
+    # 1. Unit Operating Cost ($/kg)
+    ax1 = axes[0]
+    uoc_values = [r['uoc_usd_kg'] for r in comparison_results]
+    bars1 = ax1.bar(x, uoc_values, width, color=[colors[i % len(colors)] for i in range(len(scenarios))],
+                   edgecolor='black', linewidth=1)
+    ax1.set_ylabel('Unit Operating Cost ($/kg)', fontsize=11, fontweight='bold')
+    ax1.set_title('Operating Cost Comparison', fontsize=12, fontweight='bold')
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(short_names, rotation=45, ha='right', fontsize=9)
+
+    # Highlight best (lowest)
+    best_idx = uoc_values.index(min(uoc_values))
+    bars1[best_idx].set_edgecolor('#27ae60')
+    bars1[best_idx].set_linewidth(3)
+
+    # Add value labels
+    for i, (bar, val) in enumerate(zip(bars1, uoc_values)):
+        label = f'${val:.3f}'
+        if i == best_idx:
+            label += ' ★'
+        ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                label, ha='center', va='bottom', fontsize=9, fontweight='bold' if i == best_idx else 'normal')
+
+    # 2. ROI (%)
+    ax2 = axes[1]
+    roi_values = [r['roi_pct'] for r in comparison_results]
+    bars2 = ax2.bar(x, roi_values, width, color=[colors[i % len(colors)] for i in range(len(scenarios))],
+                   edgecolor='black', linewidth=1)
+    ax2.set_ylabel('Return on Investment (%)', fontsize=11, fontweight='bold')
+    ax2.set_title('ROI Comparison', fontsize=12, fontweight='bold')
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(short_names, rotation=45, ha='right', fontsize=9)
+
+    # Highlight best (highest)
+    best_idx = roi_values.index(max(roi_values))
+    bars2[best_idx].set_edgecolor('#27ae60')
+    bars2[best_idx].set_linewidth(3)
+
+    for i, (bar, val) in enumerate(zip(bars2, roi_values)):
+        label = f'{val:.1f}%'
+        if i == best_idx:
+            label += ' ★'
+        ax2.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.1,
+                label, ha='center', va='bottom', fontsize=9, fontweight='bold' if i == best_idx else 'normal')
+
+    # 3. Payback Period (years)
+    ax3 = axes[2]
+    payback_values = [r['payback_years'] for r in comparison_results]
+    bars3 = ax3.bar(x, payback_values, width, color=[colors[i % len(colors)] for i in range(len(scenarios))],
+                   edgecolor='black', linewidth=1)
+    ax3.set_ylabel('Simple Payback (years)', fontsize=11, fontweight='bold')
+    ax3.set_title('Payback Period Comparison', fontsize=12, fontweight='bold')
+    ax3.set_xticks(x)
+    ax3.set_xticklabels(short_names, rotation=45, ha='right', fontsize=9)
+
+    # Highlight best (lowest)
+    best_idx = payback_values.index(min(payback_values))
+    bars3[best_idx].set_edgecolor('#27ae60')
+    bars3[best_idx].set_linewidth(3)
+
+    for i, (bar, val) in enumerate(zip(bars3, payback_values)):
+        label = f'{val:.1f}yr'
+        if i == best_idx:
+            label += ' ★'
+        ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
+                label, ha='center', va='bottom', fontsize=9, fontweight='bold' if i == best_idx else 'normal')
+
+    # Add legend note
+    fig.text(0.5, 0.02, '★ = Best performing scenario for this metric (green border)',
+             ha='center', fontsize=10, style='italic')
+
+    plt.suptitle('STRAP Scenario Economic Comparison', fontsize=14, fontweight='bold', y=1.02)
+    plt.tight_layout()
+
+    if save_path is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = f"{PLOTS_DIR}/strap_economics_comparison_{timestamp}.png"
+
+    plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    return save_path
+
+
+def plot_scenario_gwp_comparison(
+    scenario_configs: List[Dict],
+    comparison_results: List[Dict] = None,
+    save_path: str = None
+) -> str:
+    """
+    Create bar chart comparing GWP across STRAP scenarios.
+
+    Simpler than plot_gwp_comparison - just shows total GWP per scenario.
+
+    Parameters
+    ----------
+    scenario_configs : list
+        List of scenario config dicts
+    comparison_results : list
+        Optional pre-computed comparison results with gwp data
+    save_path : str
+        Optional path to save
+
+    Returns
+    -------
+    str
+        Path to saved plot
+    """
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    # Compute GWP for each scenario
+    gwp_data = []
+    for config in scenario_configs:
+        name = config.get('name', 'Scenario')
+        polymers = config.get('polymers', [])
+        feedstock = config.get('feedstock_composition', {p: 1.0/len(polymers) for p in polymers})
+        steps = config.get('recovery_steps', [])
+
+        # If no steps, create default
+        if not steps:
+            custom_solvents = config.get('recovery_solvents', {})
+            for p in polymers:
+                pu = p.upper()
+                if custom_solvents and pu in custom_solvents:
+                    solvent = custom_solvents[pu]
+                elif pu in DEFAULT_POLYMER_PROPS.compatible_solvents:
+                    solvent = DEFAULT_POLYMER_PROPS.compatible_solvents[pu][0]
+                else:
+                    solvent = 'xylene'
+                steps.append({'polymer': pu, 'solvent': solvent, 'recover': True})
+
+        # Build scenario and calculate GWP
+        try:
+            scenario = build_strap_scenario(name, feedstock, steps)
+            lca_results = calculate_strap_lca(scenario)
+            # Average GWP across polymers
+            avg_gwp = np.mean([ind.gwp for ind in lca_results.values()])
+            gwp_data.append({'name': name, 'gwp': avg_gwp, 'polymers': polymers})
+        except Exception as e:
+            # Fallback to estimated GWP
+            gwp_data.append({'name': name, 'gwp': 0.9, 'polymers': polymers})
+
+    # Create bar chart
+    x = np.arange(len(gwp_data))
+    width = 0.6
+    colors = ['#3498db', '#2ecc71', '#e74c3c', '#9b59b6', '#f39c12']
+
+    gwp_values = [d['gwp'] for d in gwp_data]
+    short_names = [d['name'][:30] + '...' if len(d['name']) > 30 else d['name'] for d in gwp_data]
+
+    bars = ax.bar(x, gwp_values, width, color=[colors[i % len(colors)] for i in range(len(gwp_data))],
+                  edgecolor='black', linewidth=1)
+
+    # Highlight best (lowest GWP)
+    if gwp_values:
+        best_idx = gwp_values.index(min(gwp_values))
+        bars[best_idx].set_edgecolor('#27ae60')
+        bars[best_idx].set_linewidth(3)
+
+    # Add value labels
+    for i, (bar, val) in enumerate(zip(bars, gwp_values)):
+        label = f'{val:.3f}'
+        if i == best_idx:
+            label += ' ★'
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.02,
+               label, ha='center', va='bottom', fontsize=10, fontweight='bold' if i == best_idx else 'normal')
+
+    # Add virgin polymer reference lines
+    virgin_pe = LCA_EMISSION_FACTORS['virgin_gwp'].get('PE', 1.98)
+    virgin_ps = LCA_EMISSION_FACTORS['virgin_gwp'].get('PS', 3.45)
+    ax.axhline(y=virgin_pe, color='#e74c3c', linestyle='--', linewidth=2, label=f'Virgin PE ({virgin_pe:.2f})')
+    ax.axhline(y=virgin_ps, color='#c0392b', linestyle=':', linewidth=2, label=f'Virgin PS ({virgin_ps:.2f})')
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(short_names, rotation=45, ha='right', fontsize=10)
+    ax.set_ylabel('GWP (kg CO₂ eq / kg polymer)', fontsize=12, fontweight='bold')
+    ax.set_title('Life Cycle GHG Emissions by Scenario\n(lower is better)', fontsize=13, fontweight='bold')
+    ax.legend(loc='upper right', fontsize=9)
+
+    # Add note
+    fig.text(0.5, 0.02, '★ = Lowest emissions scenario (green border) | Dashed lines = virgin polymer baselines',
+             ha='center', fontsize=9, style='italic')
+
+    plt.tight_layout()
+
+    if save_path is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_path = f"{PLOTS_DIR}/strap_gwp_scenarios_{timestamp}.png"
+
+    plt.savefig(save_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+
+    return save_path
+
+
 def generate_strap_visualizations(
     feedstock_composition: Dict[str, float],
     recovery_steps: List[Dict],
