@@ -1,0 +1,530 @@
+"""Shared helpers for all STRAP tool modules.
+
+Provides: output formatting, safe_tool_wrapper, DataValidator,
+AdaptiveAnalyzer, fuzzy matching, solvent name normalization.
+"""
+
+from __future__ import annotations
+
+import gc
+import re
+import os
+import logging
+import time
+import asyncio
+from functools import wraps
+from pathlib import Path
+from typing import List, Dict, Optional, Any, Tuple
+from dataclasses import dataclass, field
+
+import numpy as np
+import pandas as pd
+
+logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------------
+MAX_TOOL_OUTPUT_LENGTH = 50_000
+PLOTS_DIR = os.environ.get("STRAP_PLOTS_DIR", "./plots")
+
+def get_plots_dir() -> str:
+    return PLOTS_DIR
+
+def set_plots_dir(new_dir: str) -> str:
+    global PLOTS_DIR
+    old = PLOTS_DIR
+    PLOTS_DIR = new_dir
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    return old
+
+
+# ------------------------------------------------------------------
+# Output formatting / truncation
+# ------------------------------------------------------------------
+
+def truncate_output(text: str, max_length: int = MAX_TOOL_OUTPUT_LENGTH) -> str:
+    if not isinstance(text, str):
+        text = str(text)
+    if len(text) <= max_length:
+        return text
+    half = max_length // 2 - 50
+    return text[:half] + f"\n\n... [TRUNCATED {len(text) - max_length} chars] ...\n\n" + text[-half:]
+
+
+def _format_tool_result(result) -> str:
+    if result is None:
+        return "Operation completed (no output)."
+    result_str = str(result)
+    if len(result_str) > MAX_TOOL_OUTPUT_LENGTH:
+        return truncate_output(result_str)
+    return result_str
+
+
+def _format_tool_error(func_name: str, error: Exception) -> str:
+    return (
+        f"ERROR in {func_name}:\n"
+        f"{str(error)[:500]}\n\n"
+        f"Suggestions:\n"
+        f"- Verify input parameters with describe_table()\n"
+        f"- Check values with check_column_values()\n"
+        f"- Use verify_data_accuracy() to confirm data exists"
+    )
+
+
+def _run_coroutine(coro):
+    """Run an async coroutine from a sync context."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            import nest_asyncio
+            nest_asyncio.apply()
+            return loop.run_until_complete(coro)
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        return asyncio.run(coro)
+
+
+def safe_tool_wrapper(func):
+    """Decorator for safe tool execution with error handling and memory cleanup.
+
+    Always produces a sync wrapper so LangGraph/deepagents can invoke tools
+    synchronously.  Async tool functions are called via _run_coroutine().
+    """
+    if asyncio.iscoroutinefunction(func):
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            try:
+                result = _run_coroutine(func(*args, **kwargs))
+                return _format_tool_result(result)
+            except Exception as e:
+                logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
+                return _format_tool_error(func.__name__, e)
+            finally:
+                gc.collect()
+        return sync_wrapper
+    else:
+        @wraps(func)
+        def sync_wrapper(*args, **kwargs):
+            try:
+                result = func(*args, **kwargs)
+                return _format_tool_result(result)
+            except Exception as e:
+                logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
+                return _format_tool_error(func.__name__, e)
+            finally:
+                gc.collect()
+        return sync_wrapper
+
+
+def save_plot(fig, plot_name: str, plot_type: str = "matplotlib") -> str:
+    """Save a matplotlib/plotly figure and return the file path."""
+    os.makedirs(PLOTS_DIR, exist_ok=True)
+    filepath = os.path.join(PLOTS_DIR, plot_name)
+    if plot_type == "plotly":
+        fig.write_html(filepath)
+    else:
+        fig.savefig(filepath, dpi=150, bbox_inches="tight")
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+    return filepath
+
+
+# ------------------------------------------------------------------
+# Solvent name mapping (cross-database normalization)
+# ------------------------------------------------------------------
+
+SOLVENT_NAME_MAP = {
+    '1,2-dimethylbenzene': ('o-Xylene', 'o-Xylene'),
+    '1,4-dimethylbenzene': ('p-Xylene', 'p-Xylene'),
+    '2,3-dihydropyran': (None, None),
+    '2-propanol': ('2-Propanol', '2-Propanol'),
+    'acetylacetone': ('2,4-Pentanedione', None),
+    'benzene': ('Benzene', 'Benzene'),
+    'butanone': ('Methyl ethyl ketone', '2-Butanone'),
+    'ch2cl2': ('Dichloromethane', 'Dichloromethane'),
+    'chcl3': ('Chloroform', 'Chloroform'),
+    'cyclohexane': ('Cyclohexane', 'Cyclohexane'),
+    'cyclohexanol': ('Cyclohexanol', 'Cyclohexanol'),
+    'dimethylformamide': ('N,N-Dimethylformamide', 'DMF'),
+    'dimethylsulfoxide': ('Dimethyl sulfoxide', 'Dimethyl sulfoxide'),
+    'diphenylether': ('Diphenyl ether', None),
+    'dodecane': ('Dodecane', 'Dodecane'),
+    'ethanol': ('Ethanol', 'Ethanol'),
+    'ethylacetate': ('Ethyl acetate', 'Ethyl acetate'),
+    'glycol': ('Ethylene glycol', 'Ethylene glycol'),
+    'h2o': ('Water', 'Water'),
+    'hexane': ('Hexane', 'n-Hexane'),
+    'isopropylamine': ('Isopropylamine', None),
+    'methanol': ('Methanol', 'Methanol'),
+    'methylacetate': ('Methyl acetate', 'Methyl acetate'),
+    'n-heptane': ('Heptane', 'n-Heptane'),
+    'propanol': ('1-Propanol', '1-Propanol'),
+    'propanone': ('Acetone', 'Acetone'),
+    'propyleneglycol': ('Propylene glycol', '1,2-Propanediol'),
+    'tert-butanol': ('tert-Butanol', 'tert-Butanol'),
+    'thf': ('Tetrahydrofuran (THF)', 'THF'),
+    'thp': ('Tetrahydropyran', None),
+    'toluene': ('Toluene', 'Toluene'),
+    'triethylamine': ('Triethylamine', 'Triethylamine'),
+}
+
+
+def normalize_solvent_name(solvent_name: str, target_database: str = "property") -> Optional[str]:
+    """Normalize a solvent name from solubility DB to property or GSK DB."""
+    name_lower = solvent_name.strip().lower()
+    if name_lower in SOLVENT_NAME_MAP:
+        prop_name, gsk_name = SOLVENT_NAME_MAP[name_lower]
+        if target_database == "property":
+            return prop_name
+        elif target_database == "gsk":
+            return gsk_name
+    return solvent_name
+
+
+def get_cross_database_properties(solvent_name: str, conn) -> Dict[str, Any]:
+    """Get properties for a solvent by looking up in property and GSK databases."""
+    props = {
+        'bp': None, 'logp': None, 'energy': None, 'cp': None,
+        'g_score': None, 'gsk_class': None
+    }
+
+    prop_name = normalize_solvent_name(solvent_name, "property")
+    if prop_name:
+        try:
+            query = f"""
+            SELECT bp__oc_, logp, energy__j_g_, cp__j_g_k_
+            FROM solvent_data
+            WHERE LOWER(solvent_name) = LOWER('{prop_name}')
+            OR LOWER(solvent_name) LIKE '%{prop_name.lower()}%'
+            LIMIT 1
+            """
+            result = conn.execute(query).fetchdf()
+            if len(result) > 0:
+                row = result.iloc[0]
+                props['bp'] = row.get('bp__oc_')
+                props['logp'] = row.get('logp')
+                props['energy'] = row.get('energy__j_g_')
+                props['cp'] = row.get('cp__j_g_k_')
+        except Exception as e:
+            logger.debug(f"Property lookup failed for {solvent_name}: {e}")
+
+    gsk_name = normalize_solvent_name(solvent_name, "gsk")
+    if gsk_name:
+        try:
+            query = f"""
+            SELECT g_score, classification
+            FROM gsk_dataset
+            WHERE LOWER(solvent_common_name) = LOWER('{gsk_name}')
+            OR LOWER(solvent_common_name) LIKE '%{gsk_name.lower()}%'
+            LIMIT 1
+            """
+            result = conn.execute(query).fetchdf()
+            if len(result) > 0:
+                row = result.iloc[0]
+                props['g_score'] = row.get('g_score')
+                props['gsk_class'] = row.get('classification')
+        except Exception as e:
+            logger.debug(f"GSK lookup failed for {solvent_name}: {e}")
+
+    return props
+
+
+# ------------------------------------------------------------------
+# Data classes
+# ------------------------------------------------------------------
+
+@dataclass
+class ValidationResult:
+    is_valid: bool
+    issues: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    data_quality_score: float = 1.0
+    verified_row_count: int = 0
+
+    def add_issue(self, issue: str):
+        self.issues.append(issue)
+        self.is_valid = False
+
+    def add_warning(self, warning: str):
+        self.warnings.append(warning)
+        self.data_quality_score *= 0.9
+
+
+@dataclass
+class SeparationResult:
+    is_feasible: bool
+    conditions: Dict[str, Any] = field(default_factory=dict)
+    selectivity: float = 0.0
+    confidence: float = 0.0
+    alternative_conditions: List[Dict] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+
+
+@dataclass
+class ThresholdSearchResult:
+    found: bool
+    threshold_used: float
+    results: List[Dict] = field(default_factory=list)
+    thresholds_tried: List[float] = field(default_factory=list)
+    search_path: str = ""
+
+
+# ------------------------------------------------------------------
+# DataValidator
+# ------------------------------------------------------------------
+
+class DataValidator:
+    """Data validation and verification with caching."""
+
+    def __init__(self, db_connection):
+        self.conn = db_connection
+        self._schema_cache: Dict[str, Any] = {}
+        self._cache_timestamps: Dict[str, float] = {}
+        self._cache_ttl = 60
+
+    def _get_cached_schema(self, table_name: str):
+        now = time.time()
+        if (table_name in self._schema_cache and
+                now - self._cache_timestamps.get(table_name, 0) < self._cache_ttl):
+            return self._schema_cache[table_name]
+        try:
+            schema_df = self.conn.execute(f"DESCRIBE {table_name}").fetchdf()
+            self._schema_cache[table_name] = schema_df
+            self._cache_timestamps[table_name] = now
+            return schema_df
+        except Exception:
+            return None
+
+    def clear_cache(self):
+        self._schema_cache.clear()
+        self._cache_timestamps.clear()
+
+    def verify_table_exists(self, table_name: str) -> ValidationResult:
+        result = ValidationResult(is_valid=True)
+        try:
+            tables = self.conn.execute("SHOW TABLES").fetchdf()
+            if table_name not in tables['name'].values:
+                result.add_issue(f"Table '{table_name}' does not exist")
+                result.add_warning(f"Available tables: {list(tables['name'].values)}")
+                return result
+            count = self.conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+            result.verified_row_count = count
+            if count == 0:
+                result.add_issue(f"Table '{table_name}' is empty")
+        except Exception as e:
+            result.add_issue(f"Error verifying table: {e}")
+        return result
+
+    def verify_column_exists(self, table_name: str, column_name: str) -> ValidationResult:
+        result = ValidationResult(is_valid=True)
+        try:
+            schema = self._get_cached_schema(table_name)
+            if schema is None:
+                result.add_issue(f"Could not get schema for '{table_name}'")
+                return result
+            if column_name not in schema['column_name'].values:
+                result.add_issue(f"Column '{column_name}' not found in '{table_name}'")
+                similar = [c for c in schema['column_name'] if column_name.lower() in c.lower()]
+                if similar:
+                    result.add_warning(f"Similar columns found: {similar}")
+                else:
+                    result.add_warning(f"Available columns: {list(schema['column_name'].values)[:10]}...")
+        except Exception as e:
+            result.add_issue(f"Error verifying column: {e}")
+        return result
+
+    def verify_value_exists(self, table_name: str, column_name: str, value: str) -> ValidationResult:
+        result = ValidationResult(is_valid=True)
+        try:
+            safe_value = str(value).replace("'", "''")
+            query = f"SELECT COUNT(*) FROM {table_name} WHERE LOWER(CAST({column_name} AS VARCHAR)) = LOWER('{safe_value}')"
+            count = self.conn.execute(query).fetchone()[0]
+            if count == 0:
+                result.add_issue(f"Value '{value}' not found in {table_name}.{column_name}")
+                available = self.conn.execute(
+                    f"SELECT DISTINCT {column_name} FROM {table_name} LIMIT 20"
+                ).fetchdf()[column_name].tolist()
+                result.add_warning(f"Available values (sample): {available}")
+            result.verified_row_count = count
+        except Exception as e:
+            result.add_issue(f"Error verifying value: {e}")
+        return result
+
+    def cross_validate_query_result(self, query: str, expected_columns: List[str],
+                                     min_rows: int = 1) -> ValidationResult:
+        result = ValidationResult(is_valid=True)
+        try:
+            df = self.conn.execute(query).fetchdf()
+            result.verified_row_count = len(df)
+            if len(df) < min_rows:
+                result.add_issue(f"Query returned {len(df)} rows, expected at least {min_rows}")
+            missing_cols = set(expected_columns) - set(df.columns)
+            if missing_cols:
+                result.add_issue(f"Missing expected columns: {missing_cols}")
+            null_counts = df.isnull().sum()
+            high_null_cols = null_counts[null_counts > len(df) * 0.5].index.tolist()
+            if high_null_cols:
+                result.add_warning(f"High null rate in columns: {high_null_cols}")
+            if len(df) > 0 and df.duplicated().sum() > len(df) * 0.1:
+                result.add_warning("High duplicate rate in results")
+            del df
+            gc.collect()
+        except Exception as e:
+            result.add_issue(f"Query validation failed: {e}")
+        return result
+
+    def verify_numeric_range(self, table_name: str, column_name: str,
+                            min_val: Optional[float] = None,
+                            max_val: Optional[float] = None) -> ValidationResult:
+        result = ValidationResult(is_valid=True)
+        try:
+            stats_query = f"""
+            SELECT MIN({column_name}) as min_val, MAX({column_name}) as max_val,
+                   AVG({column_name}) as avg_val, STDDEV({column_name}) as std_val
+            FROM {table_name} WHERE {column_name} IS NOT NULL
+            """
+            stats_df = self.conn.execute(stats_query).fetchdf()
+            actual_min = stats_df['min_val'].iloc[0]
+            actual_max = stats_df['max_val'].iloc[0]
+            if min_val is not None and actual_min < min_val:
+                result.add_warning(f"Values below expected minimum: {actual_min} < {min_val}")
+            if max_val is not None and actual_max > max_val:
+                result.add_warning(f"Values above expected maximum: {actual_max} > {max_val}")
+        except Exception as e:
+            result.add_issue(f"Range verification failed: {e}")
+        return result
+
+
+# ------------------------------------------------------------------
+# AdaptiveAnalyzer
+# ------------------------------------------------------------------
+
+class AdaptiveAnalyzer:
+    """Intelligent adaptive analysis with threshold searching and temperature exploration."""
+
+    SELECTIVITY_THRESHOLDS = [50, 30, 20, 15, 10, 5, 2, 1, 0.5, 0.1]
+    SOLUBILITY_THRESHOLDS = [10, 5, 2, 1, 0.5, 0.1, 0.05, 0.01]
+    TEMPERATURE_STEPS = [25, 40, 50, 60, 75, 80, 90, 100, 110, 120, 130, 140, 150]
+
+    def __init__(self, db_connection, validator: DataValidator):
+        self.conn = db_connection
+        self.validator = validator
+
+    def find_threshold_with_results(self, query_func, thresholds: List[float],
+                                    min_results: int = 1,
+                                    prefer_stringent: bool = True) -> ThresholdSearchResult:
+        result = ThresholdSearchResult(found=False, threshold_used=0, thresholds_tried=[])
+        search_order = thresholds if prefer_stringent else thresholds[::-1]
+        for threshold in search_order:
+            result.thresholds_tried.append(threshold)
+            try:
+                results = query_func(threshold)
+                if len(results) >= min_results:
+                    result.found = True
+                    result.threshold_used = threshold
+                    result.results = results
+                    result.search_path = f"Tried {len(result.thresholds_tried)} thresholds, found results at {threshold}"
+                    return result
+            except Exception as e:
+                logger.warning(f"Threshold {threshold} failed: {e}")
+                continue
+        result.search_path = f"Exhausted all {len(thresholds)} thresholds without finding {min_results}+ results"
+        return result
+
+    def explore_temperature_range(self, table_name: str, polymer_column: str,
+                                  solvent_column: str, temperature_column: str,
+                                  solubility_column: str, target_polymer: str,
+                                  comparison_polymers: List[str],
+                                  start_temp: float = 25,
+                                  min_selectivity: float = 10.0) -> Dict[str, Any]:
+        results = {
+            'optimal_conditions': None,
+            'all_conditions': [],
+            'temperatures_explored': [],
+            'recommendation': ''
+        }
+        if isinstance(comparison_polymers, str):
+            comparison_polymers = [p.strip() for p in comparison_polymers.split(',') if p.strip()]
+        elif not isinstance(comparison_polymers, list):
+            comparison_polymers = list(comparison_polymers) if comparison_polymers else []
+        if not comparison_polymers:
+            results['recommendation'] = "No comparison polymers provided"
+            return results
+
+        temp_query = f"""
+        SELECT DISTINCT ROUND({temperature_column}/10)*10 as temp_bin
+        FROM {table_name}
+        WHERE UPPER({polymer_column}) = UPPER('{target_polymer}')
+        AND {temperature_column} >= {start_temp}
+        ORDER BY temp_bin
+        """
+        try:
+            temp_bins = [row[0] for row in self.conn.execute(temp_query).fetchall()]
+        except Exception:
+            temp_bins = self.TEMPERATURE_STEPS
+
+        best_selectivity = -float('inf')
+        for temp in temp_bins:
+            results['temperatures_explored'].append(temp)
+            all_polymers = [target_polymer] + comparison_polymers
+            polymer_filter = "', '".join(all_polymers)
+            query = f"""
+            SELECT {polymer_column}, AVG({solubility_column}) as avg_sol
+            FROM {table_name}
+            WHERE {solvent_column} IS NOT NULL
+            AND {polymer_column} IN ('{polymer_filter}')
+            AND {temperature_column} BETWEEN {temp - 10} AND {temp + 10}
+            GROUP BY {polymer_column}
+            """
+            try:
+                data = {row[0].upper(): row[1] for row in self.conn.execute(query).fetchall()}
+            except Exception:
+                continue
+
+            target_sol = data.get(target_polymer.upper(), 0)
+            other_sols = [data.get(p.upper(), 0) for p in comparison_polymers]
+            max_other = max(other_sols) if other_sols else 0
+            selectivity = target_sol - max_other
+
+            condition = {
+                'temperature': temp,
+                'selectivity': selectivity,
+                'target_solubility': target_sol,
+                'max_other_solubility': max_other,
+            }
+            results['all_conditions'].append(condition)
+
+            if selectivity > best_selectivity:
+                best_selectivity = selectivity
+                results['optimal_conditions'] = condition
+
+        if results['optimal_conditions']:
+            opt = results['optimal_conditions']
+            if opt['selectivity'] >= min_selectivity:
+                results['recommendation'] = (
+                    f"Optimal at {opt['temperature']}°C with selectivity "
+                    f"{opt['selectivity']:.1f}% (viable)"
+                )
+            else:
+                results['recommendation'] = (
+                    f"Best found at {opt['temperature']}°C with selectivity "
+                    f"{opt['selectivity']:.1f}% (below {min_selectivity}% threshold)"
+                )
+        else:
+            results['recommendation'] = "No data found for specified conditions"
+
+        return results
+
+
+# ------------------------------------------------------------------
+# Polymer / solvent list helpers
+# ------------------------------------------------------------------
+
+def parse_polymer_list(polymers: str) -> List[str]:
+    return [p.strip() for p in polymers.split(",") if p.strip()]
+
+
+def parse_solvent_list(solvents: str) -> List[str]:
+    return [s.strip() for s in solvents.split(",") if s.strip()]

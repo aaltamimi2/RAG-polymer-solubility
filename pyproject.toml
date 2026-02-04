@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strap-agent"
+version = "0.2.0"
+description = "DISSOLVE: Data Integrated Solubility Solver via LLM Evaluation"
+requires-python = ">=3.10"
+dependencies = [
+    "deepagents",
+    "langchain-anthropic",
+    "langsmith",
+    "duckdb",
+    "pandas",
+    "numpy",
+    "scipy",
+    "python-dotenv",
+    "rapidfuzz",
+    "requests",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+viz = ["matplotlib", "seaborn", "plotly"]
+ml = ["scikit-learn", "joblib"]
+all = ["strap-agent[viz,ml]"]
+
+[project.scripts]
+strap-agent = "strap.agent:main"
+dissolve = "strap.agent:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/strap"]
