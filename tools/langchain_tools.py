@@ -49,6 +49,19 @@ from .visualization import (
     ProcessFlowDiagram,
     PlotConfig,
 )
+from .precipitation import (
+    PrecipitationAnalyzer,
+    PrecipitationPoint,
+    DifferentialPrecipitationResult,
+    MultiPolymerPrecipitationSequence,
+    AtmosphericFeasibilityResult,
+    MultiPolymerAtmosphericResult,
+    format_differential_precipitation_results,
+    format_multi_polymer_sequence,
+    format_atmospheric_feasibility_results,
+    format_multi_polymer_atmospheric_results,
+    SOLVENT_BOILING_POINTS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -857,6 +870,1160 @@ def create_process_flow_diagram(
 
 
 # =============================================================================
+# Differential Precipitation Tools
+# =============================================================================
+
+@tool
+@safe_tool_wrapper
+def find_differential_precipitation_solvents(
+    polymer_to_precipitate: str,
+    polymer_to_retain: str,
+    min_temperature_gap: float = 20.0,
+    precipitation_threshold: float = 1.0,
+    top_k: int = 10,
+) -> str:
+    """Find solvents where one polymer precipitates before another during cooling.
+
+    This tool searches the temperature-dependent solubility database to find solvents
+    that enable selective/differential precipitation of polymer mixtures.
+
+    The process works by:
+    1. Dissolving both polymers at high temperature
+    2. Cooling until the first polymer precipitates (can be filtered out)
+    3. Continuing to cool until the second polymer precipitates
+
+    Args:
+        polymer_to_precipitate: Polymer that should precipitate FIRST at higher temperature
+            (e.g., "EVOH", "LDPE", "PET", "PP", "PS", "HDPE", "PVC", "PC", "Nylon6")
+        polymer_to_retain: Polymer that should stay dissolved (precipitates later at lower temp)
+        min_temperature_gap: Minimum temperature separation required in Celsius (default: 20)
+            Larger gaps give better separation but fewer solvents qualify
+        precipitation_threshold: Solubility (%) below which polymer is precipitated, ~0% (default: 1)
+        top_k: Number of top results to return (default: 10)
+
+    Returns:
+        Ranked list of solvents with precipitation temperatures, gaps, and process recommendations.
+
+    WHEN TO USE:
+    - "Find a solvent where EVOH precipitates before LDPE"
+    - "What solvent gives the best separation window for PP vs PET?"
+    - "Find solvents with at least 30C precipitation gap between HDPE and PS"
+    - "Design a cooling-based separation for two polymers"
+    """
+    conn = get_db_connection()
+    analyzer = PrecipitationAnalyzer(conn)
+
+    results = analyzer.find_differential_precipitation_solvents(
+        polymer_to_precipitate=polymer_to_precipitate,
+        polymer_to_retain=polymer_to_retain,
+        min_temp_gap=min_temperature_gap,
+        precip_threshold=precipitation_threshold,
+        top_k=top_k,
+    )
+
+    if not results:
+        # Try the reverse order
+        reverse_results = analyzer.find_differential_precipitation_solvents(
+            polymer_to_precipitate=polymer_to_retain,
+            polymer_to_retain=polymer_to_precipitate,
+            min_temp_gap=min_temperature_gap,
+            precip_threshold=precipitation_threshold,
+            top_k=top_k,
+        )
+        if reverse_results:
+            return (
+                f"No solvents found where {polymer_to_precipitate} precipitates before {polymer_to_retain}.\n\n"
+                f"However, the REVERSE order works:\n\n"
+                + format_differential_precipitation_results(reverse_results)
+            )
+        return (
+            f"No solvents found with {min_temperature_gap}°C gap for {polymer_to_precipitate}/{polymer_to_retain}.\n"
+            f"Try reducing min_temperature_gap or checking polymer names.\n"
+            f"Available polymers: {', '.join(analyzer.get_available_polymers())}"
+        )
+
+    return format_differential_precipitation_results(results)
+
+
+@tool
+@safe_tool_wrapper
+def analyze_multi_polymer_precipitation(
+    polymers: str,
+    solvent: str,
+    precipitation_threshold: float = 1.0,
+) -> str:
+    """Analyze precipitation sequence for multiple polymers in a single solvent.
+
+    This tool determines the order in which polymers will precipitate as a solution
+    is cooled, enabling multi-step sequential separation.
+
+    Args:
+        polymers: Comma-separated list of polymers (e.g., "LDPE,PP,PET,EVOH")
+        solvent: Solvent to analyze (e.g., "toluene", "dimethylformamide")
+        precipitation_threshold: Solubility (%) below which polymer is precipitated (default: 10)
+
+    Returns:
+        Ordered precipitation sequence with recommended cooling protocol.
+
+    WHEN TO USE:
+    - "What's the precipitation order for PP, PS, HDPE in toluene?"
+    - "Design a cooling protocol to separate LDPE, PET, and EVOH using DMF"
+    - "How do I sequentially recover 4 polymers by cooling?"
+    """
+    polymer_list = [p.strip() for p in polymers.split(",")]
+
+    conn = get_db_connection()
+    analyzer = PrecipitationAnalyzer(conn)
+
+    result = analyzer.analyze_multi_polymer_precipitation(
+        polymers=polymer_list,
+        solvent=solvent,
+        precip_threshold=precipitation_threshold,
+    )
+
+    if not result:
+        available_solvents = analyzer.get_available_solvents()
+        available_polymers = analyzer.get_available_polymers()
+        return (
+            f"Could not analyze precipitation for {polymers} in {solvent}.\n"
+            f"Available solvents: {', '.join(available_solvents[:10])}...\n"
+            f"Available polymers: {', '.join(available_polymers)}"
+        )
+
+    return format_multi_polymer_sequence(result)
+
+
+@tool
+@safe_tool_wrapper
+def analyze_precipitation_temperature(
+    polymer: str,
+    solvent: str,
+    precipitation_threshold: float = 1.0,
+) -> str:
+    """Analyze precipitation characteristics for a single polymer-solvent pair.
+
+    Returns detailed information about dissolution and precipitation temperatures,
+    maximum solubility, and transition behavior.
+
+    Args:
+        polymer: Polymer name (e.g., "LDPE", "PET", "EVOH")
+        solvent: Solvent name (e.g., "toluene", "dimethylformamide")
+        precipitation_threshold: Solubility threshold for precipitation (default: 10%)
+
+    Returns:
+        Detailed precipitation analysis including temperatures and solubility curve.
+
+    WHEN TO USE:
+    - "What's the precipitation temperature of LDPE in toluene?"
+    - "At what temperature does PET dissolve in DMF?"
+    - "Show me the solubility profile of EVOH in propanone"
+    """
+    conn = get_db_connection()
+    analyzer = PrecipitationAnalyzer(conn)
+
+    point = analyzer.analyze_precipitation(polymer, solvent, precipitation_threshold)
+
+    if not point:
+        return f"No data found for {polymer} in {solvent}."
+
+    # Get full curve for display
+    df = analyzer.get_solubility_curve(polymer, solvent)
+
+    lines = [
+        f"# Precipitation Analysis: {polymer} in {solvent}\n",
+        "## Key Temperatures\n",
+        f"| Property | Value |",
+        f"|----------|-------|",
+        f"| Max Solubility | {point.max_solubility:.1f}% at {point.max_solubility_temp:.0f}°C |",
+        f"| Cloud Point (50%) | {point.cloud_point:.0f}°C |" if point.cloud_point else "| Cloud Point | N/A |",
+        f"| Precipitation Temp (<{precipitation_threshold}%) | {point.precipitation_temp:.0f}°C |" if point.precipitation_temp else f"| Precipitation Temp | Never below {precipitation_threshold}% |",
+        f"| Transition Width | {point.transition_width:.0f}°C |",
+        f"| Data Points | {point.data_points} |",
+        "\n## Temperature-Solubility Curve\n",
+        "| Temp (°C) | Solubility (%) |",
+        "|-----------|----------------|",
+    ]
+
+    # Show key temperatures from the curve
+    for _, row in df.iloc[::3].iterrows():  # Every 3rd point to keep output manageable
+        lines.append(f"| {row['temperature']:.0f} | {row['solubility']:.1f} |")
+
+    return "\n".join(lines)
+
+
+@tool
+@safe_tool_wrapper
+def plot_precipitation_curves(
+    polymers: str,
+    solvent: str,
+    precipitation_threshold: float = 1.0,
+) -> str:
+    """Create a visualization of temperature-dependent solubility for multiple polymers.
+
+    Generates a plot showing how solubility changes with temperature for each polymer,
+    highlighting precipitation temperatures and separation windows.
+
+    Args:
+        polymers: Comma-separated list of polymers (e.g., "LDPE,EVOH")
+        solvent: Solvent to analyze
+        precipitation_threshold: Threshold line to draw (default: 10%)
+
+    Returns:
+        Path to saved plot file and summary of key findings.
+
+    WHEN TO USE:
+    - "Plot LDPE vs EVOH solubility in toluene"
+    - "Visualize the precipitation curves for PP, PS, PET"
+    - "Show me a graph of temperature-dependent solubility"
+    """
+    import matplotlib.pyplot as plt
+    import os
+    from datetime import datetime
+
+    polymer_list = [p.strip() for p in polymers.split(",")]
+
+    conn = get_db_connection()
+    analyzer = PrecipitationAnalyzer(conn)
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    colors = plt.cm.tab10.colors
+    precip_temps = {}
+
+    for i, polymer in enumerate(polymer_list):
+        df = analyzer.get_solubility_curve(polymer, solvent)
+        if df.empty:
+            continue
+
+        color = colors[i % len(colors)]
+        ax.plot(df['temperature'], df['solubility'], '-o', color=color,
+                label=polymer, linewidth=2, markersize=4)
+
+        # Find and mark precipitation temperature
+        precip_temp = analyzer.find_precipitation_temperature(polymer, solvent, precipitation_threshold)
+        if precip_temp:
+            precip_temps[polymer] = precip_temp
+            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.7)
+            ax.annotate(f'{polymer}\n{precip_temp:.0f}°C', xy=(precip_temp, precipitation_threshold + 5),
+                       fontsize=8, color=color, ha='center')
+
+    # Add threshold line
+    ax.axhline(y=precipitation_threshold, color='gray', linestyle='--', alpha=0.5,
+               label=f'Precipitation threshold ({precipitation_threshold}%)')
+
+    ax.set_xlabel('Temperature (°C)', fontsize=11)
+    ax.set_ylabel('Solubility (%)', fontsize=11)
+    ax.set_title(f'Temperature-Dependent Solubility in {solvent.upper()}', fontsize=12, fontweight='bold')
+    ax.legend(loc='upper left')
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(20, 170)
+    ax.set_ylim(0, 105)
+
+    # Save plot
+    plots_dir = os.environ.get('PLOTS_DIR', 'plots')
+    os.makedirs(plots_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"{plots_dir}/precipitation_curves_{solvent}_{timestamp}.png"
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # Build summary
+    lines = [
+        f"# Precipitation Curves: {', '.join(polymer_list)} in {solvent.upper()}\n",
+        f"**Plot saved:** `{filename}`\n",
+        "## Precipitation Temperatures\n",
+        "| Polymer | Precip Temp |",
+        "|---------|-------------|",
+    ]
+
+    for polymer, temp in sorted(precip_temps.items(), key=lambda x: x[1], reverse=True):
+        lines.append(f"| {polymer} | {temp:.0f}°C |")
+
+    if len(precip_temps) >= 2:
+        temps = list(precip_temps.values())
+        max_gap = max(temps) - min(temps)
+        lines.append(f"\n**Maximum Temperature Gap:** {max_gap:.0f}°C")
+
+    return "\n".join(lines)
+
+
+@tool
+@safe_tool_wrapper
+def plot_atmospheric_feasibility(
+    polymers: str,
+    solvent: str,
+    precipitation_threshold: float = 1.0,
+) -> str:
+    """Visualize multi-polymer differential precipitation with atmospheric feasibility.
+
+    Creates a plot showing:
+    1. Solubility curves for all polymers vs temperature
+    2. Solvent boiling point line (red dashed) - critical 1 atm constraint
+    3. Precipitation temperatures for each polymer
+    4. Shaded "atmospheric operation zone" if feasible
+    5. Clear indication of whether process works without pressurization
+
+    Args:
+        polymers: Comma-separated list of polymers (e.g., "HDPE,LDPE,PP" or "LDPE,EVOH")
+        solvent: Solvent to analyze (must have boiling point data)
+        precipitation_threshold: Solubility threshold for precipitation (default: 1%)
+
+    Returns:
+        Path to saved plot and atmospheric feasibility summary.
+
+    WHEN TO USE:
+    - After check_atmospheric_feasibility or check_multi_polymer_atmospheric_feasibility
+    - "Plot the atmospheric feasibility for LDPE/EVOH in DMF"
+    - "Visualize whether we can separate these polymers at 1 atm"
+    - "Show me the precipitation curves with boiling point"
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import os
+    from datetime import datetime
+
+    polymer_list = [p.strip().upper() for p in polymers.split(",")]
+
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    analyzer = PrecipitationAnalyzer(conn)
+
+    # Get boiling point
+    solvent_lower = solvent.lower()
+    bp = SOLVENT_BOILING_POINTS.get(solvent_lower)
+    if bp is None:
+        solvent_clean = solvent_lower.replace(' ', '').replace('-', '')
+        bp = SOLVENT_BOILING_POINTS.get(solvent_clean)
+
+    if bp is None:
+        return f"Error: No boiling point data for {solvent}. Available solvents: {', '.join(list(SOLVENT_BOILING_POINTS.keys())[:20])}..."
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(12, 7))
+
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+    precip_temps = {}
+    max_solubilities = {}
+    all_temps = []
+
+    for i, polymer in enumerate(polymer_list):
+        df = analyzer.get_solubility_curve(polymer, solvent)
+        if df.empty:
+            continue
+
+        color = colors[i % len(colors)]
+        ax.plot(df['temperature'], df['solubility'], '-o', color=color,
+                label=polymer, linewidth=2.5, markersize=5, alpha=0.9)
+
+        all_temps.extend(df['temperature'].tolist())
+        max_solubilities[polymer] = df['solubility'].max()
+
+        # Find precipitation temperature
+        precip_temp = analyzer.find_precipitation_temperature(polymer, solvent, precipitation_threshold)
+        if precip_temp:
+            precip_temps[polymer] = precip_temp
+            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.6, linewidth=1.5)
+            # Annotate precipitation point
+            ax.scatter([precip_temp], [precipitation_threshold], color=color, s=100, zorder=5, marker='v')
+
+    if not precip_temps:
+        plt.close()
+        return f"Error: No precipitation data found for {', '.join(polymer_list)} in {solvent}"
+
+    # Determine x-axis range
+    min_temp = min(all_temps) if all_temps else 20
+    max_temp = max(all_temps) if all_temps else 160
+    x_max = max(max_temp + 20, bp + 30)
+
+    # Add boiling point line (critical constraint)
+    ax.axvline(x=bp, color='red', linestyle='--', linewidth=2.5, label=f'Boiling Point ({bp}°C)')
+
+    # Add precipitation threshold line
+    ax.axhline(y=precipitation_threshold, color='gray', linestyle='--', alpha=0.5, linewidth=1)
+    ax.text(min_temp + 2, precipitation_threshold + 2, f'Precip. threshold ({precipitation_threshold}%)',
+            fontsize=9, color='gray')
+
+    # Calculate dissolution temperature needed
+    max_precip_temp = max(precip_temps.values())
+    dissolution_temp = max_precip_temp + 20
+
+    # Determine if feasible at atmospheric pressure
+    is_feasible = dissolution_temp < bp
+
+    # Add shaded regions
+    if is_feasible:
+        # Green zone: atmospheric operation possible
+        ax.axvspan(min_temp, bp, alpha=0.1, color='green', label='Atmospheric zone')
+        ax.axvline(x=dissolution_temp, color='green', linestyle='-.', linewidth=1.5, alpha=0.7)
+        ax.text(dissolution_temp + 1, 90, f'Dissolution\n~{dissolution_temp:.0f}°C', fontsize=9, color='green')
+        feasibility_text = f"✅ FEASIBLE AT 1 ATM\nMargin: {bp - dissolution_temp:.0f}°C below BP"
+        text_color = 'green'
+    else:
+        # Red zone: requires pressurization
+        ax.axvspan(bp, x_max, alpha=0.15, color='red', label='Requires pressure')
+        ax.axvline(x=dissolution_temp, color='orange', linestyle='-.', linewidth=1.5, alpha=0.7)
+        ax.text(dissolution_temp + 1, 90, f'Dissolution\n~{dissolution_temp:.0f}°C', fontsize=9, color='orange')
+        feasibility_text = f"❌ REQUIRES PRESSURIZATION\nNeeds {dissolution_temp - bp:.0f}°C above BP"
+        text_color = 'red'
+
+    # Add feasibility annotation box
+    props = dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor=text_color, alpha=0.9)
+    ax.text(0.98, 0.98, feasibility_text, transform=ax.transAxes, fontsize=11,
+            verticalalignment='top', horizontalalignment='right', bbox=props, color=text_color, fontweight='bold')
+
+    # Precipitation sequence annotation
+    sorted_precip = sorted(precip_temps.items(), key=lambda x: x[1], reverse=True)
+    seq_text = "Precipitation sequence:\n" + " → ".join([f"{p}@{t:.0f}°C" for p, t in sorted_precip])
+    ax.text(0.02, 0.02, seq_text, transform=ax.transAxes, fontsize=10,
+            verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.8))
+
+    ax.set_xlabel('Temperature (°C)', fontsize=12)
+    ax.set_ylabel('Solubility (%)', fontsize=12)
+    ax.set_title(f'Atmospheric Feasibility: {", ".join(polymer_list)} in {solvent.upper()}\n'
+                 f'(Boiling Point: {bp}°C at 1 atm)', fontsize=13, fontweight='bold')
+    ax.legend(loc='upper left', fontsize=10)
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(min_temp - 5, x_max)
+    ax.set_ylim(0, 105)
+
+    # Save plot
+    plots_dir = os.environ.get('PLOTS_DIR', 'plots')
+    subdir = f"{plots_dir}/atmospheric_feasibility"
+    os.makedirs(subdir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    polymer_str = "_".join(polymer_list)
+    filename = f"{subdir}/{polymer_str}_{solvent}_{timestamp}.png"
+    plt.savefig(filename, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    # Build summary
+    lines = [
+        f"# Atmospheric Feasibility Visualization\n",
+        f"**Plot saved:** `{filename}`\n",
+        f"## System: {', '.join(polymer_list)} in {solvent.upper()}\n",
+        f"**Solvent Boiling Point:** {bp}°C at 1 atm",
+        f"**Dissolution Temperature Needed:** ~{dissolution_temp:.0f}°C\n",
+    ]
+
+    if is_feasible:
+        lines.append(f"## ✅ Feasible at Atmospheric Pressure")
+        lines.append(f"Safety margin: {bp - dissolution_temp:.0f}°C below boiling point\n")
+    else:
+        lines.append(f"## ❌ Requires Pressurization")
+        lines.append(f"Would need to operate {dissolution_temp - bp:.0f}°C above boiling point\n")
+
+    lines.append("## Precipitation Sequence (during cooling)\n")
+    lines.append("| Order | Polymer | Precip Temp | Max Solubility |")
+    lines.append("|-------|---------|-------------|----------------|")
+
+    for i, (polymer, temp) in enumerate(sorted_precip, 1):
+        max_sol = max_solubilities.get(polymer, 0)
+        lines.append(f"| {i} | {polymer} | {temp:.0f}°C | {max_sol:.1f}% |")
+
+    # Temperature gaps
+    if len(sorted_precip) >= 2:
+        lines.append("\n## Temperature Gaps")
+        for i in range(len(sorted_precip) - 1):
+            p1, t1 = sorted_precip[i]
+            p2, t2 = sorted_precip[i + 1]
+            gap = t1 - t2
+            lines.append(f"- {p1} → {p2}: **{gap:.0f}°C**")
+
+    return "\n".join(lines)
+
+
+@tool
+@safe_tool_wrapper
+def compare_polymer_pairs_precipitation(
+    polymer_pairs: str,
+    min_temperature_gap: float = 20.0,
+    precipitation_threshold: float = 1.0,
+) -> str:
+    """Compare differential precipitation feasibility for multiple polymer pairs.
+
+    This tool evaluates multiple polymer pairs and determines which is most feasible
+    for selective precipitation separation. It tries BOTH precipitation orders for
+    each pair (A before B and B before A).
+
+    Args:
+        polymer_pairs: Semicolon-separated polymer pairs (e.g., "LDPE,PET;LDPE,EVOH;PP,PS")
+        min_temperature_gap: Minimum temperature gap required (default: 20°C)
+        precipitation_threshold: Solubility below which polymer is precipitated (default: 1%)
+
+    Returns:
+        Comparison of all polymer pairs with feasibility ranking.
+
+    WHEN TO USE:
+    - "Compare LDPE/PET vs LDPE/EVOH for differential precipitation"
+    - "Which polymer pair is easier to separate by cooling?"
+    - "Evaluate precipitation feasibility for multiple polymer combinations"
+    """
+    conn = get_db_connection()
+    analyzer = PrecipitationAnalyzer(conn)
+
+    pairs = [p.strip().split(",") for p in polymer_pairs.split(";")]
+    results = []
+
+    for pair in pairs:
+        if len(pair) != 2:
+            continue
+        p1, p2 = pair[0].strip(), pair[1].strip()
+
+        # Try both orders
+        order1 = analyzer.find_differential_precipitation_solvents(
+            polymer_to_precipitate=p1,
+            polymer_to_retain=p2,
+            min_temp_gap=min_temperature_gap,
+            precip_threshold=precipitation_threshold,
+            top_k=5,
+        )
+
+        order2 = analyzer.find_differential_precipitation_solvents(
+            polymer_to_precipitate=p2,
+            polymer_to_retain=p1,
+            min_temp_gap=min_temperature_gap,
+            precip_threshold=precipitation_threshold,
+            top_k=5,
+        )
+
+        best_results = order1 if len(order1) >= len(order2) else order2
+        best_order = f"{p1} first" if len(order1) >= len(order2) else f"{p2} first"
+
+        results.append({
+            "pair": f"{p1}/{p2}",
+            "order1_count": len(order1),
+            "order2_count": len(order2),
+            "best_order": best_order,
+            "best_results": best_results,
+            "max_gap": best_results[0].temperature_gap if best_results else 0,
+        })
+
+    # Sort by feasibility (number of solvents * max gap)
+    results.sort(key=lambda x: len(x["best_results"]) * x["max_gap"], reverse=True)
+
+    # Format output
+    lines = ["# Polymer Pair Comparison for Differential Precipitation\n"]
+    lines.append(f"Minimum temperature gap: {min_temperature_gap}°C\n")
+
+    lines.append("## Summary\n")
+    lines.append("| Pair | Solvents Found | Best Order | Max Gap |")
+    lines.append("|------|----------------|------------|---------|")
+    for r in results:
+        lines.append(f"| {r['pair']} | {len(r['best_results'])} | {r['best_order']} | {r['max_gap']:.0f}°C |")
+
+    lines.append("\n## Recommendation\n")
+    if results and results[0]["best_results"]:
+        best = results[0]
+        lines.append(f"**Most feasible pair:** {best['pair']}")
+        lines.append(f"- **{len(best['best_results'])} solvents** found with ≥{min_temperature_gap}°C gap")
+        lines.append(f"- **Best order:** {best['best_order']}")
+        lines.append(f"- **Maximum temperature gap:** {best['max_gap']:.0f}°C")
+
+        lines.append("\n### Top Solvents:\n")
+        lines.append("| Solvent | Temp Gap | First Precip | Second Precip |")
+        lines.append("|---------|----------|--------------|---------------|")
+        for sol in best["best_results"][:5]:
+            lines.append(
+                f"| {sol.solvent} | {sol.temperature_gap:.0f}°C | "
+                f"{sol.polymer_first} @ {sol.polymer_first_precip_temp:.0f}°C | "
+                f"{sol.polymer_second} @ {sol.polymer_second_precip_temp:.0f}°C |"
+            )
+    else:
+        lines.append("No feasible pairs found with the specified temperature gap.")
+        lines.append(f"Try reducing min_temperature_gap below {min_temperature_gap}°C.")
+
+    # Add comparison for non-feasible pairs
+    non_feasible = [r for r in results if not r["best_results"]]
+    if non_feasible:
+        lines.append("\n## Non-Feasible Pairs\n")
+        for r in non_feasible:
+            lines.append(f"- **{r['pair']}**: No solvents with ≥{min_temperature_gap}°C gap found")
+
+    return "\n".join(lines)
+
+
+@tool
+@safe_tool_wrapper
+def check_atmospheric_feasibility(
+    polymer1: str,
+    polymer2: str,
+    min_temperature_gap: float = 20.0,
+    precipitation_threshold: float = 1.0,
+    min_solubility: float = 30.0,
+) -> str:
+    """Check if differential precipitation is feasible at atmospheric pressure (1 atm).
+
+    This tool analyzes whether the entire differential precipitation process
+    (dissolution → cooling → sequential precipitation) can be performed below
+    the solvent's boiling point, eliminating the need for pressurized equipment.
+
+    Key concept: Many solvents have boiling points lower than the dissolution
+    temperature needed for polymer separation. This tool identifies solvents
+    where atmospheric operation IS possible.
+
+    Args:
+        polymer1: First polymer name (e.g., "LDPE", "EVOH", "PU")
+        polymer2: Second polymer name
+        min_temperature_gap: Minimum temperature gap required for separation (default: 20°C)
+        precipitation_threshold: Solubility (%) below which polymer is precipitated (default: 1%)
+        min_solubility: Minimum max solubility required for both polymers (default: 30%)
+
+    Returns:
+        Markdown table showing:
+        - Which solvents work at atmospheric pressure
+        - Boiling points and safety margins
+        - Process recommendations for feasible solvents
+        - Which solvents would require pressurization
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    try:
+        analyzer = PrecipitationAnalyzer(conn)
+        results = analyzer.check_atmospheric_feasibility(
+            polymer1=polymer1,
+            polymer2=polymer2,
+            min_temp_gap=min_temperature_gap,
+            precip_threshold=precipitation_threshold,
+            min_solubility=min_solubility,
+            top_k=10
+        )
+
+        if not results:
+            return (
+                f"No solvents found for {polymer1}/{polymer2} differential precipitation "
+                f"with ≥{min_temperature_gap}°C gap. Try:\n"
+                f"- Reducing min_temperature_gap (currently {min_temperature_gap}°C)\n"
+                f"- Reducing min_solubility threshold (currently {min_solubility}%)\n"
+                f"- Checking if both polymers have solubility data in the database"
+            )
+
+        return format_atmospheric_feasibility_results(results, include_infeasible=True)
+
+    except Exception as e:
+        logger.error(f"Error in atmospheric feasibility check: {e}")
+        return f"Error analyzing atmospheric feasibility: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+def check_multi_polymer_atmospheric_feasibility(
+    polymers: str,
+    min_temperature_gap: float = 20.0,
+    precipitation_threshold: float = 1.0,
+    min_solubility: float = 30.0,
+) -> str:
+    """Check if multi-polymer differential precipitation is feasible at atmospheric pressure.
+
+    This tool analyzes sequential precipitation of 2 or more polymers at 1 atm.
+    For N polymers, it finds solvents where:
+    1. All N polymers dissolve below the solvent's boiling point
+    2. Each polymer precipitates at a different temperature during cooling
+    3. Temperature gaps between consecutive precipitations are sufficient
+
+    Example: For EVOH/PVC/LDPE, might find a solvent where:
+    - EVOH precipitates at 100°C (first during cooling)
+    - PVC precipitates at 75°C (second)
+    - LDPE precipitates at 50°C (last)
+    - All below solvent BP of 150°C
+
+    Args:
+        polymers: Comma-separated polymer names (e.g., "EVOH,PVC,LDPE" or "LDPE,HDPE")
+                  Minimum 2 polymers required. Order doesn't matter - tool determines
+                  precipitation order automatically.
+        min_temperature_gap: Minimum temperature gap between consecutive precipitations (default: 20°C)
+        precipitation_threshold: Solubility (%) below which polymer is precipitated (default: 1%)
+        min_solubility: Minimum max solubility required for each polymer (default: 30%)
+
+    Returns:
+        Markdown report showing:
+        - Which solvents work at atmospheric pressure for all polymers
+        - Precipitation sequence (which polymer precipitates first, second, etc.)
+        - Temperature gaps between each precipitation step
+        - Step-by-step cooling protocol
+        - Which solvents would require pressurization
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    # Parse polymer list
+    polymer_list = [p.strip().upper() for p in polymers.split(',') if p.strip()]
+
+    if len(polymer_list) < 2:
+        return "Error: Need at least 2 polymers. Provide comma-separated list, e.g., 'LDPE,EVOH,PVC'"
+
+    try:
+        analyzer = PrecipitationAnalyzer(conn)
+        results = analyzer.check_multi_polymer_atmospheric_feasibility(
+            polymers=polymer_list,
+            min_temp_gap=min_temperature_gap,
+            precip_threshold=precipitation_threshold,
+            min_solubility=min_solubility,
+            top_k=10
+        )
+
+        if not results:
+            available = analyzer.get_available_polymers()
+            return (
+                f"No solvents found for {'/'.join(polymer_list)} sequential precipitation "
+                f"with ≥{min_temperature_gap}°C gaps between each step.\n\n"
+                f"**Suggestions:**\n"
+                f"- Reduce min_temperature_gap (currently {min_temperature_gap}°C)\n"
+                f"- Reduce min_solubility threshold (currently {min_solubility}%)\n"
+                f"- Check polymer names are valid\n\n"
+                f"**Available polymers:** {', '.join(available)}"
+            )
+
+        return format_multi_polymer_atmospheric_results(results, include_infeasible=True)
+
+    except Exception as e:
+        logger.error(f"Error in multi-polymer atmospheric feasibility check: {e}")
+        return f"Error analyzing multi-polymer atmospheric feasibility: {str(e)}"
+
+
+# =============================================================================
+# Antisolvent Precipitation Tools
+# =============================================================================
+
+@tool
+@safe_tool_wrapper
+def find_antisolvents(
+    polymer: str,
+    max_solubility: float = 1.0,
+    temperature: float = 25.0,
+) -> str:
+    """Find antisolvents for a polymer - solvents with near-zero solubility at room temperature.
+
+    Antisolvents are solvents where the polymer has very low/no solubility. When added to
+    a polymer solution, antisolvents induce precipitation by reducing overall solvent quality.
+
+    This is useful for:
+    - Antisolvent precipitation processes
+    - Finding non-solvents for polymer recovery
+    - Identifying solvents to avoid for dissolution
+
+    Args:
+        polymer: Polymer name (e.g., "LDPE", "PET", "PP")
+        max_solubility: Maximum solubility threshold (%) to qualify as antisolvent (default: 1%)
+        temperature: Temperature to check solubility at (default: 25°C room temp)
+
+    Returns:
+        List of antisolvents ranked by how effectively they reject the polymer (lowest solubility first).
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    try:
+        # Query for low-solubility solvents at the specified temperature
+        # Try both column name formats (original vs DuckDB sanitized)
+        queries = [
+            # DuckDB sanitized column names
+            f"""
+            SELECT solvent,
+                   solubility____ as solubility,
+                   temperature___c_ as temp
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = UPPER('{polymer}')
+            AND temperature___c_ BETWEEN {temperature - 5} AND {temperature + 5}
+            AND solubility____ <= {max_solubility}
+            ORDER BY solubility____ ASC
+            """,
+            # Original column names with quotes
+            f"""
+            SELECT "Solvent" as solvent,
+                   "Solubility (%)" as solubility,
+                   "Temperature (°C)" as temp
+            FROM common_solvents_database
+            WHERE UPPER("Polymer") = UPPER('{polymer}')
+            AND "Temperature (°C)" BETWEEN {temperature - 5} AND {temperature + 5}
+            AND "Solubility (%)" <= {max_solubility}
+            ORDER BY "Solubility (%)" ASC
+            """,
+        ]
+
+        df = None
+        for query in queries:
+            try:
+                df = conn.execute(query).fetchdf()
+                if not df.empty:
+                    break
+            except Exception:
+                continue
+
+        if df is None or df.empty:
+            return (
+                f"No antisolvents found for {polymer} with solubility < {max_solubility}% at {temperature}°C.\n\n"
+                f"Try increasing max_solubility threshold or checking a different temperature."
+            )
+
+        # Deduplicate by solvent name
+        df = df.drop_duplicates(subset=['solvent'])
+
+        lines = [
+            f"# Antisolvents for {polymer.upper()}\n",
+            f"Solvents with solubility < {max_solubility}% at ~{temperature}°C\n",
+            f"**Found {len(df)} antisolvents** (polymer is essentially insoluble)\n",
+            "| Rank | Antisolvent | Solubility | Temp |",
+            "|------|-------------|------------|------|",
+        ]
+
+        for i, row in df.iterrows():
+            sol = row['solubility']
+            if sol < 0.001:
+                sol_str = f"{sol:.2e}%"
+            elif sol < 0.1:
+                sol_str = f"{sol:.4f}%"
+            else:
+                sol_str = f"{sol:.2f}%"
+            lines.append(f"| {i+1} | {row['solvent']} | {sol_str} | {row['temp']:.0f}°C |")
+
+        lines.append("\n## Usage")
+        lines.append("These solvents can be used as antisolvents to precipitate "
+                    f"{polymer} from solution by adding them to a dissolved polymer mixture.")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"Error finding antisolvents: {e}")
+        return f"Error finding antisolvents: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+def find_antisolvent_pairs(
+    polymer: str,
+    min_good_solubility: float = 50.0,
+    max_antisolvent_solubility: float = 1.0,
+) -> str:
+    """Find good solvent + antisolvent pairs for antisolvent precipitation.
+
+    Identifies combinations where:
+    1. Good solvent: High solubility at elevated temperature (for dissolution)
+    2. Antisolvent: Near-zero solubility at room temperature (to induce precipitation)
+
+    The process: Dissolve polymer in good solvent at high temp, then add antisolvent
+    to precipitate the polymer.
+
+    Args:
+        polymer: Polymer name (e.g., "LDPE", "PET", "EVOH")
+        min_good_solubility: Minimum solubility (%) for good solvent classification (default: 50%)
+        max_antisolvent_solubility: Maximum solubility (%) for antisolvent classification (default: 1%)
+
+    Returns:
+        Table of good solvent + antisolvent combinations with process recommendations.
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    try:
+        # Find good solvents (high solubility at any temperature)
+        # Try sanitized column names first, then original
+        good_queries = [
+            f"""
+            SELECT solvent,
+                   MAX(solubility____) as max_solubility,
+                   MAX(temperature___c_) as dissolution_temp
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = UPPER('{polymer}')
+            GROUP BY solvent
+            HAVING MAX(solubility____) >= {min_good_solubility}
+            ORDER BY max_solubility DESC
+            """,
+            f"""
+            SELECT "Solvent" as solvent,
+                   MAX("Solubility (%)") as max_solubility,
+                   MAX("Temperature (°C)") as dissolution_temp
+            FROM common_solvents_database
+            WHERE UPPER("Polymer") = UPPER('{polymer}')
+            GROUP BY "Solvent"
+            HAVING MAX("Solubility (%)") >= {min_good_solubility}
+            ORDER BY max_solubility DESC
+            """,
+        ]
+
+        good_solvents = None
+        for gq in good_queries:
+            try:
+                good_solvents = conn.execute(gq).fetchdf()
+                if not good_solvents.empty:
+                    break
+            except Exception:
+                continue
+
+        # Find antisolvents (near-zero solubility at room temp)
+        anti_queries = [
+            f"""
+            SELECT solvent,
+                   MIN(solubility____) as min_solubility,
+                   temperature___c_ as temp
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = UPPER('{polymer}')
+            AND temperature___c_ <= 30
+            GROUP BY solvent, temperature___c_
+            HAVING MIN(solubility____) <= {max_antisolvent_solubility}
+            ORDER BY min_solubility ASC
+            """,
+            f"""
+            SELECT "Solvent" as solvent,
+                   MIN("Solubility (%)") as min_solubility,
+                   "Temperature (°C)" as temp
+            FROM common_solvents_database
+            WHERE UPPER("Polymer") = UPPER('{polymer}')
+            AND "Temperature (°C)" <= 30
+            GROUP BY "Solvent", "Temperature (°C)"
+            HAVING MIN("Solubility (%)") <= {max_antisolvent_solubility}
+            ORDER BY min_solubility ASC
+            """,
+        ]
+
+        antisolvents = None
+        for aq in anti_queries:
+            try:
+                antisolvents = conn.execute(aq).fetchdf()
+                if not antisolvents.empty:
+                    break
+            except Exception:
+                continue
+
+        if good_solvents is None or good_solvents.empty:
+            return f"No good solvents found for {polymer} with solubility > {min_good_solubility}%"
+
+        if antisolvents is None or antisolvents.empty:
+            return f"No antisolvents found for {polymer} with solubility < {max_antisolvent_solubility}%"
+
+        # Deduplicate antisolvents
+        antisolvents = antisolvents.drop_duplicates(subset=['solvent'])
+
+        lines = [
+            f"# Antisolvent Precipitation Pairs for {polymer.upper()}\n",
+            f"## Good Solvents (for dissolution)\n",
+            f"Solvents with >{min_good_solubility}% solubility:\n",
+            "| Good Solvent | Max Solubility | Dissolution Temp |",
+            "|--------------|----------------|------------------|",
+        ]
+
+        for _, row in good_solvents.head(10).iterrows():
+            lines.append(f"| {row['solvent']} | {row['max_solubility']:.1f}% | {row['dissolution_temp']:.0f}°C |")
+
+        lines.append(f"\n## Antisolvents (to induce precipitation)\n")
+        lines.append(f"Solvents with <{max_antisolvent_solubility}% solubility at room temp:\n")
+        lines.append("| Antisolvent | Solubility at RT |")
+        lines.append("|-------------|------------------|")
+
+        for _, row in antisolvents.head(10).iterrows():
+            sol = row['min_solubility']
+            if sol < 0.001:
+                sol_str = f"{sol:.2e}%"
+            else:
+                sol_str = f"{sol:.4f}%"
+            lines.append(f"| {row['solvent']} | {sol_str} |")
+
+        # Recommend best pairs (check solvent miscibility conceptually)
+        lines.append("\n## Recommended Pairs\n")
+        lines.append("**Best combinations** (good solvent + antisolvent):\n")
+
+        # Simple heuristic: pair polar antisolvents with polar solvents, etc.
+        polar_antisolvents = ['h2o', 'water', 'methanol', 'ethanol', 'glycol', 'propyleneglycol']
+        nonpolar_solvents = ['hexane', 'n-heptane', 'cyclohexane', 'toluene', 'benzene', 'dodecane']
+
+        recommendations = []
+        for _, gs in good_solvents.head(5).iterrows():
+            for _, anti in antisolvents.head(5).iterrows():
+                # Skip if same solvent
+                if gs['solvent'].lower() == anti['solvent'].lower():
+                    continue
+                recommendations.append({
+                    'good': gs['solvent'],
+                    'good_sol': gs['max_solubility'],
+                    'good_temp': gs['dissolution_temp'],
+                    'anti': anti['solvent'],
+                    'anti_sol': anti['min_solubility']
+                })
+
+        lines.append("| Good Solvent | Antisolvent | Process |")
+        lines.append("|--------------|-------------|---------|")
+
+        for rec in recommendations[:8]:
+            process = f"Dissolve at {rec['good_temp']:.0f}°C, add {rec['anti']} to precipitate"
+            lines.append(f"| {rec['good']} ({rec['good_sol']:.0f}%) | {rec['anti']} | {process} |")
+
+        lines.append("\n## Process Steps")
+        lines.append(f"1. Dissolve {polymer} in good solvent at elevated temperature")
+        lines.append("2. Cool solution to moderate temperature")
+        lines.append("3. Slowly add antisolvent while stirring")
+        lines.append(f"4. {polymer} precipitates out as antisolvent reduces solvent quality")
+        lines.append("5. Filter to collect precipitated polymer")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"Error finding antisolvent pairs: {e}")
+        return f"Error finding antisolvent pairs: {str(e)}"
+
+
+@tool
+@safe_tool_wrapper
+def analyze_selective_antisolvent_precipitation(
+    polymers: str,
+    antisolvent: str = "auto",
+) -> str:
+    """Analyze selective antisolvent precipitation for separating multiple polymers.
+
+    When multiple polymers are dissolved together, adding an antisolvent can selectively
+    precipitate one polymer before another if they have different solubility responses.
+
+    This tool finds conditions where:
+    1. Both/all polymers dissolve in a good solvent
+    2. Adding antisolvent precipitates one polymer while keeping another dissolved
+    3. Further antisolvent addition precipitates the remaining polymer(s)
+
+    Args:
+        polymers: Comma-separated list of polymers (e.g., "LDPE,PET" or "LDPE,PP,HDPE")
+        antisolvent: Specific antisolvent to analyze, or "auto" to find best options
+
+    Returns:
+        Analysis of selective antisolvent precipitation feasibility with process recommendations.
+    """
+    conn = get_db_connection()
+    if conn is None:
+        return "Error: Database connection not available"
+
+    polymer_list = [p.strip().upper() for p in polymers.split(',')]
+
+    if len(polymer_list) < 2:
+        return "Error: Need at least 2 polymers for selective precipitation analysis"
+
+    try:
+        # For each polymer, get solubility in potential antisolvents at room temp
+        results = {}
+        for polymer in polymer_list:
+            queries = [
+                # DuckDB sanitized column names
+                f"""
+                SELECT solvent,
+                       solubility____ as solubility
+                FROM common_solvents_database
+                WHERE UPPER(polymer) = UPPER('{polymer}')
+                AND temperature___c_ <= 30
+                ORDER BY solubility____ ASC
+                """,
+                # Original column names
+                f"""
+                SELECT "Solvent" as solvent,
+                       "Solubility (%)" as solubility
+                FROM common_solvents_database
+                WHERE UPPER("Polymer") = UPPER('{polymer}')
+                AND "Temperature (°C)" <= 30
+                ORDER BY "Solubility (%)" ASC
+                """,
+            ]
+
+            df = None
+            for query in queries:
+                try:
+                    df = conn.execute(query).fetchdf()
+                    if not df.empty:
+                        break
+                except Exception:
+                    continue
+
+            if df is not None and not df.empty:
+                df = df.drop_duplicates(subset=['solvent'])
+                results[polymer] = dict(zip(df['solvent'], df['solubility']))
+
+        if len(results) < 2:
+            return f"Insufficient solubility data for {', '.join(polymer_list)}"
+
+        # Find antisolvents with differential response
+        # (one polymer has higher solubility than another in the antisolvent)
+        common_solvents = set.intersection(*[set(r.keys()) for r in results.values()])
+
+        differential_antisolvents = []
+        for solvent in common_solvents:
+            solubilities = {p: results[p].get(solvent, 100) for p in polymer_list}
+            max_sol = max(solubilities.values())
+            min_sol = min(solubilities.values())
+
+            # Both should be low (antisolvent), but with differential
+            if max_sol < 10 and (max_sol - min_sol) > 0.1:
+                differential_antisolvents.append({
+                    'solvent': solvent,
+                    'solubilities': solubilities,
+                    'differential': max_sol - min_sol,
+                    'max_sol': max_sol,
+                    'min_sol': min_sol
+                })
+
+        # Sort by differential (larger = better selectivity)
+        differential_antisolvents.sort(key=lambda x: x['differential'], reverse=True)
+
+        lines = [
+            f"# Selective Antisolvent Precipitation Analysis\n",
+            f"**Polymers:** {', '.join(polymer_list)}\n",
+        ]
+
+        if not differential_antisolvents:
+            lines.append("## ⚠️ No Differential Antisolvents Found\n")
+            lines.append("All tested antisolvents show similar rejection of all polymers.")
+            lines.append("Selective antisolvent precipitation may not be feasible for this polymer combination.\n")
+            lines.append("**Alternative:** Consider differential precipitation by cooling instead.")
+        else:
+            lines.append(f"## Found {len(differential_antisolvents)} Antisolvents with Differential Response\n")
+            lines.append("These antisolvents reject polymers at different rates, enabling selective precipitation.\n")
+            lines.append("| Antisolvent | " + " | ".join([f"{p} Sol." for p in polymer_list]) + " | Differential |")
+            lines.append("|-------------|" + "|".join(["--------" for _ in polymer_list]) + "|--------------|")
+
+            for anti in differential_antisolvents[:10]:
+                row = f"| {anti['solvent']} |"
+                for p in polymer_list:
+                    sol = anti['solubilities'][p]
+                    if sol < 0.01:
+                        row += f" {sol:.2e}% |"
+                    else:
+                        row += f" {sol:.3f}% |"
+                row += f" {anti['differential']:.3f}% |"
+                lines.append(row)
+
+            # Process recommendation
+            if differential_antisolvents:
+                best = differential_antisolvents[0]
+                sorted_by_sol = sorted(best['solubilities'].items(), key=lambda x: x[1], reverse=True)
+
+                lines.append(f"\n## Recommended Process with {best['solvent'].upper()}\n")
+                lines.append(f"**Precipitation order** (by antisolvent tolerance):\n")
+
+                for i, (polymer, sol) in enumerate(sorted_by_sol, 1):
+                    if sol < 0.01:
+                        lines.append(f"{i}. **{polymer}** - precipitates first (solubility: {sol:.2e}%)")
+                    else:
+                        lines.append(f"{i}. **{polymer}** - precipitates {'last' if i == len(sorted_by_sol) else 'next'} (solubility: {sol:.3f}%)")
+
+                lines.append(f"\n**Process:**")
+                lines.append(f"1. Dissolve all polymers in a common good solvent at elevated temperature")
+                lines.append(f"2. Cool to moderate temperature (~50-60°C)")
+                lines.append(f"3. Slowly add {best['solvent']} while stirring")
+                lines.append(f"4. {sorted_by_sol[0][0]} precipitates first (lowest antisolvent tolerance)")
+                lines.append(f"5. Filter to collect {sorted_by_sol[0][0]}")
+                if len(sorted_by_sol) > 2:
+                    lines.append(f"6. Continue adding {best['solvent']} to precipitate remaining polymers sequentially")
+                else:
+                    lines.append(f"6. Add more {best['solvent']} to precipitate {sorted_by_sol[1][0]}")
+
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"Error in selective antisolvent analysis: {e}")
+        return f"Error analyzing selective antisolvent precipitation: {str(e)}"
+
+
+# =============================================================================
 # Tool Collection
 # =============================================================================
 
@@ -873,6 +2040,19 @@ ADVANCED_SEPARATION_TOOLS = [
     create_separation_tree_plot,
     create_selectivity_heatmap,
     create_process_flow_diagram,
+    # Differential precipitation tools
+    find_differential_precipitation_solvents,
+    analyze_multi_polymer_precipitation,
+    analyze_precipitation_temperature,
+    plot_precipitation_curves,
+    plot_atmospheric_feasibility,
+    compare_polymer_pairs_precipitation,
+    check_atmospheric_feasibility,
+    check_multi_polymer_atmospheric_feasibility,
+    # Antisolvent precipitation tools
+    find_antisolvents,
+    find_antisolvent_pairs,
+    analyze_selective_antisolvent_precipitation,
 ]
 
 __all__ = [
@@ -891,6 +2071,19 @@ __all__ = [
     "create_separation_tree_plot",
     "create_selectivity_heatmap",
     "create_process_flow_diagram",
+    # Differential precipitation tools
+    "find_differential_precipitation_solvents",
+    "analyze_multi_polymer_precipitation",
+    "analyze_precipitation_temperature",
+    "plot_precipitation_curves",
+    "plot_atmospheric_feasibility",
+    "compare_polymer_pairs_precipitation",
+    "check_atmospheric_feasibility",
+    "check_multi_polymer_atmospheric_feasibility",
+    # Antisolvent precipitation tools
+    "find_antisolvents",
+    "find_antisolvent_pairs",
+    "analyze_selective_antisolvent_precipitation",
     # Tool collection
     "ADVANCED_SEPARATION_TOOLS",
 ]

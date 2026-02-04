@@ -185,7 +185,7 @@ Return a JSON object with:
 - solvents: list of solvent names (toluene, xylene, cyclohexane, THF, etc.)
 - temperature: temperature in Celsius if mentioned (number or null)
 - throughput_kg_hr: throughput in kg/hr (number or null). Convert: "industrial scale"=1000, "pilot scale"=100, "lab scale"=1
-- constraints: list of constraints like "green_solvents", "avoid_chlorinated", "food_safe", "low_cost"
+- constraints: list of constraints like "green_solvents", "avoid_chlorinated", "food_safe", "low_cost", "cost_optimization" (if user wants to minimize cost or find cheaper alternatives)
 
 Return ONLY valid JSON.'''
 
@@ -327,39 +327,52 @@ Return ONLY valid JSON.'''
     def extract_query_params(cls, query: str) -> Dict[str, Any]:
         """Extract parameters from user query."""
         llm = _get_extractor_llm()
-        if llm is None:
-            # Fallback to basic extraction
-            return {
-                "polymers": [],
-                "solvents": [],
-                "temperature": 80.0,
-                "throughput_kg_hr": 100.0,
-                "constraints": [],
-            }
 
-        try:
-            prompt = cls.QUERY_EXTRACT_PROMPT.format(text=query)
-            response = llm.invoke(prompt)
-            data = cls._parse_json_response(response.content)
-
-            if data:
-                return {
-                    "polymers": data.get("polymers", []),
-                    "solvents": data.get("solvents", []),
-                    "temperature": data.get("temperature") or 80.0,
-                    "throughput_kg_hr": data.get("throughput_kg_hr") or 100.0,
-                    "constraints": data.get("constraints", []),
-                }
-        except Exception as e:
-            logger.warning(f"LLMExtractor: Query extraction failed: {e}")
-
-        return {
+        # Base result with defaults
+        result = {
             "polymers": [],
             "solvents": [],
             "temperature": 80.0,
             "throughput_kg_hr": 100.0,
             "constraints": [],
         }
+
+        if llm is not None:
+            try:
+                prompt = cls.QUERY_EXTRACT_PROMPT.format(text=query)
+                response = llm.invoke(prompt)
+                data = cls._parse_json_response(response.content)
+
+                if data:
+                    result = {
+                        "polymers": data.get("polymers", []),
+                        "solvents": data.get("solvents", []),
+                        "temperature": data.get("temperature") or 80.0,
+                        "throughput_kg_hr": data.get("throughput_kg_hr") or 100.0,
+                        "constraints": data.get("constraints", []),
+                    }
+            except Exception as e:
+                logger.warning(f"LLMExtractor: Query extraction failed: {e}")
+
+        # Keyword-based fallback for cost_optimization detection
+        # This catches cases where the LLM doesn't explicitly extract it
+        constraints = result.get("constraints", [])
+        query_lower = query.lower()
+        cost_keywords = [
+            "cheaper alternative", "find cheaper", "cost more than",
+            "costs more than", "minimize cost", "reduce cost", "lower cost",
+            "cost optimization", "if cost", "cost >", "cost>",
+            "$/kg", "per kg", "$/kilogram"
+        ]
+        if "cost_optimization" not in constraints:
+            for keyword in cost_keywords:
+                if keyword in query_lower:
+                    constraints.append("cost_optimization")
+                    logger.info(f"LLMExtractor: Detected cost_optimization constraint via keyword '{keyword}'")
+                    break
+            result["constraints"] = constraints
+
+        return result
 
 
 # ============================================================
@@ -377,6 +390,9 @@ class ParsedQueryInput:
     constraints: List[str] = field(default_factory=list)
     raw_query: str = ""
     extraction_confidence: float = 0.0
+    # User-specified solvents: maps polymer -> {"solvent": name, "cost": price}
+    # Extracted when user says "my current process uses X for Y" or similar
+    user_specified_solvents: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def to_shared_context(self) -> Dict[str, Any]:
         """Convert to shared_context dict for agent state."""
@@ -393,6 +409,8 @@ class ParsedQueryInput:
             ctx["throughput_kg_hr"] = self.throughput_kg_hr
         if self.constraints:
             ctx["constraints"] = self.constraints
+        if self.user_specified_solvents:
+            ctx["user_specified_solvents"] = self.user_specified_solvents
         return ctx
 
 
@@ -438,7 +456,7 @@ LLM_ROUTER_PROMPT = '''You are a routing system for a polymer solubility analysi
    - Examples: "Compare PE vs PP solubility", "Show temperature curve for LDPE", "Rank solvents by selectivity", "Heatmap of polymer-solvent pairs"
 
 3. **SPECIALIST** (complexity 4-5): Domain-specific expertise - use ONE specialist
-   - **separation**: Multi-polymer separation planning, optimal sequences, decision trees
+   - **separation**: Multi-polymer separation planning, optimal sequences, decision trees, differential precipitation, atmospheric pressure feasibility, antisolvents, antisolvent precipitation, non-solvents, poor solvents, selective precipitation by cooling or antisolvent addition
    - **tea_lca**: Techno-economic analysis, cost calculations, LCA, environmental impact, payback period
    - **literature**: Research papers, literature search, RAG queries, indexed knowledge
 
@@ -451,14 +469,15 @@ Extract any mentioned:
 - Solvents: toluene, xylene, cyclohexane, THF, DCM, acetone, hexane, limonene, etc.
 - Temperature: numeric values in Celsius (default 80 if separation mentioned but no temp given)
 - Throughput: kg/hr or scale (lab=1, pilot=100, industrial=1000 kg/hr)
-- Constraints: green solvents, avoid chlorinated, food-safe, low-cost, etc.
+- Constraints: green solvents, avoid chlorinated, food-safe, low-cost, cost_optimization (when user mentions "find cheaper alternatives", "minimize cost", "if cost > X"), etc.
+- User-specified solvents: When the user describes THEIR CURRENT process with specific solvents (e.g., "my process uses D-limonene for PP", "I'm currently using DMF for PS at $8/kg"), extract as polymer->solvent mapping with optional cost.
 
 ## User Query
 {query}
 
 ## Response Format
 Respond with ONLY valid JSON (no markdown, no explanation):
-{{"path": "fast|standard|specialist|integrated", "complexity": 1-5, "specialist": "separation|tea_lca|literature|null", "collaboration_specialists": [], "reason": "brief explanation", "confidence": 0.0-1.0, "entities": {{"polymers": [], "solvents": [], "temperature": null, "throughput_kg_hr": null, "constraints": []}}}}'''
+{{"path": "fast|standard|specialist|integrated", "complexity": 1-5, "specialist": "separation|tea_lca|literature|null", "collaboration_specialists": [], "reason": "brief explanation", "confidence": 0.0-1.0, "entities": {{"polymers": [], "solvents": [], "temperature": null, "throughput_kg_hr": null, "constraints": [], "user_specified_solvents": {{"POLYMER": {{"solvent": "name", "cost": null_or_number}}}}}}}}'''
 
 
 class RouterCache:
@@ -533,14 +552,33 @@ class LLMRouter:
     @classmethod
     def _create_parsed_input(cls, entities: Dict, query: str) -> ParsedQueryInput:
         """Convert LLM entities dict to ParsedQueryInput."""
+        constraints = entities.get("constraints", []) or []
+
+        # Keyword-based fallback for cost_optimization detection
+        # This catches cases where the LLM doesn't explicitly extract it
+        query_lower = query.lower()
+        cost_keywords = [
+            "cheaper alternative", "find cheaper", "cost more than",
+            "costs more than", "minimize cost", "reduce cost", "lower cost",
+            "cost optimization", "if cost", "cost >", "cost>",
+            "$/kg", "per kg", "$/kilogram"
+        ]
+        if "cost_optimization" not in constraints:
+            for keyword in cost_keywords:
+                if keyword in query_lower:
+                    constraints.append("cost_optimization")
+                    logger.info(f"LLMRouter: Detected cost_optimization constraint via keyword '{keyword}'")
+                    break
+
         return ParsedQueryInput(
             polymers=entities.get("polymers", []) or [],
             solvents=entities.get("solvents", []) or [],
             temperature=entities.get("temperature"),
             throughput_kg_hr=entities.get("throughput_kg_hr"),
-            constraints=entities.get("constraints", []) or [],
+            constraints=constraints,
             raw_query=query,
             extraction_confidence=0.9,  # High confidence from LLM extraction
+            user_specified_solvents=entities.get("user_specified_solvents", {}) or {},
         )
 
     @classmethod
@@ -1453,34 +1491,76 @@ def initialize_tool_subsets(tool_categories: dict, all_tools: list):
 
 SEPARATION_PLANNER_PROMPT = """You are a **Polymer Separation Planning Specialist** for the DISSOLVE system.
 
-YOUR ONLY TASK: Plan optimal sequential separation strategies for multilayer polymer films.
+YOUR TASK: Plan optimal separation strategies for polymer films, including:
+1. Sequential selective dissolution separation
+2. Differential/selective precipitation (cooling-based separation)
 
-## WORKFLOW
-1. **ALWAYS** call `plan_sequential_separation()` first with the polymer list and temperature
-2. The tool automatically selects the algorithm:
-   - **≤3 polymers**: Exhaustive search (evaluates all permutations)
-   - **>3 polymers**: Greedy algorithm (O(n²) - fast and efficient)
-3. Use the results to explain the best sequence and solvent choices
-4. If asked for visualization, use `plot_selectivity_heatmap()` or the decision tree from step 1
+## TOOL SELECTION BY QUERY TYPE
 
-## ALGORITHM SELECTION (AUTOMATIC)
-- 2-3 polymers: Exhaustive (6 permutations max) - finds global optimum
-- 4+ polymers: Greedy - finds good solution in O(n²) time
-- DO NOT attempt to enumerate permutations manually for >3 polymers
+### For DIFFERENTIAL/SELECTIVE PRECIPITATION queries:
+Keywords: "precipitate", "precipitation", "cooling", "temperature gap", "precipitates first/before"
+Use these tools:
+- `find_differential_precipitation_solvents()` - Find solvents where one polymer precipitates before another during cooling
+- `compare_polymer_pairs_precipitation()` - **USE THIS for comparing multiple polymer pairs** (e.g., "LDPE,PET;LDPE,EVOH")
+- `analyze_multi_polymer_precipitation()` - Analyze precipitation sequence for multiple polymers in one solvent
+- `analyze_precipitation_temperature()` - Get precipitation temp for a specific polymer/solvent
+- `plot_precipitation_curves()` - Visualize solubility vs temperature curves
+- `check_atmospheric_feasibility()` - **USE THIS for 2-polymer atmospheric pressure queries** - checks if process works below solvent boiling point
+- `check_multi_polymer_atmospheric_feasibility()` - **USE THIS for 3+ polymer systems at 1 atm** - sequential precipitation of multiple polymers
+- `plot_atmospheric_feasibility()` - **VISUALIZATION** - plots precipitation curves with boiling point line, shows if 1 atm operation is feasible
+
+### For SEQUENTIAL DISSOLUTION queries:
+Keywords: "separate", "separation sequence", "dissolve", "selectivity"
+Use these tools:
+- `plan_sequential_separation()` - Plan optimal dissolution sequence
+- `plot_selectivity_heatmap()` - Visualize selectivity matrix
+
+### For ANTISOLVENT PRECIPITATION queries:
+Keywords: "antisolvent", "non-solvent", "add solvent to precipitate", "induce precipitation", "poor solvent"
+Use these tools:
+- `find_antisolvents()` - Find solvents with ~0% solubility at room temp (antisolvents)
+- `find_antisolvent_pairs()` - Find good solvent + antisolvent combinations for precipitation
+- `analyze_selective_antisolvent_precipitation()` - Analyze selective precipitation using antisolvents for multiple polymers
+
+## WORKFLOW FOR PRECIPITATION QUERIES
+
+### For COMPARING multiple polymer pairs:
+Use `compare_polymer_pairs_precipitation(polymer_pairs="LDPE,PET;LDPE,EVOH")` - this automatically tries both orders for each pair.
+
+### For a single polymer pair:
+1. Call `find_differential_precipitation_solvents(polymer_to_precipitate, polymer_to_retain, min_temperature_gap)`
+2. The tool automatically tries the reverse order if no results found
+3. If visualization requested, call `plot_precipitation_curves(polymers, solvent)`
+4. Present results with recommended process conditions
+
+### For ATMOSPHERIC PRESSURE / 1 ATM queries:
+Keywords: "atmospheric", "1 atm", "no pressure", "boiling point", "without autoclave", "ambient pressure"
+
+**For 2 polymers:** Use `check_atmospheric_feasibility(polymer1, polymer2)`
+**For 3+ polymers:** Use `check_multi_polymer_atmospheric_feasibility(polymers="EVOH,PVC,LDPE")`
+
+These tools find solvents where the entire process runs below boiling point - no pressurized equipment needed.
+The multi-polymer tool determines precipitation ORDER automatically (which precipitates first, second, etc.).
+
+**ALWAYS generate visualization:** After finding feasible solvents, call `plot_atmospheric_feasibility(polymers, solvent)`
+for the recommended solvent to show the user a visual plot with boiling point line and precipitation sequence.
+
+## WORKFLOW FOR DISSOLUTION QUERIES
+1. Call `plan_sequential_separation()` with polymer list and temperature
+2. Use visualization tools as needed
 
 ## KEY PARAMETERS
-- **Temperature**: Use the specified temperature (default 80°C for better selectivity)
-- **Polymers**: Extract polymer names from the query (LDPE, HDPE, PET, PP, PS, PVC, PC, Nylon66, EVOH, PA6)
-- **Top-k solvents**: Default to 5 per step
+- **Precipitation threshold**: ~1% solubility (polymer is precipitated when solubility < 1%)
+- **Temperature gap**: Minimum temperature difference between precipitation points (default 20°C)
+- **Polymers**: LDPE, HDPE, PET, PP, PS, PVC, PC, Nylon66, EVOH, PA6
 
 ## RESPONSE FORMAT
-1. Best sequence with reasoning
-2. Step-by-step solvent recommendations with properties
-3. Selectivity scores and warnings
-4. Alternative sequences if applicable (for ≤3 polymers only)
+1. Best solvent(s) with key properties
+2. Process conditions and sequence
+3. Temperature windows or selectivity scores
+4. Visualizations if requested
 
 DO NOT: Run general database queries, perform statistical analysis, or search literature.
-DO NOT: Manually enumerate permutations - let the tool handle algorithm selection.
 FOCUS: Separation planning only. Be concise and actionable."""
 
 
@@ -3804,6 +3884,36 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
         output_parts.append(title)
         output_parts.append(f"*Analysis completed in {elapsed:.1f}s using multi-agent collaboration*\n\n")
 
+        # Show user-specified solvents if present
+        shared_context = state.get("shared_context", {})
+        user_solvents = shared_context.get("user_specified_solvents", {})
+        if user_solvents:
+            output_parts.append("## User's Current Solvents\n")
+            output_parts.append("| Polymer | Solvent | Cost ($/kg) |\n")
+            output_parts.append("|---------|---------|-------------|\n")
+            for polymer, info in user_solvents.items():
+                solvent = info.get('solvent', 'N/A')
+                cost = info.get('cost', '?')
+                output_parts.append(f"| {polymer} | {solvent} | ${cost} |\n")
+            output_parts.append("\n")
+
+        # Show user solvent property evaluation if available
+        user_solvent_eval = separation_results.get("user_solvent_evaluation") if separation_results else None
+        if user_solvent_eval and user_solvent_eval.get("solvents"):
+            output_parts.append("### User Solvent Properties Evaluation\n")
+            output_parts.append("| Solvent | LogP | BP (°C) | Energy (J/g) | δD | δP | δH |\n")
+            output_parts.append("|---------|------|---------|--------------|----|----|----|\n")
+            for solv in user_solvent_eval["solvents"]:
+                name = solv.get("name", "?")
+                logp = f"{solv.get('logp', '?'):.1f}" if isinstance(solv.get('logp'), (int, float)) else "?"
+                bp = f"{solv.get('bp_c', '?'):.0f}" if isinstance(solv.get('bp_c'), (int, float)) else "?"
+                energy = f"{solv.get('energy_j_g', '?'):.0f}" if isinstance(solv.get('energy_j_g'), (int, float)) else "?"
+                dd = f"{solv.get('delta_d', '?'):.1f}" if isinstance(solv.get('delta_d'), (int, float)) else "?"
+                dp = f"{solv.get('delta_p', '?'):.1f}" if isinstance(solv.get('delta_p'), (int, float)) else "?"
+                dh = f"{solv.get('delta_h', '?'):.1f}" if isinstance(solv.get('delta_h'), (int, float)) else "?"
+                output_parts.append(f"| {name} | {logp} | {bp} | {energy} | {dd} | {dp} | {dh} |\n")
+            output_parts.append("\n*LogP: Lower = less toxic | BP: Lower = easier recovery | δD/δP/δH: Hansen solubility parameters*\n\n")
+
         # P1: Use structured schema access (with dict fallback)
         # Separation Summary
         if separation_results:
@@ -3864,41 +3974,75 @@ async def smart_aggregator_node(state: MultiAgentState) -> dict:
                 output_parts.append("\n")
 
         # TEA Summary (P1: Structured access)
+        # Also check for baseline results from Stage 1
+        tea_baseline = state.get("tea_baseline_results")
         if tea_results:
             output_parts.append("## Economic Analysis Summary\n")
-            cost_per_kg = tea_results.get("cost_per_kg")
-            capex = tea_results.get("total_capex")
-            opex = tea_results.get("total_opex")
-            payback = tea_results.get("payback_years")
-            best_tea_solvent = tea_results.get("best_solvent")
-            msp_values = tea_results.get("msp_values", {})
 
-            if best_tea_solvent:
-                output_parts.append(f"- **Best solvent (cost):** {best_tea_solvent}\n")
-            if cost_per_kg:
-                output_parts.append(f"- **Estimated cost:** ${cost_per_kg:.2f}/kg polymer processed\n")
-            if capex:
-                output_parts.append(f"- **Capital investment (CAPEX):** ${capex:,.0f}\n")
-            if opex:
-                output_parts.append(f"- **Operating cost (OPEX):** ${opex:,.0f}/yr\n")
-            if payback:
-                output_parts.append(f"- **Payback period:** {payback:.1f} years\n")
+            # Check if this is a comparison result (from Stage 3)
+            is_comparison = tea_results.get("is_comparison", False)
 
-            # Show MSP comparison if multiple solvents analyzed
-            if len(msp_values) > 1:
-                output_parts.append("\n**Cost by Solvent:**\n")
-                for solvent, msp in sorted(msp_values.items(), key=lambda x: x[1]):
-                    output_parts.append(f"  - {solvent}: ${msp:.2f}/kg\n")
+            if is_comparison and tea_results.get("comparison_table"):
+                # Display comparison table
+                comparison_table = tea_results.get("comparison_table", [])
+                rankings = tea_results.get("rankings", {})
 
-            # Show ROI if available
-            roi = tea_results.get("roi_pct")
-            if roi:
-                output_parts.append(f"- **Return on Investment (ROI):** {roi:.1f}%\n")
+                output_parts.append(f"*Comparing {len(comparison_table)} scenarios*\n\n")
+                output_parts.append("| Scenario | Cost ($/kg) | ROI (%) | Payback (yr) |\n")
+                output_parts.append("|----------|-------------|---------|-------------|\n")
+                for row in comparison_table:
+                    name = row.get("name", "Unknown")
+                    cost = row.get("cost_per_kg_usd", row.get("uoc_usd_kg", "N/A"))
+                    roi = row.get("roi_pct", "N/A")
+                    payback = row.get("payback_years", "N/A")
+                    cost_str = f"${cost:.4f}" if isinstance(cost, (int, float)) else cost
+                    roi_str = f"{roi:.1f}%" if isinstance(roi, (int, float)) else roi
+                    payback_str = f"{payback:.2f}" if isinstance(payback, (int, float)) else payback
+                    output_parts.append(f"| {name} | {cost_str} | {roi_str} | {payback_str} |\n")
 
-            # Show capacity if available
-            capacity = tea_results.get("capacity_mt_yr")
-            if capacity:
-                output_parts.append(f"- **Plant capacity:** {capacity:,} metric tons/year\n")
+                output_parts.append("\n**Rankings:**\n")
+                if rankings.get("lowest_uoc"):
+                    output_parts.append(f"- **Lowest Cost:** {rankings['lowest_uoc']}\n")
+                if rankings.get("best_roi"):
+                    output_parts.append(f"- **Best ROI:** {rankings['best_roi']}\n")
+                if rankings.get("best_payback"):
+                    output_parts.append(f"- **Fastest Payback:** {rankings['best_payback']}\n")
+
+            else:
+                # Single scenario result (baseline or simple TEA)
+                cost_per_kg = tea_results.get("cost_per_kg")
+                capex = tea_results.get("total_capex")
+                opex = tea_results.get("total_opex")
+                payback = tea_results.get("payback_years")
+                best_tea_solvent = tea_results.get("best_solvent")
+                msp_values = tea_results.get("msp_values", {})
+
+                if best_tea_solvent:
+                    output_parts.append(f"- **Best solvent (cost):** {best_tea_solvent}\n")
+                if cost_per_kg:
+                    output_parts.append(f"- **Estimated cost:** ${cost_per_kg:.2f}/kg polymer processed\n")
+                if capex:
+                    output_parts.append(f"- **Capital investment (CAPEX):** ${capex:,.0f}\n")
+                if opex:
+                    output_parts.append(f"- **Operating cost (OPEX):** ${opex:,.0f}/yr\n")
+                if payback:
+                    output_parts.append(f"- **Payback period:** {payback:.1f} years\n")
+
+                # Show MSP comparison if multiple solvents analyzed
+                if len(msp_values) > 1:
+                    output_parts.append("\n**Cost by Solvent:**\n")
+                    for solvent, msp in sorted(msp_values.items(), key=lambda x: x[1]):
+                        output_parts.append(f"  - {solvent}: ${msp:.2f}/kg\n")
+
+                # Show ROI if available
+                roi = tea_results.get("roi_pct")
+                if roi:
+                    output_parts.append(f"- **Return on Investment (ROI):** {roi:.1f}%\n")
+
+                # Show capacity if available
+                capacity = tea_results.get("capacity_mt_yr")
+                if capacity:
+                    output_parts.append(f"- **Plant capacity:** {capacity:,} metric tons/year\n")
 
             output_parts.append("\n")
 
@@ -4303,6 +4447,9 @@ async def multi_agent_router_node(state: dict) -> dict:
                 f"specialist={decision.specialist}, collaboration={decision.collaboration_specialists}, "
                 f"reason={decision.reason}")
 
+    # Build shared_context from parsed_input (includes user_specified_solvents)
+    shared_context = decision.parsed_input.to_shared_context() if decision.parsed_input else {}
+
     return {
         "complexity": decision.complexity,
         "path": decision.path,
@@ -4315,6 +4462,8 @@ async def multi_agent_router_node(state: dict) -> dict:
         # NEW: Collaboration fields
         "collaboration_specialists": decision.collaboration_specialists,
         "collaboration_mode": "_".join(decision.collaboration_specialists) if decision.collaboration_specialists else None,
+        # NEW: Shared context from routing (includes user_specified_solvents)
+        "shared_context": shared_context,
     }
 
 
@@ -4397,6 +4546,7 @@ def build_multi_agent_graph(
     async def separation_agent_node(state):
         state_copy = dict(state)
         state_copy["selected_categories"] = ["separation", "advanced_separation", "dissolution", "solvent_properties", "visualization"]
+        state_copy["specialist_prompt"] = SEPARATION_PLANNER_PROMPT
         return await sql_agent_node(state_copy)
 
     builder.add_node("separation_agent", separation_agent_node)
@@ -4406,6 +4556,7 @@ def build_multi_agent_graph(
     async def tea_agent_node(state):
         state_copy = dict(state)
         state_copy["selected_categories"] = ["economics", "strap", "visualization", "solvent_properties"]
+        state_copy["specialist_prompt"] = TEA_LCA_ANALYST_PROMPT
         return await sql_agent_node(state_copy)
 
     builder.add_node("tea_agent", tea_agent_node)
@@ -4415,6 +4566,7 @@ def build_multi_agent_graph(
     async def literature_agent_node(state):
         state_copy = dict(state)
         state_copy["selected_categories"] = ["literature", "rag"]
+        state_copy["specialist_prompt"] = LITERATURE_RESEARCHER_PROMPT
         return await sql_agent_node(state_copy)
 
     builder.add_node("literature_agent", literature_agent_node)
@@ -4471,10 +4623,28 @@ def build_multi_agent_graph(
 
         # Build context for workflow selection
         shared_context = state.get("shared_context", {})
+        constraints = shared_context.get("constraints", [])
+
+        # Keyword-based fallback for cost_optimization detection
+        # This ensures cost constraints are detected even if LLM extraction misses them
+        if query and "cost_optimization" not in constraints:
+            query_lower = query.lower()
+            cost_keywords = [
+                "cheaper alternative", "find cheaper", "cost more than",
+                "costs more than", "minimize cost", "reduce cost", "lower cost",
+                "cost optimization", "if cost", "cost >", "cost>",
+                "$/kg", "per kg", "$/kilogram"
+            ]
+            for keyword in cost_keywords:
+                if keyword in query_lower:
+                    constraints = list(constraints) + ["cost_optimization"]
+                    logger.info(f"Hybrid Workflow Executor: Detected cost_optimization via keyword '{keyword}'")
+                    break
+
         context = {
             "polymers": shared_context.get("polymers", []),
             "specialists": state.get("collaboration_specialists", []),
-            "constraints": shared_context.get("constraints", []),
+            "constraints": constraints,
         }
 
         # Execute via hybrid orchestrator
