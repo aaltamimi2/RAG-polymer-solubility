@@ -42,7 +42,8 @@ ROUTING_RULES: list[dict] = [
             "selectiv", "greedy", r"branch.and.bound",
         ],
         "low_stems": [
-            "separate", "dissolution", "dissolve", "mixed stream",
+            "separat", "dissolution", "dissolve", "mixed stream",
+            "solvent",
         ],
         "negatives": [
             "sql", "database", "table schema", "list polymers",
@@ -60,8 +61,9 @@ ROUTING_RULES: list[dict] = [
         ],
         "high_stems": [
             "pubchem", "gscore", "ld50", "lc50", "biodegradation",
+            "safe",
         ],
-        "low_stems": ["safety", "hazard", "toxic"],
+        "low_stems": ["hazard", "toxic"],
         "negatives": [],
     },
     {
@@ -143,10 +145,11 @@ ROUTING_RULES: list[dict] = [
 # Multi-agent execution patterns
 # ------------------------------------------------------------------
 
-PARALLEL_PAIRS: set[frozenset[str]] = set()  # Disabled: Gemini can't handle concurrent subagent calls
+PARALLEL_PAIRS: set[frozenset[str]] = {
+    frozenset({"separation-engineer", "safety-analyst"}),
+}
 
 SEQUENTIAL_PAIRS: dict[tuple[str, str], None] = {
-    ("separation-engineer", "safety-analyst"): None,
     ("separation-engineer", "tea-lca-analyst"): None,
     ("separation-engineer", "visualization-specialist"): None,
     ("statistics-ml", "visualization-specialist"): None,
@@ -230,30 +233,61 @@ def classify_query(messages: list) -> str | None:
             f'subagent_type="{rule["subagent"]}")]'
         )
 
-    # Multi-agent: take top two
-    primary = matches[0][2]
-    secondary = matches[1][2]
-    pair_set = frozenset({primary["subagent"], secondary["subagent"]})
-    pair_tuple = (primary["subagent"], secondary["subagent"])
-    pair_tuple_rev = (secondary["subagent"], primary["subagent"])
+    # Multi-agent routing
+    if len(matches) == 2:
+        primary = matches[0][2]
+        secondary = matches[1][2]
+        pair_set = frozenset({primary["subagent"], secondary["subagent"]})
+        pair_tuple = (primary["subagent"], secondary["subagent"])
+        pair_tuple_rev = (secondary["subagent"], primary["subagent"])
 
-    # Check if sequential (order matters — check both directions)
-    if pair_tuple in SEQUENTIAL_PAIRS:
-        first, second = primary, secondary
-    elif pair_tuple_rev in SEQUENTIAL_PAIRS:
-        first, second = secondary, primary
-    else:
-        # Default: sequential with primary first
-        first, second = primary, secondary
+        # Check if parallel
+        if pair_set in PARALLEL_PAIRS:
+            return (
+                "\n\n[ROUTING: Your NEXT action must be TWO task() calls in a single response.\n"
+                "Launch both specialists in parallel:\n"
+                f'- task(description="...", subagent_type="{primary["subagent"]}")\n'
+                f'- task(description="...", subagent_type="{secondary["subagent"]}")\n'
+                "Do NOT run query_database or other tools first.\n"
+                "After both return, synthesize their results into a final answer.]"
+            )
 
+        # Check if sequential (order matters — check both directions)
+        if pair_tuple in SEQUENTIAL_PAIRS:
+            first, second = primary, secondary
+        elif pair_tuple_rev in SEQUENTIAL_PAIRS:
+            first, second = secondary, primary
+        else:
+            first, second = primary, secondary
+
+        return (
+            "\n\n[ROUTING: Your NEXT action must be a task() call. "
+            "This requires two specialists in sequence.\n"
+            f'Step 1: Delegate to "{first["subagent"]}" for {first["description"]}. '
+            "Do NOT run query_database or other tools first.\n"
+            f'Step 2: After receiving results, delegate to "{second["subagent"]}" '
+            f"for {second['description']}, including relevant results from Step 1 "
+            "in the task description.]"
+        )
+
+    # 3+ agents: sequential chain — delegate one at a time, passing results forward
+    ordered = [m[2] for m in matches]
+    steps = []
+    for i, rule in enumerate(ordered, 1):
+        ctx = " Pass all prior results in the task description." if i > 1 else ""
+        steps.append(
+            f'Step {i}: Delegate to "{rule["subagent"]}" for {rule["description"]}.{ctx}'
+        )
+    step_text = "\n".join(steps)
+    first_rule = ordered[0]
     return (
-        "\n\n[ROUTING: Your NEXT action must be a task() call. "
-        "This requires two specialists in sequence.\n"
-        f'Step 1: Delegate to "{first["subagent"]}" for {first["description"]}. '
-        "Do NOT run query_database or other tools first.\n"
-        f'Step 2: After receiving results, delegate to "{second["subagent"]}" '
-        f"for {second['description']}, including relevant results from Step 1 "
-        "in the task description.]"
+        f"\n\n[ROUTING: This query requires {len(ordered)} specialists in sequence. "
+        "Execute them ONE AT A TIME — call the first task() now, wait for its result, "
+        "then call the next.\n"
+        f"{step_text}\n"
+        f'Your NEXT action must be: task(description="<step 1 task>", '
+        f'subagent_type="{first_rule["subagent"]}"). '
+        "Do NOT run query_database or other tools first.]"
     )
 
 

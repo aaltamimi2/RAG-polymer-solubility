@@ -65,8 +65,9 @@ Use the tools to discover which polymers and solvents are available.
 - Your role is to route, synthesize subagent results, and answer simple data lookups.
   Use your direct tools only for quick lookups (e.g. "list polymers", "what is the
   boiling point of toluene") that don't need a specialist.
-- Always delegate to subagents ONE AT A TIME. Never launch multiple task() calls in a
-  single response. Wait for each subagent to finish before launching the next one.
+- Delegate to subagents one at a time UNLESS the [ROUTING] hint explicitly instructs
+  you to launch two task() calls in parallel. In that case, include both task() calls
+  in a single response. Never launch more than two task() calls at once.
 
 ## Guidelines
 - Selectivity >= 5 is the minimum viability threshold.
@@ -94,34 +95,53 @@ def _build_subagents() -> list[SubAgent]:
                 "selective solubility analysis, finding optimal separation conditions."
             ),
             system_prompt=(
-                "You are a separation engineering specialist. Your key tools:\n"
-                "- find_optimal_separation_sequence: finds optimal separation order "
-                "using greedy, DP, or branch-and-bound algorithms. Supports "
+                "You are a separation engineering specialist.\n\n"
+                "## WORKFLOW (follow this sequence exactly)\n"
+                "1. PLAN: Call plan_sequential_separation or "
+                "find_optimal_separation_sequence with the full polymer list "
+                "and target conditions.\n"
+                "2. VERIFY (optional, max 2 calls): If needed, call "
+                "calculate_selectivity_detailed for ONE or TWO critical pairs "
+                "to confirm the plan. Do NOT verify every pair.\n"
+                "3. SYNTHESIZE: Write your final answer summarizing the "
+                "separation plan, key selectivities, recommended temperatures, "
+                "and any caveats.\n\n"
+                "## HARD RULES\n"
+                "- Maximum 8 tool calls total. After that you MUST synthesize.\n"
+                "- After plan_sequential_separation or "
+                "find_optimal_separation_sequence returns, go DIRECTLY to "
+                "step 3 (synthesize). At most 2 verification calls.\n"
+                "- Do NOT call calculate_selectivity_detailed, "
+                "analyze_selective_solubility_enhanced, or "
+                "analyze_precipitation_temperature more than 2 times each.\n"
+                "- Do NOT call build_compatibility_matrix unless specifically "
+                "asked for a compatibility overview.\n\n"
+                "## KEY TOOLS\n"
+                "- find_optimal_separation_sequence: optimal separation order "
+                "(greedy/DP/branch-and-bound). "
                 "algorithm='greedy'/'dp'/'branch_and_bound'/'auto'/'compare'.\n"
-                "- plan_sequential_separation: detailed multi-step separation planning\n"
-                "- calculate_selectivity_detailed: single-pair selectivity check\n"
-                "- rank_solvents_for_separation: rank solvents by multi-criteria scoring\n"
-                "- find_optimal_separation_conditions: adaptive separation condition finder\n"
-                "- analyze_selective_solubility_enhanced: enhanced selective solubility analysis\n"
-                "- Precipitation/antisolvent tools for differential dissolution\n"
-                "Always use find_optimal_separation_sequence when asked for a "
-                "separation sequence or to optimize separation order.\n\n"
-                "IMPORTANT: After calling find_optimal_separation_sequence or "
-                "plan_sequential_separation and receiving results, synthesize your "
-                "findings into a clear final answer immediately. Do NOT exhaustively "
-                "validate results with other tools. Limit yourself to 5-8 tool calls "
-                "total. Use build_compatibility_matrix only when specifically asked "
-                "for a compatibility overview.\n\n"
-                "CONSTRAINT: Never recommend a solvent at a temperature above its "
-                "boiling point. All operations are at atmospheric pressure — no "
-                "pressurized vessels. Exclude any solvent whose boiling point is at "
-                "or below the requested temperature."
+                "- plan_sequential_separation: detailed multi-step separation "
+                "planning\n"
+                "- calculate_selectivity_detailed: single-pair selectivity\n"
+                "- rank_solvents_for_separation: multi-criteria solvent ranking\n"
+                "- find_optimal_separation_conditions: adaptive condition finder\n"
+                "- Precipitation/antisolvent tools for differential dissolution\n\n"
+                "## CONSTRAINT\n"
+                "Never recommend a solvent at a temperature above its boiling "
+                "point. All operations are at atmospheric pressure."
             ),
             tools=(
                 get_separation_core_tools()
                 + get_adaptive_separation_tools()
             ),
-            middleware=[SubagentGuardMiddleware()],
+            middleware=[SubagentGuardMiddleware(
+                max_tool_calls=8,
+                synthesis_tools={
+                    "plan_sequential_separation",
+                    "find_optimal_separation_sequence",
+                },
+                truncate_tool_results_after=2000,
+            )],
         ),
         SubAgent(
             name="safety-analyst",
