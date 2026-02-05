@@ -17,20 +17,24 @@ from deepagents.graph import create_deep_agent  # noqa: E402
 from deepagents.middleware.subagents import SubAgent  # noqa: E402
 from langchain.chat_models import init_chat_model  # noqa: E402
 
+from .guardrails import SubagentGuardMiddleware  # noqa: E402
+from .routing import generate_routing_table, routing_middleware  # noqa: E402
 from .tools import (  # noqa: E402
+    get_adaptive_separation_tools,
     get_core_tools,
-    get_advanced_separation_tools,
-    get_statistical_tools,
-    get_safety_gsk_tools,
-    get_safety_pubchem_tools,
-    get_tea_lca_tools,
-    get_strap_process_tools,
-    get_scholar_tools,
+    get_ml_prediction_tools,
     get_patent_tools,
     get_rag_core_tools,
     get_rag_diagnostics_tools,
+    get_safety_gsk_tools,
+    get_safety_pubchem_tools,
+    get_scholar_tools,
+    get_separation_core_tools,
+    get_separation_plot_tools,
+    get_statistical_tools,
+    get_strap_process_tools,
+    get_tea_lca_tools,
     get_visualization_tools,
-    get_ml_prediction_tools,
 )
 
 SYSTEM_PROMPT = """\
@@ -49,42 +53,32 @@ Use the tools to discover which polymers and solvents are available.
 - **Database query tools** — list tables, describe schemas, run SQL, validate data
 - **Listing tools** — discover available polymers and solvents
 - **Solvent property tools** — look up boiling point, LogP, Cp, Energy, rank by property
-- **Adaptive separation tools** — find optimal conditions, selective solubility analysis
 
-## Specialist subagents (spawned on demand)
-You can delegate to these specialists when needed:
+{routing_table}
 
-1. **separation-engineer** — advanced separation algorithms (greedy/DP/branch-and-bound),
-   sequence planning, integrated analysis, precipitation & antisolvent methods
-2. **safety-analyst** — GSK G-scores, PubChem GHS hazard data, toxicity (LD50/LC50),
-   safety comparisons and visualizations
-3. **tea-lca-analyst** — techno-economic analysis, life cycle assessment, STRAP process
-   economics, MSP calculation, scale economics, scenario comparison
-4. **scholar-researcher** — Google Scholar, Web of Science search, save papers to RAG
-5. **patent-researcher** — Google Patents search, patent lookup, save patents to RAG
-6. **rag-analyst** — RAG ingestion, literature Q&A, chunk quality, diagnostics
-7. **visualization-specialist** — solubility curves, selectivity heatmaps, multi-panel
-   analysis, comparison dashboards, precipitation curves
-8. **statistics-ml** — statistical summaries, correlation, regression, group comparisons,
-   ML solubility prediction via Hansen parameters
-
-## Delegation rules
-- **Always delegate** to the separation-engineer for: separation sequences, multi-polymer
-  separation planning, greedy/DP/branch-and-bound algorithms, precipitation, antisolvents.
-  The separation-engineer has `find_optimal_separation_sequence` which handles sequence
-  optimization — do NOT attempt to replicate this with your core tools.
-- **Always delegate** to the safety-analyst, tea-lca-analyst, visualization-specialist,
-  statistics-ml, scholar-researcher, patent-researcher, or rag-analyst when the query
-  falls within their domain.
-- Your core tools are for quick lookups and simple selectivity analysis only.
+## Delegation policy
+- When a [ROUTING: ...] hint appears, your VERY NEXT action must be the task() call
+  it specifies. Do NOT call query_database, list_tables, or any other tool before
+  delegating — the subagent already has everything it needs.
+- After a subagent returns results, synthesize them into a final answer for the user.
+  Do NOT run additional database queries to validate or expand subagent results.
+- Your role is to route, synthesize subagent results, and answer simple data lookups.
+  Use your direct tools only for quick lookups (e.g. "list polymers", "what is the
+  boiling point of toluene") that don't need a specialist.
+- Always delegate to subagents ONE AT A TIME. Never launch multiple task() calls in a
+  single response. Wait for each subagent to finish before launching the next one.
 
 ## Guidelines
 - Selectivity >= 5 is the minimum viability threshold.
 - Always state the temperature used.
+- **NEVER recommend a solvent at a temperature above its boiling point.** All
+  separations operate at atmospheric pressure — no pressurized vessels. If the
+  user requests a temperature, exclude any solvent whose boiling point is at or
+  below that temperature.
 - When uncertain, run a broad ranking first, then zoom in with selectivity.
 - Suggest multi-step separation cascades for challenging mixtures.
-- Flag safety and environmental concerns for each recommended solvent.
-"""
+- Mention safety and environmental concerns only if the user asks.
+""".format(routing_table=generate_routing_table())
 
 
 def _build_subagents() -> list[SubAgent]:
@@ -94,9 +88,10 @@ def _build_subagents() -> list[SubAgent]:
             name="separation-engineer",
             description=(
                 "Advanced separation specialist. Use for: optimal separation sequences "
-                "(greedy/DP/branch-and-bound), sequential separation planning, integrated "
-                "separation analysis, differential precipitation, antisolvent methods, "
-                "atmospheric feasibility checks, polymer dissolution analysis."
+                "(greedy/DP/branch-and-bound), sequential separation planning, "
+                "differential precipitation, antisolvent methods, "
+                "atmospheric feasibility checks, polymer dissolution analysis, "
+                "selective solubility analysis, finding optimal separation conditions."
             ),
             system_prompt=(
                 "You are a separation engineering specialist. Your key tools:\n"
@@ -106,11 +101,27 @@ def _build_subagents() -> list[SubAgent]:
                 "- plan_sequential_separation: detailed multi-step separation planning\n"
                 "- calculate_selectivity_detailed: single-pair selectivity check\n"
                 "- rank_solvents_for_separation: rank solvents by multi-criteria scoring\n"
+                "- find_optimal_separation_conditions: adaptive separation condition finder\n"
+                "- analyze_selective_solubility_enhanced: enhanced selective solubility analysis\n"
                 "- Precipitation/antisolvent tools for differential dissolution\n"
                 "Always use find_optimal_separation_sequence when asked for a "
-                "separation sequence or to optimize separation order."
+                "separation sequence or to optimize separation order.\n\n"
+                "IMPORTANT: After calling find_optimal_separation_sequence or "
+                "plan_sequential_separation and receiving results, synthesize your "
+                "findings into a clear final answer immediately. Do NOT exhaustively "
+                "validate results with other tools. Limit yourself to 5-8 tool calls "
+                "total. Use build_compatibility_matrix only when specifically asked "
+                "for a compatibility overview.\n\n"
+                "CONSTRAINT: Never recommend a solvent at a temperature above its "
+                "boiling point. All operations are at atmospheric pressure — no "
+                "pressurized vessels. Exclude any solvent whose boiling point is at "
+                "or below the requested temperature."
             ),
-            tools=get_advanced_separation_tools(),
+            tools=(
+                get_separation_core_tools()
+                + get_adaptive_separation_tools()
+            ),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="safety-analyst",
@@ -128,6 +139,7 @@ def _build_subagents() -> list[SubAgent]:
                 get_safety_gsk_tools()
                 + get_safety_pubchem_tools()
             ),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="tea-lca-analyst",
@@ -146,6 +158,7 @@ def _build_subagents() -> list[SubAgent]:
                 get_tea_lca_tools()
                 + get_strap_process_tools()
             ),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="scholar-researcher",
@@ -160,6 +173,7 @@ def _build_subagents() -> list[SubAgent]:
                 "summarize relevant research."
             ),
             tools=get_scholar_tools(),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="patent-researcher",
@@ -173,6 +187,7 @@ def _build_subagents() -> list[SubAgent]:
                 "also save patent PDFs to RAG for later analysis."
             ),
             tools=get_patent_tools(),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="rag-analyst",
@@ -191,20 +206,28 @@ def _build_subagents() -> list[SubAgent]:
                 get_rag_core_tools()
                 + get_rag_diagnostics_tools()
             ),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="visualization-specialist",
             description=(
                 "Data visualization specialist. Use for: solubility vs temperature plots, "
                 "interactive Plotly charts, selectivity heatmaps, multi-panel analysis, "
-                "comparison dashboards, precipitation curves, process flow diagrams."
+                "comparison dashboards, precipitation curves, process flow diagrams, "
+                "separation tree plots, atmospheric feasibility plots."
             ),
             system_prompt=(
                 "You are a data visualization specialist. You have tools for creating "
                 "publication-quality plots of solubility data, heatmaps, dashboards, "
-                "and process diagrams. Create clear, informative visualizations."
+                "process diagrams, and separation-specific visualizations (separation "
+                "trees, selectivity heatmaps, precipitation curves, atmospheric "
+                "feasibility). Create clear, informative visualizations."
             ),
-            tools=get_visualization_tools(),
+            tools=(
+                get_visualization_tools()
+                + get_separation_plot_tools()
+            ),
+            middleware=[SubagentGuardMiddleware()],
         ),
         SubAgent(
             name="statistics-ml",
@@ -223,11 +246,12 @@ def _build_subagents() -> list[SubAgent]:
                 get_statistical_tools()
                 + get_ml_prediction_tools()
             ),
+            middleware=[SubagentGuardMiddleware()],
         ),
     ]
 
 
-def create_dissolve_agent(model_name: str = "anthropic:claude-sonnet-4-5-20250929"):
+def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview"):
     """Create and return a compiled DISSOLVE deep agent with subagents."""
     model = init_chat_model(model_name)
     agent = create_deep_agent(
@@ -235,6 +259,7 @@ def create_dissolve_agent(model_name: str = "anthropic:claude-sonnet-4-5-2025092
         tools=get_core_tools(),
         subagents=_build_subagents(),
         system_prompt=SYSTEM_PROMPT,
+        middleware=[routing_middleware],
         name="dissolve-agent",
     )
     return agent

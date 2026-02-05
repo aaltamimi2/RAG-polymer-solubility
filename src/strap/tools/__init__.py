@@ -168,17 +168,59 @@ def get_advanced_separation_tools() -> list:
     ])
 
 
+def get_separation_core_tools() -> list:
+    """Advanced separation tools excluding visualization (for separation-engineer).
+
+    17 tools: advanced_separation minus 5 viz tools minus analyze_integrated_separation.
+    """
+    return _safe_import("strap.tools.advanced_separation", [
+        "find_optimal_separation_sequence",
+        "optimize_separation_temperature",
+        "calculate_selectivity_detailed",
+        "rank_solvents_for_separation",
+        "build_compatibility_matrix",
+        "find_challenging_polymer_pairs",
+        "plan_sequential_separation",
+        "view_alternative_separation_sequence",
+        "find_differential_precipitation_solvents",
+        "analyze_multi_polymer_precipitation",
+        "analyze_precipitation_temperature",
+        "compare_polymer_pairs_precipitation",
+        "check_atmospheric_feasibility",
+        "check_multi_polymer_atmospheric_feasibility",
+        "find_antisolvents",
+        "find_antisolvent_pairs",
+        "analyze_selective_antisolvent_precipitation",
+    ])
+
+
+def get_separation_plot_tools() -> list:
+    """Separation visualization tools (for visualization-specialist)."""
+    return _safe_import("strap.tools.advanced_separation", [
+        "create_separation_tree_plot",
+        "create_selectivity_heatmap",
+        "create_process_flow_diagram",
+        "plot_precipitation_curves",
+        "plot_atmospheric_feasibility",
+    ])
+
+
 # ------------------------------------------------------------------
 # Grouped getters for subagent wiring
 # ------------------------------------------------------------------
 
 def get_core_tools() -> list:
-    """Tools always available to the main agent."""
+    """Tools always available to the main agent.
+
+    Core = database_query (5) + listing (2) + solvent_property (2) = 9 tools.
+    Adaptive separation tools are now exclusive to separation-engineer to
+    avoid tool overlap that causes the orchestrator to handle specialist
+    queries directly.
+    """
     return (
         get_database_query_tools()
         + get_listing_tools()
         + get_solvent_property_tools()
-        + get_adaptive_separation_tools()
     )
 
 

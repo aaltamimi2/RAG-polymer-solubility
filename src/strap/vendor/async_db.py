@@ -7,6 +7,7 @@ while still allowing concurrent execution of other async operations.
 """
 
 import asyncio
+import threading
 import duckdb
 import pandas as pd
 from typing import List, Union
@@ -46,7 +47,7 @@ class AsyncDuckDBWrapper:
             sync_conn: Existing synchronous DuckDB connection
         """
         self.sync_conn = sync_conn
-        self._lock = asyncio.Lock()
+        self._lock = threading.Lock()
         logger.info("AsyncDuckDBWrapper initialized")
 
     async def execute_async(self, query: str) -> pd.DataFrame:
@@ -54,7 +55,8 @@ class AsyncDuckDBWrapper:
         Execute single query asynchronously with lock protection.
 
         The query runs in a thread pool to avoid blocking the event loop,
-        and the lock ensures only one query accesses the DB at a time.
+        and a threading.Lock ensures only one query accesses the DB at a time
+        (works correctly across different asyncio event loops).
 
         Args:
             query: SQL query string
@@ -65,16 +67,16 @@ class AsyncDuckDBWrapper:
         Raises:
             Exception: If query execution fails
         """
-        async with self._lock:
-            def _execute():
+        def _execute():
+            with self._lock:
                 return self.sync_conn.execute(query).fetchdf()
 
-            try:
-                result = await run_in_thread(_execute)
-                return result
-            except Exception as e:
-                logger.error(f"Query failed: {query[:100]}... Error: {e}")
-                raise
+        try:
+            result = await run_in_thread(_execute)
+            return result
+        except Exception as e:
+            logger.error(f"Query failed: {query[:100]}... Error: {e}")
+            raise
 
     async def execute_many_async(self, queries: List[str]) -> List[pd.DataFrame]:
         """
@@ -115,8 +117,8 @@ class AsyncDuckDBWrapper:
         Returns:
             Dictionary with 'dataframe', 'preview', 'row_count' keys
         """
-        async with self._lock:
-            def _execute():
+        def _execute():
+            with self._lock:
                 df = self.sync_conn.execute(query).fetchdf()
                 preview = df.head(50).to_string() if len(df) > 0 else "No results"
                 return {
@@ -125,12 +127,12 @@ class AsyncDuckDBWrapper:
                     "row_count": len(df)
                 }
 
-            try:
-                result = await run_in_thread(_execute)
-                return result
-            except Exception as e:
-                logger.error(f"Query failed: {query[:100]}... Error: {e}")
-                raise
+        try:
+            result = await run_in_thread(_execute)
+            return result
+        except Exception as e:
+            logger.error(f"Query failed: {query[:100]}... Error: {e}")
+            raise
 
     async def get_table_schema_async(self, table_name: str) -> dict:
         """
