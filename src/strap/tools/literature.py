@@ -141,7 +141,26 @@ def _download_and_ingest(
                     rag_sys.create_kb(knowledgebase, switch_to=True)
                 prev_kb = knowledgebase
 
-            result = rag_sys.ingest_pdfs(downloaded, incremental=True)
+            # Auto-detect image-based PDFs (e.g. USPTO patents) and enable OCR
+            needs_ocr = False
+            try:
+                import PyPDF2
+
+                for p in downloaded:
+                    reader = PyPDF2.PdfReader(p)
+                    sample_text = "".join(
+                        reader.pages[i].extract_text() or ""
+                        for i in range(min(3, len(reader.pages)))
+                    )
+                    if len(sample_text.strip()) < 50:
+                        needs_ocr = True
+                        break
+            except Exception:
+                pass
+
+            result = rag_sys.ingest_pdfs(
+                downloaded, incremental=True, use_ocr=needs_ocr,
+            )
             n_chunks = result.get("total_chunks", "?")
             kb_used = result.get("kb_name", knowledgebase or "default")
             output.append(
@@ -463,10 +482,15 @@ def search_google_patents(
             dl_items = []
             for p in candidates:
                 pid = p.get("patent_id", "")
-                pdf_url = p.get("pdf_link") or f"https://patents.google.com/patent/{pid}/download"
+                # Prefer USPTO direct PDF; fall back to Google Patents
+                num = pid.lstrip("US") if pid.startswith("US") else pid
+                pdf_url = (
+                    p.get("pdf_link")
+                    or f"https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/{num}"
+                )
                 dl_items.append({
                     "url": pdf_url,
-                    "alt_url": f"https://patentimages.storage.googleapis.com/pdfs/{pid}.pdf",
+                    "alt_url": f"https://patents.google.com/patent/{pid}/download",
                     "filename": f"{pid}_{p.get('title', 'patent')[:40]}",
                     "title": p.get("title", pid),
                 })
@@ -615,7 +639,7 @@ def search_patentsview(
         output.append(f"**Results Shown:** {len(patents)}")
         output.append("**Source:** PatentsView (USPTO) — US granted patents only")
 
-        # --- save_to_rag (construct Google Patents PDF URLs from patent IDs) ---
+        # --- save_to_rag (construct USPTO PDF URLs from patent IDs) ---
         if save_to_rag:
             candidates = sorted(
                 patents,
@@ -626,9 +650,11 @@ def search_patentsview(
             dl_items = []
             for p in candidates:
                 pid = p.get("patent_id", "")
+                # Strip "US" prefix for USPTO URL
+                num = pid.lstrip("US") if pid.startswith("US") else pid
                 dl_items.append({
-                    "url": f"https://patents.google.com/patent/{pid}/download",
-                    "alt_url": f"https://patentimages.storage.googleapis.com/pdfs/{pid}.pdf",
+                    "url": f"https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/{num}",
+                    "alt_url": f"https://patents.google.com/patent/{pid}/download",
                     "filename": f"{pid}_{p.get('title', 'patent')[:40]}",
                     "title": p.get("title", pid),
                 })
