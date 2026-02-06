@@ -113,18 +113,19 @@ def get_literature_tools() -> list:
     return _safe_import("strap.tools.literature", [
         "search_google_scholar", "search_google_patents",
         "lookup_patent", "search_web_of_science",
+        "search_arxiv", "search_patentsview",
     ])
 
 
 def get_scholar_tools() -> list:
     return _safe_import("strap.tools.literature", [
-        "search_google_scholar", "search_web_of_science",
+        "search_google_scholar", "search_web_of_science", "search_arxiv",
     ])
 
 
 def get_patent_tools() -> list:
     return _safe_import("strap.tools.literature", [
-        "search_google_patents", "lookup_patent",
+        "search_google_patents", "lookup_patent", "search_patentsview",
     ])
 
 

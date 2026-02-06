@@ -116,7 +116,7 @@ class GooglePatentsClient:
 
         params = {
             'q': query,
-            'num': min(num_results, 100)
+            'num': max(10, min(num_results, 100))
         }
 
         # Add optional filters

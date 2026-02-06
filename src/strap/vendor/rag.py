@@ -73,6 +73,12 @@ except ImportError:
     PDF_PROCESSING_AVAILABLE = False
 
 try:
+    from paddleocr import PaddleOCR as _PaddleOCR
+    PADDLE_OCR_AVAILABLE = True
+except ImportError:
+    PADDLE_OCR_AVAILABLE = False
+
+try:
     from sentence_transformers import SentenceTransformer, CrossEncoder
     EMBEDDINGS_AVAILABLE = True
 except ImportError:
@@ -113,6 +119,11 @@ try:
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False
+
+# Backward-compat alias: chunk_store_v2.pkl was serialized under the old module
+# name "rag_module".  Register this module under that name so pickle can find
+# the classes (ChunkStore, TextChunk, etc.) during deserialization.
+sys.modules.setdefault("rag_module", sys.modules[__name__])
 
 # =============================================================================
 # CONFIGURATION - MODIFY THESE PARAMETERS FOR YOUR ANALYSIS
@@ -1829,10 +1840,49 @@ class PDFProcessor:
             )
             if not images:
                 return ""
+
+            # PaddleOCR (primary) — run in subprocess to avoid OOM when
+            # RAG embedding models are already loaded in the main process.
+            if PADDLE_OCR_AVAILABLE:
+                text = self._paddle_ocr_subprocess(images[0])
+                if text:
+                    return text
+
+            # Tesseract fallback
             return pytesseract.image_to_string(images[0], lang=self.ocr_lang)
         except Exception as e:
             logger.error(f"OCR failed for page {page_num}: {e}")
             return ""
+
+    @staticmethod
+    def _paddle_ocr_subprocess(pil_image) -> str:
+        """Run PaddleOCR in a child process to isolate memory usage."""
+        import subprocess, tempfile, json
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                pil_image.save(tmp.name)
+                tmp_path = tmp.name
+
+            script = (
+                "import json, sys; "
+                "from paddleocr import PaddleOCR; "
+                "ocr = PaddleOCR(use_angle_cls=True, lang='en', show_log=False); "
+                f"r = ocr.ocr('{tmp_path}', cls=True); "
+                "lines = [l[1][0] for l in r[0]] if r and r[0] else []; "
+                "print(json.dumps(lines))"
+            )
+            result = subprocess.run(
+                [sys.executable, "-c", script],
+                capture_output=True, text=True, timeout=120,
+            )
+            os.unlink(tmp_path)
+
+            if result.returncode == 0 and result.stdout.strip():
+                lines = json.loads(result.stdout.strip())
+                return "\n".join(lines)
+        except Exception as e:
+            logger.debug(f"PaddleOCR subprocess failed: {e}")
+        return ""
 
     def _clean_text(self, text: str) -> str:
         """Clean extracted text."""
