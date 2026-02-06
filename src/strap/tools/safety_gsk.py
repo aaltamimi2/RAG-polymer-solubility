@@ -158,10 +158,22 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
                     output = [f"**GSK G-Score Analysis**\n"]
                     output.append(f"Fuzzy matched '{solvent_name}' -> '{matched_name}' (confidence: {match_result['score']}%)\n")
             else:
-                return f"No G-score data found for '{solvent_name}'. The GSK dataset contains 153 solvents. Try `list_tables()` to see available solvents."
+                return (
+                    f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
+                    f"(154 solvents). Do NOT estimate or fabricate a G-score. "
+                    f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
+                    f"retrieve GHS hazard classification from PubChem as a fallback. "
+                    f"Report this solvent as 'Not in GSK database' in your assessment."
+                )
 
         if len(result) == 0:
-            return f"No G-score data found for '{solvent_name}'. The GSK dataset contains 153 solvents."
+            return (
+                f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
+                f"(154 solvents). Do NOT estimate or fabricate a G-score. "
+                f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
+                f"retrieve GHS hazard classification from PubChem as a fallback. "
+                f"Report this solvent as 'Not in GSK database' in your assessment."
+            )
 
         # Format output
         if 'output' not in locals():
@@ -204,7 +216,8 @@ async def get_family_alternatives(
     solvent_name: str,
     min_gscore: Optional[float] = None,
     limit: int = 10,
-    use_fuzzy_matching: bool = True
+    use_fuzzy_matching: bool = True,
+    family_override: Optional[str] = None,
 ) -> str:
     """Find safer alternative solvents from the same chemical family, ranked by G-score.
 
@@ -213,39 +226,56 @@ async def get_family_alternatives(
         min_gscore: Minimum G-score threshold (0-10), or None for all
         limit: Maximum number of alternatives to return
         use_fuzzy_matching: If True, attempt fuzzy name matching
+        family_override: If provided, query this chemical family directly instead
+            of looking up the solvent's family. Use when the solvent is not in the
+            GSK dataset. Valid families: Alcohols, Aromatics, Carbonates,
+            Dipolar Aprotics, Esters, Ethers, Halogenated, Hydrocarbons,
+            Ketones, Other, water and acids.
 
     WHEN TO USE:
     - "What are safer alternatives to toluene in the same family?"
     - "Find greener substitutes for DCM"
     - "List alcohols with G-score above 7"
+    - "Nitrobenzene is not in GSK -- show me safer Aromatics"
     """
     try:
         async_db = _get_async_db()
 
-        # First, find the family of the input solvent
-        query = f"""
-        SELECT classification
-        FROM gsk_dataset
-        WHERE LOWER(solvent_common_name) = LOWER('{solvent_name}')
-        """
+        if family_override is not None:
+            # Use the provided family directly (skip solvent lookup)
+            family = family_override
+        else:
+            # First, find the family of the input solvent
+            query = f"""
+            SELECT classification
+            FROM gsk_dataset
+            WHERE LOWER(solvent_common_name) = LOWER('{solvent_name}')
+            """
 
-        family_result = await async_db.execute_async(query)
+            family_result = await async_db.execute_async(query)
 
-        # Try fuzzy matching if no exact match
-        if len(family_result) == 0 and use_fuzzy_matching:
-            match_result = _fuzzy_match_solvent_name(solvent_name, dataset="gsk", threshold=80)
-            if match_result:
-                query = f"""
-                SELECT classification
-                FROM gsk_dataset
-                WHERE LOWER(solvent_common_name) = LOWER('{match_result["matched_name"]}')
-                """
-                family_result = await async_db.execute_async(query)
+            # Try fuzzy matching if no exact match
+            if len(family_result) == 0 and use_fuzzy_matching:
+                match_result = _fuzzy_match_solvent_name(solvent_name, dataset="gsk", threshold=80)
+                if match_result:
+                    query = f"""
+                    SELECT classification
+                    FROM gsk_dataset
+                    WHERE LOWER(solvent_common_name) = LOWER('{match_result["matched_name"]}')
+                    """
+                    family_result = await async_db.execute_async(query)
 
-        if len(family_result) == 0:
-            return f"Could not find solvent '{solvent_name}' in GSK dataset."
+            if len(family_result) == 0:
+                return (
+                    f"**NOT FOUND**: Could not find solvent '{solvent_name}' in GSK dataset. "
+                    f"To browse a family directly, call get_family_alternatives("
+                    f"solvent_name='{solvent_name}', family_override='<family>') where "
+                    f"<family> is one of: Alcohols, Aromatics, Carbonates, "
+                    f"Dipolar Aprotics, Esters, Ethers, Halogenated, Hydrocarbons, "
+                    f"Ketones, Other, water and acids."
+                )
 
-        family = family_result.iloc[0]['classification']
+            family = family_result.iloc[0]['classification']
 
         # Get all solvents from the same family
         min_score_clause = f"AND g_score >= {min_gscore}" if min_gscore is not None else ""
