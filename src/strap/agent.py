@@ -184,13 +184,20 @@ def _build_subagents() -> list[SubAgent]:
             name="scholar-researcher",
             description=(
                 "Scientific literature specialist. Use for: searching Google Scholar, "
-                "Web of Science, downloading open-access papers, saving articles to RAG."
+                "Web of Science, arXiv (open-access with free PDFs), downloading papers, "
+                "saving articles to RAG with relevancy filtering."
             ),
             system_prompt=(
-                "You are a scientific literature specialist. You have tools for "
-                "searching Google Scholar and Web of Science. You can also save "
-                "open-access papers directly to RAG for later analysis. Find and "
-                "summarize relevant research."
+                "You are a scientific literature specialist. You have tools for:\n"
+                "- search_google_scholar: broad academic search via SerpAPI\n"
+                "- search_web_of_science: peer-reviewed articles via Clarivate\n"
+                "- search_arxiv: open-access preprints with free PDF downloads\n\n"
+                "Use search_arxiv when you need freely downloadable papers for RAG "
+                "ingestion (all arXiv papers are open-access). All search tools support "
+                "relevancy filtering (filter_relevant=True) and save_to_rag to ingest "
+                "the best papers. Set max_save to control how many papers to save "
+                "(default: 2). Use knowledgebase='name' to create a new collection "
+                "or add to an existing one."
             ),
             tools=get_scholar_tools(),
             middleware=[SubagentGuardMiddleware()],
@@ -198,13 +205,22 @@ def _build_subagents() -> list[SubAgent]:
         SubAgent(
             name="patent-researcher",
             description=(
-                "Patent search specialist. Use for: searching Google Patents, looking up "
-                "specific patents by number, downloading patent PDFs, saving patents to RAG."
+                "Patent search specialist. Use for: searching Google Patents (global), "
+                "searching PatentsView (US USPTO granted patents with full abstracts), "
+                "looking up specific patents by number, downloading patent PDFs, saving patents to RAG."
             ),
             system_prompt=(
-                "You are a patent research specialist. You have tools for searching "
-                "Google Patents and looking up specific patents by number. You can "
-                "also save patent PDFs to RAG for later analysis."
+                "You are a patent research specialist. You have tools for:\n"
+                "- search_google_patents: broad global patent search via SerpAPI\n"
+                "- search_patentsview: detailed US patent search with full abstracts (USPTO)\n"
+                "- lookup_patent: look up a specific patent by number\n\n"
+                "Use search_patentsview for detailed US patent data and abstracts. "
+                "Use search_google_patents for international or broader searches. "
+                "All search tools support relevancy filtering (filter_relevant=True) "
+                "and save_to_rag to download and ingest the best patent PDFs. "
+                "Set max_save to control how many patents to save (default: 2). "
+                "Use knowledgebase='name' to create a new collection or add to "
+                "an existing one."
             ),
             tools=get_patent_tools(),
             middleware=[SubagentGuardMiddleware()],
@@ -217,16 +233,46 @@ def _build_subagents() -> list[SubAgent]:
                 "documents, chunk quality checks, retrieval diagnostics, embedding analysis."
             ),
             system_prompt=(
-                "You are a RAG analysis specialist. You have tools for ingesting "
-                "documents, searching indexed literature, answering questions from "
-                "literature, and running diagnostics on retrieval quality. Help users "
-                "build and query their literature knowledge base."
+                "You are a RAG analysis specialist.\n\n"
+                "## WORKFLOW (follow this sequence exactly)\n"
+                "1. CHECK: Call get_rag_status to see which knowledgebases "
+                "are available and active.\n"
+                "2. SEARCH: Call search_literature_rag (1-3 times max) or "
+                "ask_literature to find relevant passages.\n"
+                "3. SYNTHESIZE: Write your final answer summarizing what "
+                "the literature says, citing sources and page numbers.\n\n"
+                "## HARD RULES\n"
+                "- Maximum 8 tool calls total. After that you MUST synthesize.\n"
+                "- After search_literature_rag or ask_literature returns "
+                "results, go DIRECTLY to step 3 (synthesize) unless you "
+                "need a different search query.\n"
+                "- Do NOT call search_literature_rag more than 3 times.\n"
+                "- Do NOT use filesystem tools (grep, ls, glob, read_file, "
+                "write_file, edit_file). You have RAG tools for searching "
+                "literature — use those instead.\n"
+                "- write_todos is allowed for planning.\n\n"
+                "## KEY TOOLS\n"
+                "- get_rag_status: check available knowledgebases and "
+                "document counts\n"
+                "- search_literature_rag: semantic + keyword hybrid search "
+                "over indexed papers\n"
+                "- ask_literature: ask a natural language question and get "
+                "a synthesized answer from the literature\n"
+                "- ingest_pdf_to_rag / download_pdf_to_rag: add new papers\n"
+                "- check_rag_chunk_quality: diagnostics on retrieval quality"
             ),
             tools=(
                 get_rag_core_tools()
                 + get_rag_diagnostics_tools()
             ),
-            middleware=[SubagentGuardMiddleware()],
+            middleware=[SubagentGuardMiddleware(
+                max_tool_calls=8,
+                synthesis_tools={
+                    "search_literature_rag",
+                    "ask_literature",
+                },
+                truncate_tool_results_after=2000,
+            )],
         ),
         SubAgent(
             name="visualization-specialist",

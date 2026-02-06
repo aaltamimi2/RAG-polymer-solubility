@@ -114,6 +114,11 @@ try:
 except ImportError:
     GEMINI_AVAILABLE = False
 
+# Backward-compat alias: chunk_store_v2.pkl was serialized under the old module
+# name "rag_module".  Register this module under that name so pickle can find
+# the classes (ChunkStore, TextChunk, etc.) during deserialization.
+sys.modules.setdefault("rag_module", sys.modules[__name__])
+
 # =============================================================================
 # CONFIGURATION - MODIFY THESE PARAMETERS FOR YOUR ANALYSIS
 # =============================================================================
