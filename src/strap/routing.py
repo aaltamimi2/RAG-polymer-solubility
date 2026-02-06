@@ -264,17 +264,41 @@ def classify_query(messages: list) -> str | None:
             "\n\n[ROUTING: Your NEXT action must be a task() call. "
             "This requires two specialists in sequence.\n"
             f'Step 1: Delegate to "{first["subagent"]}" for {first["description"]}. '
-            "Do NOT run query_database or other tools first.\n"
-            f'Step 2: After receiving results, delegate to "{second["subagent"]}" '
-            f"for {second['description']}, including relevant results from Step 1 "
-            "in the task description.]"
+            "Do NOT run query_database or other tools first. "
+            "In the task description, instruct the subagent to write its findings to "
+            f'"/chain_state/step_1_{first["subagent"]}.md" using write_file.\n'
+            f'Step 2: Read the file from Step 1, then delegate to "{second["subagent"]}" '
+            f"for {second['description']}. In the task description, include a brief "
+            "summary of Step 1 results AND the file path "
+            f'"/chain_state/step_1_{first["subagent"]}.md" '
+            "so the subagent can read_file for full details. "
+            "Instruct it to write its findings to "
+            f'"/chain_state/step_2_{second["subagent"]}.md".\n'
+            "After Step 2 returns, read_file both chain_state files and "
+            "synthesize a final answer.]"
         )
 
-    # 3+ agents: sequential chain — delegate one at a time, passing results forward
+    # 3+ agents: sequential chain — delegate one at a time, writing results to files
     ordered = [m[2] for m in matches]
     steps = []
     for i, rule in enumerate(ordered, 1):
-        ctx = " Pass all prior results in the task description." if i > 1 else ""
+        file_path = f"/chain_state/step_{i}_{rule['subagent']}.md"
+        if i == 1:
+            ctx = (
+                " Instruct the subagent to write its findings to "
+                f'"{file_path}" using write_file.'
+            )
+        else:
+            prev_paths = ", ".join(
+                f'"/chain_state/step_{j}_{ordered[j-1]["subagent"]}.md"'
+                for j in range(1, i)
+            )
+            ctx = (
+                f" Before delegating, read_file the prior results ({prev_paths}). "
+                "Include a brief summary and the file path(s) in the task description "
+                "so the subagent can read_file for full details. "
+                f'Instruct the subagent to write its findings to "{file_path}".'
+            )
         steps.append(
             f'Step {i}: Delegate to "{rule["subagent"]}" for {rule["description"]}.{ctx}'
         )
@@ -283,8 +307,10 @@ def classify_query(messages: list) -> str | None:
     return (
         f"\n\n[ROUTING: This query requires {len(ordered)} specialists in sequence. "
         "Execute them ONE AT A TIME — call the first task() now, wait for its result, "
-        "then call the next.\n"
+        "then call the next. Each subagent writes its findings to a file in /chain_state/.\n"
         f"{step_text}\n"
+        "After all steps complete, read_file the chain_state files and synthesize "
+        "a final answer.\n"
         f'Your NEXT action must be: task(description="<step 1 task>", '
         f'subagent_type="{first_rule["subagent"]}"). '
         "Do NOT run query_database or other tools first.]"

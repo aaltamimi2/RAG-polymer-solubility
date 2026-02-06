@@ -45,12 +45,14 @@ class SubagentGuardMiddleware(AgentMiddleware):
         max_tool_calls: int = 10,
         synthesis_tools: set[str] | None = None,
         truncate_tool_results_after: int | None = None,
+        free_tools: set[str] | None = None,
     ) -> None:
         self._max_iterations = max_iterations
         self._token_budget = token_budget
         self._max_tool_calls = max_tool_calls
         self._synthesis_tools: set[str] = synthesis_tools or set()
         self._truncate_tool_results_after = truncate_tool_results_after
+        self._free_tools: set[str] = free_tools or set()
 
         # Per-invocation counters (reset in before_agent)
         self._iterations = 0
@@ -170,13 +172,21 @@ class SubagentGuardMiddleware(AgentMiddleware):
     def _enforce_tool_call_limit(
         self, response: ModelResponse
     ) -> ModelResponse | AIMessage:
-        """Count tool calls on the response and short-circuit if over budget."""
+        """Count tool calls on the response and short-circuit if over budget.
+
+        Tools listed in ``free_tools`` (e.g. ``think``) are excluded from the
+        count so reflection doesn't eat into the analysis budget.
+        """
         if not response.result:
             return response
         ai_msg = response.result[0]
         tool_calls = getattr(ai_msg, "tool_calls", None)
         if tool_calls:
-            self._total_tool_calls += len(tool_calls)
+            billable = [
+                tc for tc in tool_calls
+                if tc.get("name") not in self._free_tools
+            ]
+            self._total_tool_calls += len(billable)
         if self._total_tool_calls >= self._max_tool_calls:
             logger.warning(
                 "SubagentGuard: tool call limit (%d) reached at %d calls",

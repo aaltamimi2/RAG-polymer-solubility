@@ -79,6 +79,14 @@ def get_listing_tools() -> list:
     ])
 
 
+def get_interpolation_tools() -> list:
+    return _safe_import("strap.tools.interpolation", [
+        "predict_solubility",
+        "predict_solubility_range",
+        "list_interpolation_coverage",
+    ])
+
+
 def get_ml_prediction_tools() -> list:
     return _safe_import("strap.tools.ml_prediction", [
         "predict_solubility_ml",
@@ -194,6 +202,10 @@ def get_separation_core_tools() -> list:
     ])
 
 
+def get_reflection_tools() -> list:
+    return _safe_import("strap.tools.reflection", ["think"])
+
+
 def get_separation_plot_tools() -> list:
     """Separation visualization tools (for visualization-specialist)."""
     return _safe_import("strap.tools.advanced_separation", [
@@ -212,7 +224,8 @@ def get_separation_plot_tools() -> list:
 def get_core_tools() -> list:
     """Tools always available to the main agent.
 
-    Core = database_query (5) + listing (2) + solvent_property (2) = 9 tools.
+    Core = database_query (5) + listing (2) + solvent_property (2)
+         + interpolation (3) = 12 tools.
     Adaptive separation tools are now exclusive to separation-engineer to
     avoid tool overlap that causes the orchestrator to handle specialist
     queries directly.
@@ -221,6 +234,7 @@ def get_core_tools() -> list:
         get_database_query_tools()
         + get_listing_tools()
         + get_solvent_property_tools()
+        + get_interpolation_tools()
     )
 
 
@@ -235,6 +249,7 @@ def get_all_tools() -> list:
         get_safety_gsk_tools,
         get_safety_pubchem_tools,
         get_listing_tools,
+        get_interpolation_tools,
         get_ml_prediction_tools,
         get_tea_lca_tools,
         get_strap_process_tools,
