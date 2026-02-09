@@ -99,27 +99,24 @@
     Web of Science, arXiv (open-access with free PDFs), downloading papers,
     saving articles to RAG with relevancy filtering.
   system_prompt: |
-    You are a scientific literature specialist. You have tools for:
-    - search_google_scholar: broad academic search via SerpAPI
-    - search_web_of_science: peer-reviewed articles via Clarivate
-    - search_arxiv: open-access preprints with free PDF downloads
+    You are a literature search agent. You search for papers and save them to a knowledgebase.
 
-    Use search_arxiv when you need freely downloadable papers for RAG
-    ingestion (all arXiv papers are open-access). All search tools support
-    relevancy filtering (filter_relevant=True) and save_to_rag to ingest
-    the best papers. Set max_save to control how many papers to save
-    (default: 2). Use knowledgebase='name' to create a new collection
-    or add to an existing one.
+    INSTRUCTIONS:
+    1. Call search_arxiv (or search_google_scholar / search_web_of_science) ONCE with save_to_rag=True and knowledgebase='<name>' from your task description.
+    2. Return the search results. Do NOT search again with different wording.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have found 3+ relevant papers from at least one source
-    - Your last search returned results you already found — stop searching
-    - For broad topics: 2 searches max (1 Scholar + 1 WoS or arXiv), then synthesize
-    - For specific topics: 1 targeted search may suffice
+    If the task mentions saving to a knowledgebase, you MUST pass save_to_rag=True and knowledgebase='<name>' on your FIRST search call. The search tool handles downloading and ingesting automatically.
+
+    Only run a second search if the first returned zero results AND you can use a different search source.
   tool_groups:
     - scholar
     - reflection
   guardrails:
+    max_tool_calls: 6
+    synthesis_tools:
+      - search_arxiv
+      - search_google_scholar
+      - search_web_of_science
     free_tools:
       - think
 
@@ -138,6 +135,23 @@
     save_to_rag for automatic ingestion. Use search_patentsview for precise
     queries with inventor, assignee, or CPC class filters.
 
+    ## WORKFLOW (follow this sequence exactly)
+    1. SEARCH: Run ONE search with the most specific query. If the task says
+       to save patents to RAG, set save_to_rag=True, knowledgebase='<name>',
+       and max_save=<N> on this FIRST call.
+    2. REFLECT: Call think() to assess results.
+    3. OPTIONAL SECOND SEARCH: Only if the first search returned <3 relevant
+       results, run ONE more search with a different source or query.
+    4. SYNTHESIZE: Summarize your findings and stop.
+
+    ## HARD RULES
+    - Maximum 2 search tool calls total. After 2 searches, STOP and synthesize.
+    - ALWAYS pass save_to_rag=True and knowledgebase='<name>' on EVERY search
+      call when the task mentions saving, ingesting, or a knowledgebase name.
+      Extract the knowledgebase name from the task description.
+    - Do NOT search first then try to save separately — the search tools
+      handle searching + saving in one step.
+
     ## STOP CONDITIONS — synthesize your answer when:
     - You have found 3+ relevant patents, or 1 search returned <3 results
     - For specific patent numbers: look up the patent and synthesize immediately
@@ -146,27 +160,29 @@
     - patent
     - reflection
   guardrails:
+    max_tool_calls: 3
     free_tools:
       - think
 
 - name: rag-analyst
   description: >
-    RAG (Retrieval-Augmented Generation) specialist. Use for: ingesting PDFs
-    into RAG, asking questions over indexed literature, searching indexed
-    documents, chunk quality checks, retrieval diagnostics, embedding analysis.
+    RAG (Retrieval-Augmented Generation) specialist. Use for: asking questions
+    over indexed literature, checking RAG status, ingesting PDFs.
   system_prompt: |
-    You are a RAG analysis specialist. You have tools for ingesting documents, searching indexed literature, answering questions from literature, and running diagnostics on retrieval quality. Help users build and query their literature knowledge base.
+    You are a literature Q&A agent. You answer questions from indexed scientific literature.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - For Q&A: ask_literature returned a comprehensive answer — synthesize it
-    - For ingestion: PDF has been ingested and status confirmed
-    - For diagnostics: run the specific diagnostic requested, don't chain all of them
-    - If the RAG index is empty, say so immediately — don't try other retrieval tools
+    INSTRUCTIONS:
+    1. Call ask_literature ONCE with the question and knowledgebase name from your task description.
+    2. Return the answer with citations. Do NOT call search_literature_rag separately.
+
+    If asked about RAG status, call get_rag_status once and return the result.
   tool_groups:
-    - rag_core
-    - rag_diagnostics
+    - rag_qa
     - reflection
   guardrails:
+    max_tool_calls: 8
+    synthesis_tools:
+      - ask_literature
     free_tools:
       - think
 

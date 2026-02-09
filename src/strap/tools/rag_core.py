@@ -279,7 +279,8 @@ async def get_rag_status() -> str:
 async def ask_literature(
     question: str,
     top_k: int = 5,
-    max_context_tokens: int = 3000
+    max_context_tokens: int = 3000,
+    knowledgebase: Optional[str] = None,
 ) -> str:
     """Answer a question using synthesized context from indexed scientific literature.
 
@@ -287,6 +288,8 @@ async def ask_literature(
         question: Natural language question to answer
         top_k: Number of passages to consider (default: 5)
         max_context_tokens: Maximum tokens for context (default: 3000)
+        knowledgebase: Optional knowledgebase name to query. If provided, switches
+            to that KB before querying. If omitted, uses the currently active KB.
 
     WHEN TO USE:
     - "What are the environmental impacts of toluene?"
@@ -295,6 +298,16 @@ async def ask_literature(
     """
     try:
         rag_system = rag.get_rag_system()
+
+        # Switch to requested knowledgebase if specified
+        if knowledgebase:
+            try:
+                rag_system.switch_kb(knowledgebase)
+            except (ValueError, AttributeError):
+                try:
+                    rag_system.switch_knowledgebase(knowledgebase)
+                except Exception:
+                    logger.warning(f"Could not switch to KB '{knowledgebase}', using active KB")
 
         if not rag_system.is_ready():
             return ("⚠️ **Literature Database Not Ready**\n\n"

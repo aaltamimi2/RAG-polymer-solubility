@@ -197,7 +197,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 content=(
                     "[LIMIT] Tool call budget exhausted. You have used all "
                     "available tool calls. Synthesize your findings into a "
-                    "clear, complete answer NOW. Do NOT call any more tools."
+                    "clear, complete answer NOW. Do NOT call any more analysis "
+                    "tools. You may still use write_file and read_file."
                 ),
             )
         return response

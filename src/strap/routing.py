@@ -82,12 +82,13 @@ ROUTING_RULES: list[dict] = [
     {
         "subagent": "scholar-researcher",
         "priority": 4,
-        "description": "Google Scholar, Web of Science, research papers",
+        "description": "Google Scholar, Web of Science, arXiv, research papers",
         "phrases": [
             "google scholar", "web of science",
             "literature search", "research article",
+            "search arxiv",
         ],
-        "high_stems": ["scholar"],
+        "high_stems": ["scholar", "arxiv"],
         "low_stems": ["publication", "journal", "paper"],
         "negatives": [],
     },
@@ -106,9 +107,10 @@ ROUTING_RULES: list[dict] = [
         "description": "RAG ingestion, literature Q&A, retrieval diagnostics",
         "phrases": [
             r"literature q&a", "rag index", "chunk quality",
-            "retrieval diagnostics",
+            "retrieval diagnostics", "query that knowledgebase",
+            "query the knowledgebase",
         ],
-        "high_stems": ["rag", "ingest"],
+        "high_stems": ["rag", "ingest", "knowledgebase"],
         "low_stems": ["indexed", "embedding", "retrieval"],
         "negatives": [],
     },
@@ -260,22 +262,38 @@ def classify_query(messages: list) -> str | None:
         else:
             first, second = primary, secondary
 
+        # Special prescriptive hint for scholar→rag sequential pair
+        if (first["subagent"] == "scholar-researcher"
+                and second["subagent"] == "rag-analyst"):
+            return (
+                "\n\n[ROUTING: Your NEXT action must be a task() call. "
+                "This requires two specialists in sequence.\n"
+                'Step 1: task(subagent_type="scholar-researcher", '
+                'description="Search arXiv for [COPY USER QUERY]. '
+                "Save to knowledgebase '[COPY KB NAME FROM USER]' with "
+                "save_to_rag=True and max_save=[COPY N FROM USER].\")\n"
+                "Copy the user's search terms, knowledgebase name, and max_save "
+                "count verbatim into the task description.\n"
+                "Step 2: After Step 1 returns, call: "
+                'task(subagent_type="rag-analyst", '
+                'description="Query knowledgebase \'[KB NAME]\': [USER QUESTION]. '
+                "Use ask_literature with knowledgebase='[KB NAME]'.\")\n"
+                "After Step 2 returns, synthesize both results into a final answer.]"
+            )
+
         return (
             "\n\n[ROUTING: Your NEXT action must be a task() call. "
             "This requires two specialists in sequence.\n"
             f'Step 1: Delegate to "{first["subagent"]}" for {first["description"]}. '
             "Do NOT run query_database or other tools first. "
-            "In the task description, instruct the subagent to write its findings to "
-            f'"/chain_state/step_1_{first["subagent"]}.md" using write_file.\n'
-            f'Step 2: Read the file from Step 1, then delegate to "{second["subagent"]}" '
+            "IMPORTANT: Your task description MUST include any knowledgebase name, "
+            "max_save count, and save instructions from the user's query — copy these "
+            "verbatim (e.g. 'save to knowledgebase called X' or 'max_save=1').\n"
+            f'Step 2: After Step 1 returns, delegate to "{second["subagent"]}" '
             f"for {second['description']}. In the task description, include a brief "
-            "summary of Step 1 results AND the file path "
-            f'"/chain_state/step_1_{first["subagent"]}.md" '
-            "so the subagent can read_file for full details. "
-            "Instruct it to write its findings to "
-            f'"/chain_state/step_2_{second["subagent"]}.md".\n'
-            "After Step 2 returns, read_file both chain_state files and "
-            "synthesize a final answer.]"
+            "summary of Step 1 results AND the knowledgebase name so the "
+            "subagent knows where to look.\n"
+            "After Step 2 returns, synthesize both results into a final answer.]"
         )
 
     # 3+ agents: sequential chain — delegate one at a time, writing results to files

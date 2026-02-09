@@ -129,6 +129,14 @@ def get_patent_tools() -> list:
     ])
 
 
+def get_rag_qa_tools() -> list:
+    """Minimal RAG tools for Q&A tasks (ask_literature + get_rag_status only)."""
+    return _safe_import("strap.tools.rag_core", [
+        "ask_literature",
+        "get_rag_status",
+    ])
+
+
 def get_rag_core_tools() -> list:
     return _safe_import("strap.tools.rag_core", [
         "search_literature_rag", "ingest_pdf_to_rag",

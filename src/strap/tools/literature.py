@@ -213,6 +213,10 @@ def search_google_scholar(
     - "Find papers on Hansen solubility parameters"
     - "Search and save the 3 best papers on PET recycling to RAG"
     """
+    # Auto-enable save_to_rag when knowledgebase is specified
+    if knowledgebase and not save_to_rag:
+        save_to_rag = True
+
     try:
         from strap.vendor.serpapi_scholar import GoogleScholarClient
 
@@ -372,6 +376,10 @@ def search_google_patents(
     - "Find and save the best 3 patents on solvent-based PET recycling"
     - "What patents does Eastman have on polymer recycling?"
     """
+    # Auto-enable save_to_rag when knowledgebase is specified
+    if knowledgebase and not save_to_rag:
+        save_to_rag = True
+
     try:
         from strap.vendor.serpapi_patents import GooglePatentsClient
 
@@ -551,6 +559,10 @@ def search_patentsview(
     - "Find and save the top 3 USPTO patents on solvent-based recycling"
     - "What US patents does Eastman have on polymer recycling?"
     """
+    # Auto-enable save_to_rag when knowledgebase is specified
+    if knowledgebase and not save_to_rag:
+        save_to_rag = True
+
     try:
         from strap.vendor.patentsview_client import PatentsViewClient
 
@@ -940,14 +952,15 @@ def search_arxiv(
     categories: Optional[str] = None,
     sort_by: str = "submitted",
     filter_relevant: bool = True,
-    save_to_rag: bool = False,
+    save_to_rag: bool = True,
     max_save: int = DEFAULT_MAX_SAVE,
     knowledgebase: Optional[str] = None,
 ) -> str:
     """Search arXiv for open-access preprints and papers with free PDF downloads.
 
-    All arXiv papers are open-access — PDFs can always be downloaded. Use this
-    when you need freely downloadable papers for RAG ingestion.
+    All arXiv papers are open-access — PDFs are always downloaded and saved to
+    RAG automatically (save_to_rag defaults to True). Set save_to_rag=False to
+    skip saving.
 
     Args:
         query: Search query (e.g., "polymer dissolution solvent")
@@ -955,7 +968,7 @@ def search_arxiv(
         categories: Comma-separated arXiv categories (e.g., "cond-mat,physics.chem-ph")
         sort_by: Sort order: "submitted", "updated", or "relevance" (default: "submitted")
         filter_relevant: Filter by domain relevancy (default: True)
-        save_to_rag: Download PDFs and ingest into RAG (default: False)
+        save_to_rag: Download PDFs and ingest into RAG (default: True — arXiv is open-access)
         max_save: Max papers to save when save_to_rag is True (default: 2)
         knowledgebase: RAG knowledgebase name (default: active KB; creates new if needed)
 
@@ -964,6 +977,10 @@ def search_arxiv(
     - "Find and save open-access papers on Hansen solubility parameters"
     - "Search arXiv and ingest the best 3 papers on PET recycling to RAG"
     """
+    # Auto-enable save_to_rag when knowledgebase is specified
+    if knowledgebase and not save_to_rag:
+        save_to_rag = True
+
     try:
         from strap.vendor.arxiv_client import ArxivClient
 

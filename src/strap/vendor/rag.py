@@ -5052,9 +5052,9 @@ class RAGSystem:
         pdf_paths: List[str],
         use_ocr: bool = False,
         recreate_collection: bool = False,
-        interpret_figures: bool = True,
+        interpret_figures: bool = False,  # Disabled for testing; set True for production
         chunking_strategy: str = "recursive",  # "hierarchical", "recursive", or "simple"
-        use_contextual_enrichment: bool = True,  # Anthropic-style LLM context
+        use_contextual_enrichment: bool = False,  # Disabled for testing; set True for production
         contextual_api_key: Optional[str] = None,  # API key for contextual enrichment
         incremental: bool = True  # Skip already-ingested papers
     ) -> Dict[str, Any]:
@@ -5802,9 +5802,9 @@ def ingest_pdfs(
     pdf_paths: List[str],
     use_ocr: bool = False,
     recreate: bool = False,
-    interpret_figures: bool = True,
+    interpret_figures: bool = False,
     chunking_strategy: str = "recursive",
-    use_contextual_enrichment: bool = True
+    use_contextual_enrichment: bool = False
 ) -> Dict[str, Any]:
     """
     Convenience function to ingest PDFs with smart chunking and contextual enrichment.

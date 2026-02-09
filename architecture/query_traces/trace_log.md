@@ -37,3 +37,28 @@
   - Scheme 2 was proactively designed as "Green/Alternative" with safer solvents — a behavioral shift not seen in Trace 5.
   - No fabricated G-scores observed.
   - Compared to Trace 5 (311s, 628K tokens, 3 subagents): 13% faster, 22% more tokens, but significantly better safety analysis quality.
+
+## Trace 7: Sequential Scholar → RAG Pipeline
+
+- **LangSmith Trace ID**: `019c342d-f223-7d00-8e5a-1c742459a7b2`
+- **LangSmith Project**: `strap-agent`
+- **Date**: 2026-02-06
+- **Directory**: `trace7-sequential-scholar-rag-pipeline/`
+- **PNG**: `trace7-sequential-scholar-rag-pipeline.png`
+- **Script**: `visualize_trace7.py`
+- **Query**: "Search arXiv for papers on green solvents for PET recycling. Save the top 1 paper to a knowledgebase called test-pipeline-agent. Then query that knowledgebase: what green solvents show promise for PET?"
+- **Duration**: 281.4s
+- **Messages**: 8
+- **Subagents invoked**: scholar-researcher (x1), rag-analyst (x1) — sequential
+- **Guardrails active**: tool-call budget (scholar: 6, rag: 8), synthesis injection (synthesis_tools), free_tools (think, write_file, read_file)
+- **Notes**: First successful end-to-end sequential scholar→RAG pipeline after 7 failed attempts. Key fixes that enabled success:
+  - **synthesis_tools** added to scholar-researcher and rag-analyst — `[CRITICAL INSTRUCTION]` injection fires after key tools complete, preventing tool over-exploration
+  - **rag_qa tool group** (2 tools: ask_literature + get_rag_status) replaced full rag_core + rag_diagnostics (19 tools), reducing decision paralysis
+  - **ask_literature knowledgebase parameter** added — allows rag-analyst to switch KB without separate tool call
+  - **Prescriptive routing hint** for scholar→rag pair — copies user's KB name, search terms, and max_save verbatim
+  - **Raised tool-call limits** (scholar: 4→6, rag: 5→8) for Gemini's chattiness
+  - **Simplified subagent prompts** — shorter, more imperative instructions
+  - Scholar-researcher: searched Google Scholar, ingested 1 paper ("Mimicking a solvent interface at the substrate..."), 46 chunks, 30 indexed
+  - Rag-analyst: called ask_literature 5 times (4 redundant but within budget), synthesis injection fired after 1st call
+  - Orchestrator: synthesized grounded answer citing DESs, ionic liquids, enzymatic depolymerization from RAG results
+  - Full chain: query → routing → scholar (search + PDF ingest) → rag (ask_literature) → synthesis
