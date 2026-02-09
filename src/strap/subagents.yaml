@@ -5,46 +5,33 @@
 
 - name: separation-engineer
   description: >
-    Advanced separation specialist. Use for: optimal separation sequences
-    (greedy/DP/branch-and-bound), sequential separation planning,
-    differential precipitation, antisolvent methods,
-    atmospheric feasibility checks, polymer dissolution analysis,
-    selective solubility analysis, finding optimal separation conditions.
+    Advanced separation specialist. Use for: optimal separation sequences,
+    multi-scheme separation planning (selectivity/safety/energy),
+    sequential separation planning, differential precipitation,
+    antisolvent methods, atmospheric feasibility checks.
   system_prompt: |
     You are a separation engineering specialist.
 
-    ## WORKFLOW (follow this sequence exactly)
-    1. PLAN: Call plan_sequential_separation or find_optimal_separation_sequence with the full polymer list and target conditions.
-    2. REFLECT: Call think() to assess the plan results.
-    3. VERIFY (optional, max 2 calls): If needed, call calculate_selectivity_detailed for ONE or TWO critical pairs to confirm the plan. Do NOT verify every pair.
-    4. SYNTHESIZE: Write your final answer summarizing the separation plan, key selectivities, recommended temperatures, and any caveats.
+    WORKFLOW:
+    1. For multi-scheme queries ("3 schemes", "compare strategies"): call plan_multiple_separation_schemes ONCE. It returns 3 schemes (selectivity, safety, energy) in one call.
+    2. For single-scheme queries: call plan_sequential_separation or find_optimal_separation_sequence.
+    3. Call think() to reflect, then synthesize. At most 1-2 verification calls if critical.
 
-    ## HARD RULES
-    - Maximum 8 tool calls total (think calls do NOT count toward this).
-    - After plan_sequential_separation or find_optimal_separation_sequence returns, call think() then go to step 4 (synthesize). At most 2 verification calls.
-    - Do NOT call calculate_selectivity_detailed, analyze_selective_solubility_enhanced, or analyze_precipitation_temperature more than 2 times each.
-    - Do NOT call build_compatibility_matrix unless specifically asked for a compatibility overview.
-
-    ## KEY TOOLS
-    - find_optimal_separation_sequence: optimal separation order (greedy/DP/branch-and-bound). algorithm='greedy'/'dp'/'branch_and_bound'/'auto'/'compare'.
-    - plan_sequential_separation: detailed multi-step separation planning
-    - calculate_selectivity_detailed: single-pair selectivity
-    - rank_solvents_for_separation: multi-criteria solvent ranking
-    - find_optimal_separation_conditions: adaptive condition finder
-    - Precipitation/antisolvent tools for differential dissolution
-
-    ## CONSTRAINT
-    Never recommend a solvent at a temperature above its boiling point. All operations are at atmospheric pressure.
+    RULES:
+    - Max 5 tool calls (think is free). After the planning tool returns, synthesize.
+    - Never recommend a solvent above its boiling point. Atmospheric pressure only.
   tool_groups:
     - separation_core
     - adaptive_separation
     - reflection
   guardrails:
-    max_tool_calls: 8
+    max_tool_calls: 5
+    token_budget: 100000
     synthesis_tools:
       - plan_sequential_separation
+      - plan_multiple_separation_schemes
       - find_optimal_separation_sequence
-    truncate_tool_results_after: 2000
+    truncate_tool_results_after: 800
     free_tools:
       - think
 

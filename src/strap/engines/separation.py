@@ -169,70 +169,18 @@ class SeparatorBase(ABC):
         """
         Find the best solvent to separate target from others.
 
+        Uses the unified solubility API (interpolation model with SQL fallback).
+
         Returns: (solvent, selectivity, target_solubility, max_other_solubility)
         """
         cache_key = f"{target}|{'|'.join(sorted(others))}|{temperature}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        if not others:
-            return ("N/A", float('inf'), 100.0, 0.0)
-
-        all_polymers = [target] + others
-        polymer_filter = "', '".join(all_polymers)
-
-        query = f"""
-        WITH solubility_data AS (
-            SELECT
-                {self.solvent_col} as solvent,
-                {self.polymer_col} as polymer,
-                AVG({self.solubility_col}) as avg_sol
-            FROM {self.table_name}
-            WHERE {self.polymer_col} IN ('{polymer_filter}')
-            AND {self.temperature_col} BETWEEN {temperature - 10} AND {temperature + 10}
-            GROUP BY {self.solvent_col}, {self.polymer_col}
-        ),
-        target_sol AS (
-            SELECT solvent, avg_sol as target_solubility
-            FROM solubility_data
-            WHERE UPPER(polymer) = UPPER('{target}')
-        ),
-        others_max AS (
-            SELECT solvent, MAX(avg_sol) as max_other
-            FROM solubility_data
-            WHERE UPPER(polymer) IN ({','.join([f"UPPER('{p}')" for p in others])})
-            GROUP BY solvent
-        )
-        SELECT
-            t.solvent,
-            t.target_solubility,
-            COALESCE(o.max_other, 0) as max_other,
-            (t.target_solubility - COALESCE(o.max_other, 0)) as selectivity
-        FROM target_sol t
-        LEFT JOIN others_max o ON LOWER(t.solvent) = LOWER(o.solvent)
-        WHERE t.target_solubility > 0
-        ORDER BY selectivity DESC
-        """
-
-        try:
-            result = self.conn.execute(query).fetchall()
-            if not result:
-                return ("none", -999.0, 0.0, 0.0)
-
-            # Filter out used solvents if provided
-            if used_solvents:
-                used_lower = {s.lower() for s in used_solvents}
-                filtered = [r for r in result if r[0].lower() not in used_lower]
-                if filtered:
-                    result = filtered
-
-            best = result[0]
-            ret = (best[0], best[3], best[1], best[2])
-            self._cache[cache_key] = ret
-            return ret
-
-        except Exception as e:
-            return ("error", -999.0, 0.0, 0.0)
+        from strap.solubility import get_selectivity as _get_selectivity
+        ret = _get_selectivity(target, others, temperature, used_solvents)
+        self._cache[cache_key] = ret
+        return ret
 
     def clear_cache(self):
         """Clear the selectivity cache."""

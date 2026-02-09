@@ -182,6 +182,8 @@ class PrecipitationAnalyzer:
         """
         Get full temperature-solubility curve for a polymer-solvent pair.
 
+        Uses the unified solubility API (interpolation model with SQL fallback).
+
         Returns:
             DataFrame with columns: temperature, solubility
         """
@@ -189,34 +191,12 @@ class PrecipitationAnalyzer:
         if cache_key in self._cache:
             return self._cache[cache_key]
 
-        # Try both column name formats (raw CSV vs DuckDB sanitized)
-        queries = [
-            # DuckDB sanitized column names
-            f"""
-            SELECT temperature___c_ as temperature, solubility____ as solubility
-            FROM {self.table_name}
-            WHERE UPPER(polymer) = UPPER('{polymer}')
-            AND LOWER(solvent) = LOWER('{solvent}')
-            ORDER BY temperature
-            """,
-            # Original column names with quotes
-            f"""
-            SELECT "Temperature (°C)" as temperature, "Solubility (%)" as solubility
-            FROM {self.table_name}
-            WHERE UPPER("Polymer") = UPPER('{polymer}')
-            AND LOWER("Solvent") = LOWER('{solvent}')
-            ORDER BY temperature
-            """,
-        ]
-
-        for query in queries:
-            try:
-                df = self.conn.execute(query).fetchdf()
-                if not df.empty:
-                    self._cache[cache_key] = df
-                    return df
-            except Exception as e:
-                continue
+        from strap.solubility import get_solubility_curve as _get_curve
+        curve = _get_curve(polymer, solvent, t_start_c=25.0, t_end_c=160.0, t_step_c=5.0)
+        if curve:
+            df = pd.DataFrame(curve)
+            self._cache[cache_key] = df
+            return df
 
         logger.warning(f"No data found for {polymer}/{solvent}")
         return pd.DataFrame(columns=['temperature', 'solubility'])
@@ -351,109 +331,64 @@ class PrecipitationAnalyzer:
         Returns:
             List of DifferentialPrecipitationResult sorted by temperature gap
         """
-        # Use efficient single query to get precipitation data for both polymers
-        # Try both column name formats
-        for query_template in [
-            # DuckDB sanitized column names
-            f"""
-            WITH polymer_stats AS (
-                SELECT
-                    solvent,
-                    polymer,
-                    MAX(solubility____) as max_sol,
-                    MAX(CASE WHEN solubility____ < {precip_threshold} THEN temperature___c_ END) as precip_temp
-                FROM {self.table_name}
-                WHERE UPPER(polymer) IN (UPPER('{polymer_to_precipitate}'), UPPER('{polymer_to_retain}'))
-                GROUP BY solvent, polymer
-            )
-            SELECT
-                p1.solvent,
-                p1.max_sol as p1_max_sol,
-                p1.precip_temp as p1_precip_temp,
-                p2.max_sol as p2_max_sol,
-                p2.precip_temp as p2_precip_temp
-            FROM polymer_stats p1
-            JOIN polymer_stats p2 ON p1.solvent = p2.solvent
-            WHERE UPPER(p1.polymer) = UPPER('{polymer_to_precipitate}')
-            AND UPPER(p2.polymer) = UPPER('{polymer_to_retain}')
-            AND p1.max_sol >= {min_solubility}
-            AND p2.max_sol >= {min_solubility}
-            AND p1.precip_temp IS NOT NULL
-            AND p2.precip_temp IS NOT NULL
-            AND p1.precip_temp > p2.precip_temp
-            AND (p1.precip_temp - p2.precip_temp) >= {min_temp_gap}
-            ORDER BY (p1.precip_temp - p2.precip_temp) DESC
-            LIMIT {top_k}
-            """,
-            # Original column names with quotes
-            f"""
-            WITH polymer_stats AS (
-                SELECT
-                    "Solvent" as solvent,
-                    "Polymer" as polymer,
-                    MAX("Solubility (%)") as max_sol,
-                    MAX(CASE WHEN "Solubility (%)" < {precip_threshold} THEN "Temperature (°C)" END) as precip_temp
-                FROM {self.table_name}
-                WHERE UPPER("Polymer") IN (UPPER('{polymer_to_precipitate}'), UPPER('{polymer_to_retain}'))
-                GROUP BY "Solvent", "Polymer"
-            )
-            SELECT
-                p1.solvent,
-                p1.max_sol as p1_max_sol,
-                p1.precip_temp as p1_precip_temp,
-                p2.max_sol as p2_max_sol,
-                p2.precip_temp as p2_precip_temp
-            FROM polymer_stats p1
-            JOIN polymer_stats p2 ON p1.solvent = p2.solvent
-            WHERE UPPER(p1.polymer) = UPPER('{polymer_to_precipitate}')
-            AND UPPER(p2.polymer) = UPPER('{polymer_to_retain}')
-            AND p1.max_sol >= {min_solubility}
-            AND p2.max_sol >= {min_solubility}
-            AND p1.precip_temp IS NOT NULL
-            AND p2.precip_temp IS NOT NULL
-            AND p1.precip_temp > p2.precip_temp
-            AND (p1.precip_temp - p2.precip_temp) >= {min_temp_gap}
-            ORDER BY (p1.precip_temp - p2.precip_temp) DESC
-            LIMIT {top_k}
-            """,
-        ]:
-            try:
-                df = self.conn.execute(query_template).fetchdf()
-                if not df.empty:
-                    break
-            except Exception as e:
-                logger.debug(f"Query failed: {e}")
-                continue
-        else:
-            return []
+        # Use interpolation curves for all available solvents
+        from strap.solubility import get_available_solvents as _get_solvents
 
         results = []
-        for _, row in df.iterrows():
-            temp_gap = row['p1_precip_temp'] - row['p2_precip_temp']
-            operating_window = (row['p2_precip_temp'] + 5, row['p1_precip_temp'] - 5)
-            selectivity_score = min(1.0, temp_gap / 50.0) * min(1.0, row['p1_max_sol'] / 100.0)
+        for solvent in _get_solvents():
+            df1 = self.get_solubility_curve(polymer_to_precipitate, solvent)
+            df2 = self.get_solubility_curve(polymer_to_retain, solvent)
+
+            if df1.empty or df2.empty:
+                continue
+
+            max_sol_1 = float(df1['solubility'].max())
+            max_sol_2 = float(df2['solubility'].max())
+
+            if max_sol_1 < min_solubility or max_sol_2 < min_solubility:
+                continue
+
+            below_1 = df1[df1['solubility'] < precip_threshold]
+            below_2 = df2[df2['solubility'] < precip_threshold]
+
+            if below_1.empty or below_2.empty:
+                continue
+
+            precip_temp_1 = float(below_1['temperature'].max())
+            precip_temp_2 = float(below_2['temperature'].max())
+
+            if precip_temp_1 <= precip_temp_2:
+                continue
+
+            temp_gap = precip_temp_1 - precip_temp_2
+            if temp_gap < min_temp_gap:
+                continue
+
+            operating_window = (precip_temp_2 + 5, precip_temp_1 - 5)
+            selectivity_score = min(1.0, temp_gap / 50.0) * min(1.0, max_sol_1 / 100.0)
 
             notes = []
-            if row['p1_max_sol'] < 50:
-                notes.append(f"{polymer_to_precipitate} has limited solubility ({row['p1_max_sol']:.1f}%)")
-            if row['p2_max_sol'] < 50:
-                notes.append(f"{polymer_to_retain} has limited solubility ({row['p2_max_sol']:.1f}%)")
+            if max_sol_1 < 50:
+                notes.append(f"{polymer_to_precipitate} has limited solubility ({max_sol_1:.1f}%)")
+            if max_sol_2 < 50:
+                notes.append(f"{polymer_to_retain} has limited solubility ({max_sol_2:.1f}%)")
 
             results.append(DifferentialPrecipitationResult(
-                solvent=row['solvent'],
+                solvent=solvent,
                 polymer_first=polymer_to_precipitate,
-                polymer_first_precip_temp=row['p1_precip_temp'],
-                polymer_first_max_sol=row['p1_max_sol'],
+                polymer_first_precip_temp=precip_temp_1,
+                polymer_first_max_sol=max_sol_1,
                 polymer_second=polymer_to_retain,
-                polymer_second_precip_temp=row['p2_precip_temp'],
-                polymer_second_max_sol=row['p2_max_sol'],
+                polymer_second_precip_temp=precip_temp_2,
+                polymer_second_max_sol=max_sol_2,
                 temperature_gap=temp_gap,
                 operating_window=operating_window,
                 selectivity_score=selectivity_score,
                 notes=notes
             ))
 
-        return results
+        results.sort(key=lambda r: r.temperature_gap, reverse=True)
+        return results[:top_k]
 
     def analyze_multi_polymer_precipitation(
         self,
@@ -743,34 +678,14 @@ class PrecipitationAnalyzer:
         return results[:top_k]
 
     def get_available_polymers(self) -> List[str]:
-        """Get list of all polymers in the database."""
-        # Try both column name formats
-        for query in [
-            f"SELECT DISTINCT polymer FROM {self.table_name}",
-            f"SELECT DISTINCT \"Polymer\" as polymer FROM {self.table_name}",
-        ]:
-            try:
-                df = self.conn.execute(query).fetchdf()
-                col = df.columns[0]
-                return sorted(df[col].tolist())
-            except:
-                continue
-        return []
+        """Get list of all polymers from the interpolation dataset."""
+        from strap.solubility import get_available_polymers as _get_polymers
+        return sorted(_get_polymers())
 
     def get_available_solvents(self) -> List[str]:
-        """Get list of all solvents in the database."""
-        # Try both column name formats
-        for query in [
-            f"SELECT DISTINCT solvent FROM {self.table_name}",
-            f"SELECT DISTINCT \"Solvent\" as solvent FROM {self.table_name}",
-        ]:
-            try:
-                df = self.conn.execute(query).fetchdf()
-                col = df.columns[0]
-                return sorted(df[col].tolist())
-            except:
-                continue
-        return []
+        """Get list of all solvents from the interpolation dataset."""
+        from strap.solubility import get_available_solvents as _get_solvents
+        return sorted(_get_solvents())
 
 
 def format_differential_precipitation_results(

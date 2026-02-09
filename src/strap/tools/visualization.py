@@ -486,103 +486,55 @@ def plot_solubility_vs_temperature(
     temperature_min: Optional[float] = None,
     temperature_max: Optional[float] = None,
 ) -> str:
-    """Plot solubility vs temperature curves with optional confidence bands.
+    """Plot solubility vs temperature curves using the interpolation model.
 
     Args:
-        table_name, polymer_column, solvent_column: DB table and column names
-        temperature_column, solubility_column: Temperature and solubility columns
+        table_name, polymer_column, solvent_column: DB table and column names (kept for API compat)
+        temperature_column, solubility_column: Temperature and solubility columns (kept for API compat)
         polymers: Comma-separated polymer names
         solvents: Comma-separated solvent names
         plot_title: Custom plot title
-        include_confidence_bands: Show 95% CI (default True)
+        include_confidence_bands: Unused (interpolation produces smooth curves)
         temperature_min/temperature_max: Temperature range filter
 
     WHEN TO USE:
     - "Plot solubility of PS in toluene vs temperature"
     - "Show how solubility changes with temperature for PET"
     """
+    from strap.solubility import get_solubility_curve
+
     polymer_list = [p.strip() for p in polymers.split(",")]
     solvent_list = [s.strip() for s in solvents.split(",")]
-
-    # Normalize solvent names
     solvent_list = _normalize_solvent_names(solvent_list)
 
-    is_valid, msg = _verify_inputs(
-        table_name,
-        {
-            "polymer": polymer_column,
-            "solvent": solvent_column,
-            "temperature": temperature_column,
-            "solubility": solubility_column,
-        },
-        {polymer_column: polymer_list, solvent_column: solvent_list},
-    )
-
-    if not is_valid:
-        return f"Validation failed:\n{msg}"
-
-    polymer_filter = "', '".join(polymer_list)
-    solvent_filter = "', '".join(solvent_list)
-
-    # Build temperature filter if specified
-    temp_filter = ""
-    if temperature_min is not None and temperature_max is not None:
-        temp_filter = f"AND {temperature_column} BETWEEN {temperature_min} AND {temperature_max}"
-    elif temperature_min is not None:
-        temp_filter = f"AND {temperature_column} >= {temperature_min}"
-    elif temperature_max is not None:
-        temp_filter = f"AND {temperature_column} <= {temperature_max}"
-
-    query = f"""
-    SELECT {polymer_column}, {solvent_column}, {temperature_column},
-           AVG({solubility_column}) as avg_sol,
-           STDDEV({solubility_column}) as std_sol,
-           COUNT(*) as n
-    FROM {table_name}
-    WHERE {polymer_column} IN ('{polymer_filter}')
-    AND {solvent_column} IN ('{solvent_filter}')
-    {temp_filter}
-    GROUP BY {polymer_column}, {solvent_column}, {temperature_column}
-    ORDER BY {polymer_column}, {solvent_column}, {temperature_column}
-    """
-
-    result = _execute_query(query, limit=10000)
-    if not result["success"] or result["rows"] == 0:
-        return f"No data found. Error: {result.get('error', 'No matching rows')}"
-
-    df = result["dataframe"]
+    t_start = max(temperature_min or 25.0, 25.0)
+    t_end = min(temperature_max or 160.0, 160.0)
 
     fig, ax = plt.subplots(figsize=(14, 8))
     colors = plt.cm.tab10(np.linspace(0, 1, len(polymer_list) * len(solvent_list)))
     color_idx = 0
+    total_points = 0
 
     for polymer in polymer_list:
         for solvent in solvent_list:
-            mask = (df[polymer_column] == polymer) & (df[solvent_column] == solvent)
-            data = df[mask].sort_values(temperature_column)
+            curve = get_solubility_curve(polymer, solvent, t_start, t_end, 5.0)
+            if curve:
+                temps = [pt["temperature"] for pt in curve]
+                sols = [pt["solubility"] for pt in curve]
+                total_points += len(curve)
 
-            if len(data) > 0:
-                temps = data[temperature_column]
-                sols = data["avg_sol"]
-
-                line, = ax.plot(
+                ax.plot(
                     temps, sols, marker="o", linewidth=2, markersize=6,
                     label=f"{polymer} in {solvent}", color=colors[color_idx],
                 )
-
-                if include_confidence_bands and "std_sol" in data.columns:
-                    std = data["std_sol"].fillna(0)
-                    n = data["n"]
-                    se = std / np.sqrt(n.replace(0, 1))
-                    ax.fill_between(
-                        temps, sols - 1.96 * se, sols + 1.96 * se,
-                        alpha=0.2, color=colors[color_idx],
-                    )
-
                 color_idx += 1
 
+    if total_points == 0:
+        plt.close(fig)
+        return "No data found for the specified polymer-solvent combinations."
+
     ax.set_xlabel("Temperature (C)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Solubility", fontsize=12, fontweight="bold")
+    ax.set_ylabel("Solubility (%)", fontsize=12, fontweight="bold")
     title = plot_title or "Solubility vs Temperature"
     ax.set_title(title, fontsize=14, fontweight="bold")
     ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
@@ -595,9 +547,7 @@ def plot_solubility_vs_temperature(
         ax.set_xlim(new_min, new_max)
 
     plt.tight_layout()
-
     filepath = save_plot(fig, "solubility_temp_curve", "matplotlib")
-
     plt.close(fig)
 
     output = "Solubility vs Temperature Plot Created\n\n"
@@ -609,12 +559,9 @@ def plot_solubility_vs_temperature(
         output += f"Temperature range: {temperature_min}C and above\n"
     elif temperature_max is not None:
         output += f"Temperature range: up to {temperature_max}C\n"
-    output += f"Data points: {result['rows']}\n"
-    if include_confidence_bands:
-        output += "Shaded regions show 95% confidence intervals\n"
+    output += f"Data points: {total_points}\n"
     output += f"\n{_get_plot_url(filepath)}"
 
-    del df
     gc.collect()
     return output
 
@@ -635,8 +582,8 @@ def plot_solubility_vs_temperature_interactive(
     """Generate an interactive Plotly HTML plot of solubility vs temperature.
 
     Args:
-        table_name, polymer_column, solvent_column: DB table and column names
-        temperature_column, solubility_column: Temperature and solubility columns
+        table_name, polymer_column, solvent_column: DB table and column names (kept for API compat)
+        temperature_column, solubility_column: Temperature and solubility columns (kept for API compat)
         polymers: Comma-separated polymer names
         solvents: Comma-separated solvent names
         plot_title: Custom plot title
@@ -646,73 +593,28 @@ def plot_solubility_vs_temperature_interactive(
     - "Create an interactive solubility vs temperature chart"
     - "I want a zoomable plot of PET solubility curves"
     """
+    from strap.solubility import get_solubility_curve
+
     polymer_list = [p.strip() for p in polymers.split(",")]
     solvent_list = [s.strip() for s in solvents.split(",")]
-
-    # Normalize solvent names
     solvent_list = _normalize_solvent_names(solvent_list)
 
-    is_valid, msg = _verify_inputs(
-        table_name,
-        {
-            "polymer": polymer_column,
-            "solvent": solvent_column,
-            "temperature": temperature_column,
-            "solubility": solubility_column,
-        },
-        {polymer_column: polymer_list, solvent_column: solvent_list},
-    )
+    t_start = max(temperature_min or 25.0, 25.0)
+    t_end = min(temperature_max or 160.0, 160.0)
 
-    if not is_valid:
-        return f"Validation failed:\n{msg}"
-
-    polymer_filter = "', '".join(polymer_list)
-    solvent_filter = "', '".join(solvent_list)
-
-    # Build temperature filter if specified
-    temp_filter = ""
-    if temperature_min is not None and temperature_max is not None:
-        temp_filter = f"AND {temperature_column} BETWEEN {temperature_min} AND {temperature_max}"
-    elif temperature_min is not None:
-        temp_filter = f"AND {temperature_column} >= {temperature_min}"
-    elif temperature_max is not None:
-        temp_filter = f"AND {temperature_column} <= {temperature_max}"
-
-    query = f"""
-    SELECT {polymer_column}, {solvent_column}, {temperature_column},
-           AVG({solubility_column}) as avg_sol,
-           STDDEV({solubility_column}) as std_sol,
-           COUNT(*) as n
-    FROM {table_name}
-    WHERE {polymer_column} IN ('{polymer_filter}')
-    AND {solvent_column} IN ('{solvent_filter}')
-    {temp_filter}
-    GROUP BY {polymer_column}, {solvent_column}, {temperature_column}
-    ORDER BY {polymer_column}, {solvent_column}, {temperature_column}
-    """
-
-    result = _execute_query(query, limit=10000)
-    if not result["success"] or result["rows"] == 0:
-        return f"No data found. Error: {result.get('error', 'No matching rows')}"
-
-    df = result["dataframe"]
-
-    # Create interactive Plotly figure
     fig = go.Figure()
-
     colors = px.colors.qualitative.Plotly
     color_idx = 0
+    total_points = 0
 
     for polymer in polymer_list:
         for solvent in solvent_list:
-            mask = (df[polymer_column] == polymer) & (df[solvent_column] == solvent)
-            data = df[mask].sort_values(temperature_column)
+            curve = get_solubility_curve(polymer, solvent, t_start, t_end, 5.0)
+            if curve:
+                temps = [pt["temperature"] for pt in curve]
+                sols = [pt["solubility"] for pt in curve]
+                total_points += len(curve)
 
-            if len(data) > 0:
-                temps = data[temperature_column]
-                sols = data["avg_sol"]
-
-                # Main line trace
                 fig.add_trace(go.Scatter(
                     x=temps,
                     y=sols,
@@ -723,32 +625,14 @@ def plot_solubility_vs_temperature_interactive(
                     hovertemplate=(
                         f"<b>{polymer} in {solvent}</b><br>"
                         + "Temperature: %{x:.1f}C<br>"
-                        + "Solubility: %{y:.2f}<br>"
+                        + "Solubility: %{y:.2f}%<br>"
                         + "<extra></extra>"
                     ),
                 ))
-
-                # Confidence band
-                if "std_sol" in data.columns:
-                    std = data["std_sol"].fillna(0)
-                    n = data["n"]
-                    se = std / np.sqrt(n.replace(0, 1))
-                    upper = sols + 1.96 * se
-                    lower = sols - 1.96 * se
-
-                    fig.add_trace(go.Scatter(
-                        x=temps, y=upper, mode="lines",
-                        line=dict(width=0), showlegend=False, hoverinfo="skip",
-                    ))
-                    fig.add_trace(go.Scatter(
-                        x=temps, y=lower, mode="lines",
-                        line=dict(width=0),
-                        fillcolor=colors[color_idx % len(colors)],
-                        fill="tonexty", opacity=0.2,
-                        showlegend=False, hoverinfo="skip",
-                    ))
-
                 color_idx += 1
+
+    if total_points == 0:
+        return "No data found for the specified polymer-solvent combinations."
 
     title = plot_title or "Interactive Solubility vs Temperature"
     fig.update_layout(
@@ -763,7 +647,7 @@ def plot_solubility_vs_temperature_interactive(
             showgrid=True, gridcolor="lightgray",
         ),
         yaxis=dict(
-            title=dict(text="Solubility", font=dict(size=16, family="Arial")),
+            title=dict(text="Solubility (%)", font=dict(size=16, family="Arial")),
             showgrid=True, gridcolor="lightgray",
         ),
         hovermode="closest",
@@ -787,7 +671,6 @@ def plot_solubility_vs_temperature_interactive(
         "displaylogo": False,
     }
 
-    # Save as HTML
     plots_dir = get_plots_dir()
     os.makedirs(plots_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -805,7 +688,7 @@ def plot_solubility_vs_temperature_interactive(
         output += f"Temperature range: {temperature_min}C and above\n"
     elif temperature_max is not None:
         output += f"Temperature range: up to {temperature_max}C\n"
-    output += f"Data points: {result['rows']}\n\n"
+    output += f"Data points: {total_points}\n\n"
 
     output += "## Interactive Features:\n"
     output += "- **Click legend items** to show/hide individual curves\n"
@@ -818,7 +701,6 @@ def plot_solubility_vs_temperature_interactive(
     output += f"**[Click here to open the interactive plot]({html_url})**\n"
     output += "(Opens in a new tab with full interactivity)\n"
 
-    del df
     gc.collect()
     return output
 
@@ -853,36 +735,29 @@ def plot_selectivity_heatmap(
     """
     from matplotlib.colors import LinearSegmentedColormap, PowerNorm
 
+    from strap.solubility import get_solubility, get_available_polymers, get_available_solvents_for_polymer
+
     if target_polymer:
-        polymer_filter = f"AND UPPER({polymer_column}) = '{target_polymer.upper()}'"
+        polymer_names = [target_polymer.upper()]
     else:
-        polymer_filter = ""
+        polymer_names = sorted(get_available_polymers())
 
-    query = f"""
-    SELECT {polymer_column}, {solvent_column},
-           AVG({solubility_column}) as avg_solubility
-    FROM {table_name}
-    WHERE {temperature_column} BETWEEN {temperature - temperature_tolerance}
-          AND {temperature + temperature_tolerance}
-    {polymer_filter}
-    GROUP BY {polymer_column}, {solvent_column}
-    ORDER BY avg_solubility DESC
-    """
+    rows: List[Dict[str, Any]] = []
+    for poly in polymer_names:
+        for sv in get_available_solvents_for_polymer(poly):
+            sol = get_solubility(poly, sv, temperature)
+            if sol is not None:
+                rows.append({"polymer": poly, "solvent": sv, "avg_solubility": sol})
 
-    result = _execute_query(query, limit=10000)
-    if not result["success"]:
-        return f"Query failed: {result.get('error')}"
+    if not rows:
+        return f"No data found at {temperature}C. Try a different temperature."
 
-    df = result["dataframe"]
-
-    if len(df) == 0:
-        return f"No data found at {temperature}C +/- {temperature_tolerance}C. Try a different temperature."
-
-    pivot_df = df.pivot(index=polymer_column, columns=solvent_column, values="avg_solubility")
+    df = pd.DataFrame(rows)
+    pivot_df = df.pivot(index="polymer", columns="solvent", values="avg_solubility")
 
     # Limit solvents for readability
     if len(pivot_df.columns) > max_solvents:
-        top_solvents = df.groupby(solvent_column)["avg_solubility"].mean().nlargest(max_solvents).index
+        top_solvents = df.groupby("solvent")["avg_solubility"].mean().nlargest(max_solvents).index
         pivot_df = pivot_df[top_solvents]
 
     n_cells = pivot_df.shape[0] * pivot_df.shape[1]
@@ -986,26 +861,22 @@ def plot_multi_panel_analysis(
     if not comp_list:
         return "Error: No comparison polymers specified."
 
+    from strap.solubility import get_solubility_curve, get_solubility
+
     all_polymers = [target_polymer] + comp_list
-    polymer_filter = "', '".join(all_polymers)
 
-    query = f"""
-    SELECT {polymer_column}, {temperature_column},
-           AVG({solubility_column}) as avg_sol,
-           STDDEV({solubility_column}) as std_sol,
-           COUNT(*) as n
-    FROM {table_name}
-    WHERE {polymer_column} IN ('{polymer_filter}')
-    AND {solvent_column} = '{solvent}'
-    GROUP BY {polymer_column}, {temperature_column}
-    ORDER BY {polymer_column}, {temperature_column}
-    """
+    # Build curves dict: polymer -> {temps: [...], sols: [...]}
+    curves: Dict[str, Dict[str, list]] = {}
+    for poly in all_polymers:
+        curve = get_solubility_curve(poly, solvent, 25.0, 160.0, 5.0)
+        if curve:
+            curves[poly] = {
+                "temps": [pt["temperature"] for pt in curve],
+                "sols": [pt["solubility"] for pt in curve],
+            }
 
-    result = _execute_query(query, limit=10000)
-    if not result["success"]:
-        return f"Query failed: {result.get('error')}"
-
-    df = result["dataframe"]
+    if not curves:
+        return f"No solubility data found for any polymer in {solvent}."
 
     fig = plt.figure(figsize=(18, 12))
     gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.3)
@@ -1014,40 +885,37 @@ def plot_multi_panel_analysis(
 
     # Panel 1: Solubility curves
     ax1 = fig.add_subplot(gs[0, 0])
-    target_data = df[df[polymer_column] == target_polymer].sort_values(temperature_column)
-    if len(target_data) > 0:
+    if target_polymer in curves:
         ax1.plot(
-            target_data[temperature_column], target_data["avg_sol"],
+            curves[target_polymer]["temps"], curves[target_polymer]["sols"],
             "o-", color="green", linewidth=3, markersize=8, label=target_polymer,
         )
 
     for i, comp in enumerate(comp_list):
-        comp_data = df[df[polymer_column] == comp].sort_values(temperature_column)
-        if len(comp_data) > 0:
+        if comp in curves:
             ax1.plot(
-                comp_data[temperature_column], comp_data["avg_sol"],
+                curves[comp]["temps"], curves[comp]["sols"],
                 "s--", color=colors_others[i], linewidth=2, markersize=6, label=comp,
             )
 
     ax1.set_xlabel("Temperature (C)", fontsize=11, fontweight="bold")
-    ax1.set_ylabel("Solubility", fontsize=11, fontweight="bold")
+    ax1.set_ylabel("Solubility (%)", fontsize=11, fontweight="bold")
     ax1.set_title(f"Solubility in {solvent}", fontsize=12, fontweight="bold")
     ax1.legend(fontsize=9)
     ax1.grid(True, alpha=0.3)
 
     # Panel 2: Selectivity vs Temperature
     ax2 = fig.add_subplot(gs[0, 1])
-    if len(target_data) > 0:
-        temps = target_data[temperature_column].values
+    if target_polymer in curves:
+        temps = curves[target_polymer]["temps"]
+        target_sols = curves[target_polymer]["sols"]
 
         for i, comp in enumerate(comp_list):
-            comp_data = df[df[polymer_column] == comp].sort_values(temperature_column)
             selectivity = []
-            for temp in temps:
-                target_sol = target_data[target_data[temperature_column] == temp]["avg_sol"]
-                comp_sol = comp_data[comp_data[temperature_column] == temp]["avg_sol"]
-                if len(target_sol) > 0 and len(comp_sol) > 0:
-                    selectivity.append(target_sol.values[0] - comp_sol.values[0])
+            for j, temp in enumerate(temps):
+                comp_sol = get_solubility(comp, solvent, temp)
+                if comp_sol is not None:
+                    selectivity.append(target_sols[j] - comp_sol)
                 else:
                     selectivity.append(np.nan)
 
@@ -1068,21 +936,17 @@ def plot_multi_panel_analysis(
     # Panel 3: Separation window
     ax3 = fig.add_subplot(gs[1, 0])
     good_separation_temps: List[float] = []
-    if len(target_data) > 0:
-        for temp in temps:
-            target_sol_val = target_data[target_data[temperature_column] == temp]["avg_sol"]
-            if len(target_sol_val) == 0:
-                continue
-            target_sol_val = target_sol_val.values[0]
+    if target_polymer in curves:
+        temps = curves[target_polymer]["temps"]
+        target_sols = curves[target_polymer]["sols"]
 
-            max_other = 0
+        for j, temp in enumerate(temps):
+            max_other = 0.0
             for comp in comp_list:
-                comp_data = df[df[polymer_column] == comp]
-                comp_sol = comp_data[comp_data[temperature_column] == temp]["avg_sol"]
-                if len(comp_sol) > 0:
-                    max_other = max(max_other, comp_sol.values[0])
-
-            if target_sol_val - max_other > 5:
+                comp_sol = get_solubility(comp, solvent, temp)
+                if comp_sol is not None:
+                    max_other = max(max_other, comp_sol)
+            if target_sols[j] - max_other > 5:
                 good_separation_temps.append(temp)
 
         all_temps = sorted(temps)
@@ -1137,7 +1001,6 @@ def plot_multi_panel_analysis(
 
     output += f"\n{_get_plot_url(filepath)}"
 
-    del df
     return output
 
 
@@ -1166,33 +1029,30 @@ def plot_comparison_dashboard(
     - "Compare solubility of PET, PS, and PE across solvents"
     - "Show a dashboard ranking these polymers by solubility"
     """
+    from strap.solubility import get_solubility, get_available_solvents_for_polymer
+
     polymer_list = [p.strip() for p in polymers.split(",")]
-    polymer_filter = "', '".join(polymer_list)
 
-    query = f"""
-    SELECT {polymer_column}, {solvent_column},
-           AVG({solubility_column}) as avg_sol,
-           MAX({solubility_column}) as max_sol,
-           MIN({solubility_column}) as min_sol
-    FROM {table_name}
-    WHERE {polymer_column} IN ('{polymer_filter}')
-    AND {temperature_column} BETWEEN {temperature - 5} AND {temperature + 5}
-    GROUP BY {polymer_column}, {solvent_column}
-    """
+    # Build solubility data for all polymers × solvents at the target temperature
+    rows: List[Dict[str, Any]] = []
+    for poly in polymer_list:
+        for sv in get_available_solvents_for_polymer(poly):
+            sol = get_solubility(poly, sv, temperature)
+            if sol is not None:
+                rows.append({"polymer": poly, "solvent": sv, "avg_sol": sol})
 
-    result = _execute_query(query, limit=10000)
-    if not result["success"]:
-        return f"Query failed: {result.get('error')}"
+    if not rows:
+        return f"No solubility data found at {temperature}C for the specified polymers."
 
-    df = result["dataframe"]
-    solvents = df[solvent_column].unique()
+    df = pd.DataFrame(rows)
+    solvents = df["solvent"].unique()
 
     # Limit number of solvents for readability
     max_solvents = 15
     if len(solvents) > max_solvents:
-        solvent_means = df.groupby(solvent_column)["avg_sol"].mean().sort_values(ascending=False)
+        solvent_means = df.groupby("solvent")["avg_sol"].mean().sort_values(ascending=False)
         solvents = solvent_means.head(max_solvents).index.tolist()
-        df = df[df[solvent_column].isin(solvents)]
+        df = df[df["solvent"].isin(solvents)]
 
     fig = plt.figure(figsize=(20, 12))
 
@@ -1203,10 +1063,10 @@ def plot_comparison_dashboard(
     colors = plt.cm.Set2(np.linspace(0, 1, len(polymer_list)))
 
     for i, polymer in enumerate(polymer_list):
-        poly_data = df[df[polymer_column] == polymer]
+        poly_data = df[df["polymer"] == polymer]
         values = []
-        for solvent in solvents:
-            sol_data = poly_data[poly_data[solvent_column] == solvent]["avg_sol"]
+        for sv in solvents:
+            sol_data = poly_data[poly_data["solvent"] == sv]["avg_sol"]
             values.append(sol_data.values[0] if len(sol_data) > 0 else 0)
         ax1.bar(
             x + i * width, values, width, label=polymer,
@@ -1225,7 +1085,7 @@ def plot_comparison_dashboard(
 
     # Panel 2: Heatmap
     ax2 = fig.add_subplot(2, 2, 2)
-    pivot = df.pivot(index=polymer_column, columns=solvent_column, values="avg_sol")
+    pivot = df.pivot(index="polymer", columns="solvent", values="avg_sol")
     n_cells = pivot.shape[0] * pivot.shape[1]
     annot_size = 11 if n_cells <= 20 else 9 if n_cells <= 40 else 7
     sns.heatmap(
@@ -1241,7 +1101,7 @@ def plot_comparison_dashboard(
 
     # Panel 3: Box plot
     ax3 = fig.add_subplot(2, 2, 3)
-    data_for_box = [df[df[polymer_column] == p]["avg_sol"].values for p in polymer_list]
+    data_for_box = [df[df["polymer"] == p]["avg_sol"].values for p in polymer_list]
     bp = ax3.boxplot(data_for_box, labels=polymer_list, patch_artist=True)
     for patch, color in zip(bp["boxes"], colors):
         patch.set_facecolor(color)
@@ -1257,7 +1117,7 @@ def plot_comparison_dashboard(
     ax4.axis("off")
 
     ranking_text = "POLYMER RANKINGS\n" + "=" * 25 + "\n\n"
-    mean_sols = {p: df[df[polymer_column] == p]["avg_sol"].mean() for p in polymer_list}
+    mean_sols = {p: df[df["polymer"] == p]["avg_sol"].mean() for p in polymer_list}
     sorted_polymers = sorted(mean_sols.items(), key=lambda x: x[1], reverse=True)
 
     for i, (polymer, sol) in enumerate(sorted_polymers, 1):
@@ -1278,7 +1138,117 @@ def plot_comparison_dashboard(
     output += f"Solvents: {len(solvents)}\n\n"
     output += _get_plot_url(filepath)
 
-    del df
+    return output
+
+
+@safe_tool_wrapper
+def plot_interpolation_vs_sql(
+    polymer_solvent_pairs: str,
+    temperature_min: float = 25.0,
+    temperature_max: float = 160.0,
+) -> str:
+    """Compare interpolation model predictions vs raw SQL database values side-by-side.
+
+    Creates a multi-panel figure showing smooth interpolation curves alongside
+    raw database data points for each polymer-solvent pair. Useful for validating
+    that the interpolation model accurately represents the underlying data.
+
+    Args:
+        polymer_solvent_pairs: Comma-separated pairs in "POLYMER:solvent" format.
+            E.g. "LDPE:dodecane, EVOH:dimethylsulfoxide, PET:nitrobenzene"
+        temperature_min: Start of temperature range (default 25)
+        temperature_max: End of temperature range (default 160)
+
+    WHEN TO USE:
+    - "Compare interpolation vs raw data for my separation sequence"
+    - "Validate that interpolated values match the database"
+    - "Show me how accurate the model is for LDPE in dodecane"
+    """
+    from strap.solubility import get_solubility_curve, INTERPOLATION, SQL
+
+    # Parse pairs
+    pairs: List[Tuple[str, str]] = []
+    for item in polymer_solvent_pairs.split(","):
+        item = item.strip()
+        if ":" not in item:
+            return f"Invalid pair format: '{item}'. Use 'POLYMER:solvent' format."
+        polymer, solvent = item.split(":", 1)
+        pairs.append((polymer.strip(), solvent.strip()))
+
+    if not pairs:
+        return "No polymer-solvent pairs provided."
+
+    t_start = max(temperature_min, 25.0)
+    t_end = min(temperature_max, 160.0)
+
+    n_pairs = len(pairs)
+    n_cols = min(n_pairs, 3)
+    n_rows = (n_pairs + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7 * n_cols, 5 * n_rows), squeeze=False)
+
+    for idx, (polymer, solvent) in enumerate(pairs):
+        row, col = divmod(idx, n_cols)
+        ax = axes[row][col]
+
+        # Get interpolation curve (smooth)
+        interp_curve = get_solubility_curve(polymer, solvent, t_start, t_end, 1.0, method=INTERPOLATION)
+        # Get SQL raw data points
+        sql_curve = get_solubility_curve(polymer, solvent, t_start, t_end, 5.0, method=SQL)
+
+        has_data = False
+
+        if interp_curve:
+            interp_temps = [pt["temperature"] for pt in interp_curve]
+            interp_sols = [pt["solubility"] for pt in interp_curve]
+            ax.plot(
+                interp_temps, interp_sols, "-", color="#2171b5", linewidth=2.5,
+                label="Interpolation model", zorder=2,
+            )
+            has_data = True
+
+        if sql_curve:
+            sql_temps = [pt["temperature"] for pt in sql_curve]
+            sql_sols = [pt["solubility"] for pt in sql_curve]
+            ax.scatter(
+                sql_temps, sql_sols, color="#d94801", s=60, marker="o",
+                edgecolors="black", linewidths=0.5, label="Database (raw)", zorder=3,
+            )
+            has_data = True
+
+        if not has_data:
+            ax.text(0.5, 0.5, "No data", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=14, color="gray")
+
+        ax.set_title(f"{polymer} in {solvent}", fontsize=12, fontweight="bold")
+        ax.set_xlabel("Temperature (C)", fontsize=10)
+        ax.set_ylabel("Solubility (%)", fontsize=10)
+        ax.legend(fontsize=9, loc="best")
+        ax.grid(True, alpha=0.3)
+
+    # Hide unused subplots
+    for idx in range(n_pairs, n_rows * n_cols):
+        row, col = divmod(idx, n_cols)
+        axes[row][col].set_visible(False)
+
+    fig.suptitle(
+        "Interpolation Model vs Database Comparison",
+        fontsize=16, fontweight="bold", y=1.02,
+    )
+    plt.tight_layout()
+    filepath = save_plot(fig, "interpolation_vs_sql", "matplotlib")
+    plt.close(fig)
+
+    output = "Interpolation vs SQL Comparison Plot Created\n\n"
+    output += f"Pairs: {len(pairs)}\n"
+    output += f"Temperature range: {t_start}C - {t_end}C\n"
+    for polymer, solvent in pairs:
+        output += f"  - {polymer} in {solvent}\n"
+    output += "\nBlue line = interpolation model (ln(S) = A + B/T + C/T^2)\n"
+    output += "Orange dots = raw database values\n"
+    output += f"\n{_get_plot_url(filepath)}"
+
+    gc.collect()
     return output
 
 
@@ -1339,29 +1309,25 @@ async def plot_solvent_properties(
         "g_score": "G-Score (Safety - higher is safer)",
     }
 
-    # Query for solvents that dissolve the polymer
-    temp_filter = ""
-    if temperature_column and temperature is not None:
-        temp_filter = f"AND {temperature_column} BETWEEN {temperature - 5} AND {temperature + 5}"
+    # Query for solvents that dissolve the polymer via interpolation model
+    from strap.solubility import get_solubility, get_available_solvents_for_polymer
 
-    query = f"""
-    SELECT {solvent_column}, AVG({solubility_column}) as avg_solubility
-    FROM {table_name}
-    WHERE {polymer_column} = '{polymer}'
-    AND {solubility_column} >= {min_solubility}
-    {temp_filter}
-    GROUP BY {solvent_column}
-    ORDER BY avg_solubility DESC
-    LIMIT {max_solvents}
-    """
+    query_temp = temperature if temperature is not None else 100.0
+    all_solvents = get_available_solvents_for_polymer(polymer)
 
-    result = _execute_query(query, limit=10000)
-    if not result["success"] or result["rows"] == 0:
+    solubility_map: Dict[str, float] = {}
+    for sv in all_solvents:
+        sol = get_solubility(polymer, sv, query_temp)
+        if sol is not None and sol >= (min_solubility or 0.0):
+            solubility_map[sv] = sol
+
+    # Sort by solubility desc and limit
+    sorted_pairs = sorted(solubility_map.items(), key=lambda x: x[1], reverse=True)[:max_solvents]
+    solvents_found = [s for s, _ in sorted_pairs]
+    solubility_map = dict(sorted_pairs)
+
+    if not solvents_found:
         return f"No solvents found for {polymer} with solubility >= {min_solubility}%"
-
-    df = result["dataframe"]
-    solvents_found = df[solvent_column].tolist()
-    solubility_map = dict(zip(df[solvent_column], df["avg_solubility"]))
 
     # -----------------------------------------------------------------
     # 2D scatter mode  (y_property supplied)

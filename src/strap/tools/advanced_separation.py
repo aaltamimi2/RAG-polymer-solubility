@@ -1306,46 +1306,22 @@ def find_antisolvents(
     - "Find antisolvents for LDPE"
     - "Which solvents don't dissolve PET at room temperature?"
     """
-    conn = get_connection()
-
     try:
-        # Query for low-solubility solvents at the specified temperature
-        # Try both column name formats (original vs DuckDB sanitized)
-        queries = [
-            # DuckDB sanitized column names
-            f"""
-            SELECT solvent,
-                   solubility____ as solubility,
-                   temperature___c_ as temp
-            FROM common_solvents_database
-            WHERE UPPER(polymer) = UPPER('{polymer}')
-            AND temperature___c_ BETWEEN {temperature - 5} AND {temperature + 5}
-            AND solubility____ <= {max_solubility}
-            ORDER BY solubility____ ASC
-            """,
-            # Original column names with quotes
-            f"""
-            SELECT "Solvent" as solvent,
-                   "Solubility (%)" as solubility,
-                   "Temperature (°C)" as temp
-            FROM common_solvents_database
-            WHERE UPPER("Polymer") = UPPER('{polymer}')
-            AND "Temperature (°C)" BETWEEN {temperature - 5} AND {temperature + 5}
-            AND "Solubility (%)" <= {max_solubility}
-            ORDER BY "Solubility (%)" ASC
-            """,
-        ]
+        from strap.solubility import get_solubility, get_available_solvents_for_polymer
 
-        df = None
-        for query in queries:
-            try:
-                df = conn.execute(query).fetchdf()
-                if not df.empty:
-                    break
-            except Exception:
-                continue
+        solvents = get_available_solvents_for_polymer(polymer)
+        rows = []
+        for sv in solvents:
+            sol = get_solubility(polymer, sv, temperature)
+            if sol is not None and sol <= max_solubility:
+                rows.append({'solvent': sv, 'solubility': sol, 'temp': temperature})
 
-        if df is None or df.empty:
+        if not rows:
+            df = pd.DataFrame()
+        else:
+            df = pd.DataFrame(rows).sort_values('solubility').reset_index(drop=True)
+
+        if df.empty:
             return (
                 f"No antisolvents found for {polymer} with solubility < {max_solubility}% at {temperature} deg C.\n\n"
                 f"Try increasing max_solubility threshold or checking a different temperature."
@@ -1400,86 +1376,41 @@ def find_antisolvent_pairs(
     - "Find solvent/antisolvent pairs for LDPE recovery"
     - "What combinations work for antisolvent precipitation of PET?"
     """
-    conn = get_connection()
-
     try:
-        # Find good solvents (high solubility at any temperature)
-        # Try sanitized column names first, then original
-        good_queries = [
-            f"""
-            SELECT solvent,
-                   MAX(solubility____) as max_solubility,
-                   MAX(temperature___c_) as dissolution_temp
-            FROM common_solvents_database
-            WHERE UPPER(polymer) = UPPER('{polymer}')
-            GROUP BY solvent
-            HAVING MAX(solubility____) >= {min_good_solubility}
-            ORDER BY max_solubility DESC
-            """,
-            f"""
-            SELECT "Solvent" as solvent,
-                   MAX("Solubility (%)") as max_solubility,
-                   MAX("Temperature (°C)") as dissolution_temp
-            FROM common_solvents_database
-            WHERE UPPER("Polymer") = UPPER('{polymer}')
-            GROUP BY "Solvent"
-            HAVING MAX("Solubility (%)") >= {min_good_solubility}
-            ORDER BY max_solubility DESC
-            """,
-        ]
+        from strap.solubility import get_solubility, get_solubility_curve, get_available_solvents_for_polymer
 
-        good_solvents = None
-        for gq in good_queries:
-            try:
-                good_solvents = conn.execute(gq).fetchdf()
-                if not good_solvents.empty:
-                    break
-            except Exception:
-                continue
+        solvents = get_available_solvents_for_polymer(polymer)
 
-        # Find antisolvents (near-zero solubility at room temp)
-        anti_queries = [
-            f"""
-            SELECT solvent,
-                   MIN(solubility____) as min_solubility,
-                   temperature___c_ as temp
-            FROM common_solvents_database
-            WHERE UPPER(polymer) = UPPER('{polymer}')
-            AND temperature___c_ <= 30
-            GROUP BY solvent, temperature___c_
-            HAVING MIN(solubility____) <= {max_antisolvent_solubility}
-            ORDER BY min_solubility ASC
-            """,
-            f"""
-            SELECT "Solvent" as solvent,
-                   MIN("Solubility (%)") as min_solubility,
-                   "Temperature (°C)" as temp
-            FROM common_solvents_database
-            WHERE UPPER("Polymer") = UPPER('{polymer}')
-            AND "Temperature (°C)" <= 30
-            GROUP BY "Solvent", "Temperature (°C)"
-            HAVING MIN("Solubility (%)") <= {max_antisolvent_solubility}
-            ORDER BY min_solubility ASC
-            """,
-        ]
+        # Find good solvents: max solubility across all temperatures >= threshold
+        good_rows = []
+        for sv in solvents:
+            curve = get_solubility_curve(polymer, sv, t_start_c=25, t_end_c=160, t_step_c=5)
+            if curve:
+                max_sol = max(pt['solubility'] for pt in curve)
+                max_temp = next(pt['temperature'] for pt in curve if pt['solubility'] == max_sol)
+                if max_sol >= min_good_solubility:
+                    good_rows.append({'solvent': sv, 'max_solubility': max_sol, 'dissolution_temp': max_temp})
+        good_solvents = (
+            pd.DataFrame(good_rows).sort_values('max_solubility', ascending=False).reset_index(drop=True)
+            if good_rows else pd.DataFrame()
+        )
 
-        antisolvents = None
-        for aq in anti_queries:
-            try:
-                antisolvents = conn.execute(aq).fetchdf()
-                if not antisolvents.empty:
-                    break
-            except Exception:
-                continue
+        # Find antisolvents: low solubility at room temperature
+        anti_rows = []
+        for sv in solvents:
+            sol = get_solubility(polymer, sv, 25.0)
+            if sol is not None and sol <= max_antisolvent_solubility:
+                anti_rows.append({'solvent': sv, 'min_solubility': sol, 'temp': 25.0})
+        antisolvents = (
+            pd.DataFrame(anti_rows).sort_values('min_solubility').reset_index(drop=True)
+            if anti_rows else pd.DataFrame()
+        )
 
-        if good_solvents is None or good_solvents.empty:
+        if good_solvents.empty:
             return f"No good solvents found for {polymer} with solubility > {min_good_solubility}%"
 
-        if antisolvents is None or antisolvents.empty:
+        if antisolvents.empty:
             return f"No antisolvents found for {polymer} with solubility < {max_antisolvent_solubility}%"
-
-        # Deduplicate antisolvents
-        antisolvents = antisolvents.drop_duplicates(subset=['solvent'])
 
         lines = [
             f"# Antisolvent Precipitation Pairs for {polymer.upper()}\n",
@@ -1559,50 +1490,26 @@ def analyze_selective_antisolvent_precipitation(
     - "Can I selectively precipitate LDPE from a LDPE/PET mixture using an antisolvent?"
     - "Analyze antisolvent-based separation for LDPE, PP, HDPE"
     """
-    conn = get_connection()
-
     polymer_list = [p.strip().upper() for p in polymers.split(',')]
 
     if len(polymer_list) < 2:
         return "Error: Need at least 2 polymers for selective precipitation analysis"
 
     try:
-        # For each polymer, get solubility in potential antisolvents at room temp
+        from strap.solubility import get_solubility, get_available_solvents
+
+        all_solvents = get_available_solvents()
+
+        # For each polymer, get solubility in all solvents at room temp (25 °C)
         results = {}
         for polymer in polymer_list:
-            queries = [
-                # DuckDB sanitized column names
-                f"""
-                SELECT solvent,
-                       solubility____ as solubility
-                FROM common_solvents_database
-                WHERE UPPER(polymer) = UPPER('{polymer}')
-                AND temperature___c_ <= 30
-                ORDER BY solubility____ ASC
-                """,
-                # Original column names
-                f"""
-                SELECT "Solvent" as solvent,
-                       "Solubility (%)" as solubility
-                FROM common_solvents_database
-                WHERE UPPER("Polymer") = UPPER('{polymer}')
-                AND "Temperature (°C)" <= 30
-                ORDER BY "Solubility (%)" ASC
-                """,
-            ]
-
-            df = None
-            for query in queries:
-                try:
-                    df = conn.execute(query).fetchdf()
-                    if not df.empty:
-                        break
-                except Exception:
-                    continue
-
-            if df is not None and not df.empty:
-                df = df.drop_duplicates(subset=['solvent'])
-                results[polymer] = dict(zip(df['solvent'], df['solubility']))
+            sol_dict = {}
+            for sv in all_solvents:
+                sol = get_solubility(polymer, sv, 25.0)
+                if sol is not None:
+                    sol_dict[sv] = sol
+            if sol_dict:
+                results[polymer] = sol_dict
 
         if len(results) < 2:
             return f"Insufficient solubility data for {', '.join(polymer_list)}"
@@ -1942,7 +1849,8 @@ async def _greedy_separation_planning(
     """
     import math
 
-    conn = get_connection()
+    from strap.solubility import get_selectivity as _get_selectivity
+
     n_polymers = len(polymer_list)
 
     output = []
@@ -1975,62 +1883,24 @@ async def _greedy_separation_planning(
 
         for target in remaining:
             others = [p for p in remaining if p != target]
-            others_filter = "', '".join(others)
 
-            query = f"""
-            WITH target_sol AS (
-                SELECT {solvent_column} as solvent, AVG({solubility_column}) as t_sol
-                FROM {table_name}
-                WHERE {polymer_column} = '{target}'
-                AND {temperature_column} BETWEEN {temperature - 10} AND {temperature + 10}
-                GROUP BY {solvent_column}
-                HAVING AVG({solubility_column}) > 0
-            ),
-            others_max AS (
-                SELECT {solvent_column} as solvent, MAX({solubility_column}) as o_max
-                FROM {table_name}
-                WHERE {polymer_column} IN ('{others_filter}')
-                AND {temperature_column} BETWEEN {temperature - 10} AND {temperature + 10}
-                GROUP BY {solvent_column}
-            )
-            SELECT
-                t.solvent,
-                t.t_sol as target_solubility,
-                COALESCE(o.o_max, 0) as max_other_solubility,
-                (t.t_sol - COALESCE(o.o_max, 0)) as selectivity
-            FROM target_sol t
-            LEFT JOIN others_max o ON LOWER(t.solvent) = LOWER(o.solvent)
-            ORDER BY selectivity DESC
-            LIMIT 1
-            """
-
-            try:
-                result_df = conn.execute(query).fetchdf()
-                if len(result_df) > 0:
-                    row = result_df.iloc[0]
-                    candidates.append({
-                        "polymer": target,
-                        "solvent": row["solvent"],
-                        "selectivity": row["selectivity"],
-                        "target_sol": row["target_solubility"],
-                        "others": others,
-                    })
-                else:
-                    candidates.append({
-                        "polymer": target,
-                        "solvent": "N/A",
-                        "selectivity": -999,
-                        "target_sol": 0,
-                        "others": others,
-                    })
-            except Exception as e:
+            ret = _get_selectivity(target, others, temperature, used_solvents)
+            if ret:
+                best_solvent, selectivity, target_sol, max_other = ret
                 candidates.append({
                     "polymer": target,
-                    "solvent": "error",
+                    "solvent": best_solvent,
+                    "selectivity": selectivity,
+                    "target_sol": target_sol,
+                    "others": others,
+                })
+            else:
+                candidates.append({
+                    "polymer": target,
+                    "solvent": "N/A",
                     "selectivity": -999,
                     "target_sol": 0,
                     "others": others,
-                    "error": str(e),
                 })
 
         # Show candidate evaluations
@@ -2139,6 +2009,253 @@ async def _greedy_separation_planning(
     return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
 
 
+# ===================================================================
+# Tool: plan_multiple_separation_schemes (token-efficient multi-scheme)
+# ===================================================================
+
+@safe_tool_wrapper
+async def plan_multiple_separation_schemes(
+    polymers: str,
+    temperature: float = 120.0,
+    min_selectivity: float = 5.0,
+    n_variants: int = 2,
+) -> str:
+    """Generate diverse separation schemes: max-selectivity, safest, lowest-energy, each with variants.
+
+    Args:
+        polymers: Comma-separated polymer list (e.g., "LDPE,HDPE,PP,PS,PET,PVC,EVOH,Nylon6,Nylon66")
+        temperature: Target temperature in C (default: 120.0)
+        min_selectivity: Min selectivity threshold for safety/energy schemes (default: 5.0)
+        n_variants: Number of variants per scheme type (default: 2). Variant 1 is the greedy optimum;
+            variant 2+ explore alternative first-step choices that cascade into different sequences.
+    """
+    from strap.solubility import (
+        get_all_solvents_selectivity as _get_all_sel,
+        get_available_solvents as _get_available_solvents,
+    )
+
+    polymer_list = [p.strip().upper() for p in polymers.split(",") if p.strip()]
+    n = len(polymer_list)
+    if n < 2:
+        return "Error: Need at least 2 polymers."
+
+    # ---- Pre-load solvent properties (BP, LogP, G-score) once ----
+    all_solvents = _get_available_solvents()
+
+    bp_map: dict[str, float] = {}
+    logp_map: dict[str, float] = {}
+    gscore_map: dict[str, float] = {}
+
+    solvent_table = _get_solvent_table_name()
+    if solvent_table:
+        prop_dict = await _lookup_solvent_properties(list(all_solvents), solvent_table)
+        for sname, props in prop_dict.items():
+            if props.get("bp") is not None:
+                try:
+                    bp_map[sname] = float(props["bp"])
+                except (ValueError, TypeError):
+                    pass
+            if props.get("logp") is not None:
+                try:
+                    logp_map[sname] = float(props["logp"])
+                except (ValueError, TypeError):
+                    pass
+
+    conn = get_connection()
+    try:
+        gsk_df = conn.execute(
+            "SELECT solvent_common_name, g_score FROM gsk_dataset"
+        ).fetchdf()
+        gsk_lower = {}
+        for _, row in gsk_df.iterrows():
+            if row["g_score"] is not None:
+                gsk_lower[row["solvent_common_name"].lower()] = float(row["g_score"])
+        # Match interpolation solvent names to GSK names
+        for sname in all_solvents:
+            sl = sname.lower()
+            if sl in gsk_lower:
+                gscore_map[sname] = gsk_lower[sl]
+            else:
+                # Try abbreviation expansion
+                expanded = _ABBREVIATION_MAP.get(sl, sl)
+                if expanded.lower() in gsk_lower:
+                    gscore_map[sname] = gsk_lower[expanded.lower()]
+                else:
+                    # Substring match
+                    norm = sl.replace("-", "").replace(" ", "")
+                    for gk, gv in gsk_lower.items():
+                        gk_norm = gk.replace("-", "").replace(" ", "")
+                        if norm in gk_norm or gk_norm in norm:
+                            gscore_map[sname] = gv
+                            break
+    except Exception:
+        pass
+
+    # ---- Ranking functions ----
+    def _rank_selectivity(candidates: list[dict]) -> list[dict]:
+        return sorted(candidates, key=lambda c: c.get("selectivity", -999), reverse=True)
+
+    def _rank_safety(candidates: list[dict]) -> list[dict]:
+        viable = [
+            c for c in candidates
+            if c.get("selectivity", -999) >= min_selectivity
+            and c.get("solvent", "") in gscore_map
+        ]
+        if not viable:
+            viable = [c for c in candidates if c.get("solvent", "") in gscore_map]
+        if not viable:
+            return _rank_selectivity(candidates)
+        return sorted(viable, key=lambda c: gscore_map.get(c["solvent"], 0), reverse=True)
+
+    def _rank_energy(candidates: list[dict]) -> list[dict]:
+        viable = [
+            c for c in candidates
+            if c.get("selectivity", -999) >= min_selectivity
+            and c.get("solvent", "") in bp_map
+        ]
+        if not viable:
+            viable = [c for c in candidates if c.get("solvent", "") in bp_map]
+        if not viable:
+            return _rank_selectivity(candidates)
+        return sorted(viable, key=lambda c: bp_map.get(c["solvent"], 999))
+
+    # ---- Generalized greedy loop ----
+    def _greedy_scheme(name: str, tag: str, rank_fn, first_step_pick: int = 0) -> dict:
+        """Run greedy separation with a given ranking function.
+
+        first_step_pick: index into ranked candidates at step 1 (0=best, 1=2nd-best, ...).
+        After step 1, always picks ranked[0] (greedy optimum).
+        """
+        remaining = list(polymer_list)
+        steps = []
+        used_solvents: set[str] = set()
+        is_first_step = True
+
+        while len(remaining) > 1:
+            candidates = []
+            for target in remaining:
+                others = [p for p in remaining if p != target]
+                all_sel = _get_all_sel(target, others, temperature)
+                # Filter used solvents
+                if used_solvents:
+                    all_sel = [s for s in all_sel if s["solvent"] not in used_solvents]
+                if not all_sel:
+                    candidates.append({"polymer": target, "solvent": "N/A", "selectivity": -999})
+                    continue
+                # Apply scheme ranking to find best solvent for this target
+                ranked = rank_fn(all_sel)
+                best = ranked[0]
+                candidates.append({
+                    "polymer": target,
+                    "solvent": best["solvent"],
+                    "selectivity": best["selectivity"],
+                })
+
+            # Pick (polymer, solvent) pair — use alternate pick on first step only
+            ranked_cands = rank_fn(candidates)
+            pick_idx = 0
+            if is_first_step and first_step_pick > 0:
+                pick_idx = min(first_step_pick, len(ranked_cands) - 1)
+                is_first_step = False
+            else:
+                is_first_step = False
+            winner = ranked_cands[pick_idx]
+
+            steps.append({
+                "step": len(steps) + 1,
+                "target": winner["polymer"],
+                "solvent": winner["solvent"],
+                "sel": winner["selectivity"],
+                "bp": bp_map.get(winner["solvent"]),
+                "gsk": gscore_map.get(winner["solvent"]),
+                "logp": logp_map.get(winner["solvent"]),
+            })
+            used_solvents.add(winner["solvent"])
+            remaining.remove(winner["polymer"])
+
+        # Last polymer isolated
+        if remaining:
+            steps.append({
+                "step": len(steps) + 1,
+                "target": remaining[0],
+                "solvent": "-",
+                "sel": None, "bp": None, "gsk": None, "logp": None,
+            })
+
+        valid = [s["sel"] for s in steps if s["sel"] is not None and s["sel"] > -900]
+        return {
+            "name": name,
+            "tag": tag,
+            "steps": steps,
+            "seq": [s["target"] for s in steps],
+            "min_sel": min(valid) if valid else 0,
+            "avg_sel": sum(valid) / len(valid) if valid else 0,
+            "n_solv": len(set(s["solvent"] for s in steps if s["solvent"] != "-")),
+        }
+
+    # ---- Run schemes with variants ----
+    n_variants = max(1, min(n_variants, 5))  # clamp to [1, 5]
+    scheme_defs = [
+        ("Max Selectivity", "SEL", _rank_selectivity),
+        ("Safest Process (GSK)", "SAFE", _rank_safety),
+        ("Lowest Energy (BP)", "NRG", _rank_energy),
+    ]
+    schemes = []
+    for base_name, base_tag, rank_fn in scheme_defs:
+        for v in range(n_variants):
+            suffix = f" (v{v + 1})" if n_variants > 1 else ""
+            tag = f"{base_tag}-v{v + 1}" if n_variants > 1 else base_tag
+            schemes.append(_greedy_scheme(base_name + suffix, tag, rank_fn, first_step_pick=v))
+
+    # Deduplicate: if variant produces same sequence as primary, drop it
+    seen_seqs: set[str] = set()
+    unique_schemes = []
+    for s in schemes:
+        seq_key = ">".join(s["seq"])
+        if seq_key not in seen_seqs:
+            seen_seqs.add(seq_key)
+            unique_schemes.append(s)
+    schemes = unique_schemes
+
+    # ---- Compact output ----
+    out = []
+    out.append(f"MULTI-SCHEME SEPARATION: {','.join(polymer_list)} @ {temperature}C")
+    out.append(f"Polymers: {n} | Greedy O(n^2) | {len(schemes)} schemes ({n_variants} variants/type)\n")
+
+    for r in schemes:
+        out.append(f"== {r['tag']}: {r['name']} ==")
+        out.append(f"Seq: {' > '.join(r['seq'])}")
+        out.append(f"Min/Avg sel: {r['min_sel']:.1f}% / {r['avg_sel']:.1f}% | Solvents: {r['n_solv']}")
+        out.append("Stp|Target  |Solvent       |Sel% |BP(C)|GSK |LogP")
+        out.append("---|--------|--------------|-----|-----|----|----")
+        for s in r["steps"]:
+            if s["solvent"] == "-":
+                out.append(f" {s['step']} |{s['target']:<8}|(isolated)    | done|  -  | -  | -")
+            else:
+                sel_s = f"{s['sel']:.0f}" if s["sel"] is not None and s["sel"] > -900 else "?"
+                bp_s = f"{s['bp']:.0f}" if s.get("bp") is not None else "-"
+                gs_s = f"{s['gsk']:.1f}" if s.get("gsk") is not None else "-"
+                lp_s = f"{s['logp']:.1f}" if s.get("logp") is not None else "-"
+                out.append(f" {s['step']} |{s['target']:<8}|{s['solvent']:<14}|{sel_s:>5}|{bp_s:>5}|{gs_s:>4}|{lp_s:>4}")
+        out.append("")
+
+    # Comparison summary
+    out.append("== COMPARISON ==")
+    out.append("Scheme|MinSel|AvgSel|#Solvents|Bottleneck")
+    out.append("------|------|------|---------|----------")
+    for r in schemes:
+        valid_steps = [s for s in r["steps"] if s["sel"] is not None and s["sel"] > -900]
+        if valid_steps:
+            bn = min(valid_steps, key=lambda s: s["sel"])
+            out.append(f"{r['tag']:6}|{r['min_sel']:5.0f}%|{r['avg_sel']:5.0f}%|{r['n_solv']:9}|Step {bn['step']}:{bn['target']}")
+        else:
+            out.append(f"{r['tag']:6}|    ?|    ?|{r['n_solv']:9}|N/A")
+
+    out.append("")
+    out.append("SEL=max separation reliability, SAFE=regulatory/green, NRG=lowest operating cost.")
+
+    return "\n".join(out)
+
 
 @safe_tool_wrapper
 async def plan_sequential_separation(
@@ -2240,31 +2357,31 @@ async def plan_sequential_separation(
                       "temperature": temperature, "optimal_temp": temperature, "note": "Last polymer - no separation needed"}]
 
         all_polymers = [target] + remaining
-        polymer_filter = "', '".join(all_polymers)
 
-        # Query at USER-SPECIFIED temperature
-        query_specified = f"""
-        SELECT {solvent_column}, {polymer_column}, AVG({solubility_column}) as avg_sol
-        FROM {table_name}
-        WHERE {polymer_column} IN ('{polymer_filter}')
-        AND {temperature_column} BETWEEN {temperature - 5} AND {temperature + 5}
-        GROUP BY {solvent_column}, {polymer_column}
-        """
+        # Use interpolation model instead of SQL
+        from strap.solubility import get_solubility as _get_sol, get_available_solvents_for_polymer as _get_svnts
+        import pandas as pd
 
-        # Query across ALL temperatures (25-160C) to find optimal
-        query_all_temps = f"""
-        SELECT {solvent_column}, {polymer_column}, {temperature_column} as temp, AVG({solubility_column}) as avg_sol
-        FROM {table_name}
-        WHERE {polymer_column} IN ('{polymer_filter}')
-        AND {temperature_column} BETWEEN 25 AND 160
-        GROUP BY {solvent_column}, {polymer_column}, {temperature_column}
-        """
+        solvents_avail = _get_svnts(target)
 
-        try:
-            df = conn.execute(query_specified).fetchdf()
-            df_all = conn.execute(query_all_temps).fetchdf()
-        except Exception as e:
-            return [{"solvent": "Error", "selectivity": 0, "target_sol": 0, "max_other": 0, "error": str(e)}]
+        # Build DataFrame at user-specified temperature (replaces SQL query)
+        rows_spec = []
+        for sv in solvents_avail:
+            for poly in all_polymers:
+                sol = _get_sol(poly, sv, temperature)
+                if sol is not None:
+                    rows_spec.append({solvent_column: sv, polymer_column: poly, "avg_sol": sol})
+        df = pd.DataFrame(rows_spec) if rows_spec else pd.DataFrame(columns=[solvent_column, polymer_column, "avg_sol"])
+
+        # Build DataFrame across all temperatures 25-160°C (replaces SQL query)
+        rows_all = []
+        for sv in solvents_avail:
+            for poly in all_polymers:
+                for t in range(25, 161, 5):
+                    sol = _get_sol(poly, sv, float(t))
+                    if sol is not None and sol > 0:
+                        rows_all.append({solvent_column: sv, polymer_column: poly, "temp": float(t), "avg_sol": sol})
+        df_all = pd.DataFrame(rows_all) if rows_all else pd.DataFrame(columns=[solvent_column, polymer_column, "temp", "avg_sol"])
 
         if len(df) == 0:
             return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
@@ -2839,18 +2956,14 @@ async def analyze_integrated_separation(
             "This exhaustive analysis tool is limited to <=3 polymers."
         )
 
-    # Get available temperatures from database
-    temp_query = f"""
-    SELECT DISTINCT {temperature_column} as temp
-    FROM {table_name}
-    WHERE {temperature_column} BETWEEN {temperature_min} AND {temperature_max}
-    ORDER BY temp
-    """
-    try:
-        temp_df = conn.execute(temp_query).fetchdf()
-        available_temps = sorted(temp_df["temp"].unique())
-    except Exception as e:
-        return f"Error getting temperatures: {e}"
+    # Temperature range from interpolation model (25–160 °C, step 5)
+    available_temps = [
+        float(t) for t in range(
+            max(int(temperature_min), 25),
+            min(int(temperature_max), 160) + 1,
+            5,
+        )
+    ]
 
     if not available_temps:
         return f"No temperature data found between {temperature_min} C and {temperature_max} C"
@@ -2859,7 +2972,8 @@ async def analyze_integrated_separation(
     output.append(f"**Polymers:** {', '.join(polymer_list)}")
     output.append(f"**Temperature Range:** {temperature_min} C - {temperature_max} C ({len(available_temps)} temperatures)")
     output.append(f"**Ranking Criterion:** {rank_by}")
-    output.append(f"**Number of Sequences:** {n_polymers}! = {len(list(permutations(polymer_list)))}\n")
+    import math
+    output.append(f"**Number of Sequences:** {n_polymers}! = {math.factorial(n_polymers)}\n")
 
     # Helper to get solvent properties including GSK G-score
     async def get_full_properties(solvent_names: list) -> dict:
@@ -2917,46 +3031,24 @@ async def analyze_integrated_separation(
                 "note": "Last polymer - no separation needed",
             }
 
-        all_polymers = [target] + remaining
-        polymer_filter = "', '".join(all_polymers)
+        from strap.solubility import get_solubility as _get_sol, get_available_solvents as _get_svnts
 
-        query = f"""
-        SELECT {solvent_column}, {polymer_column}, {temperature_column} as temp,
-               AVG({solubility_column}) as avg_sol
-        FROM {table_name}
-        WHERE {polymer_column} IN ('{polymer_filter}')
-        AND {temperature_column} BETWEEN {temperature_min} AND {temperature_max}
-        GROUP BY {solvent_column}, {polymer_column}, {temperature_column}
-        """
-
-        try:
-            df = conn.execute(query).fetchdf()
-        except Exception as e:
-            return {"solvent": "Error", "temperature": 0, "selectivity": 0, "error": str(e)}
-
-        if len(df) == 0:
-            return {"solvent": "No data", "temperature": 0, "selectivity": 0}
+        all_solvents = _get_svnts()
 
         results = []
-        for temp in df["temp"].unique():
-            temp_df = df[df["temp"] == temp]
-
-            for solvent in temp_df[solvent_column].unique():
-                solvent_data = temp_df[temp_df[solvent_column] == solvent]
-
-                target_data = solvent_data[solvent_data[polymer_column] == target]
-                if len(target_data) == 0:
+        for temp in available_temps:
+            for solvent in all_solvents:
+                target_sol = _get_sol(target, solvent, temp)
+                if target_sol is None or target_sol <= 0:
                     continue
-                target_sol = target_data["avg_sol"].values[0]
 
-                other_data = solvent_data[solvent_data[polymer_column].isin(remaining)]
-                if len(other_data) == 0:
-                    max_other = 0
-                else:
-                    max_other = other_data["avg_sol"].max()
+                max_other = 0.0
+                for poly in remaining:
+                    sol = _get_sol(poly, solvent, temp)
+                    if sol is not None and sol > max_other:
+                        max_other = sol
 
                 selectivity = target_sol - max_other
-
                 results.append({
                     "solvent": solvent,
                     "temperature": temp,
@@ -3068,20 +3160,81 @@ async def analyze_integrated_separation(
             "min_selectivity": min_sel,
         }
 
-    # Generate all permutations and analyze in parallel
-    all_sequences = list(permutations(polymer_list))
+    # For large polymer sets, use greedy instead of exhaustive permutations
+    MAX_EXHAUSTIVE = 6  # 6! = 720, 7! = 5040, 9! = 362880
+    USE_GREEDY = n_polymers > MAX_EXHAUSTIVE
 
-    output.append("## Analyzing All Sequences...\n")
+    if USE_GREEDY:
+        import math
+        output.append(f"## Greedy Analysis (n={n_polymers}, {math.factorial(n_polymers):,} permutations avoided)\n")
+        output.append("Using greedy algorithm: at each step, select the polymer with the highest selectivity separation.\n")
 
-    semaphore = asyncio.Semaphore(5)
+        # Build a single greedy sequence
+        remaining_g = list(polymer_list)
+        greedy_sequence: list[str] = []
+        greedy_steps: list[dict] = []
+        used_solvents_g: set[str] = set()
 
-    async def analyze_with_limit(seq):
-        async with semaphore:
-            return await analyze_sequence(seq)
+        while len(remaining_g) > 1:
+            best_candidate = None
+            best_sel = -float("inf")
+            for target in remaining_g:
+                others = [p for p in remaining_g if p != target]
+                result = await find_optimal_separation(target, others, used_solvents_g)
+                sel = result.get("selectivity", 0)
+                if sel == float("inf"):
+                    sel = 0
+                if sel > best_sel:
+                    best_sel = sel
+                    best_candidate = (target, result)
 
-    all_results = await asyncio.gather(*[analyze_with_limit(seq) for seq in all_sequences])
+            target, best = best_candidate
+            greedy_sequence.append(target)
+            remaining_g.remove(target)
+            if best.get("solvent") and best["solvent"] not in ["None found", "No data", "Error", "N/A", "No viable solvent"]:
+                used_solvents_g.add(best["solvent"])
+            greedy_steps.append({
+                "step": len(greedy_sequence),
+                "target": target,
+                "remaining": remaining_g.copy(),
+                "best": best,
+            })
 
-    all_results.sort(key=lambda x: x["min_selectivity"], reverse=True)
+        # Add last polymer (isolated)
+        greedy_sequence.append(remaining_g[0])
+        greedy_steps.append({
+            "step": len(greedy_sequence),
+            "target": remaining_g[0],
+            "remaining": [],
+            "best": {"solvent": "N/A", "temperature": 0, "selectivity": float("inf"), "note": "Isolated"},
+        })
+
+        min_sel = min(
+            s["best"].get("selectivity", 0)
+            for s in greedy_steps[:-1]
+            if s["best"].get("selectivity", 0) != float("inf")
+        ) if len(greedy_steps) > 1 else 0
+
+        all_results = [{
+            "sequence": tuple(greedy_sequence),
+            "steps": greedy_steps,
+            "total_score": sum(s["best"].get("selectivity", 0) for s in greedy_steps[:-1] if s["best"].get("selectivity", 0) != float("inf")),
+            "min_selectivity": min_sel,
+        }]
+    else:
+        all_sequences = list(permutations(polymer_list))
+
+        output.append("## Analyzing All Sequences...\n")
+
+        semaphore = asyncio.Semaphore(5)
+
+        async def analyze_with_limit(seq):
+            async with semaphore:
+                return await analyze_sequence(seq)
+
+        all_results = await asyncio.gather(*[analyze_with_limit(seq) for seq in all_sequences])
+
+        all_results.sort(key=lambda x: x["min_selectivity"], reverse=True)
 
     # Show top 3 sequences in detail
     output.append("## Top 3 Recommended Separation Sequences\n")
@@ -3318,52 +3471,28 @@ async def view_alternative_separation_sequence(
     if n_polymers < 2:
         return "Error: Need at least 2 polymers."
 
-    all_sequences = list(permutations(polymer_list))
+    MAX_EXHAUSTIVE = 6  # 6! = 720 permutations
 
     async def find_top_solvents(target: str, remaining: list, k: int = 5) -> list:
         """Find top-k solvents for separating target from remaining polymers."""
         if not remaining:
             return [{"solvent": "N/A", "selectivity": float("inf"), "target_sol": 100, "max_other": 0}]
 
-        all_polymers_for_query = [target] + remaining
-        polymer_filter = "', '".join(all_polymers_for_query)
-
-        query = f"""
-        SELECT {solvent_column}, {polymer_column}, AVG({solubility_column}) as avg_sol
-        FROM {table_name}
-        WHERE {polymer_column} IN ('{polymer_filter}')
-        AND {temperature_column} BETWEEN {temperature - 5} AND {temperature + 5}
-        GROUP BY {solvent_column}, {polymer_column}
-        """
-
-        try:
-            df = conn.execute(query).fetchdf()
-        except Exception as e:
-            return [{"solvent": "Error", "selectivity": 0, "target_sol": 0, "max_other": 0, "error": str(e)}]
-
-        if len(df) == 0:
+        # Use interpolation model instead of SQL
+        from strap.solubility import get_all_solvents_selectivity as _get_all_sel
+        all_sel = _get_all_sel(target, remaining, temperature)
+        if not all_sel:
             return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
 
-        results = []
-        for solvent in df[solvent_column].unique():
-            solvent_data = df[df[solvent_column] == solvent]
-            target_data = solvent_data[solvent_data[polymer_column] == target]
-            if len(target_data) == 0:
-                continue
-            target_sol = target_data["avg_sol"].values[0]
-
-            other_data = solvent_data[solvent_data[polymer_column].isin(remaining)]
-            max_other = other_data["avg_sol"].max() if len(other_data) > 0 else 0
-
-            selectivity = target_sol - max_other
-            results.append({
-                "solvent": solvent,
-                "selectivity": selectivity,
-                "target_sol": target_sol,
-                "max_other": max_other,
-            })
-
-        results.sort(key=lambda x: x["selectivity"], reverse=True)
+        results = [
+            {
+                "solvent": entry["solvent"],
+                "selectivity": entry["selectivity"],
+                "target_sol": entry["target_sol"],
+                "max_other": entry["max_other_sol"],
+            }
+            for entry in all_sel
+        ]
         return results[:k]
 
     async def analyze_sequence(sequence, seq_idx):
@@ -3398,18 +3527,87 @@ async def view_alternative_separation_sequence(
             "steps": seq_steps,
         }
 
-    # Analyze all sequences with limited concurrency
-    semaphore = asyncio.Semaphore(10)
+    # For large polymer sets, limit permutation enumeration
+    if n_polymers <= MAX_EXHAUSTIVE:
+        all_sequences = list(permutations(polymer_list))
 
-    async def analyze_with_limit(seq, idx):
-        async with semaphore:
-            return await analyze_sequence(seq, idx)
+        semaphore = asyncio.Semaphore(10)
 
-    sequence_analyses = await asyncio.gather(*[
-        analyze_with_limit(seq, idx) for idx, seq in enumerate(all_sequences, 1)
-    ])
+        async def analyze_with_limit(seq, idx):
+            async with semaphore:
+                return await analyze_sequence(seq, idx)
 
-    sequence_scores = sorted(sequence_analyses, key=lambda x: x["min_selectivity"], reverse=True)
+        sequence_analyses = await asyncio.gather(*[
+            analyze_with_limit(seq, idx) for idx, seq in enumerate(all_sequences, 1)
+        ])
+
+        sequence_scores = sorted(sequence_analyses, key=lambda x: x["min_selectivity"], reverse=True)
+    elif starting_polymer is not None:
+        # Only generate permutations starting with the specified polymer: (n-1)!
+        from itertools import permutations as _perms
+        starting_polymer_normalized = starting_polymer.strip().upper()
+        if starting_polymer_normalized not in [p.upper() for p in polymer_list]:
+            return f"Error: '{starting_polymer}' not found in polymer list: {', '.join(polymer_list)}"
+        others = [p for p in polymer_list if p.upper() != starting_polymer_normalized]
+        start_p = next(p for p in polymer_list if p.upper() == starting_polymer_normalized)
+        all_sequences = [tuple([start_p] + list(perm)) for perm in _perms(others)]
+
+        semaphore = asyncio.Semaphore(10)
+
+        async def analyze_with_limit(seq, idx):
+            async with semaphore:
+                return await analyze_sequence(seq, idx)
+
+        sequence_analyses = await asyncio.gather(*[
+            analyze_with_limit(seq, idx) for idx, seq in enumerate(all_sequences, 1)
+        ])
+
+        sequence_scores = sorted(sequence_analyses, key=lambda x: x["min_selectivity"], reverse=True)
+    else:
+        # Greedy approach for large n without starting_polymer
+        import math
+        from strap.solubility import get_all_solvents_selectivity as _get_all_sel_greedy
+
+        remaining_g = list(polymer_list)
+        greedy_seq: list[str] = []
+        greedy_steps: list[dict] = []
+
+        while len(remaining_g) > 1:
+            best_candidate = None
+            best_sel_val = -float("inf")
+            for target in remaining_g:
+                others = [p for p in remaining_g if p != target]
+                all_sel = _get_all_sel_greedy(target, others, temperature)
+                top_sel = all_sel[0]["selectivity"] if all_sel else 0
+                if top_sel > best_sel_val:
+                    best_sel_val = top_sel
+                    top_solvents = [
+                        {"solvent": e["solvent"], "selectivity": e["selectivity"],
+                         "target_sol": e["target_sol"], "max_other": e["max_other_sol"]}
+                        for e in (all_sel[:top_k_solvents] if all_sel else [])
+                    ]
+                    best_candidate = (target, top_solvents)
+
+            target, solvents = best_candidate
+            greedy_seq.append(target)
+            remaining_g.remove(target)
+            greedy_steps.append({
+                "step": len(greedy_seq),
+                "target": target,
+                "remaining": remaining_g.copy(),
+                "solvents": solvents if solvents else [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}],
+            })
+
+        greedy_seq.append(remaining_g[0])
+        min_sel = min(
+            s["solvents"][0]["selectivity"] for s in greedy_steps if s["solvents"]
+        ) if greedy_steps else 0
+
+        sequence_scores = [{
+            "sequence": tuple(greedy_seq),
+            "min_selectivity": min_sel,
+            "steps": greedy_steps,
+        }]
 
     # Find the requested sequence
     target_seq = None
@@ -3420,7 +3618,9 @@ async def view_alternative_separation_sequence(
             target_seq = sequence_scores[sequence_rank - 1]
             rank = sequence_rank
         else:
-            return f"Error: Rank {sequence_rank} is out of range (1-{len(sequence_scores)})"
+            return f"Error: Rank {sequence_rank} is out of range (1-{len(sequence_scores)}). " + (
+                f"Only greedy (rank 1) available for {n_polymers} polymers." if n_polymers > MAX_EXHAUSTIVE else ""
+            )
 
     elif starting_polymer is not None:
         starting_polymer_normalized = starting_polymer.strip().upper()

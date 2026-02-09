@@ -453,35 +453,30 @@ class AdaptiveAnalyzer:
             results['recommendation'] = "No comparison polymers provided"
             return results
 
-        temp_query = f"""
-        SELECT DISTINCT ROUND({temperature_column}/10)*10 as temp_bin
-        FROM {table_name}
-        WHERE UPPER({polymer_column}) = UPPER('{target_polymer}')
-        AND {temperature_column} >= {start_temp}
-        ORDER BY temp_bin
-        """
-        try:
-            temp_bins = [row[0] for row in self.conn.execute(temp_query).fetchall()]
-        except Exception:
-            temp_bins = self.TEMPERATURE_STEPS
+        from strap.solubility import get_solubility, get_available_solvents
+
+        # Temperature bins from interpolation model range (25–160 °C, step 10)
+        temp_bins = [float(t) for t in range(max(int(start_temp), 25), 161, 10)]
+        if not temp_bins:
+            temp_bins = [float(t) for t in self.TEMPERATURE_STEPS if t >= start_temp]
+
+        all_solvents = get_available_solvents()
 
         best_selectivity = -float('inf')
         for temp in temp_bins:
             results['temperatures_explored'].append(temp)
             all_polymers = [target_polymer] + comparison_polymers
-            polymer_filter = "', '".join(all_polymers)
-            query = f"""
-            SELECT {polymer_column}, AVG({solubility_column}) as avg_sol
-            FROM {table_name}
-            WHERE {solvent_column} IS NOT NULL
-            AND {polymer_column} IN ('{polymer_filter}')
-            AND {temperature_column} BETWEEN {temp - 10} AND {temp + 10}
-            GROUP BY {polymer_column}
-            """
-            try:
-                data = {row[0].upper(): row[1] for row in self.conn.execute(query).fetchall()}
-            except Exception:
-                continue
+
+            # Average solubility across all solvents for each polymer at this temp
+            data = {}
+            for poly in all_polymers:
+                sols = []
+                for sv in all_solvents:
+                    sol = get_solubility(poly, sv, temp)
+                    if sol is not None:
+                        sols.append(sol)
+                if sols:
+                    data[poly.upper()] = float(np.mean(sols))
 
             target_sol = data.get(target_polymer.upper(), 0)
             other_sols = [data.get(p.upper(), 0) for p in comparison_polymers]

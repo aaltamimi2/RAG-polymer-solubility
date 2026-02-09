@@ -49,6 +49,7 @@ def get_visualization_tools() -> list:
         "plot_multi_panel_analysis",
         "plot_comparison_dashboard",
         "plot_solvent_properties",
+        "plot_interpolation_vs_sql",
     ])
 
 
@@ -172,6 +173,7 @@ def get_advanced_separation_tools() -> list:
         "find_antisolvent_pairs",
         "analyze_selective_antisolvent_precipitation",
         "plan_sequential_separation",
+        "plan_multiple_separation_schemes",
         "analyze_integrated_separation",
         "view_alternative_separation_sequence",
     ])
@@ -190,6 +192,7 @@ def get_separation_core_tools() -> list:
         "build_compatibility_matrix",
         "find_challenging_polymer_pairs",
         "plan_sequential_separation",
+        "plan_multiple_separation_schemes",
         "view_alternative_separation_sequence",
         "find_differential_precipitation_solvents",
         "analyze_multi_polymer_precipitation",
