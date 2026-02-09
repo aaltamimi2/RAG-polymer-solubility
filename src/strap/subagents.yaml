@@ -55,6 +55,9 @@
     - safety_pubchem
     - reflection
   guardrails:
+    max_tool_calls: 15
+    token_budget: 150000
+    truncate_tool_results_after: 1500
     free_tools:
       - think
 
@@ -77,6 +80,9 @@
     - strap_process
     - reflection
   guardrails:
+    max_tool_calls: 12
+    token_budget: 150000
+    truncate_tool_results_after: 1500
     free_tools:
       - think
 

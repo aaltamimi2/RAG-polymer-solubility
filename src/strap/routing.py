@@ -11,12 +11,15 @@ classify_query()).
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import TYPE_CHECKING
 
+logger = logging.getLogger(__name__)
+
 from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware.types import wrap_model_call
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 
 if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest, ModelResponse
@@ -360,14 +363,178 @@ def generate_routing_table() -> str:
 # Middleware
 # ------------------------------------------------------------------
 
+def _extract_completed_subagents(messages: list) -> list[str]:
+    """Extract subagent names from completed task() calls in message history."""
+    from langchain_core.messages import AIMessage
+    completed = []
+    for msg in messages:
+        if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.get("name") == "task":
+                    sa = tc.get("args", {}).get("subagent_type", "")
+                    if sa:
+                        completed.append(sa)
+    return completed
+
+
+def _build_progress_directive(
+    completed: list[str], ordered_plan: list[dict]
+) -> str | None:
+    """Build a progress-tracking directive for multi-agent sequential plans.
+
+    Returns a system prompt injection telling the orchestrator which steps
+    are done and what to do next, or None if the plan is complete.
+    """
+    done_set = set(completed)
+    remaining = [r for r in ordered_plan if r["subagent"] not in done_set]
+
+    if not remaining:
+        return (
+            "\n\n[PROGRESS: All subagent steps are COMPLETE. "
+            "Synthesize findings from all subagents into a final answer NOW. "
+            "Do NOT call any more task() functions.]"
+        )
+
+    next_agent = remaining[0]
+    done_names = ", ".join(completed) if completed else "(none)"
+    return (
+        f"\n\n[PROGRESS: Completed subagents: {done_names}. "
+        f"Your NEXT action MUST be: task(subagent_type=\"{next_agent['subagent']}\") "
+        f"for {next_agent['description']}. "
+        f"Do NOT re-delegate to an already-completed subagent. "
+        f"Remaining steps: {', '.join(r['subagent'] for r in remaining)}.]"
+    )
+
+
+def _get_ordered_plan(messages: list) -> list[dict]:
+    """Re-classify the user query and return the ordered plan of subagents."""
+    query = ""
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            query = msg.content if isinstance(msg.content, str) else str(msg.content)
+            break
+    if not query:
+        return []
+    query_lower = query.lower()
+    matches = []
+    for rule in ROUTING_RULES:
+        score = _match_rule(rule, query_lower)
+        if score > 0:
+            matches.append((score, rule["priority"], rule))
+    matches.sort(key=lambda x: (-x[0], x[1]))
+    return [m[2] for m in matches]
+
+
+def _rewrite_duplicate_task_calls(
+    response: ModelResponse,
+    completed: list[str],
+    ordered_plan: list[dict],
+) -> ModelResponse:
+    """Hard enforcement: if the LLM tries to re-call an already-completed
+    subagent, rewrite the tool_call to target the correct next subagent."""
+    from langchain_core.messages import AIMessage as _AIMessage
+
+    if not response.result:
+        return response
+
+    ai_msg = response.result[0]
+    tool_calls = getattr(ai_msg, "tool_calls", None)
+    if not tool_calls:
+        return response
+
+    done_set = set(completed)
+    remaining = [r for r in ordered_plan if r["subagent"] not in done_set]
+
+    if not remaining:
+        # All steps complete — strip any task() calls, force synthesis
+        has_task_call = any(
+            tc.get("name") == "task" for tc in tool_calls
+        )
+        if has_task_call:
+            logger.warning(
+                "routing_middleware: ALL plan steps complete — stripping task() "
+                "calls to force synthesis (completed: %s)", completed,
+            )
+            from langchain_core.messages import AIMessage as _AIMsg
+            return _AIMsg(
+                content=(
+                    "[ALL STEPS COMPLETE] All specialist subagents have returned "
+                    "results. Synthesize the findings from separation-engineer, "
+                    "safety-analyst, and tea-lca-analyst into a comprehensive "
+                    "final answer NOW. Do NOT call any more task() functions."
+                ),
+            )
+        return response
+
+    next_agent = remaining[0]["subagent"]
+    rewritten = False
+
+    new_tool_calls = []
+    for tc in tool_calls:
+        if tc.get("name") == "task":
+            target = tc.get("args", {}).get("subagent_type", "")
+            if target in done_set and target != next_agent:
+                logger.warning(
+                    "routing_middleware: REWRITING task(%s) -> task(%s) "
+                    "(already completed: %s)",
+                    target, next_agent, completed,
+                )
+                new_args = dict(tc["args"])
+                new_args["subagent_type"] = next_agent
+                new_tc = dict(tc)
+                new_tc["args"] = new_args
+                new_tool_calls.append(new_tc)
+                rewritten = True
+            else:
+                new_tool_calls.append(tc)
+        else:
+            new_tool_calls.append(tc)
+
+    if rewritten:
+        new_msg = ai_msg.model_copy(update={"tool_calls": new_tool_calls})
+        return type(response)(result=[new_msg])
+
+    return response
+
+
 @wrap_model_call
 def routing_middleware(
     request: ModelRequest,
     handler: Callable[[ModelRequest], ModelResponse],
 ) -> ModelCallResult:
-    """Append a routing hint to the system prompt when keywords match."""
-    hint = classify_query(request.messages)
-    if hint and request.system_message is not None:
-        new_system = append_to_system_message(request.system_message, hint)
-        request = request.override(system_message=new_system)
-    return handler(request)
+    """Append routing or progress hints to the system prompt.
+
+    - First call (no task results): injects routing hint from keyword classifier.
+    - Subsequent calls: injects progress directive AND hard-rewrites duplicate
+      task() calls to enforce the sequential plan.
+    """
+    completed = _extract_completed_subagents(request.messages)
+
+    if not completed:
+        # First call — inject full routing hint from keyword classifier
+        hint = classify_query(request.messages)
+        if hint and request.system_message is not None:
+            new_system = append_to_system_message(request.system_message, hint)
+            request = request.override(system_message=new_system)
+        return handler(request)
+
+    # After task() calls: inject progress directive + hard-rewrite responses
+    ordered_plan = _get_ordered_plan(request.messages)
+
+    if len(ordered_plan) > 1:
+        progress = _build_progress_directive(completed, ordered_plan)
+        if progress and request.system_message is not None:
+            new_system = append_to_system_message(
+                request.system_message, progress
+            )
+            request = request.override(system_message=new_system)
+
+    response = handler(request)
+
+    # Hard enforcement: rewrite duplicate task() calls
+    if len(ordered_plan) > 1:
+        response = _rewrite_duplicate_task_calls(
+            response, completed, ordered_plan
+        )
+
+    return response
