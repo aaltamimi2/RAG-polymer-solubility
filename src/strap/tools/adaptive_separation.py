@@ -315,13 +315,11 @@ def analyze_selective_solubility_enhanced(
         output = ["**Selective Solubility Analysis (Targeted Comparison)**\n"]
     else:
         try:
-            all_query = f"SELECT DISTINCT {polymer_column} FROM {table_name}"
-            result = conn.execute(all_query).fetchdf()
-            if len(result) > 0 and polymer_column in result.columns:
-                comp_list = [p for p in result[polymer_column].tolist() if p != target_polymer]
+            from strap.solubility import get_available_polymers as _get_polys
+            comp_list = [p for p in _get_polys() if p.upper() != target_polymer.upper()]
         except Exception as e:
             logger.warning(f"Could not get polymers: {e}")
-            return f"Error: Could not retrieve polymer list from '{table_name}'"
+            return f"Error: Could not retrieve polymer list"
         output = ["**Selective Solubility Analysis (All Polymers)**\n"]
 
     if not comp_list:
@@ -336,25 +334,30 @@ def analyze_selective_solubility_enhanced(
         return f"Target polymer '{target_polymer}' not found. {val_result.warnings}"
 
     all_polymers = [target_polymer] + comp_list
-    polymer_filter = "', '".join(all_polymers)
 
-    query = f"""
-    SELECT {solvent_column}, {polymer_column},
-           AVG({solubility_column}) as avg_solubility,
-           MIN({solubility_column}) as min_solubility,
-           MAX({solubility_column}) as max_solubility,
-           COUNT(*) as n_points
-    FROM {table_name}
-    WHERE {polymer_column} IN ('{polymer_filter}')
-    AND {temperature_column} >= {temp_min} AND {temperature_column} <= {temp_max}
-    GROUP BY {solvent_column}, {polymer_column}
-    """
+    # Use interpolation model instead of SQL
+    import pandas as pd
+    from strap.solubility import get_solubility as _get_sol, get_available_solvents as _get_svnts
 
-    result = _execute_query(conn, query, limit=10000)
-    if not result["success"]:
-        return f"Query failed: {result.get('error')}"
-
-    df = result["dataframe"]
+    mid_temp = (temp_min + temp_max) / 2
+    rows_interp = []
+    for sv in _get_svnts():
+        for poly in all_polymers:
+            sol_mid = _get_sol(poly, sv, mid_temp)
+            if sol_mid is not None:
+                sol_lo = _get_sol(poly, sv, temp_min) or sol_mid
+                sol_hi = _get_sol(poly, sv, temp_max) or sol_mid
+                rows_interp.append({
+                    solvent_column: sv,
+                    polymer_column: poly,
+                    "avg_solubility": sol_mid,
+                    "min_solubility": min(sol_lo, sol_hi),
+                    "max_solubility": max(sol_lo, sol_hi),
+                    "n_points": 3,
+                })
+    df = pd.DataFrame(rows_interp) if rows_interp else pd.DataFrame(
+        columns=[solvent_column, polymer_column, "avg_solubility", "min_solubility", "max_solubility", "n_points"]
+    )
     output.append(f"Data points analyzed: {len(df)}\n")
 
     solvents = df[solvent_column].unique()

@@ -47,56 +47,31 @@ class SelectivityCalculator:
         temperature: float,
         temp_tolerance: float = 10.0,
     ) -> SelectivityMetrics:
-        """Calculate selectivity metrics for separating target from others."""
-        all_polymers = [target] + others
-        polymer_filter = "', '".join(all_polymers)
+        """Calculate selectivity metrics for separating target from others.
 
-        query = f"""
-        SELECT {self.polymer_col}, AVG({self.solubility_col}) as avg_sol,
-               COUNT(*) as n_points
-        FROM {self.table_name}
-        WHERE {self.solvent_col} = '{solvent}'
-        AND {self.polymer_col} IN ('{polymer_filter}')
-        AND {self.temp_col} BETWEEN {temperature - temp_tolerance} AND {temperature + temp_tolerance}
-        GROUP BY {self.polymer_col}
+        Uses the unified solubility API (interpolation model with SQL fallback).
         """
+        from strap.solubility import get_solubility
 
-        try:
-            result = self.conn.execute(query).fetchall()
-        except Exception:
-            return SelectivityMetrics(
-                target_polymer=target,
-                other_polymers=others,
-                solvent=solvent,
-                temperature=temperature,
-                selectivity=-999.0,
-                target_solubility=0.0,
-                max_other_solubility=0.0,
-                avg_other_solubility=0.0,
-                selectivity_ratio=0.0,
-                is_viable=False,
-                confidence=0.0,
-            )
+        all_polymers = [target] + others
 
-        solubilities = {row[0].upper(): (row[1], row[2]) for row in result}
-
-        target_data = solubilities.get(target.upper())
-        if target_data is None:
+        target_sol = get_solubility(target, solvent, temperature)
+        if target_sol is None:
             target_sol = 0.0
             target_n = 0
         else:
-            target_sol, target_n = target_data
+            target_n = 3  # interpolation model provides high confidence
 
         other_sols = []
         other_ns = []
         for p in others:
-            data = solubilities.get(p.upper())
-            if data:
-                other_sols.append(data[0])
-                other_ns.append(data[1])
+            sol = get_solubility(p, solvent, temperature)
+            if sol is not None:
+                other_sols.append(sol)
+                other_ns.append(3)
 
         max_other = max(other_sols) if other_sols else 0.0
-        avg_other = np.mean(other_sols) if other_sols else 0.0
+        avg_other = float(np.mean(other_sols)) if other_sols else 0.0
 
         selectivity = target_sol - max_other
         ratio = target_sol / max_other if max_other > 0 else float("inf")
@@ -129,16 +104,9 @@ class SelectivityCalculator:
 
         Returns list sorted by selectivity (descending).
         """
-        query = f"""
-        SELECT DISTINCT {self.solvent_col}
-        FROM {self.table_name}
-        WHERE UPPER({self.polymer_col}) = UPPER('{target}')
-        """
+        from strap.solubility import get_available_solvents_for_polymer
 
-        try:
-            solvents = [row[0] for row in self.conn.execute(query).fetchall()]
-        except Exception:
-            return []
+        solvents = get_available_solvents_for_polymer(target)
 
         results = []
         for solvent in solvents:
@@ -355,39 +323,22 @@ class PolymerCompatibilityMatrix:
     ) -> Dict[str, Dict[str, float]]:
         """Build polymer-solvent compatibility matrix.
 
+        Uses the unified solubility API (interpolation model with SQL fallback).
+
         Returns:
             Dict of {polymer: {solvent: solubility}}
         """
-        polymer_filter = "', '".join(polymers)
+        from strap.solubility import get_solubility, get_available_solvents
 
-        if solvents:
-            solvent_filter = (
-                f"AND {self.solvent_col} IN ('"
-                + "', '".join(solvents)
-                + "')"
-            )
-        else:
-            solvent_filter = ""
-
-        query = f"""
-        SELECT {self.polymer_col}, {self.solvent_col}, AVG({self.solubility_col}) as avg_sol
-        FROM {self.table_name}
-        WHERE {self.polymer_col} IN ('{polymer_filter}')
-        AND {self.temp_col} BETWEEN {temperature - temp_tolerance} AND {temperature + temp_tolerance}
-        {solvent_filter}
-        GROUP BY {self.polymer_col}, {self.solvent_col}
-        """
-
-        try:
-            result = self.conn.execute(query).fetchall()
-        except Exception:
-            return {}
+        if solvents is None:
+            solvents = sorted(get_available_solvents())
 
         matrix: Dict[str, Dict[str, float]] = {p: {} for p in polymers}
-        for row in result:
-            polymer, solvent, sol = row
-            if polymer in matrix:
-                matrix[polymer][solvent] = sol
+        for polymer in polymers:
+            for solvent in solvents:
+                sol = get_solubility(polymer, solvent, temperature)
+                if sol is not None:
+                    matrix[polymer][solvent] = sol
 
         return matrix
 
@@ -458,21 +409,10 @@ class PolymerCompatibilityMatrix:
         temperature: float = 100.0,
     ) -> CompatibilityLevel:
         """Get compatibility classification for a polymer-solvent pair."""
-        query = f"""
-        SELECT AVG({self.solubility_col}) as avg_sol
-        FROM {self.table_name}
-        WHERE UPPER({self.polymer_col}) = UPPER('{polymer}')
-        AND UPPER({self.solvent_col}) = UPPER('{solvent}')
-        AND {self.temp_col} BETWEEN {temperature - 20} AND {temperature + 20}
-        """
-
-        try:
-            result = self.conn.execute(query).fetchone()
-            if result and result[0] is not None:
-                return CompatibilityLevel.from_solubility(result[0])
-        except Exception:
-            pass
-
+        from strap.solubility import get_solubility
+        sol = get_solubility(polymer, solvent, temperature)
+        if sol is not None:
+            return CompatibilityLevel.from_solubility(sol)
         return CompatibilityLevel.UNKNOWN
 
 

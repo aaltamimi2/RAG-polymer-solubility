@@ -83,6 +83,10 @@ SYSTEM_PROMPT = """\
 - Delegate to subagents one at a time UNLESS the [ROUTING] hint explicitly instructs
   you to launch two task() calls in parallel. In that case, include both task() calls
   in a single response. Never launch more than two task() calls at once.
+- When the user asks for "multiple schemes", "3 separation plans", "compare strategies",
+  or "alternative sequences", delegate ONCE to separation-engineer. It has a multi-scheme
+  tool that generates multiple options in a single invocation. Do NOT call separation-engineer
+  multiple times for different schemes.
 
 ## Inter-agent file state (sequential chains only)
 - When routing hints instruct subagents to write findings to /chain_state/ files,
@@ -99,26 +103,14 @@ SYSTEM_PROMPT = """\
 
 
 _THINK_DIRECTIVE = (
-    "\n\n## REFLECTION PROTOCOL\n"
-    "You have a `think` tool. Use it AFTER every domain tool call to assess:\n"
-    "- What concrete data did I just obtain? (cite specific numbers)\n"
-    "- Is my finding grounded in tool output, or am I relying on general knowledge?\n"
-    "- What is still missing? Should I call another tool or synthesize now?\n"
-    "NEVER answer a question using only your general knowledge — always use your "
-    "domain tools first, then reflect with `think`, then synthesize."
+    "\n\n## REFLECTION\n"
+    "After each tool call, use think() to assess findings and decide whether to "
+    "continue or synthesize. Use domain tools first, never rely on general knowledge alone."
 )
 
 _FILE_IO_DIRECTIVE = (
-    "\n\n## FILE I/O IN CHAINS\n"
-    "When you are part of a sequential multi-agent chain:\n"
-    "- **READ FIRST**: If the task description references a file path from a prior "
-    "step (e.g. /chain_state/step_1_*.md), your VERY FIRST action must be "
-    "read_file on that path. Base your analysis on the full file contents, not "
-    "just the brief summary in the task description.\n"
-    "- **WRITE LAST**: If the task description instructs you to write your findings "
-    "to a specific file path, use write_file to save your complete findings "
-    "(data, analysis, recommendations) to that path as your FINAL action before "
-    "returning. Format the file as structured markdown with clear section headings."
+    "\n\n## FILE I/O\n"
+    "In multi-agent chains: read_file referenced paths FIRST, write_file your findings LAST."
 )
 
 
@@ -190,6 +182,16 @@ def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview
     - ``system_prompt`` carries only the dynamic routing table.
     """
     model = init_chat_model(model_name)
+
+    # Orchestrator-level guardrails: cap total token usage across the run
+    orchestrator_guard = SubagentGuardMiddleware(
+        max_iterations=50,
+        token_budget=500_000,
+        max_tool_calls=30,
+        truncate_tool_results_after=3000,
+        free_tools={"think"},
+    )
+
     agent = create_deep_agent(
         model=model,
         tools=get_core_tools(),
@@ -198,7 +200,7 @@ def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview
         memory=["./AGENTS.md"],
         skills=["./skills/"],
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-        middleware=[routing_middleware],
+        middleware=[routing_middleware, orchestrator_guard],
         name="dissolve-agent",
     )
     return agent

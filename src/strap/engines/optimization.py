@@ -106,35 +106,14 @@ class TemperatureOptimizer:
 
         Scans temperature range and finds point with maximum selectivity.
         """
+        from strap.solubility import get_solubility
+
         temp_min, temp_max = temp_range
         temperatures = np.arange(temp_min, temp_max + step_size, step_size)
+        # Clamp to interpolation model range (25–160 °C)
+        temperatures = [float(t) for t in temperatures if 25 <= t <= 160]
 
-        all_polymers = [target_polymer] + other_polymers
-        polymer_filter = "', '".join(all_polymers)
-
-        # Query all temperature-solubility data
-        query = f"""
-        SELECT {self.temp_col}, {self.polymer_col}, AVG({self.solubility_col}) as avg_sol
-        FROM {self.table_name}
-        WHERE {self.solvent_col} = '{solvent}'
-        AND {self.polymer_col} IN ('{polymer_filter}')
-        GROUP BY {self.temp_col}, {self.polymer_col}
-        ORDER BY {self.temp_col}
-        """
-
-        try:
-            df = self.conn.execute(query).fetchdf()
-        except Exception as e:
-            return OptimizationResult(
-                optimal_temperature=100.0,
-                temperature_windows=[],
-                overall_selectivity=0.0,
-                energy_score=1.0,
-                feasibility_score=0.0,
-                recommendations=[f"Error: {str(e)}"]
-            )
-
-        if len(df) == 0:
+        if not temperatures:
             return OptimizationResult(
                 optimal_temperature=100.0,
                 temperature_windows=[],
@@ -149,25 +128,16 @@ class TemperatureOptimizer:
         best_selectivity = -float('inf')
         windows = []
 
-        available_temps = df[self.temp_col].unique()
-
-        for temp in available_temps:
-            temp_data = df[df[self.temp_col] == temp]
-
-            target_data = temp_data[temp_data[self.polymer_col].str.upper() == target_polymer.upper()]
-            if len(target_data) == 0:
+        for temp in temperatures:
+            target_sol = get_solubility(target_polymer, solvent, temp)
+            if target_sol is None:
                 continue
 
-            target_sol = target_data['avg_sol'].values[0]
-
-            others_data = temp_data[temp_data[self.polymer_col].str.upper().isin(
-                [p.upper() for p in other_polymers]
-            )]
-
-            if len(others_data) == 0:
-                max_other = 0
-            else:
-                max_other = others_data['avg_sol'].max()
+            max_other = 0.0
+            for p in other_polymers:
+                sol = get_solubility(p, solvent, temp)
+                if sol is not None and sol > max_other:
+                    max_other = sol
 
             selectivity = target_sol - max_other
 

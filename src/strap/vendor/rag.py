@@ -72,28 +72,57 @@ try:
 except ImportError:
     PDF_PROCESSING_AVAILABLE = False
 
-try:
-    from paddleocr import PaddleOCR as _PaddleOCR
-    PADDLE_OCR_AVAILABLE = True
-except ImportError:
-    PADDLE_OCR_AVAILABLE = False
+PADDLE_OCR_AVAILABLE = False  # Disabled — PaddleOCR import alone consumes ~1GB RAM
 
-try:
-    from sentence_transformers import SentenceTransformer, CrossEncoder
-    EMBEDDINGS_AVAILABLE = True
-except ImportError:
-    EMBEDDINGS_AVAILABLE = False
+# Lazy imports — sentence_transformers alone costs ~760 MB at import time.
+# These are loaded on first use in _lazy_import_embeddings() / _lazy_import_qdrant().
+SentenceTransformer = None
+CrossEncoder = None
+EMBEDDINGS_AVAILABLE = False
 
-try:
-    from qdrant_client import QdrantClient
-    from qdrant_client.models import (
-        Distance, VectorParams, PointStruct, SparseVector,
-        Filter, FieldCondition, MatchValue, SparseVectorParams,
-        SparseIndexParams, Range, MatchAny
-    )
-    QDRANT_AVAILABLE = True
-except ImportError:
-    QDRANT_AVAILABLE = False
+QdrantClient = None
+Distance = VectorParams = PointStruct = SparseVector = None
+Filter = FieldCondition = MatchValue = SparseVectorParams = None
+SparseIndexParams = Range = MatchAny = None
+QDRANT_AVAILABLE = False
+
+
+def _lazy_import_embeddings():
+    global SentenceTransformer, CrossEncoder, EMBEDDINGS_AVAILABLE
+    if SentenceTransformer is not None:
+        return True
+    try:
+        from sentence_transformers import SentenceTransformer as _ST, CrossEncoder as _CE
+        SentenceTransformer = _ST
+        CrossEncoder = _CE
+        EMBEDDINGS_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
+
+
+def _lazy_import_qdrant():
+    global QdrantClient, Distance, VectorParams, PointStruct, SparseVector
+    global Filter, FieldCondition, MatchValue, SparseVectorParams
+    global SparseIndexParams, Range, MatchAny, QDRANT_AVAILABLE
+    if QdrantClient is not None:
+        return True
+    try:
+        from qdrant_client import QdrantClient as _QC
+        from qdrant_client.models import (
+            Distance as _D, VectorParams as _VP, PointStruct as _PS,
+            SparseVector as _SV, Filter as _F, FieldCondition as _FC,
+            MatchValue as _MV, SparseVectorParams as _SVP,
+            SparseIndexParams as _SI, Range as _R, MatchAny as _MA,
+        )
+        QdrantClient = _QC
+        Distance, VectorParams, PointStruct, SparseVector = _D, _VP, _PS, _SV
+        Filter, FieldCondition, MatchValue, SparseVectorParams = _F, _FC, _MV, _SVP
+        SparseIndexParams, Range, MatchAny = _SI, _R, _MA
+        QDRANT_AVAILABLE = True
+        return True
+    except ImportError:
+        return False
 
 try:
     import tiktoken
@@ -2241,6 +2270,7 @@ class RecursiveContextChunker:
 
     def _try_load_embedding_model(self):
         """Try to load a lightweight embedding model for semantic boundaries."""
+        _lazy_import_embeddings()
         if EMBEDDINGS_AVAILABLE:
             try:
                 # Use a fast, lightweight model for boundary detection
@@ -3594,7 +3624,8 @@ class ScientificEmbedder:
         self.config = config or RAGConfig()
         self.sparse_model_path = os.path.join(RAG_EMBEDDINGS_DIR, "tfidf_model_v2.pkl")
 
-        # Initialize dense model
+        # Initialize dense model (lazy import to save ~760 MB at startup)
+        _lazy_import_embeddings()
         if EMBEDDINGS_AVAILABLE:
             device = "cuda" if self.config.use_gpu else "cpu"
 
@@ -3845,6 +3876,7 @@ class QdrantVectorDB:
         self._chunk_cache: Dict[str, TextChunk] = {}
         self.next_id = 0
 
+        _lazy_import_qdrant()
         if QDRANT_AVAILABLE:
             # Reuse shared client if same path, otherwise create new
             if QdrantVectorDB._shared_client is None or QdrantVectorDB._shared_path != path:

@@ -248,14 +248,14 @@ class SubagentGuardMiddleware(AgentMiddleware):
         reference its latest tool results."""
         if (
             self._truncate_tool_results_after is None
-            or self._iterations <= 3
+            or self._iterations <= 1
         ):
             return request
 
         limit = self._truncate_tool_results_after
         messages = request.messages
-        # Keep the last 6 messages (typically 3 AI+Tool pairs) untruncated
-        keep_recent = 6
+        # Keep the last 4 messages (2 AI+Tool pairs) untruncated
+        keep_recent = 4
         cutoff = len(messages) - keep_recent
 
         truncated = False
