@@ -1,0 +1,12 @@
+polymer,polymer_canonical,Tm0_K,Tm0_C,delta_Hf0_J_per_g,delta_Hf0_J_per_mol,repeat_unit_MW,delta_Cp_J_per_g_K,crystalline,source
+HDPE,HDPE,414.6,141.5,293.0,4110,14.03,0.55,yes,"ATHAS/Wunderlich; Starkweather & Boyd 1960"
+LDPE,LDPE,410.1,137.0,293.0,4110,14.03,0.55,yes,"ATHAS/Wunderlich; same repeat unit as HDPE"
+PP,PP,460.7,187.5,207.0,8708,42.08,0.48,yes,"ATHAS/Wunderlich; Monasse & Haudin 1985"
+PS,PS,516.0,242.9,86.0,8954,104.15,,semicryst,"ATHAS; syndiotactic PS only; atactic PS is amorphous"
+PVC,PVC,546.0,273.0,170.0,10625,62.50,,semicryst,"ATHAS/Wunderlich; syndiotactic PVC"
+PET,PET,553.0,280.0,140.0,26880,192.17,0.38,yes,"ATHAS/Wunderlich; Mehta et al. 1978"
+Nylon6,NYLON6,533.0,260.0,230.0,25990,113.16,0.40,yes,"ATHAS/Wunderlich; Illers 1971"
+Nylon66,NYLON66,545.0,272.0,196.0,44296,226.32,0.38,yes,"ATHAS/Wunderlich; Starkweather et al."
+PC,PC,608.0,335.0,109.0,27684,254.28,,semicryst,"Van Krevelen; crystallizable under special conditions"
+PES,PES,,,,,,0.30,amorphous,"Amorphous polymer - no equilibrium Tm/delta_Hf"
+EVOH,EVOH,464.0,191.0,170.0,7490,44.05,0.45,yes,"ATHAS; based on ~32 mol% ethylene copolymer"
