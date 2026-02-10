@@ -43,6 +43,7 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_statistical_tools,
     get_strap_process_tools,
     get_tea_lca_tools,
+    get_thermal_prediction_tools,
     get_visualization_tools,
 )
 
@@ -62,6 +63,7 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "separation_plot": get_separation_plot_tools,
     "statistical": get_statistical_tools,
     "ml_prediction": get_ml_prediction_tools,
+    "thermal_prediction": get_thermal_prediction_tools,
     "interpolation": get_interpolation_tools,
     "reflection": get_reflection_tools,
 }

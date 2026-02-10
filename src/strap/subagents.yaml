@@ -190,7 +190,8 @@
     Statistics and ML specialist. Use for: statistical summaries with
     confidence intervals, correlation analysis, regression, group comparisons
     (hypothesis testing), ML-based solubility prediction using Hansen
-    Solubility Parameters.
+    Solubility Parameters, polymer thermal property prediction (Tm, ΔHf, ΔCp)
+    for new polymers, generating solubility data for novel polymer-solvent pairs.
   system_prompt: |
     You are a statistics and machine learning specialist. You have tools for statistical analysis and ML-based solubility prediction. Provide rigorous statistical assessments.
 
@@ -202,6 +203,7 @@
   tool_groups:
     - statistical
     - ml_prediction
+    - thermal_prediction
     - reflection
   guardrails:
     free_tools:
