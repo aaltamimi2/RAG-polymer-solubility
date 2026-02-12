@@ -96,6 +96,10 @@
     max_tool_calls: 12
     token_budget: 150000
     truncate_tool_results_after: 1500
+    synthesis_tools:
+      - analyze_solvent_recovery_tea
+      - analyze_solvent_recovery_lca
+      - compare_solvents_tea_lca
     free_tools:
       - think
 
@@ -271,5 +275,12 @@
     - thermal_prediction
     - reflection
   guardrails:
+    synthesis_tools:
+      - statistical_summary
+      - correlation_analysis
+      - regression_analysis
+      - predict_solubility_ml
+      - lookup_tg
+      - predict_thermal_properties
     free_tools:
       - think

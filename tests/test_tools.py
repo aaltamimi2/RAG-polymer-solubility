@@ -27,9 +27,9 @@ def test_database_query_tool(conn):
 
 
 def test_solvent_properties_tool(conn):
-    """list_solvent_properties should return data."""
-    from strap.tools.solvent_properties import list_solvent_properties
-    result = list_solvent_properties()
+    """get_solvent_properties should return data."""
+    from strap.tools.solvent_properties import get_solvent_properties
+    result = get_solvent_properties("toluene")
     assert isinstance(result, str)
     assert len(result) > 50
 

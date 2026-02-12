@@ -100,6 +100,7 @@ def get_thermal_prediction_tools() -> list:
         "predict_thermal_properties",
         "generate_solubility_for_new_polymer",
         "list_generated_polymers",
+        "lookup_tg",
     ])
 
 
@@ -215,12 +216,6 @@ def get_separation_core_tools() -> list:
     ])
 
 
-def get_thermal_prediction_tools() -> list:
-    return _safe_import("strap.tools.thermal_prediction", [
-        "lookup_tg",
-    ])
-
-
 def get_reflection_tools() -> list:
     return _safe_import("strap.tools.reflection", ["think"])
 
@@ -276,6 +271,8 @@ def get_all_tools() -> list:
         get_rag_core_tools,
         get_rag_diagnostics_tools,
         get_advanced_separation_tools,
+        get_thermal_prediction_tools,
+        get_reflection_tools,
     ]
     all_tools = []
     for getter in getters:
