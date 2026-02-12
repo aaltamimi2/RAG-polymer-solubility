@@ -533,6 +533,83 @@ def _interp_all_solvents_selectivity(
 
 
 # ==================================================================
+# Boiling-point lookup (cached)
+# ==================================================================
+
+# Map coefficient-file solvent names → Solvent_Data table names
+_SOLVENT_ALIASES: dict[str, str] = {
+    "1,2-dimethylbenzene": "o-xylene",
+    "1,4-dimethylbenzene": "xylene",
+    "ch2cl2": "methylene dichloride (dichloromethane)",
+    "chcl3": "chloroform",
+    "dimethylformamide": "dimethyl formamide (dmf)",
+    "dimethylsulfoxide": "dimethyl sulfoxide (dmso)",
+    "diphenylether": "diphenyl ether",
+    "ethylacetate": "ethyl acetate",
+    "glycol": "ethylene glycol",
+    "methylacetate": "methyl acetate",
+    "propanone": "acetone",
+    "propyleneglycol": "propylene glycol",
+    "thf": "tetrahydrofuran (thf)",
+    "thp": "tetrahydropyran",
+    "tert-butanol": "tert-butyl alcohol",
+    "n-heptane": "heptane",
+    "butanone": "methyl ethyl ketone",
+    "2-propanol": "isopropanol",
+    "propanol": "1-propanol",
+    "acetylacetone": "2,4-pentanedione",
+    "h2o": "water",
+    "dmso": "dimethyl sulfoxide (dmso)",
+    "dcm": "methylene dichloride (dichloromethane)",
+}
+
+_BP_CACHE: Optional[dict[str, float]] = None
+
+
+def get_boiling_point(solvent: str) -> Optional[float]:
+    """Return boiling point (°C) from Solvent_Data, or None if not found."""
+    global _BP_CACHE
+    if _BP_CACHE is None:
+        conn = _get_db_conn()
+        rows = conn.execute(
+            "SELECT LOWER(solvent_name), bp__oc_ FROM solvent_data"
+        ).fetchall()
+        _BP_CACHE = {name: float(bp) for name, bp in rows if bp is not None}
+    key = solvent.lower()
+    bp = _BP_CACHE.get(key)
+    if bp is None:
+        alias = _SOLVENT_ALIASES.get(key)
+        if alias:
+            bp = _BP_CACHE.get(alias)
+    return bp
+
+
+# ==================================================================
+# LogP lookup (cached)
+# ==================================================================
+
+_LOGP_CACHE: Optional[dict[str, float]] = None
+
+
+def get_logp(solvent: str) -> Optional[float]:
+    """Return LogP from Solvent_Data, or None if not found."""
+    global _LOGP_CACHE
+    if _LOGP_CACHE is None:
+        conn = _get_db_conn()
+        rows = conn.execute(
+            "SELECT LOWER(solvent_name), logp FROM solvent_data"
+        ).fetchall()
+        _LOGP_CACHE = {name: float(lp) for name, lp in rows if lp is not None}
+    key = solvent.lower()
+    lp = _LOGP_CACHE.get(key)
+    if lp is None:
+        alias = _SOLVENT_ALIASES.get(key)
+        if alias:
+            lp = _LOGP_CACHE.get(alias)
+    return lp
+
+
+# ==================================================================
 # SQL fallback internals
 # ==================================================================
 

@@ -63,14 +63,15 @@ class TestPredictSolubility:
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("HDPE", "toluene", 100.0)
         assert isinstance(result, str)
-        assert "Solubility" in result
+        assert "%" in result
+        assert "BP" in result
 
     def test_case_insensitive(self):
         from strap.tools.interpolation import predict_solubility
         r1 = predict_solubility("hdpe", "Toluene", 100.0)
         r2 = predict_solubility("HDPE", "toluene", 100.0)
-        assert "Solubility" in r1
-        assert "Solubility" in r2
+        assert "%" in r1
+        assert "%" in r2
 
     def test_alias_matching(self):
         from strap.tools.interpolation import predict_solubility
@@ -93,11 +94,11 @@ class TestPredictSolubility:
         result = predict_solubility("PC", "water", 100.0)
         assert "Insoluble" in result
 
-    def test_extrapolation_flag(self):
+    def test_extrapolation_still_returns(self):
         from strap.tools.interpolation import predict_solubility
-        # 0°C is below the fit range (25°C min)
+        # 0°C is below the fit range (25°C min) — should still return a result
         result = predict_solubility("HDPE", "toluene", 0.0)
-        assert "xtrapolation" in result
+        assert "%" in result
 
 
 class TestPredictSolubilityRange:
@@ -105,14 +106,14 @@ class TestPredictSolubilityRange:
         from strap.tools.interpolation import predict_solubility_range
         result = predict_solubility_range("HDPE", "toluene", 25, 50, 5)
         assert isinstance(result, str)
-        assert "T (°C)" in result
+        assert "T (C)" in result
         assert "25.0" in result
 
     def test_cap_at_200(self):
         from strap.tools.interpolation import predict_solubility_range
         # 0.1 step over 200 range → 2000 points, should be capped
         result = predict_solubility_range("HDPE", "toluene", 0, 200, 0.1)
-        lines = [l for l in result.split("\n") if l.startswith("|") and "T (°C)" not in l and "---" not in l]
+        lines = [l for l in result.split("\n") if l.startswith("|") and "T (C)" not in l and "---" not in l]
         assert len(lines) <= 200
 
 

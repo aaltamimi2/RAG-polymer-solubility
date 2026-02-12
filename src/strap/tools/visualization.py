@@ -39,6 +39,50 @@ from strap.tools._helpers import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Publication-quality plot style
+# ---------------------------------------------------------------------------
+
+_PUB_FONT = "Liberation Sans"  # metrically identical to Arial
+_PUB_FONTSIZE = 8
+_PUB_COLORS = [
+    "#0072B2",  # blue
+    "#D55E00",  # vermillion
+    "#009E73",  # bluish green
+    "#CC79A7",  # reddish purple
+    "#F0E442",  # yellow
+    "#56B4E9",  # sky blue
+    "#E69F00",  # orange
+    "#000000",  # black
+]
+
+
+def _apply_pub_style():
+    """Apply publication-quality rcParams (call before creating a figure)."""
+    plt.rcParams.update({
+        "font.family": "sans-serif",
+        "font.sans-serif": [_PUB_FONT, "Arial", "DejaVu Sans"],
+        "font.size": _PUB_FONTSIZE,
+        "axes.labelsize": _PUB_FONTSIZE,
+        "axes.titlesize": _PUB_FONTSIZE,
+        "xtick.labelsize": _PUB_FONTSIZE,
+        "ytick.labelsize": _PUB_FONTSIZE,
+        "legend.fontsize": _PUB_FONTSIZE - 1,
+        "axes.linewidth": 0.6,
+        "xtick.major.width": 0.6,
+        "ytick.major.width": 0.6,
+        "xtick.major.size": 3,
+        "ytick.major.size": 3,
+        "xtick.direction": "in",
+        "ytick.direction": "in",
+        "xtick.top": True,
+        "ytick.right": True,
+        "savefig.dpi": 300,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.05,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Solvent-name normalization helpers (local copies from the vendor source)
 # ---------------------------------------------------------------------------
 
@@ -510,8 +554,11 @@ def plot_solubility_vs_temperature(
     t_start = max(temperature_min or 25.0, 25.0)
     t_end = min(temperature_max or 160.0, 160.0)
 
-    fig, ax = plt.subplots(figsize=(14, 8))
-    colors = plt.cm.tab10(np.linspace(0, 1, len(polymer_list) * len(solvent_list)))
+    _apply_pub_style()
+    n_curves = len(polymer_list) * len(solvent_list)
+    fig_w = 3.5 if n_curves <= 3 else 7.0
+    fig_h = fig_w * 0.7
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     color_idx = 0
     total_points = 0
 
@@ -523,9 +570,10 @@ def plot_solubility_vs_temperature(
                 sols = [pt["solubility"] for pt in curve]
                 total_points += len(curve)
 
+                c = _PUB_COLORS[color_idx % len(_PUB_COLORS)]
                 ax.plot(
-                    temps, sols, marker="o", linewidth=2, markersize=6,
-                    label=f"{polymer} in {solvent}", color=colors[color_idx],
+                    temps, sols, marker="o", linewidth=1.2, markersize=3,
+                    label=f"{polymer} in {solvent}", color=c,
                 )
                 color_idx += 1
 
@@ -533,12 +581,11 @@ def plot_solubility_vs_temperature(
         plt.close(fig)
         return "No data found for the specified polymer-solvent combinations."
 
-    ax.set_xlabel("Temperature (C)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Solubility (%)", fontsize=12, fontweight="bold")
-    title = plot_title or "Solubility vs Temperature"
-    ax.set_title(title, fontsize=14, fontweight="bold")
-    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=10)
-    ax.grid(True, alpha=0.3)
+    ax.set_xlabel("Temperature (\u00b0C)")
+    ax.set_ylabel("Solubility (%)")
+    if plot_title:
+        ax.set_title(plot_title)
+    ax.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
 
     if temperature_min is not None or temperature_max is not None:
         current_xlim = ax.get_xlim()
@@ -546,8 +593,10 @@ def plot_solubility_vs_temperature(
         new_max = temperature_max if temperature_max is not None else current_xlim[1]
         ax.set_xlim(new_min, new_max)
 
-    plt.tight_layout()
-    filepath = save_plot(fig, "solubility_temp_curve", "matplotlib")
+    fig.tight_layout()
+    from strap.tools._helpers import descriptive_plot_name
+    plot_name = descriptive_plot_name("solubility_vs_temp", polymers=polymer_list, solvents=solvent_list)
+    filepath = save_plot(fig, plot_name, "matplotlib")
     plt.close(fig)
 
     output = "Solubility vs Temperature Plot Created\n\n"
@@ -762,7 +811,7 @@ def plot_selectivity_heatmap(
 
     n_cells = pivot_df.shape[0] * pivot_df.shape[1]
     show_annot = n_cells <= 150
-    annot_fontsize = 10 if n_cells <= 50 else 8 if n_cells <= 100 else 6
+    annot_fontsize = 7 if n_cells <= 50 else 6 if n_cells <= 100 else 5
 
     colors_low = ["#f7fbff", "#deebf7", "#c6dbef", "#9ecae1", "#6baed6"]
     colors_high = ["#4292c6", "#2171b5", "#08519c", "#08306b"]
@@ -770,10 +819,11 @@ def plot_selectivity_heatmap(
         "solubility_emphasis", colors_low + colors_high, N=256,
     )
 
+    _apply_pub_style()
     fig, ax = plt.subplots(
         figsize=(
-            max(14, len(pivot_df.columns) * 0.5),
-            max(8, len(pivot_df) * 0.8),
+            max(7.0, len(pivot_df.columns) * 0.35),
+            max(3.5, len(pivot_df) * 0.5),
         )
     )
 
@@ -787,17 +837,17 @@ def plot_selectivity_heatmap(
         norm=norm,
     )
 
-    title = f"Solubility Heatmap at {temperature}C"
-    if target_polymer:
-        title = f"{target_polymer} Solubility at {temperature}C"
-    ax.set_title(title, fontsize=16, fontweight="bold", pad=15)
-    ax.set_xlabel("Solvent", fontsize=14, fontweight="bold")
-    ax.set_ylabel("Polymer", fontsize=14, fontweight="bold")
-    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right", fontsize=10)
-    ax.set_yticklabels(ax.get_yticklabels(), fontsize=11)
+    ax.set_xlabel("Solvent")
+    ax.set_ylabel("Polymer")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.set_yticklabels(ax.get_yticklabels())
 
     plt.tight_layout()
-    filepath = save_plot(fig, "solubility_heatmap", "matplotlib")
+    from strap.tools._helpers import descriptive_plot_name
+    _polymers = list(pivot_df.index)
+    _solvents = list(pivot_df.columns)
+    plot_name = descriptive_plot_name("selectivity_heatmap", polymers=_polymers, solvents=_solvents)
+    filepath = save_plot(fig, plot_name, "matplotlib")
 
     output = "Heatmap Created\n\n"
     output += f"Temperature: {temperature}C +/- {temperature_tolerance}C\n"
@@ -878,30 +928,31 @@ def plot_multi_panel_analysis(
     if not curves:
         return f"No solubility data found for any polymer in {solvent}."
 
-    fig = plt.figure(figsize=(18, 12))
-    gs = fig.add_gridspec(2, 2, hspace=0.3, wspace=0.3)
+    _apply_pub_style()
+    fig = plt.figure(figsize=(7.0, 5.5))
+    gs = fig.add_gridspec(2, 2, hspace=0.35, wspace=0.35)
 
-    colors_others = plt.cm.Reds(np.linspace(0.4, 0.8, len(comp_list)))
+    colors_others = [_PUB_COLORS[i + 1] for i in range(len(comp_list))]
 
     # Panel 1: Solubility curves
     ax1 = fig.add_subplot(gs[0, 0])
     if target_polymer in curves:
         ax1.plot(
             curves[target_polymer]["temps"], curves[target_polymer]["sols"],
-            "o-", color="green", linewidth=3, markersize=8, label=target_polymer,
+            "o-", color=_PUB_COLORS[0], linewidth=1.2, markersize=3, label=target_polymer,
         )
 
     for i, comp in enumerate(comp_list):
         if comp in curves:
             ax1.plot(
                 curves[comp]["temps"], curves[comp]["sols"],
-                "s--", color=colors_others[i], linewidth=2, markersize=6, label=comp,
+                "s--", color=colors_others[i], linewidth=1.0, markersize=3, label=comp,
             )
 
-    ax1.set_xlabel("Temperature (C)", fontsize=11, fontweight="bold")
-    ax1.set_ylabel("Solubility (%)", fontsize=11, fontweight="bold")
-    ax1.set_title(f"Solubility in {solvent}", fontsize=12, fontweight="bold")
-    ax1.legend(fontsize=9)
+    ax1.set_xlabel("Temperature (\u00b0C)")
+    ax1.set_ylabel("Solubility (%)")
+    ax1.set_title(f"Solubility in {solvent}")
+    ax1.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
     ax1.grid(True, alpha=0.3)
 
     # Panel 2: Selectivity vs Temperature
@@ -921,16 +972,16 @@ def plot_multi_panel_analysis(
 
             ax2.plot(
                 temps, selectivity, "o-", color=colors_others[i],
-                linewidth=2, markersize=6, label=f"vs {comp}",
+                linewidth=1.0, markersize=3, label=f"vs {comp}",
             )
 
         ax2.axhline(y=0, color="black", linestyle="--", alpha=0.5)
-        ax2.axhline(y=10, color="green", linestyle=":", alpha=0.7, label="Good selectivity (10%)")
+        ax2.axhline(y=10, color=_PUB_COLORS[2], linestyle=":", alpha=0.7, label="Good selectivity (10%)")
 
-    ax2.set_xlabel("Temperature (C)", fontsize=11, fontweight="bold")
-    ax2.set_ylabel("Selectivity (%) (target - other)", fontsize=11, fontweight="bold")
-    ax2.set_title("Selectivity vs Temperature", fontsize=12, fontweight="bold")
-    ax2.legend(fontsize=9)
+    ax2.set_xlabel("Temperature (\u00b0C)")
+    ax2.set_ylabel("Selectivity (%)")
+    ax2.set_title("Selectivity vs Temperature")
+    ax2.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
     ax2.grid(True, alpha=0.3)
 
     # Panel 3: Separation window
@@ -955,8 +1006,8 @@ def plot_multi_panel_analysis(
         ax3.set_xticks(range(len(all_temps)))
         ax3.set_xticklabels([f"{int(t)}C" for t in all_temps], rotation=45, ha="right")
 
-    ax3.set_ylabel("Separation Feasibility", fontsize=11, fontweight="bold")
-    ax3.set_title("Separation Window", fontsize=12, fontweight="bold")
+    ax3.set_ylabel("Separation Feasibility")
+    ax3.set_title("Separation Window")
     ax3.set_yticks([])
 
     from matplotlib.patches import Patch
@@ -983,13 +1034,15 @@ def plot_multi_panel_analysis(
         summary_text += "No clear separation window\n"
 
     ax4.text(
-        0.1, 0.9, summary_text, transform=ax4.transAxes, fontsize=11,
+        0.1, 0.9, summary_text, transform=ax4.transAxes, fontsize=_PUB_FONTSIZE,
         verticalalignment="top", fontfamily="monospace",
         bbox=dict(boxstyle="round", facecolor="lightblue", alpha=0.3),
     )
 
     plt.tight_layout()
-    filepath = save_plot(fig, "multi_panel_analysis", "matplotlib")
+    from strap.tools._helpers import descriptive_plot_name
+    plot_name = descriptive_plot_name("multi_panel", polymers=all_polymers, solvents=[solvent])
+    filepath = save_plot(fig, plot_name, "matplotlib")
 
     output = "Multi-Panel Analysis Created\n\n"
     output += f"Target: {target_polymer}\n"
@@ -1054,13 +1107,14 @@ def plot_comparison_dashboard(
         solvents = solvent_means.head(max_solvents).index.tolist()
         df = df[df["solvent"].isin(solvents)]
 
-    fig = plt.figure(figsize=(20, 12))
+    _apply_pub_style()
+    fig = plt.figure(figsize=(7.0, 5.5))
 
     # Panel 1: Grouped bar chart
     ax1 = fig.add_subplot(2, 2, 1)
     x = np.arange(len(solvents))
     width = 0.8 / len(polymer_list)
-    colors = plt.cm.Set2(np.linspace(0, 1, len(polymer_list)))
+    colors = [_PUB_COLORS[i % len(_PUB_COLORS)] for i in range(len(polymer_list))]
 
     for i, polymer in enumerate(polymer_list):
         poly_data = df[df["polymer"] == polymer]
@@ -1070,34 +1124,33 @@ def plot_comparison_dashboard(
             values.append(sol_data.values[0] if len(sol_data) > 0 else 0)
         ax1.bar(
             x + i * width, values, width, label=polymer,
-            color=colors[i], edgecolor="black", linewidth=0.5,
+            color=colors[i], edgecolor="black", linewidth=0.3,
         )
 
-    ax1.set_xlabel("Solvent", fontsize=13, fontweight="bold")
-    ax1.set_ylabel("Solubility (%)", fontsize=13, fontweight="bold")
-    ax1.set_title(f"Solubility Comparison at {temperature}C", fontsize=15, fontweight="bold", pad=10)
+    ax1.set_xlabel("Solvent")
+    ax1.set_ylabel("Solubility (%)")
+    ax1.set_title(f"Solubility at {temperature}\u00b0C")
     ax1.set_xticks(x + width * (len(polymer_list) - 1) / 2)
-    short_labels = [s[:20] + "..." if len(s) > 20 else s for s in solvents]
-    ax1.set_xticklabels(short_labels, rotation=55, ha="right", fontsize=10)
-    ax1.tick_params(axis="y", labelsize=11)
-    ax1.legend(fontsize=11, loc="upper right")
+    short_labels = [s[:15] + ".." if len(s) > 15 else s for s in solvents]
+    ax1.set_xticklabels(short_labels, rotation=55, ha="right")
+    ax1.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
     ax1.grid(True, alpha=0.3, axis="y")
 
     # Panel 2: Heatmap
     ax2 = fig.add_subplot(2, 2, 2)
     pivot = df.pivot(index="polymer", columns="solvent", values="avg_sol")
     n_cells = pivot.shape[0] * pivot.shape[1]
-    annot_size = 11 if n_cells <= 20 else 9 if n_cells <= 40 else 7
+    annot_size = 7 if n_cells <= 20 else 6 if n_cells <= 40 else 5
     sns.heatmap(
         pivot, annot=True, fmt=".1f", cmap="YlOrRd", ax=ax2,
         annot_kws={"size": annot_size}, linewidths=0.5,
         cbar_kws={"label": "Solubility (%)", "shrink": 0.8},
     )
-    ax2.set_title("Solubility Heatmap", fontsize=15, fontweight="bold", pad=10)
-    ax2.set_xlabel("Solvent", fontsize=12, fontweight="bold")
-    ax2.set_ylabel("Polymer", fontsize=12, fontweight="bold")
-    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha="right", fontsize=10)
-    ax2.set_yticklabels(ax2.get_yticklabels(), fontsize=11)
+    ax2.set_title("Solubility Heatmap")
+    ax2.set_xlabel("Solvent")
+    ax2.set_ylabel("Polymer")
+    ax2.set_xticklabels(ax2.get_xticklabels(), rotation=45, ha="right")
+    ax2.set_yticklabels(ax2.get_yticklabels())
 
     # Panel 3: Box plot
     ax3 = fig.add_subplot(2, 2, 3)
@@ -1106,10 +1159,10 @@ def plot_comparison_dashboard(
     for patch, color in zip(bp["boxes"], colors):
         patch.set_facecolor(color)
         patch.set_edgecolor("black")
-    ax3.set_xlabel("Polymer", fontsize=13, fontweight="bold")
-    ax3.set_ylabel("Solubility Distribution (%)", fontsize=13, fontweight="bold")
-    ax3.set_title("Solubility Distribution by Polymer", fontsize=15, fontweight="bold", pad=10)
-    ax3.tick_params(axis="both", labelsize=11)
+        patch.set_linewidth(0.6)
+    ax3.set_xlabel("Polymer")
+    ax3.set_ylabel("Solubility Distribution (%)")
+    ax3.set_title("Solubility Distribution")
     ax3.grid(True, alpha=0.3, axis="y")
 
     # Panel 4: Rankings
@@ -1124,13 +1177,15 @@ def plot_comparison_dashboard(
         ranking_text += f"{i}. {polymer}: {sol:.2f}%\n"
 
     ax4.text(
-        0.1, 0.85, ranking_text, transform=ax4.transAxes, fontsize=14,
+        0.1, 0.85, ranking_text, transform=ax4.transAxes, fontsize=_PUB_FONTSIZE,
         verticalalignment="top", fontfamily="monospace",
         bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.7, edgecolor="gray"),
     )
 
     plt.tight_layout()
-    filepath = save_plot(fig, "comparison_dashboard", "matplotlib")
+    from strap.tools._helpers import descriptive_plot_name
+    plot_name = descriptive_plot_name("comparison_dashboard", polymers=polymer_list)
+    filepath = save_plot(fig, plot_name, "matplotlib")
 
     output = "Comparison Dashboard Created\n\n"
     output += f"Temperature: {temperature}C\n"
@@ -1185,7 +1240,8 @@ def plot_interpolation_vs_sql(
     n_cols = min(n_pairs, 3)
     n_rows = (n_pairs + n_cols - 1) // n_cols
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(7 * n_cols, 5 * n_rows), squeeze=False)
+    _apply_pub_style()
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(3.5 * n_cols, 2.8 * n_rows), squeeze=False)
 
     for idx, (polymer, solvent) in enumerate(pairs):
         row, col = divmod(idx, n_cols)
@@ -1202,8 +1258,8 @@ def plot_interpolation_vs_sql(
             interp_temps = [pt["temperature"] for pt in interp_curve]
             interp_sols = [pt["solubility"] for pt in interp_curve]
             ax.plot(
-                interp_temps, interp_sols, "-", color="#2171b5", linewidth=2.5,
-                label="Interpolation model", zorder=2,
+                interp_temps, interp_sols, "-", color=_PUB_COLORS[0], linewidth=1.2,
+                label="Interpolation", zorder=2,
             )
             has_data = True
 
@@ -1211,19 +1267,19 @@ def plot_interpolation_vs_sql(
             sql_temps = [pt["temperature"] for pt in sql_curve]
             sql_sols = [pt["solubility"] for pt in sql_curve]
             ax.scatter(
-                sql_temps, sql_sols, color="#d94801", s=60, marker="o",
-                edgecolors="black", linewidths=0.5, label="Database (raw)", zorder=3,
+                sql_temps, sql_sols, color=_PUB_COLORS[1], s=20, marker="o",
+                edgecolors="black", linewidths=0.3, label="Database", zorder=3,
             )
             has_data = True
 
         if not has_data:
             ax.text(0.5, 0.5, "No data", ha="center", va="center",
-                    transform=ax.transAxes, fontsize=14, color="gray")
+                    transform=ax.transAxes, color="gray")
 
-        ax.set_title(f"{polymer} in {solvent}", fontsize=12, fontweight="bold")
-        ax.set_xlabel("Temperature (C)", fontsize=10)
-        ax.set_ylabel("Solubility (%)", fontsize=10)
-        ax.legend(fontsize=9, loc="best")
+        ax.set_title(f"{polymer} in {solvent}")
+        ax.set_xlabel("Temperature (\u00b0C)")
+        ax.set_ylabel("Solubility (%)")
+        ax.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
         ax.grid(True, alpha=0.3)
 
     # Hide unused subplots
@@ -1231,12 +1287,12 @@ def plot_interpolation_vs_sql(
         row, col = divmod(idx, n_cols)
         axes[row][col].set_visible(False)
 
-    fig.suptitle(
-        "Interpolation Model vs Database Comparison",
-        fontsize=16, fontweight="bold", y=1.02,
-    )
     plt.tight_layout()
-    filepath = save_plot(fig, "interpolation_vs_sql", "matplotlib")
+    from strap.tools._helpers import descriptive_plot_name
+    _p = list(set(p for p, _ in pairs))
+    _s = list(set(s for _, s in pairs))
+    plot_name = descriptive_plot_name("interp_vs_sql", polymers=_p, solvents=_s)
+    filepath = save_plot(fig, plot_name, "matplotlib")
     plt.close(fig)
 
     output = "Interpolation vs SQL Comparison Plot Created\n\n"
@@ -1364,36 +1420,33 @@ async def plot_solvent_properties(
                 f"Available properties: {', '.join(avail)}"
             )
 
-        fig, ax = plt.subplots(figsize=(12, 8))
+        _apply_pub_style()
+        fig, ax = plt.subplots(figsize=(3.5, 3.0))
         scatter = ax.scatter(
             pdf_valid[property_lower],
             pdf_valid[y_lower],
             c=pdf_valid["solubility"],
             cmap="YlOrRd",
-            s=150,
+            s=25,
             alpha=0.7,
             edgecolors="black",
-            linewidths=1,
+            linewidths=0.3,
         )
         cbar = plt.colorbar(scatter)
-        cbar.set_label(f"Solubility in {polymer} (%)", fontsize=12)
+        cbar.set_label(f"Solubility in {polymer} (%)")
 
         for _, row in pdf_valid.iterrows():
             ax.annotate(
                 row["solvent"],
                 (row[property_lower], row[y_lower]),
-                xytext=(5, 5),
+                xytext=(3, 3),
                 textcoords="offset points",
-                fontsize=9,
+                fontsize=_PUB_FONTSIZE - 2,
                 alpha=0.8,
             )
 
-        ax.set_xlabel(property_labels.get(property_lower, property_lower), fontsize=14, fontweight="bold")
-        ax.set_ylabel(property_labels.get(y_lower, y_lower), fontsize=14, fontweight="bold")
-        ax.set_title(
-            f"{property_to_plot.upper()} vs {y_property.upper()} for {polymer} Solvents at {temperature}C",
-            fontsize=16, fontweight="bold",
-        )
+        ax.set_xlabel(property_labels.get(property_lower, property_lower))
+        ax.set_ylabel(property_labels.get(y_lower, y_lower))
         ax.grid(True, alpha=0.3)
 
         # Reference lines for G-score thresholds
@@ -1476,7 +1529,8 @@ async def plot_solvent_properties(
     solvent_data_1d.sort(key=lambda x: x["property_value"])
 
     # Create visualization
-    fig, ax = plt.subplots(figsize=(14, 8))
+    _apply_pub_style()
+    fig, ax = plt.subplots(figsize=(7.0, 3.5))
 
     if plot_type.lower() == "bar":
         names = [d["solvent"] for d in solvent_data_1d]
@@ -1484,25 +1538,20 @@ async def plot_solvent_properties(
         solubilities = [d["solubility"] for d in solvent_data_1d]
 
         color_arr = plt.cm.YlOrRd(np.array(solubilities) / max(solubilities))
-        bars = ax.bar(range(len(names)), values, color=color_arr, edgecolor="black", linewidth=1.5)
+        bars = ax.bar(range(len(names)), values, color=color_arr, edgecolor="black", linewidth=0.3)
 
         for i, (bar, sol) in enumerate(zip(bars, solubilities)):
             height = bar.get_height()
             ax.text(
                 bar.get_x() + bar.get_width() / 2.0, height,
                 f"{sol:.1f}%",
-                ha="center", va="bottom", fontsize=9, fontweight="bold",
+                ha="center", va="bottom", fontsize=_PUB_FONTSIZE - 2,
             )
 
         ax.set_xticks(range(len(names)))
-        ax.set_xticklabels(names, rotation=45, ha="right", fontsize=11)
-        ax.set_ylabel(property_labels[property_lower], fontsize=13, fontweight="bold")
-        ax.set_xlabel("Solvent", fontsize=13, fontweight="bold")
-        ax.set_title(
-            f"{property_labels[property_lower]} for Solvents Dissolving {polymer}\n"
-            f"(Color intensity = solubility)",
-            fontsize=15, fontweight="bold", pad=15,
-        )
+        ax.set_xticklabels(names, rotation=45, ha="right")
+        ax.set_ylabel(property_labels[property_lower])
+        ax.set_xlabel("Solvent")
 
     else:  # scatter plot
         values = [d["property_value"] for d in solvent_data_1d]
@@ -1510,22 +1559,18 @@ async def plot_solvent_properties(
         names = [d["solvent"] for d in solvent_data_1d]
 
         ax.scatter(
-            values, solubilities, s=150, alpha=0.6,
-            edgecolors="black", linewidth=2, c=values, cmap="viridis",
+            values, solubilities, s=25, alpha=0.6,
+            edgecolors="black", linewidth=0.3, c=values, cmap="viridis",
         )
 
         for x, y, name in zip(values, solubilities, names):
             ax.annotate(
-                name, (x, y), xytext=(5, 5), textcoords="offset points",
-                fontsize=9, alpha=0.8, fontweight="bold",
+                name, (x, y), xytext=(3, 3), textcoords="offset points",
+                fontsize=_PUB_FONTSIZE - 2, alpha=0.8,
             )
 
-        ax.set_xlabel(property_labels[property_lower], fontsize=13, fontweight="bold")
-        ax.set_ylabel("Solubility (%)", fontsize=13, fontweight="bold")
-        ax.set_title(
-            f"{property_labels[property_lower]} vs Solubility for {polymer}",
-            fontsize=15, fontweight="bold", pad=15,
-        )
+        ax.set_xlabel(property_labels[property_lower])
+        ax.set_ylabel("Solubility (%)")
         ax.grid(True, alpha=0.3)
 
     plt.tight_layout()

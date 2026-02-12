@@ -1,0 +1,218 @@
+[
+  {
+    "n_polymers": 2,
+    "polymers": [
+      "PS",
+      "PVC"
+    ],
+    "wall_time_s": 11.481713771820068,
+    "total_tokens": 22313,
+    "input_tokens": 21368,
+    "output_tokens": 945,
+    "n_tool_calls": 2,
+    "n_messages": 5,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 3,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE"
+    ],
+    "wall_time_s": 14.70773959159851,
+    "total_tokens": 22849,
+    "input_tokens": 21530,
+    "output_tokens": 1319,
+    "n_tool_calls": 3,
+    "n_messages": 6,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 4,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE"
+    ],
+    "wall_time_s": 17.24223303794861,
+    "total_tokens": 22918,
+    "input_tokens": 21639,
+    "output_tokens": 1279,
+    "n_tool_calls": 4,
+    "n_messages": 7,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 5,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP"
+    ],
+    "wall_time_s": 18.085012674331665,
+    "total_tokens": 23217,
+    "input_tokens": 21582,
+    "output_tokens": 1635,
+    "n_tool_calls": 5,
+    "n_messages": 8,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE, PP at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 6,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH"
+    ],
+    "wall_time_s": 17.005953550338745,
+    "total_tokens": 23353,
+    "input_tokens": 21751,
+    "output_tokens": 1602,
+    "n_tool_calls": 6,
+    "n_messages": 9,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE, PP, EVOH at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 7,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6"
+    ],
+    "wall_time_s": 19.023933172225952,
+    "total_tokens": 23766,
+    "input_tokens": 21912,
+    "output_tokens": 1854,
+    "n_tool_calls": 7,
+    "n_messages": 10,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE, PP, EVOH, Nylon6 at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 8,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6",
+      "Nylon66"
+    ],
+    "wall_time_s": 22.475648164749146,
+    "total_tokens": 24237,
+    "input_tokens": 22107,
+    "output_tokens": 2130,
+    "n_tool_calls": 8,
+    "n_messages": 11,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE, PP, EVOH, Nylon6, Nylon66 at 120C while rejecting the others? Rank by solubility ratio."
+  },
+  {
+    "n_polymers": 9,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6",
+      "Nylon66",
+      "PET"
+    ],
+    "wall_time_s": 24.42232656478882,
+    "total_tokens": 24825,
+    "input_tokens": 22264,
+    "output_tokens": 2561,
+    "n_tool_calls": 9,
+    "n_messages": 12,
+    "tool_names": [
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity",
+      "rank_solvents_selectivity"
+    ],
+    "routed_to_subagent": false,
+    "error": null,
+    "query": "From the available solvents, which best dissolve each of PS, PVC, LDPE, HDPE, PP, EVOH, Nylon6, Nylon66, PET at 120C while rejecting the others? Rank by solubility ratio."
+  }
+]

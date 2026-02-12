@@ -30,6 +30,7 @@ from strap.tools._helpers import (
     normalize_solvent_name,
 )
 from strap.analysis import SelectivityCalculator, SolventRanker, PolymerCompatibilityMatrix
+from strap.tools.visualization import _apply_pub_style, _PUB_COLORS, _PUB_FONTSIZE
 
 # ---------------------------------------------------------------------------
 # Optional engine imports (installed separately)
@@ -56,7 +57,6 @@ except Exception:  # noqa: BLE001
 
 try:
     from strap.engines.visualization import (
-        SeparationTreeVisualizer,
         SelectivityHeatmap,
         ProcessFlowDiagram,
     )
@@ -533,40 +533,112 @@ def find_challenging_polymer_pairs(
 def create_separation_tree_plot(
     polymers: str,
     temperature: float = 120.0,
-    algorithm: str = "greedy",
 ) -> str:
     """Create a decision tree visualization showing the optimal separation path with selectivity at each step.
+
+    Generates two plots:
+    1. Rank #1 recommended sequence (flowchart with solvents, selectivities, and color-coding)
+    2. Top-k comparison (side-by-side comparison of the best sequences)
 
     Args:
         polymers: Comma-separated list of polymers
         temperature: Temperature in Celsius
-        algorithm: Algorithm to use for finding sequences
 
     WHEN TO USE:
     - "Visualize separation options for LDPE, HDPE, PET, PP"
     - "Show decision tree for polymer separation"
     - "Create separation diagram"
+    - "Make a diagram of this separation sequence"
     """
+    from itertools import permutations
+    from strap.solubility import get_all_solvents_selectivity as _get_all_sel
+
     polymer_list = parse_polymer_list(polymers)
-    conn = get_connection()
+    n_polymers = len(polymer_list)
+    if n_polymers < 2:
+        return "Error: Need at least 2 polymers."
 
-    # Get separation result
-    result = run_async(find_best_separation(polymer_list, conn, temperature, algorithm))
+    MAX_EXHAUSTIVE = 6  # 6! = 720 permutations
 
-    # Create visualization
-    plots_dir = get_plots_dir()
-    os.makedirs(plots_dir, exist_ok=True)
-    from strap.engines.visualization import PlotConfig
-    config = PlotConfig(output_dir=plots_dir)
-    viz = SeparationTreeVisualizer(config)
-    filepath = viz.create_tree([result.best_sequence])
+    def _find_top_solvents(target: str, remaining: list, k: int = 3) -> list:
+        if not remaining:
+            return [{"solvent": "N/A", "selectivity": float("inf"), "target_sol": 100, "max_other": 0}]
+        all_sel = _get_all_sel(target, remaining, temperature)
+        if not all_sel:
+            return [{"solvent": "No data", "selectivity": 0, "target_sol": 0, "max_other": 0}]
+        return [
+            {"solvent": e["solvent"], "selectivity": e["selectivity"],
+             "target_sol": e["target_sol"], "max_other": e["max_other_sol"]}
+            for e in all_sel[:k]
+        ]
 
-    output = [
-        "# Separation Tree Visualization\n",
-        f"**Plot saved to:** `{filepath}`\n",
-        f"**Sequence:** {' -> '.join(s.target_polymer for s in result.best_sequence.steps)}",
-        f"**Min Selectivity:** {result.best_sequence.min_selectivity:.1f}%",
-    ]
+    def _analyze_sequence(sequence):
+        steps = []
+        total_min_sel = float("inf")
+        for step_idx, target in enumerate(sequence[:-1], 1):
+            remaining = list(sequence[step_idx:])
+            top_solvents = _find_top_solvents(target, remaining)
+            steps.append({"step": step_idx, "target": target, "remaining": remaining, "solvents": top_solvents})
+            if top_solvents and top_solvents[0]["selectivity"] < total_min_sel:
+                total_min_sel = top_solvents[0]["selectivity"]
+        return {"sequence": list(sequence), "min_selectivity": total_min_sel, "steps": steps}
+
+    # Build ranked sequences
+    if n_polymers <= MAX_EXHAUSTIVE:
+        sequence_scores = sorted(
+            [_analyze_sequence(seq) for seq in permutations(polymer_list)],
+            key=lambda x: x["min_selectivity"], reverse=True,
+        )
+    else:
+        # Greedy for large n
+        remaining = list(polymer_list)
+        greedy_seq, greedy_steps = [], []
+        while len(remaining) > 1:
+            best_cand, best_val = None, -float("inf")
+            for target in remaining:
+                others = [p for p in remaining if p != target]
+                solvents = _find_top_solvents(target, others)
+                top_sel = solvents[0]["selectivity"] if solvents else 0
+                if top_sel > best_val:
+                    best_val = top_sel
+                    best_cand = (target, solvents)
+            target, solvents = best_cand
+            greedy_seq.append(target)
+            remaining.remove(target)
+            greedy_steps.append({"step": len(greedy_seq), "target": target,
+                                 "remaining": remaining.copy(), "solvents": solvents})
+        greedy_seq.append(remaining[0])
+        min_sel = min(s["solvents"][0]["selectivity"] for s in greedy_steps) if greedy_steps else 0
+        sequence_scores = [{"sequence": greedy_seq, "min_selectivity": min_sel, "steps": greedy_steps}]
+
+    output = ["# Separation Tree Visualization\n"]
+
+    # Plot 1: rank-1 sequence
+    try:
+        fp1 = _plot_separation_sequence(
+            polymer_list, sequence_scores[0], temperature,
+            total_sequences=len(sequence_scores), rank=1,
+        )
+        output.append(f"**Rank #1 sequence:** {_get_plot_url(fp1)}\n")
+    except Exception as e:
+        logger.error("Rank-1 plot error: %s", e, exc_info=True)
+        output.append(f"Could not create rank-1 plot: {e}\n")
+
+    # Plot 2: top-k comparison
+    if len(sequence_scores) >= 2:
+        try:
+            fp2 = _plot_topk_comparison(polymer_list, sequence_scores, temperature)
+            output.append(f"**Top-K comparison:** {_get_plot_url(fp2)}\n")
+        except Exception as e:
+            logger.error("Top-K plot error: %s", e, exc_info=True)
+            output.append(f"Could not create top-K plot: {e}\n")
+
+    # Text summary
+    best = sequence_scores[0]
+    output.append(f"**Best sequence:** {' -> '.join(best['sequence'])}")
+    output.append(f"**Min Selectivity:** {best['min_selectivity']:.1f}%")
+    if len(sequence_scores) > 1:
+        output.append(f"**Total sequences evaluated:** {len(sequence_scores)}")
 
     return "\n".join(output)
 
@@ -839,9 +911,9 @@ def plot_precipitation_curves(
     analyzer = PrecipitationAnalyzer(conn)
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _apply_pub_style()
+    fig, ax = plt.subplots(figsize=(3.5, 2.8))
 
-    colors = plt.cm.tab10.colors
     precip_temps = {}
 
     for i, polymer in enumerate(polymer_list):
@@ -849,37 +921,33 @@ def plot_precipitation_curves(
         if df.empty:
             continue
 
-        color = colors[i % len(colors)]
+        color = _PUB_COLORS[i % len(_PUB_COLORS)]
         ax.plot(df['temperature'], df['solubility'], '-o', color=color,
-                label=polymer, linewidth=2, markersize=4)
+                label=polymer, linewidth=1.2, markersize=3)
 
         # Find and mark precipitation temperature
         precip_temp = analyzer.find_precipitation_temperature(polymer, solvent, precipitation_threshold)
         if precip_temp:
             precip_temps[polymer] = precip_temp
-            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.7)
-            ax.annotate(f'{polymer}\n{precip_temp:.0f} deg C', xy=(precip_temp, precipitation_threshold + 5),
-                       fontsize=8, color=color, ha='center')
+            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.7, linewidth=0.8)
+            ax.annotate(f'{polymer}\n{precip_temp:.0f}\u00b0C', xy=(precip_temp, precipitation_threshold + 5),
+                       fontsize=_PUB_FONTSIZE - 2, color=color, ha='center')
 
     # Add threshold line
     ax.axhline(y=precipitation_threshold, color='gray', linestyle='--', alpha=0.5,
-               label=f'Precipitation threshold ({precipitation_threshold}%)')
+               label=f'Threshold ({precipitation_threshold}%)')
 
-    ax.set_xlabel('Temperature (deg C)', fontsize=11)
-    ax.set_ylabel('Solubility (%)', fontsize=11)
-    ax.set_title(f'Temperature-Dependent Solubility in {solvent.upper()}', fontsize=12, fontweight='bold')
-    ax.legend(loc='upper left')
+    ax.set_xlabel('Temperature (\u00b0C)')
+    ax.set_ylabel('Solubility (%)')
+    ax.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
     ax.grid(True, alpha=0.3)
     ax.set_xlim(20, 170)
     ax.set_ylim(0, 105)
 
     # Save plot
-    plots_dir = get_plots_dir()
-    os.makedirs(plots_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"{plots_dir}/precipitation_curves_{solvent}_{timestamp}.png"
-    plt.savefig(filename, dpi=150, bbox_inches='tight')
-    plt.close()
+    from strap.tools._helpers import descriptive_plot_name
+    plot_name = descriptive_plot_name("precipitation_curves", polymers=polymer_list, solvents=[solvent])
+    filename = save_plot(fig, plot_name, "matplotlib")
 
     # Build summary
     lines = [
@@ -940,9 +1008,9 @@ def plot_atmospheric_feasibility(
         return f"Error: No boiling point data for {solvent}. Available solvents: {', '.join(list(SOLVENT_BOILING_POINTS.keys())[:20])}..."
 
     # Create figure
-    fig, ax = plt.subplots(figsize=(12, 7))
+    _apply_pub_style()
+    fig, ax = plt.subplots(figsize=(3.5, 2.8))
 
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
     precip_temps = {}
     max_solubilities = {}
     all_temps = []
@@ -952,9 +1020,9 @@ def plot_atmospheric_feasibility(
         if df.empty:
             continue
 
-        color = colors[i % len(colors)]
+        color = _PUB_COLORS[i % len(_PUB_COLORS)]
         ax.plot(df['temperature'], df['solubility'], '-o', color=color,
-                label=polymer, linewidth=2.5, markersize=5, alpha=0.9)
+                label=polymer, linewidth=1.2, markersize=3, alpha=0.9)
 
         all_temps.extend(df['temperature'].tolist())
         max_solubilities[polymer] = df['solubility'].max()
@@ -963,9 +1031,9 @@ def plot_atmospheric_feasibility(
         precip_temp = analyzer.find_precipitation_temperature(polymer, solvent, precipitation_threshold)
         if precip_temp:
             precip_temps[polymer] = precip_temp
-            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.6, linewidth=1.5)
+            ax.axvline(x=precip_temp, color=color, linestyle=':', alpha=0.6, linewidth=0.8)
             # Annotate precipitation point
-            ax.scatter([precip_temp], [precipitation_threshold], color=color, s=100, zorder=5, marker='v')
+            ax.scatter([precip_temp], [precipitation_threshold], color=color, s=20, zorder=5, marker='v')
 
     if not precip_temps:
         plt.close()
@@ -977,12 +1045,12 @@ def plot_atmospheric_feasibility(
     x_max = max(max_temp + 20, bp + 30)
 
     # Add boiling point line (critical constraint)
-    ax.axvline(x=bp, color='red', linestyle='--', linewidth=2.5, label=f'Boiling Point ({bp} deg C)')
+    ax.axvline(x=bp, color='red', linestyle='--', linewidth=1.2, label=f'BP ({bp}\u00b0C)')
 
     # Add precipitation threshold line
-    ax.axhline(y=precipitation_threshold, color='gray', linestyle='--', alpha=0.5, linewidth=1)
-    ax.text(min_temp + 2, precipitation_threshold + 2, f'Precip. threshold ({precipitation_threshold}%)',
-            fontsize=9, color='gray')
+    ax.axhline(y=precipitation_threshold, color='gray', linestyle='--', alpha=0.5, linewidth=0.6)
+    ax.text(min_temp + 2, precipitation_threshold + 2, f'Threshold ({precipitation_threshold}%)',
+            fontsize=_PUB_FONTSIZE - 2, color='gray')
 
     # Calculate dissolution temperature needed
     max_precip_temp = max(precip_temps.values())
@@ -994,48 +1062,41 @@ def plot_atmospheric_feasibility(
     # Add shaded regions
     if is_feasible:
         # Green zone: atmospheric operation possible
-        ax.axvspan(min_temp, bp, alpha=0.1, color='green', label='Atmospheric zone')
-        ax.axvline(x=dissolution_temp, color='green', linestyle='-.', linewidth=1.5, alpha=0.7)
-        ax.text(dissolution_temp + 1, 90, f'Dissolution\n~{dissolution_temp:.0f} deg C', fontsize=9, color='green')
-        feasibility_text = f"FEASIBLE AT 1 ATM\nMargin: {bp - dissolution_temp:.0f} deg C below BP"
+        ax.axvspan(min_temp, bp, alpha=0.08, color='green', label='Atmospheric zone')
+        ax.axvline(x=dissolution_temp, color='green', linestyle='-.', linewidth=0.8, alpha=0.7)
+        ax.text(dissolution_temp + 1, 90, f'~{dissolution_temp:.0f}\u00b0C', fontsize=_PUB_FONTSIZE - 2, color='green')
+        feasibility_text = f"FEASIBLE AT 1 ATM\nMargin: {bp - dissolution_temp:.0f}\u00b0C below BP"
         text_color = 'green'
     else:
         # Red zone: requires pressurization
-        ax.axvspan(bp, x_max, alpha=0.15, color='red', label='Requires pressure')
-        ax.axvline(x=dissolution_temp, color='orange', linestyle='-.', linewidth=1.5, alpha=0.7)
-        ax.text(dissolution_temp + 1, 90, f'Dissolution\n~{dissolution_temp:.0f} deg C', fontsize=9, color='orange')
-        feasibility_text = f"REQUIRES PRESSURIZATION\nNeeds {dissolution_temp - bp:.0f} deg C above BP"
+        ax.axvspan(bp, x_max, alpha=0.1, color='red', label='Requires pressure')
+        ax.axvline(x=dissolution_temp, color='orange', linestyle='-.', linewidth=0.8, alpha=0.7)
+        ax.text(dissolution_temp + 1, 90, f'~{dissolution_temp:.0f}\u00b0C', fontsize=_PUB_FONTSIZE - 2, color='orange')
+        feasibility_text = f"REQUIRES PRESSURIZATION\nNeeds {dissolution_temp - bp:.0f}\u00b0C above BP"
         text_color = 'red'
 
     # Add feasibility annotation box
-    props = dict(boxstyle='round,pad=0.5', facecolor='white', edgecolor=text_color, alpha=0.9)
-    ax.text(0.98, 0.98, feasibility_text, transform=ax.transAxes, fontsize=11,
-            verticalalignment='top', horizontalalignment='right', bbox=props, color=text_color, fontweight='bold')
+    props = dict(boxstyle='round,pad=0.3', facecolor='white', edgecolor=text_color, alpha=0.9)
+    ax.text(0.98, 0.98, feasibility_text, transform=ax.transAxes, fontsize=_PUB_FONTSIZE - 1,
+            verticalalignment='top', horizontalalignment='right', bbox=props, color=text_color)
 
     # Precipitation sequence annotation
     sorted_precip = sorted(precip_temps.items(), key=lambda x: x[1], reverse=True)
-    seq_text = "Precipitation sequence:\n" + " -> ".join([f"{p}@{t:.0f} deg C" for p, t in sorted_precip])
-    ax.text(0.02, 0.02, seq_text, transform=ax.transAxes, fontsize=10,
+    seq_text = " \u2192 ".join([f"{p}@{t:.0f}\u00b0C" for p, t in sorted_precip])
+    ax.text(0.02, 0.02, seq_text, transform=ax.transAxes, fontsize=_PUB_FONTSIZE - 2,
             verticalalignment='bottom', bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.8))
 
-    ax.set_xlabel('Temperature (deg C)', fontsize=12)
-    ax.set_ylabel('Solubility (%)', fontsize=12)
-    ax.set_title(f'Atmospheric Feasibility: {", ".join(polymer_list)} in {solvent.upper()}\n'
-                 f'(Boiling Point: {bp} deg C at 1 atm)', fontsize=13, fontweight='bold')
-    ax.legend(loc='upper left', fontsize=10)
+    ax.set_xlabel('Temperature (\u00b0C)')
+    ax.set_ylabel('Solubility (%)')
+    ax.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
     ax.grid(True, alpha=0.3)
     ax.set_xlim(min_temp - 5, x_max)
     ax.set_ylim(0, 105)
 
     # Save plot
-    plots_dir = get_plots_dir()
-    subdir = f"{plots_dir}/atmospheric_feasibility"
-    os.makedirs(subdir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    polymer_str = "_".join(polymer_list)
-    filename = f"{subdir}/{polymer_str}_{solvent}_{timestamp}.png"
-    plt.savefig(filename, dpi=150, bbox_inches='tight')
-    plt.close()
+    from strap.tools._helpers import descriptive_plot_name
+    plot_name = descriptive_plot_name("atmospheric_feasibility", polymers=polymer_list, solvents=[solvent])
+    filename = save_plot(fig, plot_name, "matplotlib")
 
     # Build summary
     lines = [
@@ -1610,6 +1671,254 @@ _SOLVENT_DATA_TABLE: Optional[str] = None
 def _get_plot_url(filepath: str) -> str:
     """Convert filepath to displayable format."""
     return f"Plot saved: `{filepath}`"
+
+
+def _selectivity_color(selectivity: float) -> str:
+    """Return color hex for a selectivity value."""
+    if selectivity > 30:
+        return "#2ecc71"
+    elif selectivity > 10:
+        return "#f1c40f"
+    elif selectivity > 0:
+        return "#e67e22"
+    else:
+        return "#e74c3c"
+
+
+_SELECTIVITY_LEGEND = [
+    ("#2ecc71", "Excellent (>30%)"),
+    ("#f1c40f", "Good (10-30%)"),
+    ("#e67e22", "Marginal (0-10%)"),
+    ("#e74c3c", "Poor (<0%)"),
+]
+
+
+def _plot_separation_sequence(
+    polymer_list: list[str],
+    sequence_data: dict,
+    temperature: float,
+    total_sequences: int,
+    rank: int = 1,
+    filename: str | None = None,
+) -> str:
+    """Plot a single ranked separation sequence (flowchart style).
+
+    Args:
+        polymer_list: Full list of polymers in the mixture.
+        sequence_data: Dict with keys ``sequence``, ``min_selectivity``, ``steps``.
+            Each step has ``target``, ``remaining``, ``solvents`` (list of dicts with
+            ``solvent``, ``selectivity``, and optionally ``temperature``,
+            ``optimal_temp``, ``optimal_selectivity``).
+        temperature: Operating temperature in °C.
+        total_sequences: Total number of evaluated sequences (for title).
+        rank: Rank of this sequence.
+        filename: Override output filename (default: ``separation_sequence_rank{rank}``).
+
+    Returns:
+        Filepath of the saved PNG.
+    """
+    sequence = sequence_data["sequence"]
+    steps = sequence_data["steps"]
+    min_sel = sequence_data["min_selectivity"]
+
+    n_steps = len(steps)
+    fig_height = max(3 + n_steps * 2.5, 8)
+    fig, ax = plt.subplots(figsize=(12, fig_height))
+
+    ax.set_title(
+        f"RECOMMENDED SEPARATION SEQUENCE (Rank #{rank} of {total_sequences})\n"
+        f'Sequence: {" -> ".join(sequence)} | Min Selectivity: {min_sel:.1f}% | Temp: {temperature} C',
+        fontsize=16, fontweight="bold", pad=20,
+    )
+    ax.set_xlim(0, 10)
+    ax.set_ylim(-0.5, n_steps + 2.5)
+    ax.axis("off")
+
+    # Starting mixture bar
+    y_pos = n_steps + 1.5
+    ax.add_patch(plt.Rectangle((2, y_pos - 0.3), 6, 0.6,
+                               facecolor="#3498db", edgecolor="black", linewidth=2))
+    ax.text(5, y_pos, f'STARTING MIXTURE: {", ".join(polymer_list)}',
+            ha="center", va="center", fontsize=14, fontweight="bold", color="white")
+
+    for idx, step in enumerate(steps):
+        y_pos = n_steps - idx
+        target = step["target"]
+        remaining = step.get("remaining", [])
+        top_solvent = step["solvents"][0] if step.get("solvents") else {"solvent": "N/A", "selectivity": 0}
+        solvent_name = top_solvent["solvent"]
+        selectivity = top_solvent.get("selectivity", 0)
+        step_temp = top_solvent.get("temperature", temperature)
+        optimal_temp = top_solvent.get("optimal_temp", step_temp)
+        optimal_sel = top_solvent.get("optimal_selectivity", selectivity)
+        color = _selectivity_color(selectivity)
+
+        # Arrow from previous level
+        ax.annotate("", xy=(3.5, y_pos + 0.4), xytext=(3.5, y_pos + 0.9),
+                    arrowprops=dict(arrowstyle="->", lw=4, color=color))
+
+        # Step box
+        ax.add_patch(plt.Rectangle((1.2, y_pos - 0.35), 4.6, 0.7,
+                                   facecolor=color, edgecolor="black", linewidth=2.5, alpha=0.3))
+
+        # Step number circle
+        ax.add_patch(plt.Circle((1.9, y_pos), 0.25, facecolor=color, edgecolor="black", linewidth=2))
+        ax.text(1.9, y_pos, str(idx + 1), ha="center", va="center",
+                fontsize=14, fontweight="bold", color="white")
+
+        ax.text(2.7, y_pos, f"SEPARATE: {target}",
+                ha="left", va="center", fontsize=14, fontweight="bold")
+
+        # Solvent info box
+        ax.add_patch(plt.Rectangle((6.2, y_pos + 0.35), 3.5, 0.75,
+                                   facecolor="white", edgecolor=color, linewidth=2))
+        ax.text(7.95, y_pos + 0.95, f"Solvent: {solvent_name}",
+                ha="center", va="center", fontsize=11, fontweight="bold")
+        ax.text(7.95, y_pos + 0.72, f"Sel: {selectivity:.1f}% @ {step_temp:.0f} C",
+                ha="center", va="center", fontsize=10, color=color, fontweight="bold")
+        if abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity:
+            ax.text(7.95, y_pos + 0.5, f"(Optimal: {optimal_sel:.1f}% @ {optimal_temp:.0f} C)",
+                    ha="center", va="center", fontsize=8, color="#27ae60", style="italic")
+
+        if remaining:
+            ax.text(5.7, y_pos - 0.15, f'Remaining: {", ".join(remaining)}',
+                    ha="right", va="center", fontsize=10, color="#34495e",
+                    style="italic", weight="bold")
+        else:
+            ax.text(5.7, y_pos - 0.15, "(Last polymer - isolated)",
+                    ha="right", va="center", fontsize=10, color="#27ae60",
+                    style="italic", weight="bold")
+
+    # Final bar
+    ax.add_patch(plt.Rectangle((2, -0.3), 6, 0.6,
+                               facecolor="#2ecc71", edgecolor="black", linewidth=2.5))
+    ax.text(5, 0, "ALL POLYMERS SEPARATED",
+            ha="center", va="center", fontsize=14, fontweight="bold", color="white")
+
+    legend_elements = [
+        plt.Line2D([0], [0], marker="s", color="w", markerfacecolor=c,
+                   markersize=15, markeredgecolor="black", linewidth=2, label=lbl)
+        for c, lbl in _SELECTIVITY_LEGEND
+    ]
+    ax.legend(handles=legend_elements, loc="upper right", fontsize=11,
+              frameon=True, fancybox=True, title="Selectivity Quality", title_fontsize=12)
+
+    plt.tight_layout(rect=[0, 0.08, 1, 0.95])
+    fname = filename or f"separation_sequence_rank{rank}"
+    filepath = save_plot(fig, fname)
+    plt.close(fig)
+    return filepath
+
+
+def _plot_topk_comparison(
+    polymer_list: list[str],
+    sequence_scores: list[dict],
+    temperature: float,
+    top_k: int = 3,
+    filename: str = "separation_topk_comparison",
+) -> str:
+    """Plot side-by-side comparison of top-k separation sequences.
+
+    Args:
+        polymer_list: Full list of polymers.
+        sequence_scores: Sorted list of sequence dicts (best first).
+        temperature: Operating temperature in °C.
+        top_k: Number of sequences to compare.
+        filename: Output filename.
+
+    Returns:
+        Filepath of the saved PNG.
+    """
+    top_k = min(top_k, len(sequence_scores))
+    n_steps = len(polymer_list) - 1
+
+    fig, ax = plt.subplots(figsize=(5 * top_k, 8), dpi=150)
+    ax.set_title(
+        f"TOP {top_k} SEPARATION SEQUENCES COMPARISON\n"
+        f'Temperature: {temperature} C | Polymers: {", ".join(polymer_list)}',
+        fontsize=16, fontweight="bold", pad=20,
+    )
+    ax.set_xlim(0, top_k * 5)
+    ax.set_ylim(-1, n_steps + 2)
+    ax.axis("off")
+
+    col_width = 5
+
+    for col_idx, seq_data in enumerate(sequence_scores[:top_k]):
+        x_offset = col_idx * col_width
+        seq = seq_data["sequence"]
+        min_sel = seq_data["min_selectivity"]
+        seq_steps = seq_data["steps"]
+
+        medal = "#1" if col_idx == 0 else "#2" if col_idx == 1 else "#3"
+        header_color = "#2ecc71" if col_idx == 0 else "#95a5a6"
+        ax.add_patch(plt.Rectangle((x_offset + 0.2, n_steps + 1), col_width - 0.4, 0.8,
+                                   facecolor=header_color, edgecolor="black", linewidth=2))
+        ax.text(x_offset + col_width / 2, n_steps + 1.4, f"{medal} Rank #{col_idx + 1}",
+                ha="center", va="center", fontsize=14, fontweight="bold", color="white")
+
+        ax.text(x_offset + col_width / 2, n_steps + 0.6, " -> ".join(seq),
+                ha="center", va="center", fontsize=10, fontweight="bold",
+                bbox=dict(boxstyle="round", facecolor="white", edgecolor="gray"))
+
+        for step_idx, step in enumerate(seq_steps):
+            y_pos = n_steps - step_idx - 0.5
+            target = step.get("target", "?")
+            solvents_list = step.get("solvents", [])
+            if solvents_list and isinstance(solvents_list, list):
+                best_sol = solvents_list[0]
+                solvent = best_sol.get("solvent", "N/A")
+                selectivity = best_sol.get("selectivity", 0)
+                step_temp = best_sol.get("temperature", temperature)
+                optimal_temp = best_sol.get("optimal_temp", step_temp)
+                optimal_sel = best_sol.get("optimal_selectivity", selectivity)
+            else:
+                solvent, selectivity = "N/A", 0
+                step_temp = optimal_temp = temperature
+                optimal_sel = 0
+
+            has_optimal = abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity
+            color = _selectivity_color(selectivity)
+
+            box_height = 0.85 if has_optimal else 0.7
+            ax.add_patch(plt.Rectangle((x_offset + 0.3, y_pos - 0.4), col_width - 0.6, box_height,
+                                       facecolor=color, edgecolor="black", linewidth=1.5, alpha=0.3))
+
+            y_circle = y_pos + 0.05 if has_optimal else y_pos
+            ax.add_patch(plt.Circle((x_offset + 0.7, y_circle), 0.2, facecolor=color, edgecolor="black"))
+            ax.text(x_offset + 0.7, y_circle, str(step_idx + 1), ha="center", va="center",
+                    fontsize=10, fontweight="bold", color="white")
+
+            y_target = y_pos + 0.22 if has_optimal else y_pos + 0.15
+            ax.text(x_offset + 1.1, y_target, f"{target}",
+                    ha="left", va="center", fontsize=12, fontweight="bold")
+
+            y_solvent = y_pos + 0.0 if has_optimal else y_pos - 0.15
+            ax.text(x_offset + 1.1, y_solvent, f"{solvent} ({selectivity:.1f}% @{step_temp:.0f} C)",
+                    ha="left", va="center", fontsize=8, color="#34495e")
+
+            if has_optimal:
+                ax.text(x_offset + 1.1, y_pos - 0.22, f"Opt: {optimal_sel:.1f}% @{optimal_temp:.0f} C",
+                        ha="left", va="center", fontsize=7, color="#27ae60", style="italic")
+
+        summary_color = "#2ecc71" if min_sel > 10 else "#f39c12" if min_sel > 0 else "#e74c3c"
+        ax.add_patch(plt.Rectangle((x_offset + 0.3, -0.8), col_width - 0.6, 0.5,
+                                   facecolor=summary_color, edgecolor="black", linewidth=2))
+        ax.text(x_offset + col_width / 2, -0.55, f"Min Sel: {min_sel:.1f}%",
+                ha="center", va="center", fontsize=11, fontweight="bold", color="white")
+
+    legend_elements = [
+        plt.Line2D([0], [0], marker="s", color="w", markerfacecolor=c,
+                   markersize=12, markeredgecolor="black", label=lbl)
+        for c, lbl in _SELECTIVITY_LEGEND
+    ]
+    ax.legend(handles=legend_elements, loc="lower right", fontsize=9,
+              frameon=True, fancybox=True, title="Selectivity", title_fontsize=10)
+
+    plt.tight_layout()
+    filepath = save_plot(fig, filename)
+    plt.close(fig)
+    return filepath
 
 
 def _get_solvent_table_name() -> Optional[str]:
@@ -2602,121 +2911,20 @@ async def plan_sequential_separation(
 
     output.append("")
 
-    # Create visualisation - SHOW TOP SEQUENCE ONLY
+    # Create visualisations using shared helpers
     if create_decision_tree and sequence_scores:
         output.append("## Top Recommended Separation Sequence\n")
 
         try:
-            best_seq = sequence_scores[0]
-            sequence = best_seq["sequence"]
-            steps = best_seq["steps"]
-            min_sel = best_seq["min_selectivity"]
-
-            def get_color(selectivity):
-                if selectivity > 30:
-                    return "#2ecc71"
-                elif selectivity > 10:
-                    return "#f1c40f"
-                elif selectivity > 0:
-                    return "#e67e22"
-                else:
-                    return "#e74c3c"
-
-            n_steps = len(steps)
-            fig_height = max(3 + n_steps * 2.5, 8)
-            fig_width = 12
-            fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-
-            ax.set_title(
-                f'RECOMMENDED SEPARATION SEQUENCE (Rank #1 of {len(sequence_scores)})\n'
-                + f'Sequence: {" -> ".join(sequence)} | Min Selectivity: {min_sel:.1f}% | Temp: {temperature} C',
-                fontsize=16,
-                fontweight="bold",
-                pad=20,
+            filepath = _plot_separation_sequence(
+                polymer_list, sequence_scores[0], temperature,
+                total_sequences=len(sequence_scores), rank=1,
             )
-
-            ax.set_xlim(0, 10)
-            ax.set_ylim(-0.5, n_steps + 2.5)
-            ax.axis("off")
-
-            y_pos = n_steps + 1.5
-            ax.add_patch(plt.Rectangle((2, y_pos - 0.3), 6, 0.6,
-                                       facecolor="#3498db", edgecolor="black", linewidth=2))
-            ax.text(5, y_pos, f'STARTING MIXTURE: {", ".join(polymer_list)}',
-                    ha="center", va="center", fontsize=14, fontweight="bold", color="white")
-
-            for idx, step in enumerate(steps):
-                y_pos = n_steps - idx
-                target = step["target"]
-                remaining = step["remaining"]
-                top_solvent = step["solvents"][0] if step["solvents"] else {"solvent": "N/A", "selectivity": 0}
-                solvent_name = top_solvent["solvent"]
-                selectivity = top_solvent.get("selectivity", 0)
-                step_temp = top_solvent.get("temperature", temperature)
-                optimal_temp = top_solvent.get("optimal_temp", step_temp)
-                optimal_sel = top_solvent.get("optimal_selectivity", selectivity)
-                color = get_color(selectivity)
-
-                ax.annotate("", xy=(3.5, y_pos + 0.4), xytext=(3.5, y_pos + 0.9),
-                            arrowprops=dict(arrowstyle="->", lw=4, color=color))
-
-                ax.add_patch(plt.Rectangle((1.2, y_pos - 0.35), 4.6, 0.7,
-                                           facecolor=color, edgecolor="black", linewidth=2.5, alpha=0.3))
-
-                ax.add_patch(plt.Circle((1.9, y_pos), 0.25, facecolor=color, edgecolor="black", linewidth=2))
-                ax.text(1.9, y_pos, str(idx + 1), ha="center", va="center",
-                        fontsize=14, fontweight="bold", color="white")
-
-                ax.text(2.7, y_pos, f"SEPARATE: {target}",
-                        ha="left", va="center", fontsize=14, fontweight="bold")
-
-                ax.add_patch(plt.Rectangle((6.2, y_pos + 0.35), 3.5, 0.75,
-                                           facecolor="white", edgecolor=color, linewidth=2))
-                ax.text(7.95, y_pos + 0.95, f"Solvent: {solvent_name}",
-                        ha="center", va="center", fontsize=11, fontweight="bold")
-                ax.text(7.95, y_pos + 0.72, f"Sel: {selectivity:.1f}% @ {step_temp:.0f} C",
-                        ha="center", va="center", fontsize=10, color=color, fontweight="bold")
-                if abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity:
-                    ax.text(7.95, y_pos + 0.5, f"(Optimal: {optimal_sel:.1f}% @ {optimal_temp:.0f} C)",
-                            ha="center", va="center", fontsize=8, color="#27ae60", style="italic")
-
-                if remaining:
-                    remaining_text = f'Remaining: {", ".join(remaining)}'
-                    ax.text(5.7, y_pos - 0.15, remaining_text,
-                            ha="right", va="center", fontsize=10, color="#34495e",
-                            style="italic", weight="bold")
-                else:
-                    ax.text(5.7, y_pos - 0.15, "(Last polymer - isolated)",
-                            ha="right", va="center", fontsize=10, color="#27ae60",
-                            style="italic", weight="bold")
-
-            ax.add_patch(plt.Rectangle((2, -0.3), 6, 0.6,
-                                       facecolor="#2ecc71", edgecolor="black", linewidth=2.5))
-            ax.text(5, 0, "ALL POLYMERS SEPARATED",
-                    ha="center", va="center", fontsize=14, fontweight="bold", color="white")
-
-            legend_elements = [
-                plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#2ecc71",
-                           markersize=15, markeredgecolor="black", linewidth=2, label="Excellent (>30%)"),
-                plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#f1c40f",
-                           markersize=15, markeredgecolor="black", linewidth=2, label="Good (10-30%)"),
-                plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e67e22",
-                           markersize=15, markeredgecolor="black", linewidth=2, label="Marginal (0-10%)"),
-                plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e74c3c",
-                           markersize=15, markeredgecolor="black", linewidth=2, label="Poor (<0%)"),
-            ]
-            ax.legend(handles=legend_elements, loc="upper right", fontsize=11,
-                      frameon=True, fancybox=True, title="Selectivity Quality", title_fontsize=12)
-
-            plt.tight_layout(rect=[0, 0.08, 1, 0.95])
-            filepath = save_plot(fig, "separation_sequence_rank1")
-            plt.close(fig)
             output.append(f"Visualisation saved: {_get_plot_url(filepath)}\n")
 
             if len(sequence_scores) > 1:
                 output.append(f"**Note:** This shows the top-ranked sequence. There are {len(sequence_scores) - 1} other possible sequences.")
                 output.append(f"    To view alternatives, ask: 'Show me the 2nd best sequence' or 'Show me {polymer_list[1]}-first separation'")
-
         except Exception as e:
             logger.error(f"Decision tree error: {e}", exc_info=True)
             output.append(f"Could not create visualisation: {e}")
@@ -2724,115 +2932,8 @@ async def plan_sequential_separation(
         # Generate TOP-K COMPARISON visualisation (side-by-side)
         if len(sequence_scores) >= 2:
             try:
-                top_k = min(3, len(sequence_scores))
-                fig, ax = plt.subplots(figsize=(5 * top_k, 8), dpi=150)
-
-                ax.set_title(
-                    f'TOP {top_k} SEPARATION SEQUENCES COMPARISON\n'
-                    + f'Temperature: {temperature} C | Polymers: {", ".join(polymer_list)}',
-                    fontsize=16,
-                    fontweight="bold",
-                    pad=20,
-                )
-
-                ax.set_xlim(0, top_k * 5)
-                n_steps = len(polymer_list) - 1
-                ax.set_ylim(-1, n_steps + 2)
-                ax.axis("off")
-
-                col_width = 5
-
-                for col_idx, seq_data in enumerate(sequence_scores[:top_k]):
-                    x_offset = col_idx * col_width
-                    seq = seq_data["sequence"]
-                    min_sel = seq_data["min_selectivity"]
-                    seq_steps = seq_data["steps"]
-
-                    medal = "#1" if col_idx == 0 else "#2" if col_idx == 1 else "#3"
-                    header_color = "#2ecc71" if col_idx == 0 else "#95a5a6"
-                    ax.add_patch(plt.Rectangle((x_offset + 0.2, n_steps + 1), col_width - 0.4, 0.8,
-                                               facecolor=header_color, edgecolor="black", linewidth=2))
-                    ax.text(x_offset + col_width / 2, n_steps + 1.4, f"{medal} Rank #{col_idx + 1}",
-                            ha="center", va="center", fontsize=14, fontweight="bold", color="white")
-
-                    ax.text(x_offset + col_width / 2, n_steps + 0.6, " -> ".join(seq),
-                            ha="center", va="center", fontsize=10, fontweight="bold",
-                            bbox=dict(boxstyle="round", facecolor="white", edgecolor="gray"))
-
-                    for step_idx, step in enumerate(seq_steps):
-                        y_pos = n_steps - step_idx - 0.5
-                        target = step.get("target", "?")
-                        solvents_list = step.get("solvents", [])
-                        if solvents_list and isinstance(solvents_list, list):
-                            best_sol = solvents_list[0]
-                            solvent = best_sol.get("solvent", "N/A")
-                            selectivity = best_sol.get("selectivity", 0)
-                            step_temp = best_sol.get("temperature", temperature)
-                            optimal_temp = best_sol.get("optimal_temp", step_temp)
-                            optimal_sel = best_sol.get("optimal_selectivity", selectivity)
-                        else:
-                            solvent = "N/A"
-                            selectivity = 0
-                            step_temp = temperature
-                            optimal_temp = temperature
-                            optimal_sel = 0
-
-                        has_optimal = abs(optimal_temp - step_temp) > 5 and optimal_sel > selectivity
-
-                        if selectivity > 30:
-                            color = "#2ecc71"
-                        elif selectivity > 10:
-                            color = "#f1c40f"
-                        elif selectivity > 0:
-                            color = "#e67e22"
-                        else:
-                            color = "#e74c3c"
-
-                        box_height = 0.85 if has_optimal else 0.7
-                        ax.add_patch(plt.Rectangle((x_offset + 0.3, y_pos - 0.4), col_width - 0.6, box_height,
-                                                   facecolor=color, edgecolor="black", linewidth=1.5, alpha=0.3))
-
-                        y_circle = y_pos + 0.05 if has_optimal else y_pos
-                        ax.add_patch(plt.Circle((x_offset + 0.7, y_circle), 0.2, facecolor=color, edgecolor="black"))
-                        ax.text(x_offset + 0.7, y_circle, str(step_idx + 1), ha="center", va="center",
-                                fontsize=10, fontweight="bold", color="white")
-
-                        y_target = y_pos + 0.22 if has_optimal else y_pos + 0.15
-                        ax.text(x_offset + 1.1, y_target, f"{target}",
-                                ha="left", va="center", fontsize=12, fontweight="bold")
-
-                        y_solvent = y_pos + 0.0 if has_optimal else y_pos - 0.15
-                        ax.text(x_offset + 1.1, y_solvent, f"{solvent} ({selectivity:.1f}% @{step_temp:.0f} C)",
-                                ha="left", va="center", fontsize=8, color="#34495e")
-
-                        if has_optimal:
-                            ax.text(x_offset + 1.1, y_pos - 0.22, f"Opt: {optimal_sel:.1f}% @{optimal_temp:.0f} C",
-                                    ha="left", va="center", fontsize=7, color="#27ae60", style="italic")
-
-                    summary_color = "#2ecc71" if min_sel > 10 else "#f39c12" if min_sel > 0 else "#e74c3c"
-                    ax.add_patch(plt.Rectangle((x_offset + 0.3, -0.8), col_width - 0.6, 0.5,
-                                               facecolor=summary_color, edgecolor="black", linewidth=2))
-                    ax.text(x_offset + col_width / 2, -0.55, f"Min Sel: {min_sel:.1f}%",
-                            ha="center", va="center", fontsize=11, fontweight="bold", color="white")
-
-                legend_elements = [
-                    plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#2ecc71",
-                               markersize=12, markeredgecolor="black", label="Excellent (>30%)"),
-                    plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#f1c40f",
-                               markersize=12, markeredgecolor="black", label="Good (10-30%)"),
-                    plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e67e22",
-                               markersize=12, markeredgecolor="black", label="Marginal (0-10%)"),
-                    plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e74c3c",
-                               markersize=12, markeredgecolor="black", label="Poor (<0%)"),
-                ]
-                ax.legend(handles=legend_elements, loc="lower right", fontsize=9,
-                          frameon=True, fancybox=True, title="Selectivity", title_fontsize=10)
-
-                plt.tight_layout()
-                filepath = save_plot(fig, "separation_topk_comparison")
-                plt.close(fig)
+                filepath = _plot_topk_comparison(polymer_list, sequence_scores, temperature)
                 output.append(f"\n**Top-K Comparison**: {_get_plot_url(filepath)}")
-
             except Exception as e:
                 logger.error(f"Top-K comparison visualisation error: {e}", exc_info=True)
 
@@ -3643,114 +3744,16 @@ async def view_alternative_separation_sequence(
     output.append(f"**Minimum Selectivity:** {target_seq['min_selectivity']:.1f}%")
     output.append(f"**Temperature:** {temperature} C\n")
 
-    # Create the same clear visualisation as in plan_sequential_separation
+    # Create visualisation using shared helper
     try:
-        def get_color(selectivity):
-            if selectivity > 30:
-                return "#2ecc71"
-            elif selectivity > 10:
-                return "#f1c40f"
-            elif selectivity > 0:
-                return "#e67e22"
-            else:
-                return "#e74c3c"
-
-        sequence = target_seq["sequence"]
-        steps = target_seq["steps"]
-        min_sel = target_seq["min_selectivity"]
-
-        n_steps = len(steps)
-        fig_height = max(3 + n_steps * 2.5, 8)
-        fig_width = 12
-        fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-
-        ax.set_title(
-            f'SEPARATION SEQUENCE (Rank #{rank} of {len(sequence_scores)})\n'
-            + f'Sequence: {" -> ".join(sequence)} | Min Selectivity: {min_sel:.1f}% | Temp: {temperature} C',
-            fontsize=16,
-            fontweight="bold",
-            pad=20,
+        filepath = _plot_separation_sequence(
+            polymer_list, target_seq, temperature,
+            total_sequences=len(sequence_scores), rank=rank,
         )
-
-        ax.set_xlim(0, 10)
-        ax.set_ylim(-0.5, n_steps + 2)
-        ax.axis("off")
-
-        y_pos = n_steps + 1
-        ax.add_patch(plt.Rectangle((2, y_pos - 0.3), 6, 0.6,
-                                   facecolor="#3498db", edgecolor="black", linewidth=2))
-        ax.text(5, y_pos, f'STARTING MIXTURE: {", ".join(polymer_list)}',
-                ha="center", va="center", fontsize=14, fontweight="bold", color="white")
-
-        for idx, step in enumerate(steps):
-            y_pos = n_steps - idx
-            target = step["target"]
-            remaining = step["remaining"]
-            top_solvent = step["solvents"][0] if step["solvents"] else {"solvent": "N/A", "selectivity": 0}
-            solvent_name = top_solvent["solvent"]
-            selectivity = top_solvent.get("selectivity", 0)
-            color = get_color(selectivity)
-
-            ax.annotate("", xy=(3.5, y_pos + 0.4), xytext=(3.5, y_pos + 0.9),
-                        arrowprops=dict(arrowstyle="->", lw=4, color=color))
-
-            ax.add_patch(plt.Rectangle((1.2, y_pos - 0.35), 4.6, 0.7,
-                                       facecolor=color, edgecolor="black", linewidth=2.5, alpha=0.3))
-
-            ax.add_patch(plt.Circle((1.9, y_pos), 0.25, facecolor=color, edgecolor="black", linewidth=2))
-            ax.text(1.9, y_pos, str(idx + 1), ha="center", va="center",
-                    fontsize=14, fontweight="bold", color="white")
-
-            ax.text(2.7, y_pos, f"SEPARATE: {target}",
-                    ha="left", va="center", fontsize=14, fontweight="bold")
-
-            ax.add_patch(plt.Rectangle((6.2, y_pos + 0.55), 3.3, 0.5,
-                                       facecolor="white", edgecolor=color, linewidth=2))
-            ax.text(7.85, y_pos + 0.8, f"Solvent: {solvent_name}",
-                    ha="center", va="center", fontsize=11, fontweight="bold")
-            ax.text(7.85, y_pos + 0.6, f"Selectivity: {selectivity:.1f}%",
-                    ha="center", va="center", fontsize=10, color=color, fontweight="bold")
-
-            if remaining:
-                remaining_text = f'Remaining: {", ".join(remaining)}'
-                ax.text(5.7, y_pos - 0.15, remaining_text,
-                        ha="right", va="center", fontsize=10, color="#34495e",
-                        style="italic", weight="bold")
-            else:
-                ax.text(5.7, y_pos - 0.15, "(Last polymer - isolated)",
-                        ha="right", va="center", fontsize=10, color="#27ae60",
-                        style="italic", weight="bold")
-
-        ax.add_patch(plt.Rectangle((2, -0.3), 6, 0.6,
-                                   facecolor="#2ecc71", edgecolor="black", linewidth=2.5))
-        ax.text(5, 0, "ALL POLYMERS SEPARATED",
-                ha="center", va="center", fontsize=14, fontweight="bold", color="white")
-
-        legend_elements = [
-            plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#2ecc71",
-                       markersize=15, markeredgecolor="black", linewidth=2, label="Excellent (>30%)"),
-            plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#f1c40f",
-                       markersize=15, markeredgecolor="black", linewidth=2, label="Good (10-30%)"),
-            plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e67e22",
-                       markersize=15, markeredgecolor="black", linewidth=2, label="Marginal (0-10%)"),
-            plt.Line2D([0], [0], marker="s", color="w", markerfacecolor="#e74c3c",
-                       markersize=15, markeredgecolor="black", linewidth=2, label="Poor (<0%)"),
-        ]
-        ax.legend(handles=legend_elements, loc="upper right", fontsize=11,
-                  frameon=True, fancybox=True, title="Selectivity Quality", title_fontsize=12)
-
-        plt.tight_layout(rect=[0, 0.08, 1, 0.95])
-        filepath = save_plot(fig, f"separation_sequence_rank{rank}")
-        plt.close(fig)
         output.append(f"\nVisualisation saved: {_get_plot_url(filepath)}")
-
     except Exception as e:
         logger.error(f"Visualisation error: {e}", exc_info=True)
         output.append(f"\nCould not create visualisation: {e}")
-        try:
-            plt.close(fig)  # type: ignore[possibly-undefined]
-        except Exception:
-            pass
 
     # Step details
     output.append("\n## Separation Steps\n")

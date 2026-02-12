@@ -118,6 +118,29 @@ def safe_tool_wrapper(func):
         return sync_wrapper
 
 
+def _slugify(name: str) -> str:
+    """Convert a name to a filesystem-safe slug (lowercase, underscores)."""
+    import re
+    s = name.strip().lower()
+    s = re.sub(r'[^a-z0-9]+', '_', s)
+    return s.strip('_')
+
+
+def descriptive_plot_name(
+    base: str,
+    polymers: list[str] | None = None,
+    solvents: list[str] | None = None,
+) -> str:
+    """Build a descriptive plot filename from base name + polymer/solvent lists."""
+    parts = []
+    if polymers:
+        parts.append("_".join(_slugify(p) for p in polymers[:4]))
+    if solvents:
+        parts.append("_".join(_slugify(s) for s in solvents[:3]))
+    parts.append(base)
+    return "_".join(parts)
+
+
 def save_plot(fig, plot_name: str, plot_type: str = "matplotlib") -> str:
     """Save a matplotlib/plotly figure and return the file path."""
     os.makedirs(PLOTS_DIR, exist_ok=True)
@@ -125,7 +148,7 @@ def save_plot(fig, plot_name: str, plot_type: str = "matplotlib") -> str:
     if plot_type == "plotly":
         fig.write_html(filepath)
     else:
-        fig.savefig(filepath, dpi=150, bbox_inches="tight")
+        fig.savefig(filepath, dpi=300, bbox_inches="tight")
         import matplotlib.pyplot as plt
         plt.close(fig)
     return filepath

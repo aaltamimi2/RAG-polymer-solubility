@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware.types import wrap_model_call
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest, ModelResponse
@@ -38,7 +38,9 @@ ROUTING_RULES: list[dict] = [
             "separation sequence", "optimal separation", "selective solvent",
             "polymer separation", "separation order", "separation plan",
             "sequential separation", "selective dissolution",
-            "separation cascade", r"dissolve.*but not",
+            "separation cascade", "separation scheme",
+            r"dissolve.*but not", r"\d+\s*scheme",
+            r"separate\s+\w+\s+from",
         ],
         "high_stems": [
             "precipitat", "antisolvent", "antisolvents",
@@ -46,7 +48,6 @@ ROUTING_RULES: list[dict] = [
         ],
         "low_stems": [
             "separat", "dissolution", "dissolve", "mixed stream",
-            "solvent",
         ],
         "negatives": [
             "sql", "database", "table schema", "list polymers",
@@ -123,18 +124,20 @@ ROUTING_RULES: list[dict] = [
             "solubility plot", "selectivity heatmap",
             "comparison dashboard", "process flow diagram",
         ],
-        "high_stems": ["heatmap", "dashboard"],
-        "low_stems": ["plot", "chart", "visualiz", "diagram", "figure"],
+        "high_stems": ["heatmap", "dashboard", "plot", "chart"],
+        "low_stems": ["visualiz", "diagram", "figure"],
         "negatives": [],
     },
     {
         "subagent": "statistics-ml",
         "priority": 8,
-        "description": "Statistics, regression, hypothesis testing, ML prediction",
+        "description": "Statistics, regression, hypothesis testing, ML prediction, Tg lookup",
         "phrases": [
             "statistical summary", "confidence interval",
             "hansen parameter", "ml predict",
             "solubility prediction",
+            "glass transition", "glass transition temperature",
+            r"lookup\s+tg", r"predict\s+tg", r"\btg\s+of\b",
         ],
         "high_stems": ["anova", "regression"],
         "low_stems": [
@@ -195,7 +198,7 @@ def _match_rule(rule: dict, query_lower: str) -> int:
 
 
 def classify_query(messages: list) -> str | None:
-    """Classify the latest human message and return a routing hint string.
+    """Classify the latest human message and return an advisory routing hint.
 
     Returns None if no routing hint should be injected.
     """
@@ -225,15 +228,13 @@ def classify_query(messages: list) -> str | None:
     matches.sort(key=lambda x: (-x[0], x[1]))
 
     if len(matches) == 1:
-        # Single-agent hint
+        # Single-agent advisory hint
         rule = matches[0][2]
         return (
-            f'\n\n[ROUTING: Your NEXT action must be a task() call. '
-            f'Delegate to "{rule["subagent"]}" for '
-            f'{rule["description"]}. Do NOT run query_database or other tools first — '
-            f'the subagent has the right tools. Call: '
-            f'task(description="<describe what the user wants>", '
-            f'subagent_type="{rule["subagent"]}")]'
+            f'\n\n[ADVISORY: This query is well-suited for the "{rule["subagent"]}" '
+            f'specialist ({rule["description"]}). '
+            f'Consider delegating via task(subagent_type="{rule["subagent"]}"). '
+            f'For simple queries you can also answer directly using your own tools.]'
         )
 
     # Multi-agent routing
@@ -247,12 +248,12 @@ def classify_query(messages: list) -> str | None:
         # Check if parallel
         if pair_set in PARALLEL_PAIRS:
             return (
-                "\n\n[ROUTING: Your NEXT action must be TWO task() calls in a single response.\n"
-                "Launch both specialists in parallel:\n"
-                f'- task(description="...", subagent_type="{primary["subagent"]}")\n'
-                f'- task(description="...", subagent_type="{secondary["subagent"]}")\n'
-                "Do NOT run query_database or other tools first.\n"
-                "After both return, synthesize their results into a final answer.]"
+                f'\n\n[ADVISORY: This query may benefit from multiple specialists: '
+                f'"{primary["subagent"]}" ({primary["description"]}) and '
+                f'"{secondary["subagent"]}" ({secondary["description"]}). '
+                f'You may delegate to them in parallel or sequentially as appropriate. '
+                f'For simple selectivity queries, you can answer directly using '
+                f'rank_solvents_selectivity.]'
             )
 
         # Check if sequential (order matters — check both directions)
@@ -264,59 +265,23 @@ def classify_query(messages: list) -> str | None:
             first, second = primary, secondary
 
         return (
-            "\n\n[ROUTING: Your NEXT action must be a task() call. "
-            "This requires two specialists in sequence.\n"
-            f'Step 1: Delegate to "{first["subagent"]}" for {first["description"]}. '
-            "Do NOT run query_database or other tools first. "
-            "In the task description, instruct the subagent to write its findings to "
-            f'"/chain_state/step_1_{first["subagent"]}.md" using write_file.\n'
-            f'Step 2: Read the file from Step 1, then delegate to "{second["subagent"]}" '
-            f"for {second['description']}. In the task description, include a brief "
-            "summary of Step 1 results AND the file path "
-            f'"/chain_state/step_1_{first["subagent"]}.md" '
-            "so the subagent can read_file for full details. "
-            "Instruct it to write its findings to "
-            f'"/chain_state/step_2_{second["subagent"]}.md".\n'
-            "After Step 2 returns, read_file both chain_state files and "
-            "synthesize a final answer.]"
+            f'\n\n[ADVISORY: This query may benefit from two specialists in sequence: '
+            f'first "{first["subagent"]}" ({first["description"]}), '
+            f'then "{second["subagent"]}" ({second["description"]}). '
+            f'You may delegate to them sequentially, or handle simpler aspects '
+            f'directly with your own tools.]'
         )
 
-    # 3+ agents: sequential chain — delegate one at a time, writing results to files
-    ordered = [m[2] for m in matches]
-    steps = []
-    for i, rule in enumerate(ordered, 1):
-        file_path = f"/chain_state/step_{i}_{rule['subagent']}.md"
-        if i == 1:
-            ctx = (
-                " Instruct the subagent to write its findings to "
-                f'"{file_path}" using write_file.'
-            )
-        else:
-            prev_paths = ", ".join(
-                f'"/chain_state/step_{j}_{ordered[j-1]["subagent"]}.md"'
-                for j in range(1, i)
-            )
-            ctx = (
-                f" Before delegating, read_file the prior results ({prev_paths}). "
-                "Include a brief summary and the file path(s) in the task description "
-                "so the subagent can read_file for full details. "
-                f'Instruct the subagent to write its findings to "{file_path}".'
-            )
-        steps.append(
-            f'Step {i}: Delegate to "{rule["subagent"]}" for {rule["description"]}.{ctx}'
-        )
-    step_text = "\n".join(steps)
-    first_rule = ordered[0]
+    # 3+ agents: advisory list
+    agent_list = ", ".join(
+        f'"{m[2]["subagent"]}" ({m[2]["description"]})'
+        for m in matches
+    )
     return (
-        f"\n\n[ROUTING: This query requires {len(ordered)} specialists in sequence. "
-        "Execute them ONE AT A TIME — call the first task() now, wait for its result, "
-        "then call the next. Each subagent writes its findings to a file in /chain_state/.\n"
-        f"{step_text}\n"
-        "After all steps complete, read_file the chain_state files and synthesize "
-        "a final answer.\n"
-        f'Your NEXT action must be: task(description="<step 1 task>", '
-        f'subagent_type="{first_rule["subagent"]}"). '
-        "Do NOT run query_database or other tools first.]"
+        f'\n\n[ADVISORY: This query may benefit from multiple specialists: '
+        f'{agent_list}. '
+        f'You may delegate to them sequentially or in parallel as appropriate. '
+        f'For simpler aspects, you can answer directly using your own tools.]'
     )
 
 
@@ -360,12 +325,11 @@ def generate_routing_table() -> str:
 
 
 # ------------------------------------------------------------------
-# Middleware
+# Middleware helpers
 # ------------------------------------------------------------------
 
 def _extract_completed_subagents(messages: list) -> list[str]:
     """Extract subagent names from completed task() calls in message history."""
-    from langchain_core.messages import AIMessage
     completed = []
     for msg in messages:
         if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
@@ -390,18 +354,18 @@ def _build_progress_directive(
 
     if not remaining:
         return (
-            "\n\n[PROGRESS: All subagent steps are COMPLETE. "
-            "Synthesize findings from all subagents into a final answer NOW. "
-            "Do NOT call any more task() functions.]"
+            "\n\n[PROGRESS: All subagent steps are complete. "
+            "Consider synthesizing findings from all subagents into a final answer. "
+            "Prefer not to call additional task() functions unless needed.]"
         )
 
     next_agent = remaining[0]
     done_names = ", ".join(completed) if completed else "(none)"
     return (
         f"\n\n[PROGRESS: Completed subagents: {done_names}. "
-        f"Your NEXT action MUST be: task(subagent_type=\"{next_agent['subagent']}\") "
+        f'Suggested next: task(subagent_type="{next_agent["subagent"]}") '
         f"for {next_agent['description']}. "
-        f"Do NOT re-delegate to an already-completed subagent. "
+        f"Prefer not to re-delegate to an already-completed subagent. "
         f"Remaining steps: {', '.join(r['subagent'] for r in remaining)}.]"
     )
 
@@ -425,100 +389,67 @@ def _get_ordered_plan(messages: list) -> list[dict]:
     return [m[2] for m in matches]
 
 
-def _rewrite_duplicate_task_calls(
-    response: ModelResponse,
-    completed: list[str],
-    ordered_plan: list[dict],
-) -> ModelResponse:
-    """Hard enforcement: if the LLM tries to re-call an already-completed
-    subagent, rewrite the tool_call to target the correct next subagent."""
-    from langchain_core.messages import AIMessage as _AIMessage
+def _get_last_human_message(messages: list) -> str | None:
+    """Extract text from the last HumanMessage."""
+    for msg in reversed(messages):
+        if isinstance(msg, HumanMessage):
+            return msg.content if isinstance(msg.content, str) else str(msg.content)
+    return None
 
-    if not response.result:
-        return response
 
-    ai_msg = response.result[0]
-    tool_calls = getattr(ai_msg, "tool_calls", None)
-    if not tool_calls:
-        return response
-
-    done_set = set(completed)
-    remaining = [r for r in ordered_plan if r["subagent"] not in done_set]
-
-    if not remaining:
-        # All steps complete — strip any task() calls, force synthesis
-        has_task_call = any(
-            tc.get("name") == "task" for tc in tool_calls
-        )
-        if has_task_call:
-            logger.warning(
-                "routing_middleware: ALL plan steps complete — stripping task() "
-                "calls to force synthesis (completed: %s)", completed,
-            )
-            from langchain_core.messages import AIMessage as _AIMsg
-            return _AIMsg(
-                content=(
-                    "[ALL STEPS COMPLETE] All specialist subagents have returned "
-                    "results. Synthesize the findings from separation-engineer, "
-                    "safety-analyst, and tea-lca-analyst into a comprehensive "
-                    "final answer NOW. Do NOT call any more task() functions."
-                ),
-            )
-        return response
-
-    next_agent = remaining[0]["subagent"]
-    rewritten = False
-
-    new_tool_calls = []
-    for tc in tool_calls:
-        if tc.get("name") == "task":
-            target = tc.get("args", {}).get("subagent_type", "")
-            if target in done_set and target != next_agent:
-                logger.warning(
-                    "routing_middleware: REWRITING task(%s) -> task(%s) "
-                    "(already completed: %s)",
-                    target, next_agent, completed,
-                )
-                new_args = dict(tc["args"])
-                new_args["subagent_type"] = next_agent
-                new_tc = dict(tc)
-                new_tc["args"] = new_args
-                new_tool_calls.append(new_tc)
-                rewritten = True
-            else:
-                new_tool_calls.append(tc)
-        else:
-            new_tool_calls.append(tc)
-
-    if rewritten:
-        new_msg = ai_msg.model_copy(update={"tool_calls": new_tool_calls})
-        return type(response)(result=[new_msg])
-
-    return response
-
+# ------------------------------------------------------------------
+# Middleware
+# ------------------------------------------------------------------
 
 @wrap_model_call
 def routing_middleware(
     request: ModelRequest,
     handler: Callable[[ModelRequest], ModelResponse],
 ) -> ModelCallResult:
-    """Append routing or progress hints to the system prompt.
+    """Append advisory routing or progress hints to the system prompt.
 
-    - First call (no task results): injects routing hint from keyword classifier.
-    - Subsequent calls: injects progress directive AND hard-rewrites duplicate
-      task() calls to enforce the sequential plan.
+    - First call (no task results): injects advisory hint from keyword classifier.
+    - Subsequent calls: injects progress directive for multi-agent plans.
     """
     completed = _extract_completed_subagents(request.messages)
+    query_text = _get_last_human_message(request.messages)
 
     if not completed:
-        # First call — inject full routing hint from keyword classifier
+        # First call — inject advisory routing hint from keyword classifier
         hint = classify_query(request.messages)
+
+        # Log classification for instrumentation
+        if hint:
+            logger.info(
+                "routing_middleware: advisory hint injected for query=%s hint_type=%s",
+                (query_text or "")[:80],
+                "single" if "two specialists" not in (hint or "") and "multiple specialists" not in (hint or "") else "multi",
+            )
+        else:
+            logger.info(
+                "routing_middleware: no routing hint for query=%s",
+                (query_text or "")[:80],
+            )
+
         if hint and request.system_message is not None:
             new_system = append_to_system_message(request.system_message, hint)
             request = request.override(system_message=new_system)
-        return handler(request)
 
-    # After task() calls: inject progress directive + hard-rewrite responses
+        response = handler(request)
+
+        # Log what the LLM decided
+        if response.result:
+            ai_msg = response.result[0]
+            tool_calls = getattr(ai_msg, "tool_calls", None)
+            if tool_calls:
+                tool_names = [tc.get("name", "?") for tc in tool_calls]
+                logger.info(
+                    "routing_middleware: LLM decided tool_calls=%s", tool_names,
+                )
+
+        return response
+
+    # After task() calls: inject progress directive
     ordered_plan = _get_ordered_plan(request.messages)
 
     if len(ordered_plan) > 1:
@@ -529,12 +460,4 @@ def routing_middleware(
             )
             request = request.override(system_message=new_system)
 
-    response = handler(request)
-
-    # Hard enforcement: rewrite duplicate task() calls
-    if len(ordered_plan) > 1:
-        response = _rewrite_duplicate_task_calls(
-            response, completed, ordered_plan
-        )
-
-    return response
+    return handler(request)

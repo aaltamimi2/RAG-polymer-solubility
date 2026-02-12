@@ -85,6 +85,7 @@ def get_interpolation_tools() -> list:
         "predict_solubility",
         "predict_solubility_range",
         "list_interpolation_coverage",
+        "rank_solvents_selectivity",
     ])
 
 
@@ -206,6 +207,12 @@ def get_separation_core_tools() -> list:
     ])
 
 
+def get_thermal_prediction_tools() -> list:
+    return _safe_import("strap.tools.thermal_prediction", [
+        "lookup_tg",
+    ])
+
+
 def get_reflection_tools() -> list:
     return _safe_import("strap.tools.reflection", ["think"])
 
@@ -229,7 +236,7 @@ def get_core_tools() -> list:
     """Tools always available to the main agent.
 
     Core = database_query (5) + listing (2) + solvent_property (2)
-         + interpolation (3) = 12 tools.
+         + interpolation (4) = 13 tools.
     Adaptive separation tools are now exclusive to separation-engineer to
     avoid tool overlap that causes the orchestrator to handle specialist
     queries directly.

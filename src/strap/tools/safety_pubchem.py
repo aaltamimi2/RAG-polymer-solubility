@@ -46,7 +46,7 @@ def fetch_pubchem_cid(compound_name: str) -> Optional[int]:
 def fetch_pubchem_properties(cid: int) -> Optional[Dict]:
     """Fetch compound properties from PubChem."""
     try:
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/MolecularFormula,MolecularWeight,XLogP,TPSA,HBondDonorCount,HBondAcceptorCount/JSON"
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/MolecularFormula,MolecularWeight/JSON"
         req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read().decode())
@@ -127,43 +127,6 @@ def fetch_pubchem_ghs_data(cid: int) -> Optional[Dict]:
     except Exception as e:
         logger.warning(f"Could not fetch GHS data for CID {cid}: {e}")
     return None
-
-
-def calculate_safety_score(ghs_data: Dict) -> float:
-    """
-    Calculate a safety score (0-10) based on GHS data.
-    Higher score = safer compound.
-    """
-    score = 10.0  # Start with perfect score
-
-    # Deduct points for hazard pictograms
-    pictogram_penalties = {
-        'Flammable': 1.5,
-        'Oxidizer': 2.0,
-        'Explosive': 3.0,
-        'Corrosive': 2.0,
-        'Acute Toxic': 3.0,
-        'Health Hazard': 2.5,
-        'Irritant': 1.0,
-        'Environmental Hazard': 1.0,
-        'Compressed Gas': 0.5
-    }
-
-    for pictogram in ghs_data.get('pictograms', []):
-        penalty = pictogram_penalties.get(pictogram, 1.0)
-        score -= penalty
-
-    # Deduct for "Danger" signal word
-    if ghs_data.get('signal_word') == 'Danger':
-        score -= 1.5
-    elif ghs_data.get('signal_word') == 'Warning':
-        score -= 0.5
-
-    # Deduct for number of hazard statements
-    n_hazards = len(ghs_data.get('hazard_statements', []))
-    score -= min(n_hazards * 0.3, 2.0)
-
-    return max(0.0, min(10.0, score))
 
 
 def fetch_pubchem_toxicity_data(cid: int) -> Optional[Dict]:
@@ -292,37 +255,19 @@ async def get_pubchem_safety_info(compound_name: str) -> str:
     output.append(f"# PubChem Safety Profile: {compound_name.title()}\n")
     output.append(f"**PubChem CID:** [{cid}](https://pubchem.ncbi.nlm.nih.gov/compound/{cid})\n")
 
-    # Step 2: Get molecular properties
+    # Step 2: Get molecular properties (compact)
     props = fetch_pubchem_properties(cid)
     if props:
-        output.append("## Molecular Properties\n")
-        output.append(f"| Property | Value |")
-        output.append(f"|----------|-------|")
+        parts = []
         if 'MolecularFormula' in props:
-            output.append(f"| Formula | {props['MolecularFormula']} |")
+            parts.append(f"Formula: {props['MolecularFormula']}")
         if 'MolecularWeight' in props:
             try:
-                mw = float(props['MolecularWeight'])
-                output.append(f"| Molecular Weight | {mw:.2f} g/mol |")
+                parts.append(f"MW: {float(props['MolecularWeight']):.1f} g/mol")
             except (ValueError, TypeError):
-                output.append(f"| Molecular Weight | {props['MolecularWeight']} g/mol |")
-        if 'XLogP' in props:
-            try:
-                xlogp = float(props['XLogP'])
-                output.append(f"| XLogP | {xlogp:.2f} |")
-            except (ValueError, TypeError):
-                output.append(f"| XLogP | {props['XLogP']} |")
-        if 'TPSA' in props:
-            try:
-                tpsa = float(props['TPSA'])
-                output.append(f"| TPSA | {tpsa:.1f} A^2 |")
-            except (ValueError, TypeError):
-                output.append(f"| TPSA | {props['TPSA']} A^2 |")
-        if 'HBondDonorCount' in props:
-            output.append(f"| H-Bond Donors | {props['HBondDonorCount']} |")
-        if 'HBondAcceptorCount' in props:
-            output.append(f"| H-Bond Acceptors | {props['HBondAcceptorCount']} |")
-        output.append("")
+                parts.append(f"MW: {props['MolecularWeight']} g/mol")
+        if parts:
+            output.append(f"**Identity:** {' | '.join(parts)}\n")
 
     # Step 3: Get GHS safety data
     ghs_data = fetch_pubchem_ghs_data(cid)
@@ -349,6 +294,16 @@ async def get_pubchem_safety_info(compound_name: str) -> str:
             if len(ghs_data['hazard_statements']) > 5:
                 output.append(f"- *...and {len(ghs_data['hazard_statements']) - 5} more*")
             output.append("")
+
+        # Short GHS interpretation
+        signal = ghs_data.get('signal_word', '')
+        n_pics = len(ghs_data.get('pictograms', []))
+        if signal == 'Danger' or n_pics >= 3:
+            output.append("**GHS Assessment:** Significant hazards — handle with full PPE and engineering controls.\n")
+        elif signal == 'Warning' or n_pics >= 1:
+            output.append("**GHS Assessment:** Moderate hazards — standard precautions required.\n")
+        else:
+            output.append("**GHS Assessment:** Minimal GHS hazards identified.\n")
     else:
         output.append("## GHS Hazard Classification\n")
         output.append("*No GHS classification data available for this compound.*\n")
@@ -383,7 +338,6 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
         cid = fetch_pubchem_cid(name)
         if cid:
             ghs = fetch_pubchem_ghs_data(cid)
-            props = fetch_pubchem_properties(cid)
 
             compound_data.append({
                 'name': name.title(),
@@ -391,7 +345,6 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
                 'signal_word': ghs.get('signal_word') if ghs else None,
                 'pictograms': ghs.get('pictograms', []) if ghs else [],
                 'hazard_statements': ghs.get('hazard_statements', []) if ghs else [],
-                'xlogp': props.get('XLogP') if props else None,
             })
         else:
             compound_data.append({
@@ -400,7 +353,6 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
                 'signal_word': None,
                 'pictograms': [],
                 'hazard_statements': [],
-                'xlogp': None,
             })
 
     # Display each compound's hazards

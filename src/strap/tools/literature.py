@@ -132,14 +132,30 @@ def _download_and_ingest(
 
             rag_sys = rag_mod.get_rag_system()
 
+            # Default to user-library when no KB specified
+            if not knowledgebase:
+                knowledgebase = "user-library"
+
+            # Check readonly — redirect to user-library unless explicitly forced
+            kb_info = rag_sys.kb_manager.get_kb(knowledgebase)
+            if kb_info and getattr(kb_info, "readonly", False):
+                logger.info(
+                    f"KB '{knowledgebase}' is readonly, redirecting to user-library"
+                )
+                knowledgebase = "user-library"
+                kb_info = rag_sys.kb_manager.get_kb(knowledgebase)
+
             # Switch or create knowledgebase
             prev_kb = None
-            if knowledgebase:
-                try:
-                    rag_sys.switch_kb(knowledgebase)
-                except ValueError:
-                    rag_sys.create_kb(knowledgebase, switch_to=True)
-                prev_kb = knowledgebase
+            try:
+                rag_sys.switch_kb(knowledgebase)
+            except ValueError:
+                rag_sys.create_kb(
+                    knowledgebase,
+                    description="User-ingested literature",
+                    switch_to=True,
+                )
+            prev_kb = knowledgebase
 
             # Auto-detect image-based PDFs (e.g. USPTO patents) and enable OCR
             needs_ocr = False
@@ -160,6 +176,8 @@ def _download_and_ingest(
 
             result = rag_sys.ingest_pdfs(
                 downloaded, incremental=True, use_ocr=needs_ocr,
+                interpret_figures=False,          # Fast: skip Gemini figure interpretation
+                use_contextual_enrichment=False,  # Fast: skip LLM context enrichment
             )
             n_chunks = result.get("total_chunks", "?")
             kb_used = result.get("kb_name", knowledgebase or "default")

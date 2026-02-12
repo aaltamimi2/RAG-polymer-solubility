@@ -185,7 +185,7 @@ async def list_available_polymers() -> str:
         polymer_query = "SELECT COUNT(DISTINCT polymer) as count FROM common_solvents_database"
         result = _execute_query(polymer_query)
 
-        if result["success"]:
+        if result["success"] and len(result["dataframe"]) > 0:
             count = result["dataframe"].iloc[0]['count']
             output.append(f"**Common Solvents Database:** {count} unique polymers")
 

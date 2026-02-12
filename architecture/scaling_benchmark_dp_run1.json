@@ -1,0 +1,126 @@
+[
+  {
+    "n_polymers": 2,
+    "polymers": [
+      "PS",
+      "PVC"
+    ],
+    "wall_time_s": 0.0029180049896240234,
+    "n_evals": 2,
+    "n_states": 4,
+    "sequence": "PS \u2192 PVC",
+    "min_selectivity": 29.766218000000002
+  },
+  {
+    "n_polymers": 3,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE"
+    ],
+    "wall_time_s": 0.0044977664947509766,
+    "n_evals": 9,
+    "n_states": 8,
+    "sequence": "LDPE \u2192 PS \u2192 PVC",
+    "min_selectivity": 29.766218000000002
+  },
+  {
+    "n_polymers": 4,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE"
+    ],
+    "wall_time_s": 0.020113706588745117,
+    "n_evals": 28,
+    "n_states": 16,
+    "sequence": "LDPE \u2192 PS \u2192 PVC \u2192 HDPE",
+    "min_selectivity": 20.802592999999998
+  },
+  {
+    "n_polymers": 5,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP"
+    ],
+    "wall_time_s": 0.03927254676818848,
+    "n_evals": 75,
+    "n_states": 32,
+    "sequence": "PS \u2192 PVC \u2192 LDPE \u2192 PP \u2192 HDPE",
+    "min_selectivity": 9.433594
+  },
+  {
+    "n_polymers": 6,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH"
+    ],
+    "wall_time_s": 0.09333252906799316,
+    "n_evals": 186,
+    "n_states": 64,
+    "sequence": "PS \u2192 PVC \u2192 EVOH \u2192 LDPE \u2192 PP \u2192 HDPE",
+    "min_selectivity": 9.433594
+  },
+  {
+    "n_polymers": 7,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6"
+    ],
+    "wall_time_s": 0.19539380073547363,
+    "n_evals": 441,
+    "n_states": 128,
+    "sequence": "PS \u2192 PVC \u2192 EVOH \u2192 LDPE \u2192 PP \u2192 HDPE \u2192 Nylon6",
+    "min_selectivity": 9.079566
+  },
+  {
+    "n_polymers": 8,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6",
+      "Nylon66"
+    ],
+    "wall_time_s": 0.5384819507598877,
+    "n_evals": 1016,
+    "n_states": 256,
+    "sequence": "PS \u2192 PVC \u2192 EVOH \u2192 LDPE \u2192 PP \u2192 HDPE \u2192 Nylon6 \u2192 Nylon66",
+    "min_selectivity": 8.095261
+  },
+  {
+    "n_polymers": 9,
+    "polymers": [
+      "PS",
+      "PVC",
+      "LDPE",
+      "HDPE",
+      "PP",
+      "EVOH",
+      "Nylon6",
+      "Nylon66",
+      "PET"
+    ],
+    "wall_time_s": 1.349806785583496,
+    "n_evals": 2295,
+    "n_states": 512,
+    "sequence": "PS \u2192 PVC \u2192 EVOH \u2192 LDPE \u2192 PP \u2192 HDPE \u2192 PET \u2192 Nylon6 \u2192 Nylon66",
+    "min_selectivity": 8.095261
+  }
+]

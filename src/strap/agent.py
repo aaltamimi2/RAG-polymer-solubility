@@ -24,6 +24,7 @@ _PACKAGE_DIR = Path(__file__).parent
 
 from .guardrails import SubagentGuardMiddleware  # noqa: E402
 from .routing import generate_routing_table, routing_middleware  # noqa: E402
+from .verifier import OutputVerifierMiddleware  # noqa: E402
 import yaml  # noqa: E402
 
 from .tools import get_core_tools  # noqa: E402
@@ -43,6 +44,7 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_statistical_tools,
     get_strap_process_tools,
     get_tea_lca_tools,
+    get_thermal_prediction_tools,
     get_visualization_tools,
 )
 
@@ -62,6 +64,7 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "separation_plot": get_separation_plot_tools,
     "statistical": get_statistical_tools,
     "ml_prediction": get_ml_prediction_tools,
+    "thermal_prediction": get_thermal_prediction_tools,
     "interpolation": get_interpolation_tools,
     "reflection": get_reflection_tools,
 }
@@ -70,33 +73,28 @@ SYSTEM_PROMPT = """\
 {routing_table}
 
 ## Delegation policy
-- When a [ROUTING: ...] hint appears, your VERY NEXT action must be the task() call
-  it specifies. Do NOT call query_database, list_tables, or any other tool before
-  delegating — the subagent already has everything it needs.
-- After a subagent returns results, synthesize them into a final answer for the user.
-  Do NOT run additional database queries to validate or expand subagent results.
-- Your role is to route, synthesize subagent results, and answer simple data lookups.
-  Use your direct tools only for quick lookups (e.g. "list polymers", "what is the
-  boiling point of toluene") that don't need a specialist.
-- Delegate to subagents one at a time UNLESS the [ROUTING] hint explicitly instructs
-  you to launch two task() calls in parallel. In that case, include both task() calls
-  in a single response. Never launch more than two task() calls at once.
-- When the user asks for "multiple schemes", "3 separation plans", "compare strategies",
-  or "alternative sequences", delegate ONCE to separation-engineer. It has a multi-scheme
-  tool that generates multiple options in a single invocation. Do NOT call separation-engineer
-  multiple times for different schemes.
-
-## Inter-agent file state (sequential chains only)
-- When routing hints instruct subagents to write findings to /chain_state/ files,
-  include that instruction in the task description you pass to each subagent.
-- Between sequential steps, use read_file to read the prior subagent's output file
-  before delegating to the next subagent. Include a brief summary (2-3 sentences)
-  AND the file path in the next task description, so the subagent can read_file
-  for full details.
-- After the final subagent completes, read_file all /chain_state/ files and
-  synthesize a comprehensive answer.
-- Do NOT paste entire file contents into the task description — pass the file path
-  and a summary instead.
+- You can answer simple queries directly using your tools, or delegate complex analysis
+  to specialists via task(). After specialists return, synthesize their results.
+- Your direct tools handle: listing polymers/solvents, solvent properties, solubility
+  predictions, and separation selectivity rankings. Delegate to subagents for
+  complex planning (multi-scheme design, sequential separation, TEA/LCA, safety, etc.).
+- For "what solvents separate X from Y" queries, rank_solvents_selectivity returns
+  selectivity, solubilities, boiling points, and atmospheric feasibility in one table.
+- When separating a binary pair A/B, ALWAYS check BOTH directions:
+  rank_solvents_selectivity(target=A, other=B) AND rank_solvents_selectivity(target=B, other=A).
+  One direction may have excellent solvents while the other has none.
+- When the user asks for "multiple schemes" or "compare strategies", delegate ONCE to
+  separation-engineer — it has a multi-scheme tool that generates multiple options in
+  a single invocation.
+- Prefer delegating to subagents one at a time. You may launch two task() calls in
+  parallel when the tasks are independent (e.g. separation + safety).
+  Never launch more than two task() calls at once.
+- When the user asks for a diagram, plot, or visualization of a separation sequence,
+  delegate to visualization-specialist with a short instruction like
+  "Create a separation tree plot for LDPE,HDPE,PS,PVC at 120C".
+  The specialist has matplotlib tools (create_separation_tree_plot,
+  create_process_flow_diagram) that produce publication-quality PNG plots.
+  NEVER ask it to generate Mermaid or text-based diagrams.
 """.format(routing_table=generate_routing_table())
 
 
@@ -123,7 +121,10 @@ def _resolve_tools(group_names: list[str]) -> list:
 
 
 # Tools that should never count against the subagent tool-call budget
-_ALWAYS_FREE_TOOLS = {"write_file", "read_file"}
+_ALWAYS_FREE_TOOLS = {
+    "write_file", "read_file",  # inter-agent communication
+    "ls", "glob", "edit_file", "grep", "execute", "write_todos",  # filesystem/meta
+}
 
 
 def _resolve_guardrails(cfg: dict | None) -> list:
@@ -171,7 +172,7 @@ def _build_subagents(
     return subagents
 
 
-def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview"):
+def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro")):
     """Create and return a compiled DISSOLVE deep agent with subagents.
 
     Uses progressive loading:
@@ -181,15 +182,24 @@ def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview
     """
     model = init_chat_model(model_name)
 
-    # Orchestrator-level guardrails: cap total token usage across the run
+    # Lightweight verifier: one Gemini Flash call on the orchestrator's
+    # final synthesis to catch unsupported claims / missing caveats.
+    verifier_model = init_chat_model("google_genai:gemini-2.0-flash")
+    output_verifier = OutputVerifierMiddleware(verifier_model=verifier_model)
+
+    # Orchestrator-level guardrails: cap total token usage across the run.
+    # task/read_file/write_file/write_todos are free so delegation chains
+    # don't eat the budget — only analysis tools count.
     orchestrator_guard = SubagentGuardMiddleware(
         max_iterations=50,
         token_budget=500_000,
-        max_tool_calls=30,
+        max_tool_calls=12,
         truncate_tool_results_after=3000,
-        free_tools={"think"},
+        free_tools={"think", "task", "read_file", "write_file", "write_todos"},
     )
 
+    # Middleware order (innermost → outermost):
+    #   routing_middleware → output_verifier → orchestrator_guard
     agent = create_deep_agent(
         model=model,
         tools=get_core_tools(),
@@ -198,7 +208,7 @@ def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview
         memory=["./AGENTS.md"],
         skills=["./skills/"],
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-        middleware=[routing_middleware, orchestrator_guard],
+        middleware=[routing_middleware, output_verifier, orchestrator_guard],
         name="dissolve-agent",
     )
     return agent
@@ -208,31 +218,115 @@ def create_dissolve_agent(model_name: str = "google_genai:gemini-3-flash-preview
 create_strap_agent = create_dissolve_agent
 
 
-def main():
-    """Interactive CLI loop."""
-    agent = create_dissolve_agent()
-    print("DISSOLVE Agent ready. Type your question (or 'quit' to exit).\n")
+def _extract_text(content) -> str:
+    """Extract plain text from an AI message content field.
 
+    Handles both plain strings and list-of-dicts (Gemini format).
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(item["text"])
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts)
+    return str(content)
+
+
+def main():
+    """Interactive CLI — clean output inspired by Claude Code / Codex."""
+    import logging
+    import readline  # noqa: F401 — enables arrow-key editing in input()
+    import sys
+    import time
+
+    from rich.console import Console
+    from rich.markdown import Markdown
+    from rich.panel import Panel
+    from rich.spinner import Spinner as RichSpinner
+    from rich.live import Live
+    from rich.text import Text
+
+    console = Console(stderr=True)
+
+    # ── Suppress all library logging for clean CLI output ──
+    logging.disable(logging.CRITICAL)
+
+    # ── Banner ──
+    console.print()
+    console.print(
+        Text.assemble(
+            ("DISSOLVE", "bold cyan"),
+            (" v0.2.0", "dim"),
+        )
+    )
+    console.print("[dim]Data Integrated Solubility Solver via LLM Evaluation[/]")
+    if os.getenv("LANGSMITH_API_KEY"):
+        console.print("[dim]LangSmith tracing:[/] [green]enabled[/]")
+    console.print("[dim]Type [bold]quit[/bold] to exit.[/]\n")
+
+    # ── Load agent with spinner ──
+    with Live(
+        RichSpinner("dots", text=Text("Loading agent...", style="dim")),
+        console=console,
+        transient=True,
+    ):
+        agent = create_dissolve_agent()
+
+    out = Console()  # stdout console for answers
+    history: list = []  # accumulated conversation history across turns
+
+    # ── REPL ──
     while True:
         try:
-            user_input = input("You: ").strip()
+            user_input = out.input("[bold]> [/]").strip()
         except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye!")
+            console.print("\n[dim]Goodbye![/]")
             break
 
         if not user_input or user_input.lower() in ("quit", "exit", "q"):
-            print("Goodbye!")
+            console.print("[dim]Goodbye![/]")
             break
 
-        result = agent.invoke(
-            {"messages": [{"role": "user", "content": user_input}]}
-        )
+        history.append({"role": "user", "content": user_input})
 
-        # Extract the last AI message
+        t0 = time.time()
+        with Live(
+            RichSpinner("dots", text=Text("Thinking...", style="dim")),
+            console=console,
+            transient=True,
+        ):
+            try:
+                result = agent.invoke({"messages": list(history)})
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Interrupted.[/]\n")
+                # Remove the unanswered user message
+                history.pop()
+                continue
+            except Exception as e:
+                console.print(f"\n[red]Error:[/] {e}\n")
+                history.pop()
+                continue
+
+        elapsed = time.time() - t0
+
+        # Extract last AI message text and append to history
+        answer = None
         for msg in reversed(result["messages"]):
             if hasattr(msg, "content") and msg.type == "ai" and msg.content:
-                print(f"\nDISSOLVE: {msg.content}\n")
+                answer = _extract_text(msg.content)
                 break
+
+        if answer:
+            history.append({"role": "assistant", "content": answer})
+            out.print()
+            out.print(Markdown(answer))
+            console.print(f"\n[dim]({elapsed:.1f}s)[/]\n")
+        else:
+            console.print("\n[dim]No response.[/]\n")
 
 
 if __name__ == "__main__":

@@ -18,12 +18,26 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from strap.database import get_connection
+from strap.solubility import get_logp
 from strap.tools._helpers import (
     get_plots_dir,
     safe_tool_wrapper,
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _interpret_logp(logp: float) -> str:
+    """Return a short interpretation of LogP value."""
+    if logp < 0:
+        return "Hydrophilic (low bioaccumulation risk)"
+    elif logp < 2:
+        return "Moderate lipophilicity"
+    elif logp < 3:
+        return "Lipophilic (higher bioaccumulation risk)"
+    else:
+        return "Highly lipophilic (significant bioaccumulation concern)"
+
 
 # ---------------------------------------------------------------------------
 # Lazy async DB wrapper
@@ -200,7 +214,16 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
             color = "red"
 
         output.append(f"**Safety Rating:** {rating}")
-        output.append(f"**CAS Number:** {row['cas_number']}\n")
+        output.append(f"**CAS Number:** {row['cas_number']}")
+        output.append("")
+
+        # LogP from local Solvent_Data
+        logp_val = get_logp(row['solvent_common_name'])
+        if logp_val is not None:
+            output.append(f"**LogP:** {logp_val:.2f} — {_interpret_logp(logp_val)}")
+        else:
+            output.append("**LogP:** Not available in local database")
+        output.append("")
 
         output.append("**Note:** G-score is the geometric mean of Environment, Health, Safety, and Waste (EHSW) scores.")
 

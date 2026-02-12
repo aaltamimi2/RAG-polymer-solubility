@@ -24,14 +24,19 @@ async def search_literature_rag(
     query: str,
     top_k: int = 5,
     source_filter: Optional[str] = None,
+    knowledgebase: Optional[str] = None,
     include_context: bool = True
 ) -> str:
     """Search indexed scientific literature using hybrid semantic and keyword RAG search.
+
+    Searches across ALL knowledgebases by default (STRAP-CORE, user-library, etc.)
+    to find the most relevant passages regardless of which KB they are in.
 
     Args:
         query: Natural language question or search query
         top_k: Number of relevant passages to return (default: 5)
         source_filter: Comma-separated document names to search within
+        knowledgebase: Search only this KB (default: None = search all KBs)
         include_context: Whether to include expanded parent context (default: True)
 
     WHEN TO USE:
@@ -43,7 +48,12 @@ async def search_literature_rag(
         # Get RAG system
         rag_system = rag.get_rag_system()
 
-        if not rag_system.is_ready():
+        # Check if any KB has content
+        kbs_with_content = [
+            kb.name for kb in rag_system.kb_manager.list_kbs()
+            if kb.chunk_count > 0
+        ]
+        if not kbs_with_content:
             return ("⚠️ **RAG System Not Ready**\n\n"
                     "No documents have been indexed yet.\n\n"
                     "**To index documents:**\n"
@@ -57,12 +67,14 @@ async def search_literature_rag(
         if source_filter:
             sources = [s.strip() for s in source_filter.split(",")]
 
-        # Perform search
-        results = rag_system.search(
+        # Search: single KB or cross-KB
+        kb_filter = [knowledgebase] if knowledgebase else None
+        results = rag_system.search_across_kbs(
             query=query,
             top_k=top_k,
+            kb_names=kb_filter,
             source_filter=sources,
-            return_parent_context=include_context
+            return_parent_context=include_context,
         )
 
         if not results:
@@ -73,16 +85,21 @@ async def search_literature_rag(
                     "- Check if relevant documents are indexed with `get_rag_status`")
 
         # Format output
-        output = [f"# 📚 Literature Search Results\n"]
+        searched_kbs = kb_filter or kbs_with_content
+        output = [f"# Literature Search Results\n"]
         output.append(f"**Query:** {query}")
-        output.append(f"**Found:** {len(results)} relevant passages\n")
+        output.append(f"**Found:** {len(results)} relevant passages")
+        output.append(f"**KBs searched:** {', '.join(searched_kbs)}\n")
 
         for i, result in enumerate(results, 1):
             output.append(f"\n---\n")
             output.append(f"### Passage {i}")
 
-            # Source info
-            source_info = f"**Source:** {result.source}"
+            # Source info with KB tag
+            kb_tag = ""
+            if result.metadata and result.metadata.get("kb_name"):
+                kb_tag = f" [{result.metadata['kb_name']}]"
+            source_info = f"**Source:** {result.source}{kb_tag}"
             if result.page_number:
                 source_info += f" (Page {result.page_number})"
             output.append(source_info)
@@ -106,7 +123,7 @@ async def search_literature_rag(
 
     except Exception as e:
         logger.error(f"RAG search error: {e}")
-        return f"❌ Literature search failed: {str(e)}\n\nPlease try again with a simpler query."
+        return f"Literature search failed: {str(e)}\n\nPlease try again with a simpler query."
 
 
 @safe_tool_wrapper
@@ -279,14 +296,18 @@ async def get_rag_status() -> str:
 async def ask_literature(
     question: str,
     top_k: int = 5,
-    max_context_tokens: int = 3000
+    max_context_tokens: int = 3000,
+    knowledgebase: Optional[str] = None,
 ) -> str:
     """Answer a question using synthesized context from indexed scientific literature.
+
+    Searches across ALL knowledgebases by default to find the best context.
 
     Args:
         question: Natural language question to answer
         top_k: Number of passages to consider (default: 5)
         max_context_tokens: Maximum tokens for context (default: 3000)
+        knowledgebase: Search only this KB (default: None = search all KBs)
 
     WHEN TO USE:
     - "What are the environmental impacts of toluene?"
@@ -296,16 +317,22 @@ async def ask_literature(
     try:
         rag_system = rag.get_rag_system()
 
-        if not rag_system.is_ready():
-            return ("⚠️ **Literature Database Not Ready**\n\n"
+        kbs_with_content = [
+            kb.name for kb in rag_system.kb_manager.list_kbs()
+            if kb.chunk_count > 0
+        ]
+        if not kbs_with_content:
+            return ("**Literature Database Not Ready**\n\n"
                     "No documents have been indexed.\n\n"
                     "Use `ingest_pdf_to_rag` to add scientific papers first.")
 
-        # Get context and sources
-        context, sources = rag.format_rag_context(
+        # Get context and sources (cross-KB by default)
+        kb_filter = [knowledgebase] if knowledgebase else None
+        context, sources = rag.format_rag_context_cross_kb(
             query=question,
             top_k=top_k,
-            max_tokens=max_context_tokens
+            max_tokens=max_context_tokens,
+            kb_names=kb_filter,
         )
 
         if not context:
@@ -313,7 +340,7 @@ async def ask_literature(
                     "Try rephrasing your question or check indexed documents with `get_rag_status`.")
 
         # Format response
-        output = [f"# 📖 Literature Answer\n"]
+        output = [f"# Literature Answer\n"]
         output.append(f"**Question:** {question}\n")
         output.append(f"---\n")
         output.append(f"## Relevant Information from Literature\n")
@@ -324,7 +351,11 @@ async def ask_literature(
             source_name = src.get('source', 'Unknown')
             page = src.get('page_number')
             score = src.get('score', 0)
-            source_str = f"{i}. **{source_name}**"
+            kb_tag = ""
+            meta = src.get('metadata', {})
+            if meta and meta.get('kb_name'):
+                kb_tag = f" [{meta['kb_name']}]"
+            source_str = f"{i}. **{source_name}**{kb_tag}"
             if page:
                 source_str += f" (Page {page})"
             source_str += f" - Relevance: {score:.2f}"
@@ -334,7 +365,7 @@ async def ask_literature(
 
     except Exception as e:
         logger.error(f"Ask literature error: {e}")
-        return f"❌ Failed to search literature: {str(e)}"
+        return f"Failed to search literature: {str(e)}"
 
 
 @safe_tool_wrapper

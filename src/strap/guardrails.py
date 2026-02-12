@@ -46,6 +46,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         synthesis_tools: set[str] | None = None,
         truncate_tool_results_after: int | None = None,
         free_tools: set[str] | None = None,
+        keep_recent: int = 4,
     ) -> None:
         self._max_iterations = max_iterations
         self._token_budget = token_budget
@@ -53,6 +54,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         self._synthesis_tools: set[str] = synthesis_tools or set()
         self._truncate_tool_results_after = truncate_tool_results_after
         self._free_tools: set[str] = free_tools or set()
+        self._keep_recent = keep_recent
 
         # Per-invocation counters (reset in before_agent)
         self._iterations = 0
@@ -176,6 +178,10 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         Tools listed in ``free_tools`` (e.g. ``think``) are excluded from the
         count so reflection doesn't eat into the analysis budget.
+
+        When the limit is hit, the LLM's text content (if any) is preserved
+        but tool calls are stripped — this ends the loop while keeping any
+        partial synthesis the model already generated.
         """
         if not response.result:
             return response
@@ -193,13 +199,21 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._max_tool_calls,
                 self._total_tool_calls,
             )
-            return AIMessage(
-                content=(
-                    "[LIMIT] Tool call budget exhausted. You have used all "
-                    "available tool calls. Synthesize your findings into a "
-                    "clear, complete answer NOW. Do NOT call any more tools."
-                ),
+            # Preserve any text the LLM already generated
+            existing_text = getattr(ai_msg, "content", "") or ""
+            if isinstance(existing_text, list):
+                # Gemini list-of-dicts format
+                parts = []
+                for item in existing_text:
+                    if isinstance(item, dict) and item.get("type") == "text":
+                        parts.append(item["text"])
+                existing_text = "\n".join(parts)
+            suffix = (
+                "\n\n[LIMIT] Tool call budget exhausted. Synthesize your "
+                "findings into a clear, complete answer NOW. Do NOT call "
+                "any more tools."
             )
+            return AIMessage(content=existing_text + suffix)
         return response
 
     def _detect_synthesis_tools(self, messages: list) -> None:
@@ -229,10 +243,9 @@ class SubagentGuardMiddleware(AgentMiddleware):
         if not self._synthesis_tool_seen or request.system_message is None:
             return request
         directive = (
-            "\n\n[CRITICAL INSTRUCTION] A comprehensive analysis tool has "
-            "already returned results. You MUST now synthesize your findings "
-            "into a final answer. Do NOT call any more analysis or validation "
-            "tools. Summarize the key findings, recommendations, and caveats."
+            "\n\n[NOTE] A comprehensive analysis tool has returned results. "
+            "Consider synthesizing your findings now unless you need "
+            "additional data for a complete answer."
         )
         new_system = append_to_system_message(
             request.system_message, directive
@@ -253,9 +266,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         limit = self._truncate_tool_results_after
         messages = request.messages
-        # Keep the last 4 messages (2 AI+Tool pairs) untruncated
-        keep_recent = 4
-        cutoff = len(messages) - keep_recent
+        # Keep the last N messages untruncated (default: 4 = 2 AI+Tool pairs)
+        cutoff = len(messages) - self._keep_recent
 
         truncated = False
         new_messages: list = []

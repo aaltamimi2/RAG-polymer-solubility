@@ -19,6 +19,7 @@ dependencies = [
     "rapidfuzz",
     "requests",
     "pyyaml",
+    "rich>=13.0",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +31,7 @@ all = ["strap-agent[viz,ml]"]
 [project.scripts]
 strap-agent = "strap.agent:main"
 dissolve = "strap.agent:main"
+deepagents = "strap.agent:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strap"]
