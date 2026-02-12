@@ -23,7 +23,7 @@ from langchain.chat_models import init_chat_model  # noqa: E402
 _PACKAGE_DIR = Path(__file__).parent
 
 from .guardrails import SubagentGuardMiddleware  # noqa: E402
-from .routing import generate_routing_table, routing_middleware  # noqa: E402
+from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
 from .verifier import OutputVerifierMiddleware  # noqa: E402
 import yaml  # noqa: E402
 
@@ -182,10 +182,16 @@ def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_gen
     """
     model = init_chat_model(model_name)
 
-    # Lightweight verifier: one Gemini Flash call on the orchestrator's
+    # Lightweight Gemini Flash model shared by both the routing classifier
+    # and the output verifier — single instance, no extra cost.
+    flash_model = init_chat_model("google_genai:gemini-3.0-flash")
+
+    # Semantic routing: LLM-based classifier with keyword fallback
+    routing = RoutingMiddleware(classifier_model=flash_model)
+
+    # Output verifier: single reflection pass on the orchestrator's
     # final synthesis to catch unsupported claims / missing caveats.
-    verifier_model = init_chat_model("google_genai:gemini-2.0-flash")
-    output_verifier = OutputVerifierMiddleware(verifier_model=verifier_model)
+    output_verifier = OutputVerifierMiddleware(verifier_model=flash_model)
 
     # Orchestrator-level guardrails: cap total token usage across the run.
     # task/read_file/write_file/write_todos are free so delegation chains
@@ -199,7 +205,7 @@ def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_gen
     )
 
     # Middleware order (innermost → outermost):
-    #   routing_middleware → output_verifier → orchestrator_guard
+    #   routing → output_verifier → orchestrator_guard
     agent = create_deep_agent(
         model=model,
         tools=get_core_tools(),
@@ -208,7 +214,7 @@ def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_gen
         memory=["./AGENTS.md"],
         skills=["./skills/"],
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-        middleware=[routing_middleware, output_verifier, orchestrator_guard],
+        middleware=[routing, output_verifier, orchestrator_guard],
         name="dissolve-agent",
     )
     return agent

@@ -1,16 +1,18 @@
 """Routing middleware for the DISSOLVE orchestrator agent.
 
-Provides keyword-based routing hints that are appended to the system prompt
-before each LLM call. The hints are advisory — the LLM remains in control
-and can override them.
+Provides LLM-based semantic routing with keyword fallback. Advisory hints
+are appended to the system prompt before each LLM call. The hints are
+advisory — the LLM remains in control and can override them.
 
 Single source of truth: ROUTING_RULES defines both the prompt routing table
-(via generate_routing_table()) and the runtime keyword matcher (via
-classify_query()).
+(via generate_routing_table()), the runtime keyword matcher (via
+classify_query_keywords()), and the LLM classifier prompt (via
+_build_subagent_list()).
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from typing import TYPE_CHECKING
@@ -18,11 +20,12 @@ from typing import TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 from deepagents.middleware._utils import append_to_system_message
-from langchain.agents.middleware.types import wrap_model_call
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain.agents.middleware.types import AgentMiddleware
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 
 if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest, ModelResponse
+    from langchain_core.language_models import BaseChatModel
     from collections.abc import Callable
 
 # ------------------------------------------------------------------
@@ -47,7 +50,7 @@ ROUTING_RULES: list[dict] = [
             "selectiv", "greedy", r"branch.and.bound",
         ],
         "low_stems": [
-            "separat", "dissolution", "dissolve", "mixed stream",
+            "separat", "dissolution", "dissolve",
         ],
         "negatives": [
             "sql", "database", "table schema", "list polymers",
@@ -171,6 +174,101 @@ SEQUENTIAL_PAIRS: dict[tuple[str, str], None] = {
 
 
 # ------------------------------------------------------------------
+# LLM-based semantic classifier
+# ------------------------------------------------------------------
+
+def _build_subagent_list() -> str:
+    """Build the specialist list for the classifier prompt from ROUTING_RULES."""
+    lines = []
+    for rule in ROUTING_RULES:
+        lines.append(f'- {rule["subagent"]}: {rule["description"]}')
+    return "\n".join(lines)
+
+
+_CLASSIFIER_SYSTEM_PROMPT = """\
+You are a query router for a polymer dissolution analysis system.
+Given a user query, identify which specialist(s) should handle it.
+
+Available specialists:
+{subagent_list}
+
+Respond with JSON only:
+{{"subagents": ["name1"], "confidence": "HIGH"|"MEDIUM"|"LOW"}}
+
+Rules:
+- Return 1-3 subagent names ordered by relevance
+- Return {{"subagents": []}} if the orchestrator can handle it directly \
+(e.g. listing polymers, simple lookups)
+- HIGH = clear specialist match, LOW = ambiguous
+- "separation-engineer" handles dissolution, purification, separation \
+sequences, selective solvents, mixed-stream processing
+- "safety-analyst" handles safety, toxicity, GSK scores, hazard data
+- When a query involves BOTH separation AND safety (e.g. "safest sequence"), \
+return both specialists""".format(subagent_list=_build_subagent_list())
+
+
+def classify_query_llm(
+    query: str,
+    classifier_model: BaseChatModel,
+) -> list[dict] | None:
+    """Classify a query using an LLM and return matched routing rules.
+
+    Returns a list of matched ROUTING_RULES dicts ordered by relevance,
+    or None on failure (caller should fall back to keywords).
+    """
+    try:
+        result = classifier_model.invoke([
+            SystemMessage(content=_CLASSIFIER_SYSTEM_PROMPT),
+            HumanMessage(content=query),
+        ])
+    except Exception:
+        logger.warning("classify_query_llm: model call failed", exc_info=True)
+        return None
+
+    # Parse JSON response
+    text = result.content if isinstance(result.content, str) else str(result.content)
+    text = text.strip()
+
+    parsed = None
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        # Try extracting from markdown code block
+        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+        if m:
+            try:
+                parsed = json.loads(m.group(1))
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    if not parsed or not isinstance(parsed.get("subagents"), list):
+        logger.warning("classify_query_llm: could not parse response: %s", text[:200])
+        return None
+
+    subagent_names = parsed["subagents"]
+    if not subagent_names:
+        return []  # Orchestrator handles directly
+
+    # Map names back to ROUTING_RULES entries
+    rules_by_name = {r["subagent"]: r for r in ROUTING_RULES}
+    matched = []
+    for name in subagent_names:
+        rule = rules_by_name.get(name)
+        if rule:
+            matched.append(rule)
+        else:
+            logger.warning("classify_query_llm: unknown subagent name: %s", name)
+
+    confidence = parsed.get("confidence", "MEDIUM")
+    logger.info(
+        "classify_query_llm: subagents=%s confidence=%s",
+        [r["subagent"] for r in matched],
+        confidence,
+    )
+    return matched if matched else None
+
+
+# ------------------------------------------------------------------
 # Keyword classifier
 # ------------------------------------------------------------------
 
@@ -204,10 +302,11 @@ def _match_rule(rule: dict, query_lower: str) -> int:
     return 0
 
 
-def classify_query(messages: list) -> str | None:
-    """Classify the latest human message and return an advisory routing hint.
+def classify_query_keywords(messages: list) -> list[dict]:
+    """Classify the latest human message using keyword matching.
 
-    Returns None if no routing hint should be injected.
+    Returns a list of matched ROUTING_RULES dicts sorted by
+    (score desc, priority asc), or an empty list if no match.
     """
     # Extract last human message
     query = ""
@@ -217,7 +316,7 @@ def classify_query(messages: list) -> str | None:
             break
 
     if not query:
-        return None
+        return []
 
     query_lower = query.lower()
 
@@ -229,14 +328,28 @@ def classify_query(messages: list) -> str | None:
             matches.append((score, rule["priority"], rule))
 
     if not matches:
-        return None
+        return []
 
     # Sort by score descending, then priority ascending (lower = higher priority)
     matches.sort(key=lambda x: (-x[0], x[1]))
+    return [m[2] for m in matches]
 
-    if len(matches) == 1:
-        # Single-agent advisory hint
-        rule = matches[0][2]
+
+# ------------------------------------------------------------------
+# Shared hint builder
+# ------------------------------------------------------------------
+
+def _build_hint_from_matches(matched_rules: list[dict]) -> str | None:
+    """Build an advisory routing hint string from matched routing rules.
+
+    Used by both the LLM classifier and keyword fallback paths.
+    Returns None if no rules matched.
+    """
+    if not matched_rules:
+        return None
+
+    if len(matched_rules) == 1:
+        rule = matched_rules[0]
         return (
             f'\n\n[ADVISORY: This query is well-suited for the "{rule["subagent"]}" '
             f'specialist ({rule["description"]}). '
@@ -245,9 +358,9 @@ def classify_query(messages: list) -> str | None:
         )
 
     # Multi-agent routing
-    if len(matches) == 2:
-        primary = matches[0][2]
-        secondary = matches[1][2]
+    if len(matched_rules) == 2:
+        primary = matched_rules[0]
+        secondary = matched_rules[1]
         pair_set = frozenset({primary["subagent"], secondary["subagent"]})
         pair_tuple = (primary["subagent"], secondary["subagent"])
         pair_tuple_rev = (secondary["subagent"], primary["subagent"])
@@ -281,8 +394,8 @@ def classify_query(messages: list) -> str | None:
 
     # 3+ agents: advisory list
     agent_list = ", ".join(
-        f'"{m[2]["subagent"]}" ({m[2]["description"]})'
-        for m in matches
+        f'"{r["subagent"]}" ({r["description"]})'
+        for r in matched_rules
     )
     return (
         f'\n\n[ADVISORY: This query may benefit from multiple specialists: '
@@ -290,6 +403,16 @@ def classify_query(messages: list) -> str | None:
         f'You may delegate to them sequentially or in parallel as appropriate. '
         f'For simpler aspects, you can answer directly using your own tools.]'
     )
+
+
+def classify_query(messages: list) -> str | None:
+    """Classify the latest human message and return an advisory routing hint.
+
+    Backward-compatible wrapper: keyword-only classification.
+    Returns None if no routing hint should be injected.
+    """
+    matched = classify_query_keywords(messages)
+    return _build_hint_from_matches(matched)
 
 
 # ------------------------------------------------------------------
@@ -379,21 +502,7 @@ def _build_progress_directive(
 
 def _get_ordered_plan(messages: list) -> list[dict]:
     """Re-classify the user query and return the ordered plan of subagents."""
-    query = ""
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            query = msg.content if isinstance(msg.content, str) else str(msg.content)
-            break
-    if not query:
-        return []
-    query_lower = query.lower()
-    matches = []
-    for rule in ROUTING_RULES:
-        score = _match_rule(rule, query_lower)
-        if score > 0:
-            matches.append((score, rule["priority"], rule))
-    matches.sort(key=lambda x: (-x[0], x[1]))
-    return [m[2] for m in matches]
+    return classify_query_keywords(messages)
 
 
 def _get_last_human_message(messages: list) -> str | None:
@@ -405,48 +514,92 @@ def _get_last_human_message(messages: list) -> str | None:
 
 
 # ------------------------------------------------------------------
-# Middleware
+# Middleware (class-based)
 # ------------------------------------------------------------------
 
-@wrap_model_call
-def routing_middleware(
-    request: ModelRequest,
-    handler: Callable[[ModelRequest], ModelResponse],
-) -> ModelCallResult:
-    """Append advisory routing or progress hints to the system prompt.
+class RoutingMiddleware(AgentMiddleware):
+    """LLM-based semantic routing with keyword fallback.
 
-    - First call (no task results): injects advisory hint from keyword classifier.
-    - Subsequent calls: injects progress directive for multi-agent plans.
+    - First call (no completed subagents): try LLM classifier → fall back
+      to keywords → build advisory hint.
+    - Subsequent calls: progress tracking only (keyword-based, no LLM needed).
     """
-    completed = _extract_completed_subagents(request.messages)
-    query_text = _get_last_human_message(request.messages)
 
-    if not completed:
-        # First call — inject advisory routing hint from keyword classifier
-        hint = classify_query(request.messages)
+    def __init__(self, classifier_model: BaseChatModel | None = None) -> None:
+        self._classifier_model = classifier_model
 
-        # Log classification for instrumentation
-        if hint:
-            logger.info(
-                "routing_middleware: advisory hint injected for query=%s hint_type=%s",
-                (query_text or "")[:80],
-                "single" if "two specialists" not in (hint or "") and "multiple specialists" not in (hint or "") else "multi",
-            )
-        else:
-            logger.info(
-                "routing_middleware: no routing hint for query=%s",
-                (query_text or "")[:80],
-            )
-
-        if hint and request.system_message is not None:
-            new_system = append_to_system_message(request.system_message, hint)
-            request = request.override(system_message=new_system)
-
+    def wrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], ModelCallResult],
+    ) -> ModelCallResult:
+        request = self._inject_hint(request)
         response = handler(request)
+        self._log_decision(response)
+        return response
 
-        # Log what the LLM decided
-        if response.result:
-            ai_msg = response.result[0]
+    async def awrap_model_call(
+        self,
+        request: ModelRequest,
+        handler: Callable[[ModelRequest], ModelCallResult],
+    ) -> ModelCallResult:
+        request = self._inject_hint(request)
+        response = await handler(request)
+        self._log_decision(response)
+        return response
+
+    def _inject_hint(self, request: ModelRequest) -> ModelRequest:
+        """Inject routing or progress hint into the system message."""
+        completed = _extract_completed_subagents(request.messages)
+        query_text = _get_last_human_message(request.messages)
+
+        if not completed:
+            # First call — try LLM, fall back to keywords
+            matched = None
+            if self._classifier_model and query_text:
+                matched = classify_query_llm(query_text, self._classifier_model)
+
+            if matched is None:
+                # LLM unavailable or failed — keyword fallback
+                matched = classify_query_keywords(request.messages)
+
+            hint = _build_hint_from_matches(matched)
+
+            if hint:
+                logger.info(
+                    "routing_middleware: advisory hint injected for query=%s",
+                    (query_text or "")[:80],
+                )
+            else:
+                logger.info(
+                    "routing_middleware: no routing hint for query=%s",
+                    (query_text or "")[:80],
+                )
+
+            if hint and request.system_message is not None:
+                new_system = append_to_system_message(request.system_message, hint)
+                return request.override(system_message=new_system)
+
+            return request
+
+        # After task() calls: inject progress directive
+        ordered_plan = _get_ordered_plan(request.messages)
+
+        if len(ordered_plan) > 1:
+            progress = _build_progress_directive(completed, ordered_plan)
+            if progress and request.system_message is not None:
+                new_system = append_to_system_message(
+                    request.system_message, progress
+                )
+                return request.override(system_message=new_system)
+
+        return request
+
+    def _log_decision(self, response) -> None:
+        """Log what the LLM decided to do after routing."""
+        result = getattr(response, "result", None)
+        if result:
+            ai_msg = result[0]
             tool_calls = getattr(ai_msg, "tool_calls", None)
             if tool_calls:
                 tool_names = [tc.get("name", "?") for tc in tool_calls]
@@ -454,17 +607,6 @@ def routing_middleware(
                     "routing_middleware: LLM decided tool_calls=%s", tool_names,
                 )
 
-        return response
 
-    # After task() calls: inject progress directive
-    ordered_plan = _get_ordered_plan(request.messages)
-
-    if len(ordered_plan) > 1:
-        progress = _build_progress_directive(completed, ordered_plan)
-        if progress and request.system_message is not None:
-            new_system = append_to_system_message(
-                request.system_message, progress
-            )
-            request = request.override(system_message=new_system)
-
-    return handler(request)
+# Module-level instance for backward compat (keyword-only, no LLM)
+routing_middleware = RoutingMiddleware(classifier_model=None)
