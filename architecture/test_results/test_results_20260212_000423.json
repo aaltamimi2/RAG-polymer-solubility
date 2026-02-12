@@ -1,0 +1,43 @@
+{
+  "timestamp": "20260212_000423",
+  "n_queries": 1,
+  "results": [
+    {
+      "name": "3agent-sep-safety-tea",
+      "query": "Find the optimal separation sequence for LDPE and HDPE using selective dissolution. Assess the safety G-scores and PubChem hazards of each recommended solvent. Then run a techno-economic analysis on the operating costs for the safest option.",
+      "pattern": "3-agent",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "tea-lca-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "tea-lca-analyst"
+      ],
+      "wall_time_s": 126.3,
+      "total_tokens": 73116,
+      "input_tokens": 69210,
+      "output_tokens": 3906,
+      "n_tool_calls": 7,
+      "n_messages": 14,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c5071-457e-7680-a486-c9ca930153fe",
+      "answer_preview": "Based on the analysis, here is the recommended optimal separation sequence for LDPE and HDPE, including safety and techno-economic considerations:\n\n### **Optimal Separation Sequence**\n\nThe most effective method for separating LDPE and HDPE is through selective dissolution at **120\u00b0C**. The recommended process is as follows:\n\n1.  **Dissolution:** The mixed LDPE/HDPE polymer stream is treated with a solvent that selectively dissolves the LDPE, leaving the HDPE as a solid.\n2.  **Filtration:** The h...",
+      "routing_match": true,
+      "timestamp": "2026-02-12T00:04:15.955432",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/3agent-sep-safety-tea/3agent-sep-safety-tea_waterfall.png",
+      "swimlane_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/3agent-sep-safety-tea/3agent-sep-safety-tea_swimlane.png"
+    }
+  ]
+}

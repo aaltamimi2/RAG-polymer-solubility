@@ -2516,13 +2516,14 @@ async def plan_multiple_separation_schemes(
             tag = f"{base_tag}-v{v + 1}" if n_variants > 1 else base_tag
             schemes.append(_greedy_scheme(base_name + suffix, tag, rank_fn, first_step_pick=v))
 
-    # Deduplicate: if variant produces same sequence as primary, drop it
-    seen_seqs: set[str] = set()
+    # Deduplicate: drop variants with identical polymer order AND solvent choices
+    seen_keys: set[str] = set()
     unique_schemes = []
     for s in schemes:
-        seq_key = ">".join(s["seq"])
-        if seq_key not in seen_seqs:
-            seen_seqs.add(seq_key)
+        solvent_list = [st["solvent"] for st in s["steps"] if st["solvent"] != "-"]
+        seq_key = ">".join(s["seq"]) + "|" + ",".join(solvent_list)
+        if seq_key not in seen_keys:
+            seen_keys.add(seq_key)
             unique_schemes.append(s)
     schemes = unique_schemes
 

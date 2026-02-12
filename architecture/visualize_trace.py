@@ -44,17 +44,34 @@ C_SUBAGENT = "#E67E22"      # orange for subagent calls
 C_SUBAGENT_FILL = "#FEF5E7"
 
 
-def _wrap(text: str, width: int = 80) -> str:
+def _extract_text_content(content) -> str:
+    """Extract plain text from content that may be str or Gemini list-of-dicts."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(item.get("text", ""))
+            elif isinstance(item, str):
+                parts.append(item)
+        return "\n".join(parts)
+    return str(content) if content else ""
+
+
+def _wrap(text, width: int = 65) -> str:
     """Wrap text for display in boxes."""
     if not text:
         return ""
+    if not isinstance(text, str):
+        text = _extract_text_content(text)
     lines = text.strip().split("\n")
     wrapped = []
-    for line in lines[:6]:  # Max 6 lines
+    for line in lines[:5]:  # Max 5 input lines
         wrapped.extend(textwrap.wrap(line, width=width) or [""])
-    if len(lines) > 6:
+    if len(lines) > 5:
         wrapped.append("...")
-    return "\n".join(wrapped[:8])
+    return "\n".join(wrapped[:6])
 
 
 def _extract_ai_content(run) -> str:
@@ -187,11 +204,36 @@ def draw_trace(steps, root, output_path: str):
 
     # Layout params
     left_margin = 0.5
-    row_height = 1.8
     box_width = 11.5
     time_col_width = 2.5
     fig_width = 15
-    fig_height = max(len(steps) * row_height + 3, 8)
+
+    # Pre-compute row heights based on content
+    row_heights = []
+    for step in steps:
+        stype = step["type"]
+        if stype == "user":
+            display_text = _wrap(step.get("content", ""))
+        elif stype == "ai":
+            display_text = _wrap(step.get("content", ""))
+        elif stype == "subagent":
+            display_text = f"-> task(agent={step.get('args', '')})"
+            result = step.get("result", "")
+            if result:
+                display_text += "\n" + _wrap(result, width=60)
+        else:
+            args = step.get("args", "")
+            display_text = _wrap(f"{step['name']}({args})", width=60)
+            result = step.get("result", "")
+            if result:
+                result_lines = result.split("\\n")[:2]
+                display_text += "\n-> " + _wrap(" | ".join(result_lines)[:100], width=60)
+        n_lines = display_text.count("\n") + 1
+        rh = max(1.2, n_lines * 0.30 + 0.6)
+        row_heights.append(rh)
+
+    total_content_h = sum(row_heights)
+    fig_height = max(total_content_h + 4, 8)
 
     fig, ax = plt.subplots(1, 1, figsize=(fig_width, fig_height))
     ax.set_xlim(0, fig_width)
@@ -224,8 +266,10 @@ def draw_trace(steps, root, output_path: str):
             color=C_GRAY, lw=0.5, alpha=0.5)
 
     # Draw each step
+    cumulative_y = 1.2
     for i, step in enumerate(steps):
-        y_center = -(i * row_height + 1.2)
+        rh = row_heights[i]
+        y_center = -(cumulative_y + rh / 2)
         stype = step["type"]
 
         # Pick colours
@@ -233,22 +277,18 @@ def draw_trace(steps, root, output_path: str):
             fill_color = C_USER_FILL
             border_color = C_USER
             icon = "USER"
-            icon_color = C_USER
         elif stype == "ai":
             fill_color = C_AI_FILL
             border_color = C_AI
             icon = "AI"
-            icon_color = C_AI
         elif stype == "subagent":
             fill_color = C_SUBAGENT_FILL
             border_color = C_SUBAGENT
             icon = "SUB"
-            icon_color = C_SUBAGENT
         else:  # tool
             fill_color = C_TOOL_FILL
             border_color = C_TOOL
             icon = "TOOL"
-            icon_color = C_TOOL
 
         # Step label badge
         badge_w = 1.6
@@ -266,40 +306,39 @@ def draw_trace(steps, root, output_path: str):
         content_w = box_width - time_col_width
 
         if stype == "user":
-            display_text = _wrap(step.get("content", ""), width=70)
+            display_text = _wrap(step.get("content", ""))
         elif stype == "ai":
-            display_text = _wrap(step.get("content", ""), width=70)
+            display_text = _wrap(step.get("content", ""))
         elif stype == "subagent":
-            display_text = f"→ task(agent={step.get('args', '')})"
+            display_text = f"-> task(agent={step.get('args', '')})"
             result = step.get("result", "")
             if result:
-                display_text += "\n" + _wrap(result, width=65)
+                display_text += "\n" + _wrap(result, width=60)
         else:  # tool
             args = step.get("args", "")
-            display_text = f"{step['name']}({args})"
+            display_text = _wrap(f"{step['name']}({args})", width=60)
             result = step.get("result", "")
             if result:
-                # Show first 2 lines of result
                 result_lines = result.split("\\n")[:2]
-                display_text += "\n→ " + " | ".join(result_lines)[:120]
+                display_text += "\n-> " + _wrap(" | ".join(result_lines)[:100], width=60)
 
         # Content background box
         n_lines = display_text.count("\n") + 1
-        box_h = max(0.6, n_lines * 0.28 + 0.2)
+        box_h = max(0.6, n_lines * 0.28 + 0.3)
 
         content_box = FancyBboxPatch(
             (content_x, y_center - box_h / 2), content_w, box_h,
             boxstyle="round,pad=0.1",
             facecolor=fill_color, edgecolor=border_color,
-            linewidth=1, alpha=0.9)
+            linewidth=1, alpha=0.9, clip_on=True)
         ax.add_patch(content_box)
 
         ax.text(content_x + 0.15, y_center, display_text,
-                ha="left", va="center", fontsize=7.5, color=C_TEXT,
-                fontfamily="monospace", linespacing=1.3)
+                ha="left", va="center", fontsize=7, color=C_TEXT,
+                fontfamily="monospace", linespacing=1.3,
+                clip_on=True)
 
         # Time info (right column)
-        elapsed = step.get("elapsed_ms", 0)
         duration = step.get("duration_ms", 0)
         tokens = step.get("tokens", 0)
 
@@ -312,20 +351,24 @@ def draw_trace(steps, root, output_path: str):
         if time_parts:
             time_text = " | ".join(time_parts)
             ax.text(fig_width - 0.5, y_center, time_text,
-                    ha="right", va="center", fontsize=7.5, color=C_GRAY,
+                    ha="right", va="center", fontsize=7, color=C_GRAY,
                     fontfamily="monospace")
 
         # Connecting arrow to next step
         if i < len(steps) - 1:
             arrow_y_start = y_center - box_h / 2 - 0.05
-            arrow_y_end = -(((i + 1) * row_height + 1.2)) + 0.4
+            next_cumulative = cumulative_y + rh
+            next_rh = row_heights[i + 1]
+            arrow_y_end = -(next_cumulative + next_rh / 2) + next_rh / 2 - 0.1
             ax.annotate("", xy=(left_margin + badge_w / 2, arrow_y_end),
                         xytext=(left_margin + badge_w / 2, arrow_y_start),
                         arrowprops=dict(arrowstyle="->", color=C_GRAY,
                                         lw=1, alpha=0.4))
 
+        cumulative_y += rh
+
     # Legend
-    legend_y = -(len(steps) * row_height + 1.8)
+    legend_y = -(cumulative_y + 1.0)
     legend_items = [
         (C_USER, "User Input"),
         (C_AI, "AI Reasoning"),

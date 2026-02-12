@@ -2,7 +2,7 @@
 
 ## What changed
 
-We replaced brittle regex/keyword expansion with a single Gemini Flash call that classifies user intent into 1–3 subagents before the orchestrator sees the query.
+We replaced brittle regex/keyword expansion with a single Gemini 3 Flash call that classifies user intent into 1–3 subagents before the orchestrator sees the query.
 
 ### Previous approach: more regex
 
@@ -24,7 +24,7 @@ User query
     │
     ▼
 ┌─────────────────────────┐
-│  Gemini Flash classifier │  ~150ms, ~200 tokens
+│  Gemini 3 Flash classifier │  ~150ms, ~200 tokens
 │  (SystemMessage with     │
 │   subagent descriptions) │
 └────────────┬────────────┘
@@ -56,7 +56,7 @@ If the Flash call fails or `classifier_model=None`, the keyword matcher runs as 
 
 ```
           ┌──────────────────┐
-  Query → │ 1. ROUTING       │ Gemini Flash  (~0.2s, ~200 tok)
+  Query → │ 1. ROUTING       │ Gemini 3 Flash  (~0.2s, ~200 tok)
           │    classifier    │ "WHO should handle this?"
           └───────┬──────────┘
                   │ advisory hint
@@ -68,7 +68,7 @@ If the Flash call fails or `classifier_model=None`, the keyword matcher runs as 
                   │ draft response
                   ▼
           ┌──────────────────┐
-          │ 3. OUTPUT        │ Gemini Flash  (~0.3s, ~300 tok)
+          │ 3. OUTPUT        │ Gemini 3 Flash  (~0.3s, ~300 tok)
           │    verifier      │ "IS this correct?"
           └──────────────────┘
 ```
@@ -79,7 +79,7 @@ If the Flash call fails or `classifier_model=None`, the keyword matcher runs as 
 
 2. **Verification is a post-decision.** The orchestrator cannot objectively audit its own output in the same generation — it has already committed to its reasoning chain. A separate Flash call with a fresh context and an adversarial prompt ("find unsupported claims, contradictions, missing caveats") catches errors that self-reflection within the same context window misses. This is the same principle as code review: the author cannot effectively review their own work.
 
-3. **Cost is negligible.** Both the classifier and verifier use Gemini Flash, which is ~20x cheaper than the Pro orchestrator. Together they add ~$0.001 and ~0.5s per query — trivial compared to the orchestrator's multi-tool, multi-subagent runs that take 30–120s.
+3. **Cost is negligible.** Both the classifier and verifier use Gemini 3 Flash, which is ~20x cheaper than the Pro orchestrator. Together they add ~$0.001 and ~0.5s per query — trivial compared to the orchestrator's multi-tool, multi-subagent runs that take 30–120s.
 
 4. **Separation of concerns.** Each layer has one job with a minimal, focused prompt. The classifier doesn't need to understand tools or delegation syntax — just intent. The verifier doesn't need to understand routing — just scientific accuracy. This makes each component independently testable and updatable.
 

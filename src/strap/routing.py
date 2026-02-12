@@ -225,9 +225,21 @@ def classify_query_llm(
         logger.warning("classify_query_llm: model call failed", exc_info=True)
         return None
 
-    # Parse JSON response
-    text = result.content if isinstance(result.content, str) else str(result.content)
-    text = text.strip()
+    # Parse JSON response — handle Gemini's list-of-dicts content format
+    content = result.content
+    if isinstance(content, str):
+        text = content.strip()
+    elif isinstance(content, list):
+        # Gemini returns [{"type": "text", "text": "...", ...}]
+        parts = []
+        for item in content:
+            if isinstance(item, dict) and item.get("type") == "text":
+                parts.append(item["text"])
+            elif isinstance(item, str):
+                parts.append(item)
+        text = "\n".join(parts).strip()
+    else:
+        text = str(content).strip()
 
     parsed = None
     try:

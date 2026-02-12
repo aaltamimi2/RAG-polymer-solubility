@@ -1,0 +1,40 @@
+{
+  "timestamp": "20260212_002909",
+  "n_queries": 1,
+  "results": [
+    {
+      "name": "seq-scholar-rag",
+      "query": "Do a Google Scholar literature search for recent publications on polyolefin dissolution in terpene-based solvents. Save the most relevant papers to the RAG index and then ask the indexed literature to summarize key findings.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "scholar-researcher",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "scholar-researcher",
+        "rag-analyst"
+      ],
+      "wall_time_s": 270.6,
+      "total_tokens": 80535,
+      "input_tokens": 78079,
+      "output_tokens": 2456,
+      "n_tool_calls": 6,
+      "n_messages": 14,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c5088-781c-7272-b8ae-80b1edca2e1a",
+      "answer_preview": "Based on a literature search and analysis of recent publications, here is a summary of key findings on polyolefin dissolution in terpene-based solvents:\n\n### Key Findings:\n\n*   **Effective Terpenes**: The most prominently mentioned terpene-based solvent is **D-limonene**. While it is cited as a \"green solvent\" for various polymers, including polyethylene (PE) and polypropylene (PP), the most concrete evidence of its effectiveness as a primary dissolution solvent is for **polystyrene (PS)** and h...",
+      "routing_match": true,
+      "timestamp": "2026-02-12T00:29:07.272199",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/seq-scholar-rag/seq-scholar-rag_trace.png",
+      "swimlane_png": null
+    }
+  ]
+}

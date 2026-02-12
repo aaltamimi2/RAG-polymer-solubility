@@ -253,9 +253,13 @@ def draw_parallel_trace(data, output_path: str):
     ax.axis("off")
 
     def x_pos(ms_val):
+        if total_ms == 0:
+            return margin_left
         return margin_left + (ms_val / total_ms) * plot_width
 
     def bw(dur_ms):
+        if total_ms == 0:
+            return 0.12
         return max((dur_ms / total_ms) * plot_width, 0.12)
 
     # ── Title ──

@@ -1,0 +1,36 @@
+{
+  "timestamp": "20260212_000818",
+  "n_queries": 1,
+  "results": [
+    {
+      "name": "seq-sep-tea",
+      "query": "Find an optimal separation sequence for a LDPE/HDPE/PP mixed waste stream using selective dissolution at atmospheric pressure. Then run a techno-economic analysis on the solvent recovery for the best option.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "tea-lca-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "tea-lca-analyst"
+      ],
+      "wall_time_s": 113.8,
+      "total_tokens": 35976,
+      "input_tokens": 32155,
+      "output_tokens": 3821,
+      "n_tool_calls": 2,
+      "n_messages": 6,
+      "tool_names": [
+        "task",
+        "task"
+      ],
+      "trace_id": "019c5075-0c8e-7fb3-a6f7-2078fd222519",
+      "answer_preview": "Based on the analysis, the optimal separation sequence for the LDPE/HDPE/PP mixed waste stream is a two-stage dissolution process using toluene. This is followed by a techno-economic analysis of the solvent recovery system.\n\n### Optimal Separation Sequence\n\nThe recommended separation process uses toluene as the solvent and proceeds as follows:\n\n1.  **LDPE Dissolution (75\u00b0C):** The mixed plastic stream is first treated with toluene at 75\u00b0C. At this temperature, LDPE selectively dissolves while HD...",
+      "routing_match": true,
+      "timestamp": "2026-02-12T00:08:12.122459",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/seq-sep-tea/seq-sep-tea_waterfall.png",
+      "swimlane_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/seq-sep-tea/seq-sep-tea_swimlane.png"
+    }
+  ]
+}

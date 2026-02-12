@@ -1,0 +1,48 @@
+{
+  "timestamp": "20260212_003512",
+  "n_queries": 1,
+  "results": [
+    {
+      "name": "3agent-sep-safety-viz",
+      "query": "Separate PS from PVC using selective dissolution \u2014 show the selectivity data, safety profiles for the top 3 solvents, and create a comparison dashboard.",
+      "pattern": "3-agent",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "safety-analyst",
+        "visualization-specialist",
+        "safety-analyst"
+      ],
+      "wall_time_s": 165.1,
+      "total_tokens": 122531,
+      "input_tokens": 117977,
+      "output_tokens": 4554,
+      "n_tool_calls": 12,
+      "n_messages": 22,
+      "tool_names": [
+        "write_todos",
+        "rank_solvents_selectivity",
+        "rank_solvents_selectivity",
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c508d-1f68-7521-b416-e32d3acb2946",
+      "answer_preview": "Of course. Here is a summary of the data and recommendations for separating Polystyrene (PS) from Polyvinyl Chloride (PVC) using selective dissolution at 120\u00b0C.\n\n### **Solvent Selectivity Analysis**\n\nTwo strategies were evaluated for separating the polymer mixture:\n1.  **Dissolving PS while leaving PVC solid.**\n2.  **Dissolving PVC while leaving PS solid.**\n\nThe analysis revealed that dissolving PS is the more promising approach, offering solvents with higher selectivity and more options suitabl...",
+      "routing_match": false,
+      "timestamp": "2026-02-12T00:35:10.850251",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/3agent-sep-safety-viz/3agent-sep-safety-viz_trace.png",
+      "swimlane_png": null
+    }
+  ]
+}

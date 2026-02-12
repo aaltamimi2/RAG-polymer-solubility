@@ -184,7 +184,7 @@ def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_gen
 
     # Lightweight Gemini Flash model shared by both the routing classifier
     # and the output verifier — single instance, no extra cost.
-    flash_model = init_chat_model("google_genai:gemini-3.0-flash")
+    flash_model = init_chat_model("google_genai:gemini-3-flash-preview")
 
     # Semantic routing: LLM-based classifier with keyword fallback
     routing = RoutingMiddleware(classifier_model=flash_model)
