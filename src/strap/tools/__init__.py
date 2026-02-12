@@ -95,6 +95,14 @@ def get_ml_prediction_tools() -> list:
     ])
 
 
+def get_thermal_prediction_tools() -> list:
+    return _safe_import("strap.tools.thermal_prediction", [
+        "predict_thermal_properties",
+        "generate_solubility_for_new_polymer",
+        "list_generated_polymers",
+    ])
+
+
 def get_tea_lca_tools() -> list:
     return _safe_import("strap.tools.tea_lca", [
         "analyze_solvent_recovery_tea", "analyze_solvent_recovery_lca",

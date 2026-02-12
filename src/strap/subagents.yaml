@@ -250,7 +250,9 @@
     Statistics and ML specialist. Use for: statistical summaries with
     confidence intervals, correlation analysis, regression, group comparisons
     (hypothesis testing), ML-based solubility prediction using Hansen
-    Solubility Parameters, glass transition temperature (Tg) lookup.
+    Solubility Parameters, glass transition temperature (Tg) lookup,
+    polymer thermal property prediction (Tm, ΔHf, ΔCp) for new polymers,
+    generating solubility data for novel polymer-solvent pairs.
   system_prompt: |
     You are a statistics and machine learning specialist. You have tools for statistical analysis, ML-based solubility prediction, and thermal property lookup. Provide rigorous statistical assessments.
 

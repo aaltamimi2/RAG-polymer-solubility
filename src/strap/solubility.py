@@ -36,10 +36,22 @@ _KNOWN_SOLVENTS: Optional[set[str]] = None
 _DATA_PATH = (
     Path(__file__).resolve().parent.parent.parent / "data" / "solubility_coefficients.json"
 )
+_GENERATED_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "generated_coefficients.json"
+)
 
 
 def _load_coefficients() -> tuple[dict, dict[tuple[str, str], dict]]:
-    """Load JSON coefficients and build normalized lookup dict."""
+    """Load JSON coefficients and build normalized lookup dict.
+
+    Implements three-tier loading:
+      1. Static (highest priority) — from solubility_coefficients.json
+      2. Validated (medium) — generated_coefficients.json entries with tier=validated
+      3. Dynamic (lowest) — generated_coefficients.json entries with tier=dynamic
+
+    Each lookup entry gets a ``"source"`` field: ``"static"``, ``"validated"``,
+    or ``"dynamic"``.
+    """
     global _COEFFICIENTS, _LOOKUP, _KNOWN_POLYMERS, _KNOWN_SOLVENTS
     if _COEFFICIENTS is not None:
         return _COEFFICIENTS, _LOOKUP
@@ -48,9 +60,31 @@ def _load_coefficients() -> tuple[dict, dict[tuple[str, str], dict]]:
         _COEFFICIENTS = json.load(f)
 
     _LOOKUP = {}
+    # --- Tier 1: static entries (always win) ---
     for entry in _COEFFICIENTS["entries"]:
         key = (entry["polymer"].strip().upper(), entry["solvent"].strip().lower())
+        entry["source"] = "static"
         _LOOKUP[key] = entry
+
+    # --- Tiers 2 & 3: generated entries (validated before dynamic) ---
+    if _GENERATED_PATH.exists():
+        try:
+            with open(_GENERATED_PATH) as f:
+                generated = json.load(f)
+            # Sort so validated entries are processed after dynamic ones,
+            # meaning validated overwrites dynamic for the same key.
+            gen_entries = sorted(
+                generated.get("entries", []),
+                key=lambda e: 0 if e.get("tier") == "dynamic" else 1,
+            )
+            for entry in gen_entries:
+                key = (entry["polymer"].strip().upper(), entry["solvent"].strip().lower())
+                if key in _LOOKUP and _LOOKUP[key].get("source") == "static":
+                    continue  # static always takes precedence
+                entry["source"] = entry.get("tier", "dynamic")
+                _LOOKUP[key] = entry
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("Failed to load generated coefficients: %s", e)
 
     # Pre-compute known name sets once (avoids 352-iteration rebuild per call)
     _KNOWN_POLYMERS = {p for p, _ in _LOOKUP}
@@ -154,7 +188,8 @@ def predict(entry: dict, temp_c: float) -> dict:
     """Predict solubility for a single temperature using coefficients.
 
     Returns:
-        {"solubility_pct": float, "temperature_c": float, "extrapolation": str}
+        {"solubility_pct": float, "temperature_c": float, "extrapolation": str,
+         "source": str}
     """
     t_k = temp_c + 273.15
     ln_s = entry["A"] + entry["B"] / t_k + entry["C"] / t_k**2
@@ -170,6 +205,7 @@ def predict(entry: dict, temp_c: float) -> dict:
         "solubility_pct": round(float(s_pct), 6),
         "temperature_c": temp_c,
         "extrapolation": extrapolation,
+        "source": entry.get("source", "static"),
     }
 
 
@@ -356,6 +392,39 @@ def get_coefficients_metadata() -> dict:
     """Return the top-level metadata (n_entries, categories, etc.)."""
     coeffs, _ = _load_coefficients()
     return coeffs
+
+
+def get_entry_source(polymer: str, solvent: str) -> Optional[str]:
+    """Return the data source tier for a polymer-solvent pair.
+
+    Returns:
+        ``"static"``, ``"validated"``, ``"dynamic"``, or ``None`` if no entry.
+    """
+    entry = get_entry(polymer, solvent)
+    if entry is None:
+        return None
+    return entry.get("source", "static")
+
+
+def get_dynamic_entries() -> list[dict]:
+    """Return all ML-generated entries (both validated and dynamic tiers)."""
+    _, lookup = _load_coefficients()
+    return [
+        entry for entry in lookup.values()
+        if entry.get("source") in ("validated", "dynamic")
+    ]
+
+
+def reload_coefficients() -> None:
+    """Clear the singleton cache and force a full reload on next access.
+
+    Useful after new ML-generated coefficients have been written to disk.
+    """
+    global _COEFFICIENTS, _LOOKUP, _KNOWN_POLYMERS, _KNOWN_SOLVENTS
+    _COEFFICIENTS = None
+    _LOOKUP = None
+    _KNOWN_POLYMERS = None
+    _KNOWN_SOLVENTS = None
 
 
 # ==================================================================
