@@ -104,22 +104,6 @@ def get_thermal_prediction_tools() -> list:
     ])
 
 
-def get_tea_lca_tools() -> list:
-    return _safe_import("strap.tools.tea_lca", [
-        "analyze_solvent_recovery_tea", "analyze_solvent_recovery_lca",
-        "compare_solvents_tea_lca",
-        "generate_tea_lca_visualizations",
-    ])
-
-
-def get_strap_process_tools() -> list:
-    return _safe_import("strap.tools.strap_process", [
-        "analyze_strap_process", "calculate_strap_msp",
-        "compare_strap_scenarios",
-        "generate_strap_visualizations",
-    ])
-
-
 def get_literature_tools() -> list:
     return _safe_import("strap.tools.literature", [
         "search_google_scholar", "search_google_patents",
@@ -216,6 +200,24 @@ def get_separation_core_tools() -> list:
     ])
 
 
+def get_biosteam_tools() -> list:
+    return _safe_import("strap.tools.biosteam_tea_lca", [
+        "run_biosteam_simulation",
+        "run_biosteam_batch",
+        "compare_biosteam_scenarios",
+        "get_biosteam_solvents",
+        "visualize_biosteam_results",
+        "run_biosteam_multi_polymer",
+    ])
+
+
+def get_solvent_lookup_tools() -> list:
+    return _safe_import("strap.tools.solvent_lookup", [
+        "lookup_solvent_price",
+        "lookup_solvent_gwp",
+    ])
+
+
 def get_reflection_tools() -> list:
     return _safe_import("strap.tools.reflection", ["think"])
 
@@ -265,12 +267,11 @@ def get_all_tools() -> list:
         get_listing_tools,
         get_interpolation_tools,
         get_ml_prediction_tools,
-        get_tea_lca_tools,
-        get_strap_process_tools,
         get_literature_tools,
         get_rag_core_tools,
         get_rag_diagnostics_tools,
         get_advanced_separation_tools,
+        get_biosteam_tools,
         get_thermal_prediction_tools,
         get_reflection_tools,
     ]

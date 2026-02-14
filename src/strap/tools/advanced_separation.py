@@ -2470,12 +2470,19 @@ async def plan_multiple_separation_schemes(
                 is_first_step = False
             winner = ranked_cands[pick_idx]
 
+            solvent_bp = bp_map.get(winner["solvent"])
+            # Operating temp: requested temp or 5°C below BP, whichever is lower
+            if solvent_bp is not None:
+                op_temp = min(temperature, solvent_bp - 5)
+            else:
+                op_temp = temperature
             steps.append({
                 "step": len(steps) + 1,
                 "target": winner["polymer"],
                 "solvent": winner["solvent"],
                 "sel": winner["selectivity"],
-                "bp": bp_map.get(winner["solvent"]),
+                "temp": op_temp,
+                "bp": solvent_bp,
                 "gsk": gscore_map.get(winner["solvent"]),
                 "logp": logp_map.get(winner["solvent"]),
             })
@@ -2488,7 +2495,7 @@ async def plan_multiple_separation_schemes(
                 "step": len(steps) + 1,
                 "target": remaining[0],
                 "solvent": "-",
-                "sel": None, "bp": None, "gsk": None, "logp": None,
+                "sel": None, "temp": None, "bp": None, "gsk": None, "logp": None,
             })
 
         valid = [s["sel"] for s in steps if s["sel"] is not None and s["sel"] > -900]
@@ -2536,17 +2543,17 @@ async def plan_multiple_separation_schemes(
         out.append(f"== {r['tag']}: {r['name']} ==")
         out.append(f"Seq: {' > '.join(r['seq'])}")
         out.append(f"Min/Avg sel: {r['min_sel']:.1f}% / {r['avg_sel']:.1f}% | Solvents: {r['n_solv']}")
-        out.append("Stp|Target  |Solvent       |Sel% |BP(C)|GSK |LogP")
+        out.append("Stp|Target  |Solvent       |Sel% |T(C) |GSK |LogP")
         out.append("---|--------|--------------|-----|-----|----|----")
         for s in r["steps"]:
             if s["solvent"] == "-":
                 out.append(f" {s['step']} |{s['target']:<8}|(isolated)    | done|  -  | -  | -")
             else:
                 sel_s = f"{s['sel']:.0f}" if s["sel"] is not None and s["sel"] > -900 else "?"
-                bp_s = f"{s['bp']:.0f}" if s.get("bp") is not None else "-"
+                t_s = f"{s['temp']:.0f}" if s.get("temp") is not None else "-"
                 gs_s = f"{s['gsk']:.1f}" if s.get("gsk") is not None else "-"
                 lp_s = f"{s['logp']:.1f}" if s.get("logp") is not None else "-"
-                out.append(f" {s['step']} |{s['target']:<8}|{s['solvent']:<14}|{sel_s:>5}|{bp_s:>5}|{gs_s:>4}|{lp_s:>4}")
+                out.append(f" {s['step']} |{s['target']:<8}|{s['solvent']:<14}|{sel_s:>5}|{t_s:>5}|{gs_s:>4}|{lp_s:>4}")
         out.append("")
 
     # Comparison summary

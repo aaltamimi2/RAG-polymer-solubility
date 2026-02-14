@@ -1,0 +1,33 @@
+{
+  "timestamp": "20260213_005654",
+  "n_queries": 1,
+  "results": [
+    {
+      "name": "regression-3scheme-9poly",
+      "query": "Find the optimal separation sequence for a mixed polymer waste stream containing PS, PVC, LDPE, HDPE, PP, EVOH, Nylon6, Nylon66, and PET. Use selective dissolution at atmospheric pressure. Propose THREE different sets of solvents: (1) optimized for maximum selectivity, (2) optimized for green/safe solvents with high GSK G-scores, and (3) optimized for the cheapest solvents to minimize operating cost.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer"
+      ],
+      "actual_subagents": [
+        "separation-engineer"
+      ],
+      "wall_time_s": 60.0,
+      "total_tokens": 24386,
+      "input_tokens": 22554,
+      "output_tokens": 1832,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c55c8-cbe0-7fe1-ac13-11b6c2f80a02",
+      "answer_preview": "Based on a comprehensive analysis of the polymer mixture, here are three distinct separation sequences, each optimized for a different objective as requested. All proposed schemes operate at atmospheric pressure.\n\n### 1. Sequence Optimized for Maximum Selectivity\n\nThis sequence prioritizes the purity of the separated polymers by maximizing the solubility difference (selectivity) at each step.\n\n| Step | Target Polymer | Solvent | Temperature (\u00b0C) | Rationale |\n| :--- | :--- | :--- | :--- | :--- |...",
+      "routing_match": true,
+      "timestamp": "2026-02-13T00:56:51.088126",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/test_results/regression-3scheme-9poly/regression-3scheme-9poly_trace.png",
+      "swimlane_png": null
+    }
+  ]
+}

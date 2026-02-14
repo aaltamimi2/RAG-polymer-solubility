@@ -30,6 +30,7 @@ import yaml  # noqa: E402
 from .tools import get_core_tools  # noqa: E402
 from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_adaptive_separation_tools,
+    get_biosteam_tools,
     get_interpolation_tools,
     get_ml_prediction_tools,
     get_patent_tools,
@@ -41,9 +42,8 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_scholar_tools,
     get_separation_core_tools,
     get_separation_plot_tools,
+    get_solvent_lookup_tools,
     get_statistical_tools,
-    get_strap_process_tools,
-    get_tea_lca_tools,
     get_thermal_prediction_tools,
     get_visualization_tools,
 )
@@ -54,8 +54,6 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "adaptive_separation": get_adaptive_separation_tools,
     "safety_gsk": get_safety_gsk_tools,
     "safety_pubchem": get_safety_pubchem_tools,
-    "tea_lca": get_tea_lca_tools,
-    "strap_process": get_strap_process_tools,
     "scholar": get_scholar_tools,
     "patent": get_patent_tools,
     "rag_core": get_rag_core_tools,
@@ -66,6 +64,8 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "ml_prediction": get_ml_prediction_tools,
     "thermal_prediction": get_thermal_prediction_tools,
     "interpolation": get_interpolation_tools,
+    "biosteam": get_biosteam_tools,
+    "solvent_lookup": get_solvent_lookup_tools,
     "reflection": get_reflection_tools,
 }
 

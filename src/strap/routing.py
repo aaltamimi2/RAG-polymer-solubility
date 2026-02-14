@@ -74,16 +74,22 @@ ROUTING_RULES: list[dict] = [
         "negatives": [],
     },
     {
-        "subagent": "tea-lca-analyst",
+        "subagent": "biosteam-analyst",
         "priority": 3,
-        "description": "TEA, LCA, STRAP process, costs, emissions, MSP",
+        "description": "TEA, LCA, BioSTEAM process simulation, costs, emissions, MSP, CAPEX, OPEX, GWP",
         "phrases": [
             r"techno.economic", "life cycle", "operating cost",
             "capital cost", "minimum selling price",
             "scale economics", "strap process",
+            "biosteam", "process simulation",
+            r"energy\s+case",
         ],
-        "high_stems": ["msp", "ghg", "payback"],
-        "low_stems": ["tea", "lca", "emission", "cost"],
+        "high_stems": [
+            "msp", "ghg", "payback", "biosteam", "capex", "opex",
+        ],
+        "low_stems": [
+            "tea", "lca", "emission", "cost", "gwp", "rigorous",
+        ],
         "negatives": [],
     },
     {
@@ -163,10 +169,11 @@ ROUTING_RULES: list[dict] = [
 
 PARALLEL_PAIRS: set[frozenset[str]] = {
     frozenset({"separation-engineer", "safety-analyst"}),
+    frozenset({"biosteam-analyst", "safety-analyst"}),
 }
 
 SEQUENTIAL_PAIRS: dict[tuple[str, str], None] = {
-    ("separation-engineer", "tea-lca-analyst"): None,
+    ("separation-engineer", "biosteam-analyst"): None,
     ("separation-engineer", "visualization-specialist"): None,
     ("statistics-ml", "visualization-specialist"): None,
     ("scholar-researcher", "rag-analyst"): None,
@@ -456,7 +463,7 @@ def generate_routing_table() -> str:
         "Subagent contracts:",
         "- separation-engineer owns feasibility/sequence/selectivity",
         "- safety-analyst owns hazard/safety scores",
-        "- tea-lca-analyst owns cost/LCA numbers",
+        "- biosteam-analyst owns all TEA/LCA: process simulation, MSP, CAPEX, OPEX, GWP, cost, emissions",
         "- For cross-domain queries, delegate to the primary domain first, "
         "then pass results to the secondary specialist.",
         "",

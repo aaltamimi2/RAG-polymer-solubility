@@ -2,10 +2,11 @@
 
 ## Overview
 
-The DISSOLVE agent now includes a **biosteam-analyst** subagent that runs rigorous
-STRAP process simulations via BioSTEAM (plastics v0.1.4). Unlike the existing
-`tea-lca-analyst` (correlation-based), this subagent executes full flowsheet
-simulations with 27 unit operations, mass/energy balances, and equipment sizing.
+The DISSOLVE agent uses a unified **biosteam-analyst** subagent for all TEA/LCA
+work. It runs rigorous STRAP process simulations via BioSTEAM (plastics v0.1.4)
+with full flowsheet simulations: 27 unit operations, mass/energy balances, and
+equipment sizing. The previous correlation-based `tea-lca-analyst` has been
+merged into this subagent.
 
 ## Architecture
 
@@ -21,8 +22,8 @@ User query
                │  task()
                ▼
 ┌─────────────────────────────────────┐
-│  biosteam-analyst  (5 tools)        │
-│  4 domain + 1 reflection (think)    │
+│  biosteam-analyst  (7 tools)        │
+│  6 domain + 1 reflection (think)    │
 └──────────────┬──────────────────────┘
                │  tool call
                ▼
@@ -60,6 +61,8 @@ state from contaminating subsequent runs.
 | `run_biosteam_batch` | Multi-solvent screening | "Compare all PE solvents", "Rank by MSP" |
 | `compare_biosteam_scenarios` | Side-by-side custom scenarios | "Toluene 20k MT vs Xylene 50k MT" |
 | `get_biosteam_solvents` | List supported configurations | "What solvents can BioSTEAM simulate?" |
+| `visualize_biosteam_results` | Cost/GWP/scenario charts | "Plot cost breakdown from results" |
+| `run_biosteam_multi_polymer` | Sequential multi-polymer recovery | "PE + EVOH blended MSP" |
 
 ### Metrics Returned
 
@@ -100,10 +103,11 @@ Ethylene Glycol, Propylene Glycol, Pyridazine, gamma-butyrolactone
 
 ## Routing
 
-The biosteam-analyst triggers on:
-- **Phrases** (strong match): "biosteam", "process simulation", "energy case"
-- **High stems**: "capex", "opex"
-- General TEA/LCA queries without "biosteam" route to `tea-lca-analyst` instead
+The biosteam-analyst (priority 3) handles all TEA/LCA queries:
+- **Phrases** (strong match): "biosteam", "process simulation", "energy case",
+  "techno-economic", "life cycle", "operating cost", "capital cost", "strap process"
+- **High stems**: "msp", "ghg", "payback", "biosteam", "capex", "opex"
+- **Low stems**: "tea", "lca", "emission", "cost", "gwp"
 
 Multi-agent coordination:
 - **Parallel** with `safety-analyst` (e.g., "BioSTEAM MSP + safety comparison")
@@ -113,9 +117,9 @@ Multi-agent coordination:
 
 | Parameter | Value |
 |-----------|-------|
-| Max tool calls | 8 |
-| Token budget | 150,000 |
-| Synthesis triggers | `run_biosteam_simulation`, `run_biosteam_batch` |
+| Max tool calls | 12 |
+| Token budget | 200,000 |
+| Synthesis triggers | All 6 domain tools |
 | Tool result truncation | 2,000 chars |
 | Free tools | `think` |
 

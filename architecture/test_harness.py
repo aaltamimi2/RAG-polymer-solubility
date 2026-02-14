@@ -81,9 +81,9 @@ MULTI_AGENT_QUERIES: list[TestQuery] = [
             "Then run a techno-economic analysis on the solvent recovery for the best option."
         ),
         pattern="sequential",
-        expected_subagents=["separation-engineer", "tea-lca-analyst"],
+        expected_subagents=["separation-engineer", "biosteam-analyst"],
         recursion_limit=250,
-        description="Sequential: separation → TEA cost analysis",
+        description="Sequential: separation → BioSTEAM TEA cost analysis",
     ),
     # ── 2-agent sequential: sep → viz ──
     TestQuery(
@@ -131,9 +131,9 @@ MULTI_AGENT_QUERIES: list[TestQuery] = [
             "Then run a techno-economic analysis on the operating costs for the safest option."
         ),
         pattern="3-agent",
-        expected_subagents=["separation-engineer", "safety-analyst", "tea-lca-analyst"],
+        expected_subagents=["separation-engineer", "safety-analyst", "biosteam-analyst"],
         recursion_limit=250,
-        description="3-agent chain: separation → safety → TEA",
+        description="3-agent chain: separation → safety → BioSTEAM TEA",
     ),
     # ── 3-agent: sep + safety + viz ──
     TestQuery(
@@ -169,9 +169,22 @@ MULTI_AGENT_QUERIES: list[TestQuery] = [
             "analysis of the operating costs for solvent recovery."
         ),
         pattern="3-agent",
-        expected_subagents=["separation-engineer", "safety-analyst", "tea-lca-analyst"],
+        expected_subagents=["separation-engineer", "safety-analyst", "biosteam-analyst"],
         recursion_limit=250,
         description="Ambiguous routing: selectivity + safety + cost comparison",
+    ),
+    # ── 2-agent sequential: sep → biosteam ──
+    TestQuery(
+        name="seq-sep-biosteam",
+        query=(
+            "Find the best solvent for selectively dissolving LDPE from a mixed PE stream. "
+            "Then run a rigorous BioSTEAM process simulation for that solvent under energy case C1 "
+            "(on-site CHP) to get MSP, CAPEX, and GWP."
+        ),
+        pattern="sequential",
+        expected_subagents=["separation-engineer", "biosteam-analyst"],
+        recursion_limit=250,
+        description="Sequential: separation → BioSTEAM rigorous TEA/LCA",
     ),
     # ── 3-scheme separation (regression test for v6 optimization) ──
     TestQuery(
@@ -180,7 +193,10 @@ MULTI_AGENT_QUERIES: list[TestQuery] = [
             "Find the optimal separation sequence for a mixed polymer waste stream "
             "containing PS, PVC, LDPE, HDPE, PP, EVOH, Nylon6, Nylon66, and PET. "
             "Use selective dissolution at atmospheric pressure. "
-            "Propose THREE different sets of solvents and conditions."
+            "Propose THREE different sets of solvents: (1) optimized for maximum "
+            "selectivity, (2) optimized for green/safe solvents with high GSK "
+            "G-scores, and (3) optimized for the cheapest solvents to minimize "
+            "operating cost."
         ),
         pattern="sequential",
         expected_subagents=["separation-engineer"],
@@ -424,7 +440,7 @@ def generate_trace_visuals(
 
     # Import the stacked-card visualization module
     sys.path.insert(0, str(_ARCH_DIR))
-    from visualize_trace_cards import fetch_trace_structure, draw_trace_cards
+    from visualize_trace_cards import fetch_trace_structure, draw_trace_cards, draw_compact_trace
 
     trace_dir = output_dir / result.name
     trace_dir.mkdir(parents=True, exist_ok=True)
@@ -437,6 +453,10 @@ def generate_trace_visuals(
         title = f"DISSOLVE — {result.name}  |  {result.pattern}"
         draw_trace_cards(data, card_path, title=title)
         result.waterfall_png = card_path
+
+        # Compact version
+        compact_path = str(trace_dir / f"{result.name}_compact.png")
+        draw_compact_trace(data, compact_path, title=title)
     except Exception as e:
         print(f"  WARNING: Trace visualization failed: {e}")
 

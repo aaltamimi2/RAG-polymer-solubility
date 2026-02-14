@@ -54,12 +54,12 @@ C_GUARD_TEXT = "#1E40AF"
 AGENT_COLORS = {
     "separation-engineer":      "#F97316",   # Orange
     "safety-analyst":           "#3B82F6",   # Blue
-    "tea-lca-analyst":          "#10B981",   # Emerald
     "scholar-researcher":       "#F59E0B",   # Amber
     "patent-researcher":        "#EF4444",   # Red
     "rag-analyst":              "#14B8A6",   # Teal
     "visualization-specialist": "#8B5CF6",   # Violet
     "statistics-ml":            "#6366F1",   # Indigo
+    "biosteam-analyst":         "#2D8B72",   # Forest green
 }
 
 
@@ -193,6 +193,22 @@ def _count_pill_rows(tools, cl, cr):
             label = f"{tool['name']} ({t_dur:.1f}s)"
         else:
             label = f"{tool['name']} ({tool['duration_ms']:.0f}ms)"
+        tw = len(label) * 0.0070 + 0.014
+        if cx + tw > cl + max_w and cx > cl:
+            cx = cl
+            rows += 1
+        cx += tw + 0.006
+    return rows
+
+
+def _count_label_rows(labels, cl, cr):
+    """Pre-calculate how many rows of pills needed for plain string labels."""
+    if not labels:
+        return 1
+    cx = cl
+    max_w = cr - cl
+    rows = 1
+    for label in labels:
         tw = len(label) * 0.0070 + 0.014
         if cx + tw > cl + max_w and cx > cl:
             cx = cl
@@ -658,6 +674,238 @@ def draw_trace_cards(data: dict, output_path: str, title: str | None = None):
     print(f"Saved: {output_path}")
 
 
+# ── Compact card-based rendering ──────────────────────────────────────
+
+def draw_compact_trace(data: dict, output_path: str, title: str | None = None):
+    """Draw a compact stacked-card trace diagram (~40% shorter than full)."""
+
+    # Tighter layout constants
+    _gap = 0.004
+    _line_h = 0.007
+    _header_h = 0.009
+    _header_gap = 0.002
+    _pill_h = 0.011
+
+    cl = LEFT + ACCENT_W + PAD
+    cr = RIGHT - PAD
+
+    # Pre-compute figure height (generous, trimmed later)
+    n_subagents = len(data["subagents"])
+    fig_h = (
+        0.8
+        + 0.4         # header + subtitle (with inline routing)
+        + 0.4         # user query (2 lines max)
+        + sum(0.6 + min(len(sa["tools"]), 8) * 0.15 for sa in data["subagents"])
+        + 0.5         # synthesis (3 lines max)
+        + 0.8         # timeline
+        + 0.3         # footer
+    )
+    fig_h = max(6, min(fig_h, 40))
+
+    fig, ax = plt.subplots(1, 1, figsize=(FIG_W, fig_h))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+    ax.set_position([0, 0, 1, 1])
+    fig.patch.set_facecolor(C_BG)
+
+    y = 0.993
+
+    # ── HEADER with inline metrics + routing ──
+    total_s = data["total_ms"] / 1000
+    total_tok = data["total_tokens"]
+    n_sub = len(data["subagents"])
+    n_tools = len(data["orch_tools"]) + sum(len(sa["tools"]) for sa in data["subagents"])
+
+    header = title or "DISSOLVE Agent — Execution Trace"
+    ax.text(MID, y, header,
+            ha="center", fontsize=9, fontweight="bold", color=C_TITLE,
+            transform=ax.transAxes)
+    y -= 0.012
+
+    # Inline routing pattern in subtitle
+    pattern = "Parallel" if data["is_parallel"] else "Sequential"
+    if n_sub == 0:
+        pattern = "Orchestrator-Only"
+    elif n_sub == 1:
+        pattern = "Single Subagent"
+
+    agent_names = [sa["name"] for sa in data["subagents"]]
+    if agent_names:
+        route_str = (" || " if data["is_parallel"] else " -> ").join(agent_names)
+    else:
+        route_str = "direct"
+
+    subtitle = (
+        f"{total_s:.1f}s  |  {total_tok:,} tok  |  "
+        f"{n_tools} tools  |  {pattern}: {route_str}"
+    )
+    ax.text(MID, y, subtitle,
+            ha="center", fontsize=5.5, color=C_BODY,
+            transform=ax.transAxes)
+    y -= 0.014
+
+    # ── USER QUERY (2 lines max) ──
+    query_text = _wrap(data["user_query"], WRAP_CHARS)
+    query_lines = query_text.split("\n")[:2]
+    if len(query_text.split("\n")) > 2:
+        query_lines[-1] = query_lines[-1][:80] + "..."
+    query_text = "\n".join(query_lines)
+    n_lines = len(query_lines)
+
+    box_h = _header_h + _header_gap + n_lines * _line_h + 0.006
+    _box(ax, LEFT, y, WIDTH, box_h, C_USER)
+    cy = y - 0.004
+    ax.text(cl, cy, "Query",
+            fontsize=7, fontweight="bold", color=C_USER,
+            transform=ax.transAxes, va="top", zorder=5)
+    cy -= _header_h + _header_gap
+    ax.text(cl, cy, query_text,
+            fontsize=5, color=C_BODY, transform=ax.transAxes,
+            va="top", zorder=5, linespacing=1.3)
+    y -= box_h + _gap
+
+    # ── SUBAGENT BOXES (name-only pills, no durations) ──
+    for i, sa in enumerate(data["subagents"], 1):
+        color = AGENT_COLORS.get(sa["name"], "#6B7280")
+        n_sa_tools = len(sa["tools"])
+        dur_s = sa["duration_ms"] / 1000
+
+        # Name-only pill labels (no duration)
+        tool_labels = [tool["name"] for tool in sa["tools"]] if sa["tools"] else []
+        pill_rows = _count_label_rows(tool_labels, cl, cr) if tool_labels else 1
+
+        box_h = _header_h + _header_gap + pill_rows * _pill_h + 0.006
+        _box(ax, LEFT, y, WIDTH, box_h, color)
+        cy = y - 0.004
+
+        ax.text(cl, cy, f"{i}. {sa['name']}",
+                fontsize=7, fontweight="bold", color=color,
+                transform=ax.transAxes, va="top", zorder=5)
+        ax.text(cr, cy,
+                f"{dur_s:.1f}s  |  {n_sa_tools} tools",
+                fontsize=5, color=C_BODY, ha="right",
+                transform=ax.transAxes, va="top", zorder=5)
+        cy -= _header_h + _header_gap
+
+        if tool_labels:
+            _pills_row(ax, cl, cy, tool_labels, cr - cl,
+                       C_TOOL_TEXT, C_TOOL_BG, C_TOOL_TEXT, fs=4.5)
+        else:
+            ax.text(cl, cy, "(no domain tools)",
+                    fontsize=4.5, color="#9CA3AF", transform=ax.transAxes,
+                    va="center", zorder=5)
+
+        y -= box_h + _gap
+
+    # ── SYNTHESIS (3 lines max) ──
+    raw_answer = _sanitize(data["final_answer"][:300])
+    answer_preview = _wrap(raw_answer, WRAP_CHARS)
+    answer_lines = answer_preview.split("\n")[:3]
+    if len(answer_preview.split("\n")) > 3:
+        answer_lines[-1] = answer_lines[-1][:80] + "..."
+    answer_preview = "\n".join(answer_lines)
+    n_lines = len(answer_lines)
+
+    box_h = _header_h + _header_gap + n_lines * _line_h + 0.006
+    _box(ax, LEFT, y, WIDTH, box_h, C_SYNTH)
+    cy = y - 0.004
+    ax.text(cl, cy, "Synthesis",
+            fontsize=7, fontweight="bold", color=C_SYNTH,
+            transform=ax.transAxes, va="top", zorder=5)
+    cy -= _header_h + _header_gap
+    if answer_preview:
+        ax.text(cl, cy, answer_preview,
+                fontsize=4.5, color=C_BODY, transform=ax.transAxes,
+                va="top", zorder=5, linespacing=1.2)
+    else:
+        ax.text(cl, cy, "(answer not captured)",
+                fontsize=4.5, color="#9CA3AF", transform=ax.transAxes,
+                va="top", zorder=5)
+    y -= box_h + _gap
+
+    # ── EXECUTION TIMELINE (thinner bar) ──
+    y -= 0.003
+    ax.text(MID, y, "Timeline",
+            ha="center", fontsize=7, fontweight="bold", color=C_TITLE,
+            transform=ax.transAxes)
+    y -= 0.012
+
+    bar_left = LEFT + 0.01
+    bar_w = WIDTH - 0.02
+    bar_h = 0.012
+    total_ms = max(data["total_ms"], 1)
+
+    bg_kw = dict(boxstyle="round,pad=0,rounding_size=0.003",
+                 facecolor="#F1F5F9", edgecolor="#CBD5E1", linewidth=0.8)
+    bar_y = y - bar_h
+    ax.add_patch(FancyBboxPatch((bar_left, bar_y), bar_w, bar_h,
+                                transform=ax.transAxes, zorder=2, **bg_kw))
+
+    def _bar_seg(t_start, t_dur, color, label):
+        x0 = bar_left + (t_start / total_ms) * bar_w
+        w = max((t_dur / total_ms) * bar_w, 0.002)
+        ax.add_patch(FancyBboxPatch(
+            (x0, bar_y), w, bar_h,
+            boxstyle="round,pad=0,rounding_size=0.003",
+            facecolor=color, edgecolor="none", alpha=0.85,
+            transform=ax.transAxes, zorder=3,
+        ))
+        if w > 0.08:
+            ax.text(x0 + w / 2, bar_y + bar_h / 2, label,
+                    ha="center", va="center", fontsize=4.5, color="white",
+                    fontweight="bold", transform=ax.transAxes, zorder=4)
+
+    for tool in data["orch_tools"]:
+        _bar_seg(tool["start_ms"], tool["duration_ms"], C_USER,
+                 tool["name"].replace("rank_solvents_", ""))
+
+    for sa in data["subagents"]:
+        color = AGENT_COLORS.get(sa["name"], "#6B7280")
+        short_name = sa["name"].split("-")[0][:6]
+        _bar_seg(sa["start_ms"], sa["duration_ms"], color, short_name)
+
+    # Time labels
+    ty = bar_y - 0.008
+    nice = 5000 if total_ms <= 30000 else 10000 if total_ms <= 120000 else 30000
+    t = 0
+    while t <= total_ms + 1:
+        tx = bar_left + (t / total_ms) * bar_w
+        ax.text(tx, ty, f"{t/1000:.0f}s",
+                ha="center", fontsize=5, color=C_BODY,
+                transform=ax.transAxes)
+        t += nice
+
+    y = ty - 0.010
+
+    # ── FOOTER (1 line) ──
+    trace_short = data["trace_id"][:12] if data["trace_id"] else "?"
+    ax.text(MID, y,
+            f"DISSOLVE v8  |  Trace {trace_short}  |  "
+            f"{'Parallel' if data['is_parallel'] else 'Sequential'}",
+            ha="center", fontsize=5, color=C_BODY,
+            transform=ax.transAxes)
+
+    # Resize figure to fit content (same logic as draw_trace_cards)
+    y_bottom = y - 0.015
+    y_top = 1.005
+    content_span = y_top - y_bottom
+
+    actual_h = content_span * fig_h
+    actual_h = max(4, min(actual_h, 40))
+    fig.set_size_inches(FIG_W, actual_h)
+
+    ax_bottom = -y_bottom / content_span
+    ax_height = 1.0 / content_span
+    ax.set_position([0, ax_bottom, 1, ax_height])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+
+    fig.savefig(output_path, dpi=200, facecolor=C_BG, pad_inches=0)
+    plt.close()
+    print(f"Saved compact: {output_path}")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────
 
 def main():
@@ -669,6 +917,8 @@ def main():
                         help="LangSmith project name")
     parser.add_argument("-t", "--title", default=None,
                         help="Custom title for the figure")
+    parser.add_argument("--compact", action="store_true",
+                        help="Generate compact version (~40%% shorter)")
     args = parser.parse_args()
 
     client = Client()
@@ -690,11 +940,14 @@ def main():
     print(f"Trace: {data['total_ms']/1000:.1f}s, {data['total_tokens']:,} tokens")
     print(f"Subagents: {[sa['name'] for sa in data['subagents']]}")
 
+    default_name = "trace_compact.png" if args.compact else "trace_cards.png"
     output = args.output or os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "trace_cards.png"
-    )
-    draw_trace_cards(data, output, title=args.title)
+        os.path.dirname(os.path.abspath(__file__)), default_name)
+
+    if args.compact:
+        draw_compact_trace(data, output, title=args.title)
+    else:
+        draw_trace_cards(data, output, title=args.title)
 
 
 if __name__ == "__main__":

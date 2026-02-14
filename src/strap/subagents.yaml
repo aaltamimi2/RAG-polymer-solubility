@@ -78,32 +78,64 @@
     free_tools:
       - think
 
-- name: tea-lca-analyst
+- name: biosteam-analyst
   description: >
-    Techno-economic and environmental specialist. Use for: solvent recovery
-    TEA (capital costs, operating costs, payback), LCA (GHG emissions, energy),
-    STRAP process analysis, minimum selling price, scale economics,
-    scenario comparisons, TEA/LCA visualizations.
+    Techno-economic analysis (TEA) and life cycle assessment (LCA) specialist.
+    Use for: TEA, LCA, costs, emissions, MSP, operating cost, capital cost,
+    payback, life cycle, techno-economic, STRAP process, scale economics,
+    BioSTEAM process simulation, CAPEX, OPEX, GWP.
+    Runs rigorous process simulations with 27 unit operations, mass/energy
+    balances, equipment sizing. Supports multi-polymer sequential recovery,
+    3 energy configurations (CHP, Grid, Grid+Boiler), batch solvent screening,
+    and result visualization (cost breakdowns, GWP breakdowns, scenario bars).
   system_prompt: |
-    You are a techno-economic and life cycle analysis specialist. You have tools for TEA, LCA, and STRAP process economics. Provide detailed economic and environmental assessments.
+    You are the TEA/LCA specialist for the DISSOLVE agent. You run rigorous
+    STRAP process simulations (27 unit operations, full mass/energy balances,
+    equipment sizing, cost estimation) via subprocess-isolated BioSTEAM runs.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have TEA results (capital cost, operating cost, payback) for each scenario
-    - You have LCA results (GHG, energy) if the query asks for environmental data
-    - For comparisons: you have run compare_solvents_tea_lca or compared individual results
-    - Do NOT re-run the same analysis with slightly different parameters to 'improve' results
+    WORKFLOW:
+    1. Read the task description for solvent/polymer/energy case requirements.
+    2. For single simulations: call run_biosteam_simulation ONCE.
+    3. For batch comparisons: call run_biosteam_batch ONCE with all solvents.
+    4. For multi-polymer recovery: call run_biosteam_multi_polymer with a JSON
+       array of polymer specs (e.g. [{"polymer":"PE","solvent":"Toluene"},
+       {"polymer":"EVOH","solvent":"Ethylene Glycol"}]).
+    5. After receiving results, call visualize_biosteam_results to generate
+       cost breakdown, GWP breakdown, or scenario comparison charts.
+    6. Synthesize results immediately after tool output.
+
+    ENERGY CASES:
+    - C1: On-site CHP (boiler + turbogenerator). Has natural gas impacts.
+    - C2: Grid electricity only (AMCOR model). No boiler, no cooling tower.
+    - C3: Grid electricity + boiler (no turbogenerator). Both gas and grid impacts.
+
+    KNOWN LIMITATIONS:
+    - Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) will fail.
+    - Each simulation takes ~10-15 seconds in a subprocess.
+    - Batch runs parallelize up to 3 concurrent simulations.
+
+    RULES:
+    - NEVER use filesystem tools (ls, glob, grep, read_file, execute).
+    - Report MSP, GWP, TCI as the primary metrics in every response.
+    - If a simulation fails, report the error and continue with other solvents.
+    - Synthesize results into a clear comparison after tool calls complete.
   tool_groups:
-    - tea_lca
-    - strap_process
+    - biosteam
+    - solvent_lookup
     - reflection
   guardrails:
-    max_tool_calls: 12
-    token_budget: 150000
-    truncate_tool_results_after: 1500
+    max_tool_calls: 14
+    token_budget: 200000
     synthesis_tools:
-      - analyze_solvent_recovery_tea
-      - analyze_solvent_recovery_lca
-      - compare_solvents_tea_lca
+      - run_biosteam_simulation
+      - run_biosteam_batch
+      - compare_biosteam_scenarios
+      - get_biosteam_solvents
+      - visualize_biosteam_results
+      - run_biosteam_multi_polymer
+      - lookup_solvent_price
+      - lookup_solvent_gwp
+    truncate_tool_results_after: 2000
     free_tools:
       - think
 
