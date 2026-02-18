@@ -97,38 +97,7 @@ def _load_coefficients() -> tuple[dict, dict[tuple[str, str], dict]]:
 # Fuzzy name matching — aliases & resolution
 # ==================================================================
 
-SOLVENT_ALIASES: dict[str, str] = {
-    "water": "h2o",
-    "acetone": "propanone",
-    "dmf": "dimethylformamide",
-    "n,n-dimethylformamide": "dimethylformamide",
-    "dmso": "dimethylsulfoxide",
-    "dimethyl sulfoxide": "dimethylsulfoxide",
-    "dichloromethane": "ch2cl2",
-    "dcm": "ch2cl2",
-    "chloroform": "chcl3",
-    "methyl ethyl ketone": "butanone",
-    "mek": "butanone",
-    "ethyl acetate": "ethylacetate",
-    "methyl acetate": "methylacetate",
-    "tetrahydrofuran": "thf",
-    "tetrahydropyran": "thp",
-    "ethylene glycol": "glycol",
-    "propylene glycol": "propyleneglycol",
-    "1,2-propanediol": "propyleneglycol",
-    "diphenyl ether": "diphenylether",
-    "o-xylene": "1,2-dimethylbenzene",
-    "p-xylene": "1,4-dimethylbenzene",
-    "heptane": "n-heptane",
-    "n-hexane": "hexane",
-    "1-propanol": "propanol",
-    "2-propanol": "2-propanol",
-    "isopropanol": "2-propanol",
-    "ipa": "2-propanol",
-    "tert-butyl alcohol": "tert-butanol",
-    "2,4-pentanedione": "acetylacetone",
-    "2,3-dihydropyran": "2,3-dihydropyran",
-}
+from strap.solvent_registry import resolve_to_interp_key, resolve_to_bp_db_key
 
 POLYMER_ALIASES: dict[str, str] = {
     "POLYETHYLENE": "HDPE",
@@ -166,7 +135,7 @@ def resolve_solvent(name: str, known_solvents: set[str]) -> Optional[str]:
     norm = name.strip().lower()
     if norm in known_solvents:
         return norm
-    alias = SOLVENT_ALIASES.get(norm)
+    alias = resolve_to_interp_key(norm)
     if alias and alias in known_solvents:
         return alias
     for ks in known_solvents:
@@ -605,33 +574,6 @@ def _interp_all_solvents_selectivity(
 # Boiling-point lookup (cached)
 # ==================================================================
 
-# Map coefficient-file solvent names → Solvent_Data table names
-_SOLVENT_ALIASES: dict[str, str] = {
-    "1,2-dimethylbenzene": "o-xylene",
-    "1,4-dimethylbenzene": "xylene",
-    "ch2cl2": "methylene dichloride (dichloromethane)",
-    "chcl3": "chloroform",
-    "dimethylformamide": "dimethyl formamide (dmf)",
-    "dimethylsulfoxide": "dimethyl sulfoxide (dmso)",
-    "diphenylether": "diphenyl ether",
-    "ethylacetate": "ethyl acetate",
-    "glycol": "ethylene glycol",
-    "methylacetate": "methyl acetate",
-    "propanone": "acetone",
-    "propyleneglycol": "propylene glycol",
-    "thf": "tetrahydrofuran (thf)",
-    "thp": "tetrahydropyran",
-    "tert-butanol": "tert-butyl alcohol",
-    "n-heptane": "heptane",
-    "butanone": "methyl ethyl ketone",
-    "2-propanol": "isopropanol",
-    "propanol": "1-propanol",
-    "acetylacetone": "2,4-pentanedione",
-    "h2o": "water",
-    "dmso": "dimethyl sulfoxide (dmso)",
-    "dcm": "methylene dichloride (dichloromethane)",
-}
-
 _BP_CACHE: Optional[dict[str, float]] = None
 
 
@@ -647,7 +589,7 @@ def get_boiling_point(solvent: str) -> Optional[float]:
     key = solvent.lower()
     bp = _BP_CACHE.get(key)
     if bp is None:
-        alias = _SOLVENT_ALIASES.get(key)
+        alias = resolve_to_bp_db_key(key)
         if alias:
             bp = _BP_CACHE.get(alias)
     return bp
@@ -672,7 +614,7 @@ def get_logp(solvent: str) -> Optional[float]:
     key = solvent.lower()
     lp = _LOGP_CACHE.get(key)
     if lp is None:
-        alias = _SOLVENT_ALIASES.get(key)
+        alias = resolve_to_bp_db_key(key)
         if alias:
             lp = _LOGP_CACHE.get(alias)
     return lp

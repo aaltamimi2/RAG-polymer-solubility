@@ -2000,37 +2000,7 @@ def _get_cosmobase_column(table_name: str) -> Optional[str]:
     return None
 
 
-# Common solvent abbreviation mapping used by lookup_solvent_properties
-_ABBREVIATION_MAP = {
-    "dmf": "dimethylformamide",
-    "thf": "tetrahydrofuran",
-    "dme": "dimethoxyethane",
-    "meoh": "methanol",
-    "etoh": "ethanol",
-    "ipa": "isopropanol",
-    "nmp": "n-methyl-2-pyrrolidone",
-    "dmso": "dimethyl sulfoxide",
-    "dcm": "dichloromethane",
-    "dce": "dichloroethane",
-    "mecn": "acetonitrile",
-    "etac": "ethyl acetate",
-    "acac": "acetylacetone",
-    "tfa": "trifluoroacetic acid",
-    "tfe": "trifluoroethanol",
-    "hfip": "hexafluoroisopropanol",
-    "chcl3": "chloroform",
-    "ccl4": "carbon tetrachloride",
-    "phme": "toluene",
-    "phh": "benzene",
-    "mtbe": "methyl tert-butyl ether",
-    "tbme": "tert-butyl methyl ether",
-    "dipa": "diisopropylamine",
-    "tea": "triethylamine",
-    "dbu": "1,8-diazabicyclo[5.4.0]undec-7-ene",
-    "pyr": "pyridine",
-    "acn": "acetonitrile",
-    "mibk": "methyl isobutyl ketone",
-}
+from strap.solvent_registry import ABBREVIATION_MAP as _ABBREVIATION_MAP
 
 
 async def _lookup_solvent_properties(solvent_names: list, solvent_table: str) -> dict:

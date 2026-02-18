@@ -377,36 +377,7 @@ async def _lookup_solvent_properties(
     """Look up solvent properties with robust fuzzy matching (async)."""
     conn = get_connection()
 
-    ABBREVIATION_MAP = {
-        "dmf": "dimethylformamide",
-        "thf": "tetrahydrofuran",
-        "dme": "dimethoxyethane",
-        "meoh": "methanol",
-        "etoh": "ethanol",
-        "ipa": "isopropanol",
-        "nmp": "n-methyl-2-pyrrolidone",
-        "dmso": "dimethyl sulfoxide",
-        "dcm": "dichloromethane",
-        "dce": "dichloroethane",
-        "mecn": "acetonitrile",
-        "etac": "ethyl acetate",
-        "acac": "acetylacetone",
-        "tfa": "trifluoroacetic acid",
-        "tfe": "trifluoroethanol",
-        "hfip": "hexafluoroisopropanol",
-        "chcl3": "chloroform",
-        "ccl4": "carbon tetrachloride",
-        "phme": "toluene",
-        "phh": "benzene",
-        "mtbe": "methyl tert-butyl ether",
-        "tbme": "tert-butyl methyl ether",
-        "dipa": "diisopropylamine",
-        "tea": "triethylamine",
-        "dbu": "1,8-diazabicyclo[5.4.0]undec-7-ene",
-        "pyr": "pyridine",
-        "acn": "acetonitrile",
-        "mibk": "methyl isobutyl ketone",
-    }
+    from strap.solvent_registry import ABBREVIATION_MAP
 
     try:
         cols_df = conn.execute(f"DESCRIBE {solvent_table}").fetchdf()

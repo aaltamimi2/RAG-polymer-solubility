@@ -208,37 +208,7 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
     if not solvent_table or not _table_exists(solvent_table):
         return {}
 
-    # Common solvent abbreviations mapping
-    ABBREVIATION_MAP = {
-        "dmf": "dimethylformamide",
-        "thf": "tetrahydrofuran",
-        "dme": "dimethoxyethane",
-        "meoh": "methanol",
-        "etoh": "ethanol",
-        "ipa": "isopropanol",
-        "nmp": "n-methyl-2-pyrrolidone",
-        "dmso": "dimethyl sulfoxide",
-        "dcm": "dichloromethane",
-        "dce": "dichloroethane",
-        "mecn": "acetonitrile",
-        "etac": "ethyl acetate",
-        "acac": "acetylacetone",
-        "tfa": "trifluoroacetic acid",
-        "tfe": "trifluoroethanol",
-        "hfip": "hexafluoroisopropanol",
-        "chcl3": "chloroform",
-        "ccl4": "carbon tetrachloride",
-        "phme": "toluene",
-        "phh": "benzene",
-        "mtbe": "methyl tert-butyl ether",
-        "tbme": "tert-butyl methyl ether",
-        "dipa": "diisopropylamine",
-        "tea": "triethylamine",
-        "dbu": "1,8-diazabicyclo[5.4.0]undec-7-ene",
-        "pyr": "pyridine",
-        "acn": "acetonitrile",
-        "mibk": "methyl isobutyl ketone",
-    }
+    from strap.solvent_registry import ABBREVIATION_MAP
 
     conn = get_connection()
     schema = _get_table_schema(solvent_table)
@@ -380,28 +350,13 @@ def get_solvent_properties(solvent_names: str) -> str:
     if not solvents:
         return "No solvent names provided."
 
-    # Common name aliases (user-friendly name -> database search terms)
-    SOLVENT_ALIASES = {
-        "decalin": ["decahydronaphthalene", "cis-decahydronaphthalene", "trans-decahydronaphthalene"],
-        "d-limonene": ["limonene", "dipentene"],
-        "limonene": ["limonene", "dipentene"],
-        "dmf": ["dimethyl formamide", "dimethylformamide"],
-        "thf": ["tetrahydrofuran"],
-        "dcm": ["dichloromethane", "methylene chloride"],
-        "nmp": ["n-methyl-2-pyrrolidone", "methylpyrrolidone"],
-        "dmso": ["dimethyl sulfoxide"],
-        "meg": ["ethylene glycol", "monoethylene glycol"],
-        "mtbe": ["methyl tert-butyl ether"],
-        "ipa": ["isopropanol", "isopropyl alcohol", "2-propanol"],
-    }
+    from strap.solvent_registry import get_search_terms
 
     # Build query with fuzzy matching + aliases
     conditions = []
     for solvent in solvents:
         solvent_lower = solvent.lower().strip()
-        search_terms = SOLVENT_ALIASES.get(solvent_lower, [solvent_lower])
-        if solvent_lower not in search_terms:
-            search_terms.append(solvent_lower)
+        search_terms = get_search_terms(solvent_lower)
         for term in search_terms:
             conditions.append(f"LOWER({name_col}) LIKE '%{term}%'")
 

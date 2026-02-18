@@ -84,22 +84,7 @@ _LDPE_SOLVENTS = list(_PE_SOLVENTS)
 
 _ALL_ENERGY_CASES = ["C1", "C2", "C3"]
 
-# Short-name aliases for solvents (handles comma-in-name and common abbreviations)
-_SOLVENT_ALIASES: dict[str, str] = {
-    "dmf": "N,N-Dimethylformamide",
-    "n,n-dimethylformamide": "N,N-Dimethylformamide",
-    "dimethylformamide": "N,N-Dimethylformamide",
-    "dmso": "Dimethyl sulfoxide",
-    "dimethylsulfoxide": "Dimethyl sulfoxide",
-    "dimethyl sulfoxide": "Dimethyl sulfoxide",
-    "mek": "2-Butanone",
-    "methyl ethyl ketone": "2-Butanone",
-    "thf": "Tetrahydrofuran",
-    "thp": "Tetrahydropyran",
-    "ipa": "Isopropanol",
-    "dcm": "Dichloromethane",
-    "methylene chloride": "Dichloromethane",
-}
+from strap.solvent_registry import resolve_to_biosteam as _resolve_biosteam
 
 
 def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
@@ -126,14 +111,15 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
         return list(_PE_SOLVENTS)
 
     # Check if full string is a known alias (handles comma-containing names)
-    if s in _SOLVENT_ALIASES:
-        return [_SOLVENT_ALIASES[s]]
+    bio = _resolve_biosteam(s)
+    if bio:
+        return [bio]
 
     # Split by comma and resolve each token against aliases
     parsed = [sv.strip() for sv in solvents_str.split(",") if sv.strip()]
     resolved = []
     for sv in parsed:
-        alias = _SOLVENT_ALIASES.get(sv.strip().lower())
+        alias = _resolve_biosteam(sv.strip())
         resolved.append(alias if alias else sv)
     return resolved
 

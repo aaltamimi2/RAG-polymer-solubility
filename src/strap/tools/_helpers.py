@@ -158,52 +158,12 @@ def save_plot(fig, plot_name: str, plot_type: str = "matplotlib") -> str:
 # Solvent name mapping (cross-database normalization)
 # ------------------------------------------------------------------
 
-SOLVENT_NAME_MAP = {
-    '1,2-dimethylbenzene': ('o-Xylene', 'o-Xylene'),
-    '1,4-dimethylbenzene': ('p-Xylene', 'p-Xylene'),
-    '2,3-dihydropyran': (None, None),
-    '2-propanol': ('2-Propanol', '2-Propanol'),
-    'acetylacetone': ('2,4-Pentanedione', None),
-    'benzene': ('Benzene', 'Benzene'),
-    'butanone': ('Methyl ethyl ketone', '2-Butanone'),
-    'ch2cl2': ('Dichloromethane', 'Dichloromethane'),
-    'chcl3': ('Chloroform', 'Chloroform'),
-    'cyclohexane': ('Cyclohexane', 'Cyclohexane'),
-    'cyclohexanol': ('Cyclohexanol', 'Cyclohexanol'),
-    'dimethylformamide': ('N,N-Dimethylformamide', 'DMF'),
-    'dimethylsulfoxide': ('Dimethyl sulfoxide', 'Dimethyl sulfoxide'),
-    'diphenylether': ('Diphenyl ether', None),
-    'dodecane': ('Dodecane', 'Dodecane'),
-    'ethanol': ('Ethanol', 'Ethanol'),
-    'ethylacetate': ('Ethyl acetate', 'Ethyl acetate'),
-    'glycol': ('Ethylene glycol', 'Ethylene glycol'),
-    'h2o': ('Water', 'Water'),
-    'hexane': ('Hexane', 'n-Hexane'),
-    'isopropylamine': ('Isopropylamine', None),
-    'methanol': ('Methanol', 'Methanol'),
-    'methylacetate': ('Methyl acetate', 'Methyl acetate'),
-    'n-heptane': ('Heptane', 'n-Heptane'),
-    'propanol': ('1-Propanol', '1-Propanol'),
-    'propanone': ('Acetone', 'Acetone'),
-    'propyleneglycol': ('Propylene glycol', '1,2-Propanediol'),
-    'tert-butanol': ('tert-Butanol', 'tert-Butanol'),
-    'thf': ('Tetrahydrofuran (THF)', 'THF'),
-    'thp': ('Tetrahydropyran', None),
-    'toluene': ('Toluene', 'Toluene'),
-    'triethylamine': ('Triethylamine', 'Triethylamine'),
-}
+from strap.solvent_registry import resolve_for_databases
 
 
 def normalize_solvent_name(solvent_name: str, target_database: str = "property") -> Optional[str]:
     """Normalize a solvent name from solubility DB to property or GSK DB."""
-    name_lower = solvent_name.strip().lower()
-    if name_lower in SOLVENT_NAME_MAP:
-        prop_name, gsk_name = SOLVENT_NAME_MAP[name_lower]
-        if target_database == "property":
-            return prop_name
-        elif target_database == "gsk":
-            return gsk_name
-    return solvent_name
+    return resolve_for_databases(solvent_name, target_database)
 
 
 def get_cross_database_properties(solvent_name: str, conn) -> Dict[str, Any]:
