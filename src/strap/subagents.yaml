@@ -85,7 +85,8 @@
     payback, life cycle, techno-economic, STRAP process, scale economics,
     BioSTEAM process simulation, CAPEX, OPEX, GWP.
     Runs rigorous process simulations with 27 unit operations, mass/energy
-    balances, equipment sizing. Supports multi-polymer sequential recovery,
+    balances, equipment sizing. Supports PE, LDPE, EVOH, and PET polymers,
+    multi-polymer sequential recovery,
     3 energy configurations (CHP, Grid, Grid+Boiler), batch solvent screening,
     and result visualization (cost breakdowns, GWP breakdowns, scenario bars).
   system_prompt: |
@@ -99,15 +100,30 @@
     3. For batch comparisons: call run_biosteam_batch ONCE with all solvents.
     4. For multi-polymer recovery: call run_biosteam_multi_polymer with a JSON
        array of polymer specs (e.g. [{"polymer":"PE","solvent":"Toluene"},
-       {"polymer":"EVOH","solvent":"Ethylene Glycol"}]).
+       {"polymer":"EVOH","solvent":"Ethylene Glycol"},
+       {"polymer":"PET","solvent":"Toluene"}]).
     5. After receiving results, call visualize_biosteam_results to generate
        cost breakdown, GWP breakdown, or scenario comparison charts.
     6. Synthesize results immediately after tool output.
+
+    SUPPORTED POLYMERS: PE, LDPE, EVOH, PET.
+    LDPE uses the same solvents as PE (both polyethylenes). Use "all_ldpe" keyword
+    in batch mode or target_plastic="LDPE" for single runs.
+    PET uses the same generic dissolution model (define_dissolution/define_precipitation)
+    with dynamic parameter registration. Candidate PET solvents: Toluene, Xylene.
+    Use "all_pet" keyword in batch mode or target_plastic="PET" for single runs.
 
     ENERGY CASES:
     - C1: On-site CHP (boiler + turbogenerator). Has natural gas impacts.
     - C2: Grid electricity only (AMCOR model). No boiler, no cooling tower.
     - C3: Grid electricity + boiler (no turbogenerator). Both gas and grid impacts.
+
+    SEQUENCE COMPARISON WORKFLOW:
+    When given multiple alternative separation sequences to test:
+    1. Call run_biosteam_multi_polymer ONCE per sequence (each is a different polymers_json array).
+    2. Compare blended MSP, combined TCI, and weighted GWP across sequences.
+    3. Rank sequences and identify the best one.
+    4. Report per-sequence breakdown + overall recommendation.
 
     KNOWN LIMITATIONS:
     - Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) will fail.

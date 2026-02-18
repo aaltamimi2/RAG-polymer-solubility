@@ -31,6 +31,16 @@ _ENERGY_CASES = {
     "C3": {"facilities": True, "turbogenerator": False},   # Grid + Boiler
 }
 
+# Map polymer names to BaselineSTRAPProcess target_plastic values.
+# BioSTEAM only registers PEoligomer and EVOHoligomer in its chemical DB.
+# LDPE/HDPE use the same PE process model; PET uses the PE model with
+# different solvents (the dissolution/precipitation equipment is identical).
+_TARGET_PLASTIC_MAP = {
+    "LDPE": "PE",
+    "HDPE": "PE",
+    "PET": "PE",
+}
+
 
 def _safe_call(fn, default=None):
     """Call *fn*(); return *default* on any exception."""
@@ -50,7 +60,8 @@ def _run(config: dict) -> dict:
     t0 = time.time()
 
     solvent = config["solvent"]
-    target_plastic = config["target_plastic"]
+    target_plastic_orig = config["target_plastic"]
+    target_plastic = _TARGET_PLASTIC_MAP.get(target_plastic_orig.upper(), target_plastic_orig)
     energy_case = config.get("energy_case", "C1").upper()
 
     if energy_case not in _ENERGY_CASES:
@@ -321,7 +332,7 @@ def _run(config: dict) -> dict:
     result = {
         "success": True,
         "solvent": solvent,
-        "target_plastic": target_plastic,
+        "target_plastic": target_plastic_orig,
         "energy_case": energy_case,
         "tea": {
             "msp_usd_per_kg": msp,

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="399.6pt" height="110.304pt" viewBox="0 0 399.6 110.304" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-02-15T00:19:03.295522</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 110.304 
+L 399.6 110.304 
+L 399.6 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 83.376 30.359153 
+L 316.224 30.359153 
+Q 318.55248 30.359153 318.55248 28.034824 
+L 318.55248 8.665412 
+Q 318.55248 6.341082 316.224 6.341082 
+L 83.376 6.341082 
+Q 81.04752 6.341082 81.04752 8.665412 
+L 81.04752 28.034824 
+Q 81.04752 30.359153 83.376 30.359153 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #2d8b72; stroke: #2d8b72; stroke-width: 0.96; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 15.462 89.242165 
+L 134.4732 89.242165 
+Q 135.63744 89.242165 135.63744 88.08 
+L 135.63744 37.719529 
+Q 135.63744 36.557365 134.4732 36.557365 
+L 15.462 36.557365 
+Q 14.29776 36.557365 14.29776 37.719529 
+L 14.29776 88.08 
+Q 14.29776 89.242165 15.462 89.242165 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #ffffff; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 16.4322 52.052894 
+L 133.503 52.052894 
+Q 134.27916 52.052894 134.27916 51.278118 
+L 134.27916 37.719529 
+Q 134.27916 36.944753 133.503 36.944753 
+L 16.4322 36.944753 
+Q 15.65604 36.944753 15.65604 37.719529 
+L 15.65604 51.278118 
+Q 15.65604 52.052894 16.4322 52.052894 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #2d8b72; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 140.2944 89.242165 
+L 259.3056 89.242165 
+Q 260.46984 89.242165 260.46984 88.08 
+L 260.46984 37.719529 
+Q 260.46984 36.557365 259.3056 36.557365 
+L 140.2944 36.557365 
+Q 139.13016 36.557365 139.13016 37.719529 
+L 139.13016 88.08 
+Q 139.13016 89.242165 140.2944 89.242165 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #ffffff; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 141.2646 52.052894 
+L 258.3354 52.052894 
+Q 259.11156 52.052894 259.11156 51.278118 
+L 259.11156 37.719529 
+Q 259.11156 36.944753 258.3354 36.944753 
+L 141.2646 36.944753 
+Q 140.48844 36.944753 140.48844 37.719529 
+L 140.48844 51.278118 
+Q 140.48844 52.052894 141.2646 52.052894 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #2d8b72; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 265.1268 89.242165 
+L 384.138 89.242165 
+Q 385.30224 89.242165 385.30224 88.08 
+L 385.30224 37.719529 
+Q 385.30224 36.557365 384.138 36.557365 
+L 265.1268 36.557365 
+Q 263.96256 36.557365 263.96256 37.719529 
+L 263.96256 88.08 
+Q 263.96256 89.242165 265.1268 89.242165 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #ffffff; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 266.097 52.052894 
+L 383.1678 52.052894 
+Q 383.94396 52.052894 383.94396 51.278118 
+L 383.94396 37.719529 
+Q 383.94396 36.944753 383.1678 36.944753 
+L 266.097 36.944753 
+Q 265.32084 36.944753 265.32084 37.719529 
+L 265.32084 51.278118 
+Q 265.32084 52.052894 266.097 52.052894 
+z
+" clip-path="url(#pa5088a841a)" style="fill: #2d8b72; stroke: #2d8b72; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="199.8" y="18.481926" transform="rotate(-0 199.8 18.481926)">BioSTEAM TEA/LCA Analyst</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="199.8" y="25.243721" transform="rotate(-0 199.8 25.243721)">8 tools  |  3 groups  |  43 solvents</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="74.9676" y="46.567574" transform="rotate(-0 74.9676 46.567574)">TEA/LCA Simulation</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="20.313" y="62.15995" transform="rotate(-0 20.313 62.15995)">run biosteam simulation</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="20.313" y="72.813126" transform="rotate(-0 20.313 72.813126)">run biosteam multi polymer</text>
+   </g>
+   <g id="text_6">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="20.313" y="81.335668" transform="rotate(-0 20.313 81.335668)">+ 1 more</text>
+   </g>
+   <g id="patch_9">
+    <path d="M 89.404536 29.031289 
+Q 83.051368 32.684191 77.231283 36.030584 
+" style="fill: none; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+    <path d="M 79.017112 35.926591 
+L 77.231283 36.030584 
+L 78.219586 34.539525 
+z
+" style="fill: #2d8b72; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="199.8" y="46.567574" transform="rotate(-0 199.8 46.567574)">Scenario Analysis</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="145.1454" y="62.15995" transform="rotate(-0 145.1454 62.15995)">compare biosteam scenarios</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="145.1454" y="72.813126" transform="rotate(-0 145.1454 72.813126)">visualize biosteam results</text>
+   </g>
+   <g id="text_10">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="145.1454" y="81.335668" transform="rotate(-0 145.1454 81.335668)">+ 1 more</text>
+   </g>
+   <g id="patch_10">
+    <path d="M 199.8 30.036834 
+Q 199.8 32.685301 199.8 34.71885 
+" style="fill: none; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+    <path d="M 200.6 33.11885 
+L 199.8 34.71885 
+L 199 33.11885 
+z
+" style="fill: #2d8b72; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="324.6324" y="46.567574" transform="rotate(-0 324.6324 46.567574)">Solvent Data</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="269.9778" y="62.15995" transform="rotate(-0 269.9778 62.15995)">lookup solvent price</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="269.9778" y="72.813126" transform="rotate(-0 269.9778 72.813126)">lookup solvent gwp</text>
+   </g>
+   <g id="patch_11">
+    <path d="M 310.195464 29.031289 
+Q 316.548632 32.684191 322.368717 36.030584 
+" style="fill: none; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+    <path d="M 321.380414 34.539525 
+L 322.368717 36.030584 
+L 320.582888 35.926591 
+z
+" style="fill: #2d8b72; opacity: 0.45; stroke: #2d8b72; stroke-width: 0.55; stroke-linecap: round"/>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pa5088a841a">
+   <rect x="5.76" y="5.76" width="388.08" height="98.784"/>
+  </clipPath>
+ </defs>
+</svg>

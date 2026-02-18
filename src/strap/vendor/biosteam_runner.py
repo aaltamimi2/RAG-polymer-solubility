@@ -24,7 +24,8 @@ _WORKER_SCRIPT = Path(__file__).parent / "biosteam_worker.py"
 # Solvent / energy-case metadata (static, no BioSTEAM import needed)
 # ---------------------------------------------------------------------------
 
-_PE_SOLVENTS = [
+# --- Core validated PE solvents (Branch-TEA) ---
+_PE_SOLVENTS_CORE = [
     "sec-Butyl Acetate",
     "Isobutyl Acetate",
     "Tetrachloroethylene",
@@ -35,6 +36,34 @@ _PE_SOLVENTS = [
     "Toluene",
     "Xylene",
 ]
+# --- Extended PE/LDPE solvents from COMMON-SOLVENTS-DATABASE (thermosteam-validated) ---
+_PE_SOLVENTS_EXTENDED = [
+    "o-Xylene",
+    "p-Xylene",
+    "Cyclohexane",
+    "Dodecane",
+    "Hexane",
+    "Benzene",
+    "Acetone",
+    "2-Butanone",
+    "Ethyl acetate",
+    "Tetrahydrofuran",
+    "1-Propanol",
+    "Ethanol",
+    "Methanol",
+    "Isopropanol",
+    "tert-Butanol",
+    "Cyclohexanol",
+    "N,N-Dimethylformamide",
+    "Diphenyl ether",
+    "Acetylacetone",
+    "2,3-Dihydropyran",
+    "Tetrahydropyran",
+    "Triethylamine",
+    "Methyl acetate",
+]
+_PE_SOLVENTS = _PE_SOLVENTS_CORE + _PE_SOLVENTS_EXTENDED
+
 _EVOH_SOLVENTS_E1 = ["Ethylene Glycol", "Pyridazine"]
 _EVOH_SOLVENTS_E2 = [
     "butane-1,4-diol",
@@ -44,8 +73,29 @@ _EVOH_SOLVENTS_E2 = [
     "Propylene Glycol",
     "Pyridazine",
     "gamma-butyrolactone",
+    # Extended EVOH solvents (>50% EVOH solubility from COMMON-SOLVENTS-DATABASE)
+    "Dimethyl sulfoxide",
+    "N,N-Dimethylformamide",
+    "Triethylamine",
+    "Methanol",
+    "Ethanol",
+    "Isopropanol",
 ]
-_CHLORINATED_BLOCKLIST = ["Tetrachloroethylene", "o-Chlorotoluene"]
+_PET_SOLVENTS = [
+    "Toluene",
+    "Xylene",
+    # Extended PET solvents (>30% PET solubility from COMMON-SOLVENTS-DATABASE)
+    "Acetone",
+    "N,N-Dimethylformamide",
+    "Tetrahydrofuran",
+    "2-Butanone",
+    "Benzene",
+]
+_LDPE_SOLVENTS = list(_PE_SOLVENTS)  # LDPE dissolves in the same solvents as PE
+_CHLORINATED_BLOCKLIST = [
+    "Tetrachloroethylene", "o-Chlorotoluene",
+    "Dichloromethane", "Chloroform",
+]
 
 # solvent: (price_usd_kg, dissolution_temp_c, gwp_if)
 _SOLVENT_DEFAULTS: dict[str, tuple[float, float, float]] = {
@@ -65,6 +115,47 @@ _SOLVENT_DEFAULTS: dict[str, tuple[float, float, float]] = {
     "Diethylene glycol": (0.59, 120, 3.15),
     "Propylene Glycol": (1.53, 120, 5.16),
     "gamma-butyrolactone": (2.58, 120, 6.54),
+    # ── Extended solvents from COMMON-SOLVENTS-DATABASE ──────────────────
+    # Prices: from solvent_lookup.py where available, else web research estimates.
+    # GWP: from solvent_lookup.py where available, else class-average estimates.
+    # Dissolution temps: min(BP_C - 2, 120). Low-BP solvents need pressure vessels.
+    # Confidence: "estimated" unless sourced from Branch-TEA or ecoinvent.
+    # --- Alkanes ---
+    "Cyclohexane":             (0.90,  78,  1.2),
+    "Dodecane":                (1.80, 120,  1.2),
+    "Hexane":                  (0.85,  66,  0.9),
+    # --- Aromatics ---
+    "Benzene":                 (0.75,  78,  1.2),
+    "o-Xylene":                (0.85, 120,  1.52),
+    "p-Xylene":                (0.90, 120,  1.52),
+    "Diphenyl ether":          (3.00, 120,  4.5),
+    # --- Alcohols ---
+    "Methanol":                (0.40,  62,  1.5),
+    "Ethanol":                 (0.70,  76,  1.8),
+    "Isopropanol":             (0.80,  80,  2.0),
+    "1-Propanol":              (1.20,  95,  2.0),
+    "tert-Butanol":            (1.40,  80,  2.2),
+    "Cyclohexanol":            (1.30, 120,  2.5),
+    # --- Ketones ---
+    "Acetone":                 (1.05,  54,  2.55),
+    "2-Butanone":              (1.39,  77,  3.2),
+    "Acetylacetone":           (3.50, 120,  3.5),
+    # --- Esters ---
+    "Ethyl acetate":           (1.13,  75,  2.4),
+    "Methyl acetate":          (0.90,  54,  2.2),
+    # --- Ethers ---
+    "Tetrahydrofuran":         (2.10,  64,  5.5),
+    "Tetrahydropyran":         (8.00,  86,  4.0),
+    "2,3-Dihydropyran":       (15.00,  83,  4.0),
+    # --- Amides / Sulfoxides ---
+    "N,N-Dimethylformamide":   (1.20, 120,  3.8),
+    "Dimethyl sulfoxide":      (1.50, 120,  2.8),
+    # --- Amines ---
+    "Triethylamine":           (1.80,  86,  4.0),
+    "Isopropylamine":          (2.00,  29,  4.0),  # BP 32°C — needs pressure vessel
+    # --- Chlorinated (in blocklist — available for explicit use) ---
+    "Dichloromethane":         (0.55,  37,  2.8),
+    "Chloroform":              (0.45,  59,  3.0),
 }
 
 # Per-solvent LCA impact factors from Branch-TEA.ipynb reference notebook.
@@ -89,6 +180,46 @@ _SOLVENT_LCA_IFS: dict[str, dict[str, float]] = {
     "Diethylene glycol": {"solvent_gwp": 3.15, "solvent_htc": 7.27e-07, "solvent_htnc": 8.93e-07, "solvent_etox": 47.5},
     "Propylene Glycol":  {"solvent_gwp": 5.16, "solvent_htc": 1.46e-06, "solvent_htnc": 1.98e-06, "solvent_etox": 101},
     "gamma-butyrolactone": {"solvent_gwp": 6.54, "solvent_htc": 1.36e-06, "solvent_htnc": 1.84e-06, "solvent_etox": 91.4},
+    # ── Extended solvents (estimated LCA IFs — class-average scaling) ────
+    # HTC/HTNC/ETOX are estimated by scaling from validated solvents in the
+    # same chemical class. These should be replaced with ecoinvent/GaBi data
+    # when available. GWP values marked (est) also need validation.
+    # --- Alkanes (scaled from Heptane) ---
+    "Cyclohexane":             {"solvent_gwp": 1.2,  "solvent_htc": 3.58e-07, "solvent_htnc": 3.20e-07, "solvent_etox": 20.7},
+    "Dodecane":                {"solvent_gwp": 1.2,  "solvent_htc": 3.58e-07, "solvent_htnc": 3.20e-07, "solvent_etox": 20.7},
+    "Hexane":                  {"solvent_gwp": 0.9,  "solvent_htc": 2.67e-07, "solvent_htnc": 2.39e-07, "solvent_etox": 15.5},
+    # --- Aromatics (scaled from Toluene/Xylene) ---
+    "Benzene":                 {"solvent_gwp": 1.2,  "solvent_htc": 2.50e-07, "solvent_htnc": 2.10e-07, "solvent_etox": 12.4},
+    "o-Xylene":                {"solvent_gwp": 1.52, "solvent_htc": 3.09e-07, "solvent_htnc": 2.59e-07, "solvent_etox": 15.4},
+    "p-Xylene":                {"solvent_gwp": 1.52, "solvent_htc": 3.09e-07, "solvent_htnc": 2.59e-07, "solvent_etox": 15.4},
+    "Diphenyl ether":          {"solvent_gwp": 4.5,  "solvent_htc": 9.40e-07, "solvent_htnc": 1.26e-06, "solvent_etox": 63.0},
+    # --- Alcohols (interpolated between alkane and glycol classes) ---
+    "Methanol":                {"solvent_gwp": 1.5,  "solvent_htc": 3.50e-07, "solvent_htnc": 3.00e-07, "solvent_etox": 18.0},
+    "Ethanol":                 {"solvent_gwp": 1.8,  "solvent_htc": 4.00e-07, "solvent_htnc": 3.50e-07, "solvent_etox": 22.0},
+    "Isopropanol":             {"solvent_gwp": 2.0,  "solvent_htc": 4.50e-07, "solvent_htnc": 4.00e-07, "solvent_etox": 25.0},
+    "1-Propanol":              {"solvent_gwp": 2.0,  "solvent_htc": 4.50e-07, "solvent_htnc": 4.00e-07, "solvent_etox": 25.0},
+    "tert-Butanol":            {"solvent_gwp": 2.2,  "solvent_htc": 5.00e-07, "solvent_htnc": 4.50e-07, "solvent_etox": 28.0},
+    "Cyclohexanol":            {"solvent_gwp": 2.5,  "solvent_htc": 5.50e-07, "solvent_htnc": 5.00e-07, "solvent_etox": 32.0},
+    # --- Ketones (intermediate between esters and aromatics) ---
+    "Acetone":                 {"solvent_gwp": 2.55, "solvent_htc": 5.50e-07, "solvent_htnc": 5.00e-07, "solvent_etox": 32.0},
+    "2-Butanone":              {"solvent_gwp": 3.2,  "solvent_htc": 7.00e-07, "solvent_htnc": 6.50e-07, "solvent_etox": 40.0},
+    "Acetylacetone":           {"solvent_gwp": 3.5,  "solvent_htc": 7.50e-07, "solvent_htnc": 7.00e-07, "solvent_etox": 44.0},
+    # --- Esters (scaled from SBA/IBA) ---
+    "Ethyl acetate":           {"solvent_gwp": 2.4,  "solvent_htc": 5.00e-07, "solvent_htnc": 6.10e-07, "solvent_etox": 30.0},
+    "Methyl acetate":          {"solvent_gwp": 2.2,  "solvent_htc": 4.60e-07, "solvent_htnc": 5.60e-07, "solvent_etox": 27.5},
+    # --- Ethers (scaled from GBL) ---
+    "Tetrahydrofuran":         {"solvent_gwp": 5.5,  "solvent_htc": 1.15e-06, "solvent_htnc": 1.55e-06, "solvent_etox": 77.0},
+    "Tetrahydropyran":         {"solvent_gwp": 4.0,  "solvent_htc": 8.30e-07, "solvent_htnc": 1.12e-06, "solvent_etox": 56.0},
+    "2,3-Dihydropyran":        {"solvent_gwp": 4.0,  "solvent_htc": 8.30e-07, "solvent_htnc": 1.12e-06, "solvent_etox": 56.0},
+    # --- Amides / Sulfoxides (scaled from Diethanolamine/EG) ---
+    "N,N-Dimethylformamide":   {"solvent_gwp": 3.8,  "solvent_htc": 8.80e-07, "solvent_htnc": 1.08e-06, "solvent_etox": 53.0},
+    "Dimethyl sulfoxide":      {"solvent_gwp": 2.8,  "solvent_htc": 6.50e-07, "solvent_htnc": 7.90e-07, "solvent_etox": 39.0},
+    # --- Amines ---
+    "Triethylamine":           {"solvent_gwp": 4.0,  "solvent_htc": 8.30e-07, "solvent_htnc": 1.12e-06, "solvent_etox": 56.0},
+    "Isopropylamine":          {"solvent_gwp": 4.0,  "solvent_htc": 8.30e-07, "solvent_htnc": 1.12e-06, "solvent_etox": 56.0},
+    # --- Chlorinated (scaled from Tetrachloroethylene) ---
+    "Dichloromethane":         {"solvent_gwp": 2.8,  "solvent_htc": 1.15e-07, "solvent_htnc": 3.56e-07, "solvent_etox": 6.4},
+    "Chloroform":              {"solvent_gwp": 3.0,  "solvent_htc": 1.23e-07, "solvent_htnc": 3.81e-07, "solvent_etox": 6.8},
 }
 
 # Natural gas CFs for C1/C3 (produced + combustion).
@@ -374,8 +505,10 @@ def get_supported_solvents() -> dict:
     """
     return {
         "pe_solvents": list(_PE_SOLVENTS),
+        "ldpe_solvents": list(_LDPE_SOLVENTS),
         "evoh_solvents_e1": list(_EVOH_SOLVENTS_E1),
         "evoh_solvents_e2": list(_EVOH_SOLVENTS_E2),
+        "pet_solvents": list(_PET_SOLVENTS),
         "energy_cases": dict(_ENERGY_CASES),
         "solvent_defaults": dict(_SOLVENT_DEFAULTS),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),

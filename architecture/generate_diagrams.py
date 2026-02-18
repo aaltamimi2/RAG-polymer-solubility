@@ -126,15 +126,19 @@ SUBAGENTS = {
     "biosteam-analyst": {
         "color": PAL["biosteam"],
         "groups": {
-            "BioSTEAM Simulation": [
+            "TEA/LCA Simulation": [
                 "run_biosteam_simulation",
                 "run_biosteam_batch",
+                "run_biosteam_multi_polymer",
+            ],
+            "Scenario Analysis": [
                 "compare_biosteam_scenarios",
                 "get_biosteam_solvents",
-            ],
-            "Analysis & Viz": [
                 "visualize_biosteam_results",
-                "run_biosteam_multi_polymer",
+            ],
+            "Solvent Data": [
+                "lookup_solvent_price",
+                "lookup_solvent_gwp",
             ],
         },
     },
@@ -303,7 +307,7 @@ def generate_agent_architecture():
             "agents": [
                 ("Separation\nEngineer", "sep", "20 tools"),
                 ("Safety\nAnalyst", "safety", "7 tools"),
-                ("BioSTEAM\nAnalyst", "biosteam", "6 tools"),
+                ("BioSTEAM\nAnalyst", "biosteam", "8 tools"),
             ],
         },
         {
@@ -441,7 +445,7 @@ def generate_separation_engineer_detail():
 
     # ── scaling ────────────────────────────────────────────────
     _DESIGN_W = 20.0
-    _TARGET_W = 7.0
+    _TARGET_W = 6.25
     S = _TARGET_W / _DESIGN_W
 
     def _fs(pt):
@@ -466,7 +470,7 @@ def generate_separation_engineer_detail():
         ],
         "Antisolvent": [
             "find_antisolvent_pairs",
-            "analyze_selective_antisolvent_precipitation",
+            "analyze_antisolvent_selectivity",
         ],
         "Adaptive": [
             "find_optimal_separation_conditions",
@@ -609,6 +613,187 @@ def generate_separation_engineer_detail():
     # ── Save ───────────────────────────────────────────────────
     for ext, dpi in [("png", 600), ("pdf", 600), ("svg", None)]:
         path = os.path.join(OUT_DIR, f"separation_engineer.{ext}")
+        kw = dict(bbox_inches="tight", facecolor=C_BG, pad_inches=0.08)
+        if dpi is not None:
+            kw["dpi"] = dpi
+        fig.savefig(path, **kw)
+        print(f"  Saved: {path}")
+
+    plt.close(fig)
+
+
+# ════════════════════════════════════════════════════════════════
+# Figure 1c — BioSTEAM TEA/LCA Analyst detail (publication-quality)
+# ════════════════════════════════════════════════════════════════
+def generate_biosteam_analyst_detail():
+    """BioSTEAM TEA/LCA Analyst subagent detail diagram.
+
+    Shows all 3 tool groups with individual tools listed inside each
+    box, matching the clean style of the separation engineer figure.
+    Single-row layout (3 cards) for 8 tools across 3 groups.
+    7-inch wide, 600 DPI.
+    """
+    COLOR = PAL["biosteam"]
+    groups = SUBAGENTS["biosteam-analyst"]["groups"]
+    total_tools = sum(len(t) for t in groups.values())
+    group_names = list(groups.keys())
+    group_tools = list(groups.values())
+
+    # ── scaling ────────────────────────────────────────────────
+    _DESIGN_W = 20.0
+    _TARGET_W = 5.5
+    S = _TARGET_W / _DESIGN_W
+
+    def _fs(pt):
+        return max(round((pt + 2) * S, 1), 8)
+
+    def _lw(pt):
+        return max(round(pt * S, 2), 0.5)
+
+    # Show 2 representative tools per group (all shown for Solvent Data)
+    display_tools = {
+        "TEA/LCA Simulation": [
+            "run_biosteam_simulation",
+            "run_biosteam_multi_polymer",
+        ],
+        "Scenario Analysis": [
+            "compare_biosteam_scenarios",
+            "visualize_biosteam_results",
+        ],
+        "Solvent Data": [
+            "lookup_solvent_price",
+            "lookup_solvent_gwp",
+        ],
+    }
+
+    # ── single-row grid layout ────────────────────────────────
+    rows = [
+        [0, 1, 2],   # all 3 groups in one row
+    ]
+
+    col_gap = 0.3
+    hdr_band_h = 0.7
+    tool_row_h = 0.55
+    tool_pad = 0.18
+    title_area_h = 1.6
+
+    n_max = max(len(r) for r in rows)
+    col_w = (_DESIGN_W - 1.0 - (n_max - 1) * col_gap) / n_max
+
+    def _box_h(idx):
+        gname = group_names[idx]
+        shown = display_tools.get(gname, group_tools[idx][:2])
+        extra = len(group_tools[idx]) - len(shown)
+        n_lines = len(shown) + (0.8 if extra > 0 else 0)
+        return hdr_band_h + 2 * tool_pad + n_lines * tool_row_h
+
+    row_max_h = [max(_box_h(i) for i in r) for r in rows]
+
+    fig_design_h = (
+        title_area_h + 0.5
+        + sum(row_max_h)
+        + 0.4
+    )
+    fig_w = _TARGET_W
+    fig_h = round(fig_design_h * S, 2)
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.set_xlim(0, _DESIGN_W)
+    ax.set_ylim(0, fig_design_h)
+    ax.axis("off")
+    ax.set_position([0.01, 0.01, 0.98, 0.98])
+    fig.patch.set_facecolor(C_BG)
+
+    # ── Title header ───────────────────────────────────────────
+    title_top = fig_design_h - 0.15
+    thdr_w = 12.0
+    thdr_h = 1.0
+    thdr_x = (_DESIGN_W - thdr_w) / 2
+    thdr_y = title_top - thdr_h
+
+    title_box = FancyBboxPatch(
+        (thdr_x, thdr_y), thdr_w, thdr_h,
+        boxstyle="round,pad=0.12",
+        facecolor=COLOR, edgecolor=COLOR, linewidth=_lw(3.5),
+    )
+    ax.add_patch(title_box)
+    ax.text(_DESIGN_W / 2, thdr_y + thdr_h / 2 + 0.1,
+            "BioSTEAM TEA/LCA Analyst",
+            ha="center", va="center", fontsize=_fs(18), fontweight="bold",
+            color=PAL["text_wh"])
+    ax.text(_DESIGN_W / 2, thdr_y + thdr_h / 2 - 0.25,
+            f"{total_tools} tools  |  {len(group_names)} groups  |  43 solvents",
+            ha="center", va="center", fontsize=_fs(10),
+            color=PAL["text_wh"])
+
+    # ── Draw group cards ───────────────────────────────────────
+    cursor_y = thdr_y - 0.5
+
+    for row_idx, row_indices in enumerate(rows):
+        n_cols = len(row_indices)
+        row_w = n_cols * col_w + (n_cols - 1) * col_gap
+        row_start_x = (_DESIGN_W - row_w) / 2
+        row_h = row_max_h[row_idx]
+
+        for j, gi in enumerate(row_indices):
+            gname = group_names[gi]
+            tools = group_tools[gi]
+            bx = row_start_x + j * (col_w + col_gap)
+            box_h = row_h
+            by = cursor_y - box_h
+
+            # White box with coloured border
+            box = FancyBboxPatch(
+                (bx, by), col_w, box_h,
+                boxstyle="round,pad=0.06",
+                facecolor="#FFFFFF", edgecolor=COLOR, linewidth=_lw(1.8),
+            )
+            ax.add_patch(box)
+
+            # Coloured header band
+            hdr = FancyBboxPatch(
+                (bx + 0.05, by + box_h - hdr_band_h),
+                col_w - 0.10, hdr_band_h,
+                boxstyle="round,pad=0.04",
+                facecolor=COLOR, edgecolor=COLOR, linewidth=_lw(1.0),
+            )
+            ax.add_patch(hdr)
+
+            # Group name
+            ax.text(bx + col_w / 2, by + box_h - hdr_band_h / 2,
+                    gname, ha="center", va="center",
+                    fontsize=_fs(11), fontweight="bold", color=PAL["text_wh"])
+
+            # Tool names — 2 key tools + "N more"
+            shown = display_tools.get(gname, tools[:2])
+            extra = len(tools) - len(shown)
+            tool_top = by + box_h - hdr_band_h - tool_pad
+            for k, tool in enumerate(shown):
+                ty = tool_top - (k + 0.5) * tool_row_h
+                ax.text(bx + 0.25, ty, _pretty(tool),
+                        ha="left", va="center", fontsize=_fs(9),
+                        color=PAL["text"])
+            if extra > 0:
+                ty = tool_top - (len(shown) + 0.3) * tool_row_h
+                ax.text(bx + 0.25, ty, f"+ {extra} more",
+                        ha="left", va="center", fontsize=_fs(8.5),
+                        color=PAL["text_lt"], style="italic")
+
+            # Arrow from title to group card
+            arr_src_x = max(thdr_x + 0.4, min(thdr_x + thdr_w - 0.4,
+                            bx + col_w / 2))
+            ax.annotate(
+                "", xy=(bx + col_w / 2, cursor_y + 0.02),
+                xytext=(arr_src_x, thdr_y),
+                arrowprops=dict(arrowstyle="-|>", color=COLOR, lw=_lw(2.0),
+                                alpha=0.45, mutation_scale=round(15 * S)),
+            )
+
+        cursor_y -= row_h
+
+    # ── Save ───────────────────────────────────────────────────
+    for ext, dpi in [("png", 600), ("pdf", 600), ("svg", None)]:
+        path = os.path.join(OUT_DIR, f"biosteam_analyst.{ext}")
         kw = dict(bbox_inches="tight", facecolor=C_BG, pad_inches=0.08)
         if dpi is not None:
             kw["dpi"] = dpi
@@ -807,7 +992,9 @@ if __name__ == "__main__":
     generate_tool_trees()
     print("Generating individual subagent diagrams...")
     generate_individual_subagent_diagrams()
-    # Run last so the pub-quality card version overwrites the tree version
+    # Run last so the pub-quality card versions overwrite the tree versions
     print("Generating separation engineer detail (publication-quality)...")
     generate_separation_engineer_detail()
+    print("Generating BioSTEAM analyst detail (publication-quality)...")
+    generate_biosteam_analyst_detail()
     print("Done.")

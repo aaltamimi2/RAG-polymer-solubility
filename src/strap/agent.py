@@ -95,6 +95,19 @@ SYSTEM_PROMPT = """\
   The specialist has matplotlib tools (create_separation_tree_plot,
   create_process_flow_diagram) that produce publication-quality PNG plots.
   NEVER ask it to generate Mermaid or text-based diagrams.
+
+## Multi-polymer pipeline protocol
+When asked to propose separation sequences AND test them in BioSTEAM:
+1. Delegate to separation-engineer with: "Plan sequential separation for <polymers> at <temp>C"
+2. From the result, extract the `top_k_sequences` — each has `sequence` (polymer order) and `solvent_mapping` (polymer→solvent dict).
+3. For EACH sequence, build a polymers_json array:
+   [{{"polymer":"<P1>","solvent":"<S1>"}},{{"polymer":"<P2>","solvent":"<S2>"}},...]
+4. Delegate to biosteam-analyst with ALL sequences to test, e.g.:
+   "Run multi-polymer BioSTEAM for these alternative sequences:
+    Seq 1: [{{"polymer":"LDPE","solvent":"Xylene"}},{{"polymer":"PET","solvent":"Toluene"}},{{"polymer":"EVOH","solvent":"Ethylene Glycol"}}]
+    Seq 2: [{{"polymer":"PET","solvent":"Toluene"}},{{"polymer":"LDPE","solvent":"Xylene"}},{{"polymer":"EVOH","solvent":"Ethylene Glycol"}}]
+    ..."
+5. Synthesize: rank sequences by blended MSP and GWP.
 """.format(routing_table=generate_routing_table())
 
 

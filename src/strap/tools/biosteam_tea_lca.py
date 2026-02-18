@@ -34,27 +34,72 @@ logger = logging.getLogger(__name__)
 # Chlorinated solvents that fail in BioSTEAM (HCl not in property package)
 _CHLORINATED_BLOCKLIST = frozenset({
     "Tetrachloroethylene", "o-Chlorotoluene",
+    "Dichloromethane", "Chloroform",
 })
 
-# Canonical PE solvents from BioSTEAM plastics v0.1.4 (excluding chlorinated)
-_PE_SOLVENTS = [
+# Core PE solvents from BioSTEAM plastics v0.1.4 (excluding chlorinated)
+_PE_SOLVENTS_CORE = [
     "sec-Butyl Acetate", "Isobutyl Acetate", "Methylcyclohexane",
     "Dodecanol", "Heptane", "Toluene", "Xylene",
 ]
 
-# EVOH solvents (E1 sequence)
+# Extended PE/LDPE solvents from COMMON-SOLVENTS-DATABASE (thermosteam-validated)
+_PE_SOLVENTS_EXTENDED = [
+    "o-Xylene", "p-Xylene", "Cyclohexane", "Dodecane", "Hexane",
+    "Benzene", "Acetone", "2-Butanone", "Ethyl acetate",
+    "Tetrahydrofuran", "1-Propanol", "Ethanol", "Methanol",
+    "Isopropanol", "tert-Butanol", "Cyclohexanol",
+    "N,N-Dimethylformamide", "Diphenyl ether", "Acetylacetone",
+    "2,3-Dihydropyran", "Tetrahydropyran", "Triethylamine",
+    "Methyl acetate",
+]
+
+_PE_SOLVENTS = _PE_SOLVENTS_CORE + _PE_SOLVENTS_EXTENDED
+
+# EVOH solvents (E1 sequence — original high-selectivity)
 _EVOH_SOLVENTS = [
     "Ethylene Glycol", "Pyridazine",
 ]
 
-# All EVOH solvents (E2 sequence — broader set)
+# All EVOH solvents (E2 sequence — broader set including extended)
 _EVOH_SOLVENTS_E2 = [
     "butane-1,4-diol", "Diethanolamine", "Diethylene glycol",
     "Ethylene Glycol", "Propylene Glycol", "Pyridazine",
     "gamma-butyrolactone",
+    # Extended EVOH solvents (>50% EVOH solubility)
+    "Dimethyl sulfoxide", "N,N-Dimethylformamide", "Triethylamine",
+    "Methanol", "Ethanol", "Isopropanol",
 ]
 
+# PET solvents (aromatic/polar + extended from COMMON-SOLVENTS-DATABASE)
+_PET_SOLVENTS = [
+    "Toluene", "Xylene",
+    # Extended PET solvents (>30% PET solubility)
+    "Acetone", "N,N-Dimethylformamide", "Tetrahydrofuran",
+    "2-Butanone", "Benzene",
+]
+
+# LDPE solvents — same as PE (both polyethylenes dissolve in the same solvents)
+_LDPE_SOLVENTS = list(_PE_SOLVENTS)
+
 _ALL_ENERGY_CASES = ["C1", "C2", "C3"]
+
+# Short-name aliases for solvents (handles comma-in-name and common abbreviations)
+_SOLVENT_ALIASES: dict[str, str] = {
+    "dmf": "N,N-Dimethylformamide",
+    "n,n-dimethylformamide": "N,N-Dimethylformamide",
+    "dimethylformamide": "N,N-Dimethylformamide",
+    "dmso": "Dimethyl sulfoxide",
+    "dimethylsulfoxide": "Dimethyl sulfoxide",
+    "dimethyl sulfoxide": "Dimethyl sulfoxide",
+    "mek": "2-Butanone",
+    "methyl ethyl ketone": "2-Butanone",
+    "thf": "Tetrahydrofuran",
+    "thp": "Tetrahydropyran",
+    "ipa": "Isopropanol",
+    "dcm": "Dichloromethane",
+    "methylene chloride": "Dichloromethane",
+}
 
 
 def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
@@ -62,17 +107,35 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
     s = solvents_str.strip().lower()
     if s == "all_pe":
         return list(_PE_SOLVENTS)
+    if s == "all_ldpe":
+        return list(_LDPE_SOLVENTS)
     if s == "all_evoh":
         return list(_EVOH_SOLVENTS)
     if s == "all_evoh_e2":
         return list(_EVOH_SOLVENTS_E2)
+    if s == "all_pet":
+        return list(_PET_SOLVENTS)
     if s == "all":
-        if target_plastic.upper() == "EVOH":
+        tp = target_plastic.upper()
+        if tp == "EVOH":
             return list(_EVOH_SOLVENTS)
+        if tp == "PET":
+            return list(_PET_SOLVENTS)
+        if tp == "LDPE":
+            return list(_LDPE_SOLVENTS)
         return list(_PE_SOLVENTS)
 
+    # Check if full string is a known alias (handles comma-containing names)
+    if s in _SOLVENT_ALIASES:
+        return [_SOLVENT_ALIASES[s]]
+
+    # Split by comma and resolve each token against aliases
     parsed = [sv.strip() for sv in solvents_str.split(",") if sv.strip()]
-    return parsed
+    resolved = []
+    for sv in parsed:
+        alias = _SOLVENT_ALIASES.get(sv.strip().lower())
+        resolved.append(alias if alias else sv)
+    return resolved
 
 
 def _expand_energy_cases(cases_str: str) -> list[str]:
@@ -105,7 +168,9 @@ def run_biosteam_simulation(
 
     Args:
         solvent: Solvent name (e.g. "Toluene", "Xylene", "Heptane").
-        target_plastic: Target plastic to recover, "PE" or "EVOH" (default "PE").
+        target_plastic: Target plastic to recover — "PE", "LDPE", "EVOH", or "PET" (default "PE").
+            LDPE uses the same solvents as PE. PET uses the same generic dissolution model
+            with dynamic parameter registration.
         energy_case: Energy configuration "C1" (CHP), "C2" (Grid+AMCOR), or "C3" (Grid+Boiler). Default "C1".
         target_plastic_percent: Target plastic weight percent in feed, 0-100 (default 60).
         processing_capacity: Plant capacity in metric tons/year (default 20000).
@@ -118,6 +183,8 @@ def run_biosteam_simulation(
     - "What is the MSP for PE recovery using xylene?"
     - "Simulate STRAP process with heptane at 20,000 MT/yr"
     - "TEA/LCA for PE dissolution in cyclohexane under C2 energy case"
+    - "Run BioSTEAM for PET dissolution in Toluene"
+    - "Run BioSTEAM for LDPE dissolution in Xylene"
     """
     if run_single_simulation is None:
         return "ERROR: biosteam_runner module not available. Install BioSTEAM dependencies."
@@ -201,9 +268,10 @@ def run_biosteam_batch(
     ranked comparison table sorted by MSP.
 
     Args:
-        solvents: Comma-separated solvent names, or "all_pe" (9 PE solvents),
-            "all_evoh" (EVOH solvents), or "all" (auto-select by target_plastic).
-        target_plastic: Target plastic "PE" or "EVOH" (default "PE").
+        solvents: Comma-separated solvent names, or "all_pe" (PE solvents),
+            "all_ldpe" (LDPE solvents, same as PE), "all_evoh" (EVOH solvents),
+            "all_pet" (PET solvents), or "all" (auto-select by target_plastic).
+        target_plastic: Target plastic "PE", "LDPE", "EVOH", or "PET" (default "PE").
         energy_cases: Comma-separated energy cases or "all" for C1,C2,C3 (default "C1").
         target_plastic_percent: Target plastic weight percent 0-100 (default 60).
         processing_capacity: Plant capacity in MT/yr (default 20000).
@@ -214,6 +282,8 @@ def run_biosteam_batch(
     - "Run batch simulation for toluene, xylene, heptane"
     - "Rank solvents by MSP across all energy cases"
     - "BioSTEAM comparison of all solvents under C1, C2, C3"
+    - "Compare all PET solvents in BioSTEAM"
+    - "Compare all LDPE solvents in BioSTEAM"
     """
     if run_single_simulation is None:
         return "ERROR: biosteam_runner module not available. Install BioSTEAM dependencies."
@@ -481,7 +551,7 @@ def compare_biosteam_scenarios(
 def get_biosteam_solvents() -> str:
     """List all solvents and configurations supported by the BioSTEAM STRAP model.
 
-    Returns supported solvents (PE and EVOH), energy case descriptions,
+    Returns supported solvents (PE, EVOH, and PET), energy case descriptions,
     default parameters, and known model limitations.
 
     WHEN TO USE:
@@ -501,9 +571,14 @@ def get_biosteam_solvents() -> str:
     display = "## BioSTEAM STRAP Model: Supported Configurations\n\n"
 
     display += f"### PE Solvents ({len(_PE_SOLVENTS)})\n"
-    for sv in _PE_SOLVENTS:
-        display += f"- {sv}\n"
-    display += "\n*Note: Tetrachloroethylene and o-Chlorotoluene are excluded (HCl not in property package).*\n"
+    display += f"**Core (Branch-TEA validated, {len(_PE_SOLVENTS_CORE)}):** "
+    display += ", ".join(_PE_SOLVENTS_CORE) + "\n\n"
+    display += f"**Extended (COMMON-SOLVENTS-DATABASE, {len(_PE_SOLVENTS_EXTENDED)}):** "
+    display += ", ".join(_PE_SOLVENTS_EXTENDED) + "\n"
+    display += "\n*Note: Chlorinated solvents excluded from batch expansions (HCl not in property package).*\n"
+
+    display += f"\n### LDPE Solvents ({len(_LDPE_SOLVENTS)})\n"
+    display += "*LDPE uses the same solvents as PE (both are polyethylenes).*\n"
 
     display += f"\n### EVOH Solvents — E1 Sequence ({len(_EVOH_SOLVENTS)})\n"
     for sv in _EVOH_SOLVENTS:
@@ -512,6 +587,11 @@ def get_biosteam_solvents() -> str:
     display += f"\n### EVOH Solvents — E2 Sequence ({len(_EVOH_SOLVENTS_E2)})\n"
     for sv in _EVOH_SOLVENTS_E2:
         display += f"- {sv}\n"
+
+    display += f"\n### PET Solvents ({len(_PET_SOLVENTS)})\n"
+    for sv in _PET_SOLVENTS:
+        display += f"- {sv}\n"
+    display += "\n*PET uses the same generic dissolution model (define_dissolution) with dynamic parameter registration.*\n"
 
     display += "\n### Energy Cases\n"
     display += "| Case | Description |\n|------|-------------|\n"
@@ -531,8 +611,10 @@ def get_biosteam_solvents() -> str:
 
     display += "\n### Shorthand Keywords for Batch Mode\n"
     display += f"- `all_pe` -- all {len(_PE_SOLVENTS)} PE solvents (excludes chlorinated)\n"
+    display += f"- `all_ldpe` -- all {len(_LDPE_SOLVENTS)} LDPE solvents (same as PE)\n"
     display += f"- `all_evoh` -- {len(_EVOH_SOLVENTS)} EVOH solvents (E1 sequence)\n"
     display += f"- `all_evoh_e2` -- {len(_EVOH_SOLVENTS_E2)} EVOH solvents (E2 sequence)\n"
+    display += f"- `all_pet` -- all {len(_PET_SOLVENTS)} PET solvents\n"
     display += "- `all` (energy_cases) -- C1, C2, C3\n"
 
     display += "\n### Known Limitations\n"
@@ -543,9 +625,13 @@ def get_biosteam_solvents() -> str:
     structured_data = {
         "tool_name": "get_biosteam_solvents",
         "success": True,
+        "pe_solvents_core": list(_PE_SOLVENTS_CORE),
+        "pe_solvents_extended": list(_PE_SOLVENTS_EXTENDED),
         "pe_solvents": list(_PE_SOLVENTS),
+        "ldpe_solvents": list(_LDPE_SOLVENTS),
         "evoh_solvents_e1": list(_EVOH_SOLVENTS),
         "evoh_solvents_e2": list(_EVOH_SOLVENTS_E2),
+        "pet_solvents": list(_PET_SOLVENTS),
         "energy_cases": list(_ALL_ENERGY_CASES),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),
         "dynamic_solvents": dynamic_solvents,

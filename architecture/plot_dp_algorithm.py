@@ -295,10 +295,10 @@ def plot_dp_lattice(data, output_path, *, start_label_above=False,
         r_norm = r_opt = r_end = 0.60
         edge_lw, edge_alpha = 0.7, 0.25
         opt_lw = 3.0
-        lbl_fs, node_fs = 13, 12
-        title_fs, sub_fs, level_fs = 22, 15, 13
-        result_fs_top = result_fs_bot = 16
-        legend_fs = 12
+        lbl_fs, node_fs = 17, 16
+        title_fs, sub_fs, level_fs = 26, 19, 17
+        result_fs_top = result_fs_bot = 20
+        legend_fs = 16
         save_dpi = 200
 
     # ── Positions ──

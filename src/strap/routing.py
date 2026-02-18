@@ -83,6 +83,12 @@ ROUTING_RULES: list[dict] = [
             "scale economics", "strap process",
             "biosteam", "process simulation",
             r"energy\s+case",
+            r"\bpet\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
+            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bpet\b",
+            r"\bldpe\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
+            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bldpe\b",
+            r"\bevoh\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
+            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bevoh\b",
         ],
         "high_stems": [
             "msp", "ghg", "payback", "biosteam", "capex", "opex",

@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="452.52pt" height="193.5648pt" viewBox="0 0 452.52 193.5648" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-02-15T00:24:35.864221</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 193.5648 
+L 452.52 193.5648 
+L 452.52 -0 
+L 0 -0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 116.01 33.783866 
+L 336.51 33.783866 
+Q 339.156 33.783866 339.156 31.135942 
+L 339.156 9.069905 
+Q 339.156 6.421981 336.51 6.421981 
+L 116.01 6.421981 
+Q 113.364 6.421981 113.364 9.069905 
+L 113.364 31.135942 
+Q 113.364 33.783866 116.01 33.783866 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 1.09; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 16.785 100.864617 
+L 152.025 100.864617 
+Q 153.348 100.864617 153.348 99.540655 
+L 153.348 42.16896 
+Q 153.348 40.844998 152.025 40.844998 
+L 16.785 40.844998 
+Q 15.462 40.844998 15.462 42.16896 
+L 15.462 99.540655 
+Q 15.462 100.864617 16.785 100.864617 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #ffffff; stroke: #b83230; stroke-width: 0.56; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 17.8875 58.497827 
+L 150.9225 58.497827 
+Q 151.8045 58.497827 151.8045 57.615185 
+L 151.8045 42.16896 
+Q 151.8045 41.286319 150.9225 41.286319 
+L 17.8875 41.286319 
+Q 17.0055 41.286319 17.0055 42.16896 
+L 17.0055 57.615185 
+Q 17.0055 58.497827 17.8875 58.497827 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 158.64 100.864617 
+L 293.88 100.864617 
+Q 295.203 100.864617 295.203 99.540655 
+L 295.203 42.16896 
+Q 295.203 40.844998 293.88 40.844998 
+L 158.64 40.844998 
+Q 157.317 40.844998 157.317 42.16896 
+L 157.317 99.540655 
+Q 157.317 100.864617 158.64 100.864617 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #ffffff; stroke: #b83230; stroke-width: 0.56; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 159.7425 58.497827 
+L 292.7775 58.497827 
+Q 293.6595 58.497827 293.6595 57.615185 
+L 293.6595 42.16896 
+Q 293.6595 41.286319 292.7775 41.286319 
+L 159.7425 41.286319 
+Q 158.8605 41.286319 158.8605 42.16896 
+L 158.8605 57.615185 
+Q 158.8605 58.497827 159.7425 58.497827 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_7">
+    <path d="M 300.495 100.864617 
+L 435.735 100.864617 
+Q 437.058 100.864617 437.058 99.540655 
+L 437.058 42.16896 
+Q 437.058 40.844998 435.735 40.844998 
+L 300.495 40.844998 
+Q 299.172 40.844998 299.172 42.16896 
+L 299.172 99.540655 
+Q 299.172 100.864617 300.495 100.864617 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #ffffff; stroke: #b83230; stroke-width: 0.56; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_8">
+    <path d="M 301.5975 58.497827 
+L 434.6325 58.497827 
+Q 435.5145 58.497827 435.5145 57.615185 
+L 435.5145 42.16896 
+Q 435.5145 41.286319 434.6325 41.286319 
+L 301.5975 41.286319 
+Q 300.7155 41.286319 300.7155 42.16896 
+L 300.7155 57.615185 
+Q 300.7155 58.497827 301.5975 58.497827 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 87.7125 170.372631 
+L 222.9525 170.372631 
+Q 224.2755 170.372631 224.2755 169.048669 
+L 224.2755 111.676975 
+Q 224.2755 110.353012 222.9525 110.353012 
+L 87.7125 110.353012 
+Q 86.3895 110.353012 86.3895 111.676975 
+L 86.3895 169.048669 
+Q 86.3895 170.372631 87.7125 170.372631 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #ffffff; stroke: #b83230; stroke-width: 0.56; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 88.815 128.005841 
+L 221.85 128.005841 
+Q 222.732 128.005841 222.732 127.1232 
+L 222.732 111.676975 
+Q 222.732 110.794333 221.85 110.794333 
+L 88.815 110.794333 
+Q 87.933 110.794333 87.933 111.676975 
+L 87.933 127.1232 
+Q 87.933 128.005841 88.815 128.005841 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_11">
+    <path d="M 229.5675 170.372631 
+L 364.8075 170.372631 
+Q 366.1305 170.372631 366.1305 169.048669 
+L 366.1305 111.676975 
+Q 366.1305 110.353012 364.8075 110.353012 
+L 229.5675 110.353012 
+Q 228.2445 110.353012 228.2445 111.676975 
+L 228.2445 169.048669 
+Q 228.2445 170.372631 229.5675 170.372631 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #ffffff; stroke: #b83230; stroke-width: 0.56; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_12">
+    <path d="M 230.67 128.005841 
+L 363.705 128.005841 
+Q 364.587 128.005841 364.587 127.1232 
+L 364.587 111.676975 
+Q 364.587 110.794333 363.705 110.794333 
+L 230.67 110.794333 
+Q 229.788 110.794333 229.788 111.676975 
+L 229.788 127.1232 
+Q 229.788 128.005841 230.67 128.005841 
+z
+" clip-path="url(#p104d5d7e69)" style="fill: #b83230; stroke: #b83230; stroke-width: 0.5; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_1">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="226.26" y="19.94757" transform="rotate(-0 226.26 19.94757)">Separation Engineer</text>
+   </g>
+   <g id="text_2">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ddaaaa" x="226.26" y="27.670683" transform="rotate(-0 226.26 27.670683)">20 tools  |  5 groups</text>
+   </g>
+   <g id="text_3">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="84.405" y="51.943323" transform="rotate(-0 84.405 51.943323)">Sequence Planning</text>
+   </g>
+   <g id="text_4">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="22.2975" y="69.723982" transform="rotate(-0 22.2975 69.723982)">plan multiple separation schemes</text>
+   </g>
+   <g id="text_5">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="22.2975" y="81.860302" transform="rotate(-0 22.2975 81.860302)">find optimal separation sequence</text>
+   </g>
+   <g id="text_6">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="22.2975" y="91.569358" transform="rotate(-0 22.2975 91.569358)">+ 2 more</text>
+   </g>
+   <g id="patch_13">
+    <path d="M 122.893133 31.643418 
+Q 104.614559 36.432561 87.006531 41.046016 
+" style="fill: none; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+    <path d="M 89.19468 41.506457 
+L 87.006531 41.046016 
+L 88.687773 39.571761 
+z
+" style="fill: #b83230; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+   </g>
+   <g id="text_7">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="226.26" y="51.960823" transform="rotate(-0 226.26 51.960823)">Selectivity Analysis</text>
+   </g>
+   <g id="text_8">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="164.1525" y="69.723982" transform="rotate(-0 164.1525 69.723982)">calculate selectivity detailed</text>
+   </g>
+   <g id="text_9">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="164.1525" y="81.860302" transform="rotate(-0 164.1525 81.860302)">rank solvents for separation</text>
+   </g>
+   <g id="text_10">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="164.1525" y="91.569358" transform="rotate(-0 164.1525 91.569358)">+ 3 more</text>
+   </g>
+   <g id="patch_14">
+    <path d="M 226.26 33.134814 
+Q 226.26 36.430549 226.26 39.033102 
+" style="fill: none; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+    <path d="M 227.26 37.033102 
+L 226.26 39.033102 
+L 225.26 37.033102 
+z
+" style="fill: #b83230; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="368.115" y="51.960823" transform="rotate(-0 368.115 51.960823)">Precipitation</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="306.0075" y="69.723982" transform="rotate(-0 306.0075 69.723982)">find differential precipitation solvents</text>
+   </g>
+   <g id="text_13">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="306.0075" y="81.860302" transform="rotate(-0 306.0075 81.860302)">check atmospheric feasibility</text>
+   </g>
+   <g id="text_14">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="306.0075" y="91.569358" transform="rotate(-0 306.0075 91.569358)">+ 4 more</text>
+   </g>
+   <g id="patch_15">
+    <path d="M 329.626867 31.643418 
+Q 347.905441 36.432561 365.513469 41.046016 
+" style="fill: none; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+    <path d="M 363.832227 39.571761 
+L 365.513469 41.046016 
+L 363.32532 41.506457 
+z
+" style="fill: #b83230; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+   </g>
+   <g id="text_15">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="155.3325" y="121.468837" transform="rotate(-0 155.3325 121.468837)">Antisolvent</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="93.225" y="139.231997" transform="rotate(-0 93.225 139.231997)">find antisolvent pairs</text>
+   </g>
+   <g id="text_17">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="93.225" y="151.368317" transform="rotate(-0 93.225 151.368317)">analyze antisolvent selectivity</text>
+   </g>
+   <g id="text_18">
+    <text style="font-style: italic; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #5a6a7a" x="93.225" y="161.077373" transform="rotate(-0 93.225 161.077373)">+ 1 more</text>
+   </g>
+   <g id="patch_16">
+    <path d="M 155.3325 33.135501 
+Q 155.3325 71.186921 155.3325 108.54516 
+" style="fill: none; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+    <path d="M 156.3325 106.54516 
+L 155.3325 108.54516 
+L 154.3325 106.54516 
+z
+" style="fill: #b83230; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+   </g>
+   <g id="text_19">
+    <text style="font-weight: 700; font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: middle; fill: #ffffff" x="297.1875" y="121.468837" transform="rotate(-0 297.1875 121.468837)">Adaptive</text>
+   </g>
+   <g id="text_20">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="235.08" y="139.231997" transform="rotate(-0 235.08 139.231997)">find optimal separation conditions</text>
+   </g>
+   <g id="text_21">
+    <text style="font-size: 8px; font-family: 'Liberation Sans', 'Arial', 'Helvetica', 'DejaVu Sans', sans-serif; text-anchor: start; fill: #1c2a3a" x="235.08" y="151.368317" transform="rotate(-0 235.08 151.368317)">analyze selective solubility enhanced</text>
+   </g>
+   <g id="patch_17">
+    <path d="M 297.1875 33.135501 
+Q 297.1875 71.186921 297.1875 108.54516 
+" style="fill: none; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+    <path d="M 298.1875 106.54516 
+L 297.1875 108.54516 
+L 296.1875 106.54516 
+z
+" style="fill: #b83230; opacity: 0.45; stroke: #b83230; stroke-width: 0.62; stroke-linecap: round"/>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p104d5d7e69">
+   <rect x="5.76" y="5.76" width="441" height="182.0448"/>
+  </clipPath>
+ </defs>
+</svg>
