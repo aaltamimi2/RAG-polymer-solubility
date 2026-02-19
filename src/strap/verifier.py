@@ -5,6 +5,7 @@ HIGH-confidence issues.  Max one verification per invocation."""
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import re
@@ -21,6 +22,10 @@ if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest
 
 logger = logging.getLogger(__name__)
+
+_verified_flag: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_verified_flag", default=False
+)
 
 _VERIFIER_SYSTEM_PROMPT = """\
 You are a scientific accuracy verifier for a polymer dissolution analysis agent.
@@ -94,15 +99,23 @@ class OutputVerifierMiddleware(AgentMiddleware):
 
     def __init__(self, verifier_model: BaseChatModel) -> None:
         self._verifier_model = verifier_model
-        self._verified = False
+
+    # -- per-invocation state (ContextVar-isolated) --------------------------
+
+    @property
+    def _verified(self) -> bool:
+        try:
+            return _verified_flag.get()
+        except LookupError:
+            return False
 
     # -- lifecycle: reset per invocation ------------------------------------
 
     def before_agent(self, state, runtime):
-        self._verified = False
+        _verified_flag.set(False)
 
     async def abefore_agent(self, state, runtime):
-        self._verified = False
+        _verified_flag.set(False)
 
     # -- model-call wrapper -------------------------------------------------
 
@@ -141,7 +154,7 @@ class OutputVerifierMiddleware(AgentMiddleware):
             return response  # Agent still working — pass through
 
         # Final synthesis detected
-        self._verified = True
+        _verified_flag.set(True)
         content = _extract_text(getattr(ai_msg, "content", ""))
         if not content or len(content) < 50:
             return response
@@ -221,7 +234,7 @@ class OutputVerifierMiddleware(AgentMiddleware):
             return response  # Agent still working — pass through
 
         # Final synthesis detected
-        self._verified = True
+        _verified_flag.set(True)
         content = _extract_text(getattr(ai_msg, "content", ""))
         if not content or len(content) < 50:
             return response

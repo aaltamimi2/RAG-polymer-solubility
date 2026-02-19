@@ -42,6 +42,7 @@ def _execute_query(conn, query: str, limit: int = 100) -> dict:
         query_lower = query.lower().strip()
         dangerous_keywords = [
             "drop", "delete", "insert", "update", "alter", "create", "truncate",
+            "copy", "attach", "export", "load", "import",
         ]
         if any(kw in query_lower.split() for kw in dangerous_keywords):
             return {"success": False, "error": "Unsafe operation detected", "query": query}
@@ -351,21 +352,35 @@ def validate_and_query(
 
     # --- Data verification mode ---
     if filters is not None and not required_columns.strip():
+        # Validate table name before constructing any SQL
+        _validator = DataValidator(conn)
+        _table_check = _validator.verify_table_exists(table_name)
+        if not _table_check.is_valid:
+            return f"Table validation failed: {_table_check.issues}"
+
         where_clause = f"WHERE {filters}" if filters else ""
 
-        count_query = f"SELECT COUNT(*) FROM {table_name} {where_clause}"
-        count = conn.execute(count_query).fetchone()[0]
+        count_query = f"SELECT COUNT(*) as row_count FROM {table_name} {where_clause}"
+        count_result = _execute_query(conn, count_query, limit=1)
+        if not count_result["success"]:
+            return f"Verification query failed: {count_result['error']}"
+        count = count_result["data"][0]["row_count"] if count_result["data"] else 0
 
         sample_query = f"SELECT * FROM {table_name} {where_clause} LIMIT 5"
-        sample_df = conn.execute(sample_query).fetchdf()
+        sample_result = _execute_query(conn, sample_query, limit=5)
+        if not sample_result["success"]:
+            return f"Verification sample query failed: {sample_result['error']}"
 
         output = f"**Data Verification for {table_name}**\n\n"
         output += f"Filter: {filters or 'None'}\n"
         output += f"Total matching rows: {count}\n\n"
 
         if count > 0:
+            import pandas as pd
+            sample_df = pd.DataFrame(sample_result["data"])
             output += "Sample data:\n"
             output += sample_df.to_markdown(index=False)
+            del sample_df
         else:
             output += "**No data matches these criteria!**\n"
             output += "Please verify:\n"
@@ -373,7 +388,6 @@ def validate_and_query(
             output += "2. Filter values exist in the data\n"
             output += "3. Data types match (e.g., strings need quotes)\n"
 
-        del sample_df
         return output
 
     # --- Validation mode ---

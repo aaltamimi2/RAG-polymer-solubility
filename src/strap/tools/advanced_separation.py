@@ -32,6 +32,8 @@ from strap.tools._helpers import (
 from strap.analysis import SelectivityCalculator, SolventRanker, PolymerCompatibilityMatrix
 from strap.tools.visualization import _apply_pub_style, _PUB_COLORS, _PUB_FONTSIZE
 
+logger = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Optional engine imports (installed separately)
 # ---------------------------------------------------------------------------
@@ -42,28 +44,34 @@ try:
         BranchAndBoundSeparator,
         find_best_separation,
     )
-except Exception:  # noqa: BLE001
-    pass
+except Exception as e:  # noqa: BLE001
+    logger.warning("strap.engines.separation unavailable: %s", e)
+    GreedySeparator = None
+    DPSeparator = None
+    BranchAndBoundSeparator = None
+    find_best_separation = None
 
 try:
     from strap.engines.optimization import TemperatureOptimizer
-except Exception:  # noqa: BLE001
-    pass
+except Exception as e:  # noqa: BLE001
+    logger.warning("strap.engines.optimization unavailable: %s", e)
+    TemperatureOptimizer = None
 
 try:
     from strap.engines.precipitation import PrecipitationAnalyzer
-except Exception:  # noqa: BLE001
-    pass
+except Exception as e:  # noqa: BLE001
+    logger.warning("strap.engines.precipitation unavailable: %s", e)
+    PrecipitationAnalyzer = None
 
 try:
     from strap.engines.visualization import (
         SelectivityHeatmap,
         ProcessFlowDiagram,
     )
-except Exception:  # noqa: BLE001
-    pass
-
-logger = logging.getLogger(__name__)
+except Exception as e:  # noqa: BLE001
+    logger.warning("strap.engines.visualization unavailable: %s", e)
+    SelectivityHeatmap = None
+    ProcessFlowDiagram = None
 
 # ============================================================================
 # Helper Functions

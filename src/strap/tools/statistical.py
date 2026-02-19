@@ -29,6 +29,45 @@ logger = logging.getLogger(__name__)
 # Internal helpers
 # ------------------------------------------------------------------
 
+_DANGEROUS_KEYWORDS = [
+    "drop", "delete", "insert", "update", "alter", "create", "truncate",
+    "copy", "attach", "export", "load", "import",
+]
+
+
+def _check_filters(filters: Optional[str]) -> Optional[str]:
+    """Return an error string if *filters* contains a blocklisted keyword, else None."""
+    if not filters:
+        return None
+    filters_lower = filters.lower().strip()
+    if any(kw in filters_lower.split() for kw in _DANGEROUS_KEYWORDS):
+        return f"Unsafe keyword detected in filters: '{filters}'"
+    return None
+
+
+def _sanitize_identifier(conn, table_name: str, column_name: Optional[str] = None) -> Optional[str]:
+    """Validate *table_name* (and optionally *column_name*) against the live schema.
+
+    Returns an error string if validation fails, else None.
+    """
+    try:
+        tables_df = conn.execute("SHOW TABLES").fetchdf()
+        valid_tables = set(tables_df["name"].values)
+        if table_name not in valid_tables:
+            return f"Table '{table_name}' not found. Available: {sorted(valid_tables)}"
+        if column_name is not None:
+            schema_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
+            valid_columns = set(schema_df["column_name"].values)
+            if column_name not in valid_columns:
+                return (
+                    f"Column '{column_name}' not found in '{table_name}'. "
+                    f"Available: {sorted(valid_columns)}"
+                )
+    except Exception as e:
+        return f"Schema validation error: {e}"
+    return None
+
+
 def _execute_query(query: str, limit: int = 100) -> dict:
     """Execute a read-only query via the shared DuckDB connection.
 
@@ -37,10 +76,7 @@ def _execute_query(query: str, limit: int = 100) -> dict:
     """
     try:
         query_lower = query.lower().strip()
-        dangerous_keywords = [
-            "drop", "delete", "insert", "update", "alter", "create", "truncate",
-        ]
-        if any(kw in query_lower.split() for kw in dangerous_keywords):
+        if any(kw in query_lower.split() for kw in _DANGEROUS_KEYWORDS):
             return {"success": False, "error": "Unsafe operation detected", "query": query}
 
         if "limit" not in query_lower and not query_lower.strip().endswith(";"):
@@ -95,6 +131,18 @@ def statistical_summary(
     - "Give me summary statistics for solubility"
     - "What is the average solubility grouped by polymer?"
     """
+    conn = get_connection()
+    err = _sanitize_identifier(conn, table_name, value_column)
+    if err:
+        return f"Input validation failed: {err}"
+    if group_by_column is not None:
+        err = _sanitize_identifier(conn, table_name, group_by_column)
+        if err:
+            return f"Input validation failed: {err}"
+    filter_err = _check_filters(filters)
+    if filter_err:
+        return f"Input validation failed: {filter_err}"
+
     where_clause = f"WHERE {filters}" if filters else ""
 
     if group_by_column:
@@ -173,7 +221,19 @@ def correlation_analysis(
     - "Is there a correlation between temperature and solubility?"
     - "Show the correlation matrix for these columns"
     """
+    conn = get_connection()
     col_list = [c.strip() for c in columns.split(',')]
+    err = _sanitize_identifier(conn, table_name)
+    if err:
+        return f"Input validation failed: {err}"
+    for col in col_list:
+        err = _sanitize_identifier(conn, table_name, col)
+        if err:
+            return f"Input validation failed: {err}"
+    filter_err = _check_filters(filters)
+    if filter_err:
+        return f"Input validation failed: {filter_err}"
+
     where_clause = f"WHERE {filters}" if filters else ""
 
     query = f"SELECT {', '.join(col_list)} FROM {table_name} {where_clause}"
@@ -250,17 +310,30 @@ async def compare_groups_statistically(
     - "Compare solubility distributions of two polymers"
     """
     conn = get_connection()
+    err = _sanitize_identifier(conn, table_name, value_column)
+    if err:
+        return f"Input validation failed: {err}"
+    err = _sanitize_identifier(conn, table_name, group_column)
+    if err:
+        return f"Input validation failed: {err}"
+    filter_err = _check_filters(filters)
+    if filter_err:
+        return f"Input validation failed: {filter_err}"
+
     where_clause = f"WHERE {filters} AND" if filters else "WHERE"
 
-    query1 = f"SELECT {value_column} FROM {table_name} {where_clause} LOWER({group_column}) = LOWER('{group1}')"
-    query2 = f"SELECT {value_column} FROM {table_name} {where_clause} LOWER({group_column}) = LOWER('{group2}')"
+    # Use parameterized queries for group1/group2 to prevent SQL injection
+    base_query = (
+        f"SELECT {value_column} FROM {table_name} {where_clause} "
+        f"LOWER({group_column}) = LOWER(?)"
+    )
 
     # PARALLEL EXECUTION - Run both queries concurrently via thread pool
     loop = asyncio.get_event_loop()
     try:
         df1, df2 = await asyncio.gather(
-            loop.run_in_executor(None, lambda: conn.execute(query1).fetchdf()),
-            loop.run_in_executor(None, lambda: conn.execute(query2).fetchdf()),
+            loop.run_in_executor(None, lambda: conn.execute(base_query, [group1]).fetchdf()),
+            loop.run_in_executor(None, lambda: conn.execute(base_query, [group2]).fetchdf()),
         )
     except Exception as e:
         return f"Query failed: {str(e)[:300]}"
@@ -355,6 +428,21 @@ def regression_analysis(
     - "Fit a regression of solubility vs temperature"
     - "Is there a linear relationship between temperature and solubility?"
     """
+    conn = get_connection()
+    err = _sanitize_identifier(conn, table_name, x_column)
+    if err:
+        return f"Input validation failed: {err}"
+    err = _sanitize_identifier(conn, table_name, y_column)
+    if err:
+        return f"Input validation failed: {err}"
+    if group_by is not None:
+        err = _sanitize_identifier(conn, table_name, group_by)
+        if err:
+            return f"Input validation failed: {err}"
+    filter_err = _check_filters(filters)
+    if filter_err:
+        return f"Input validation failed: {filter_err}"
+
     where_clause = f"WHERE {filters}" if filters else ""
 
     if group_by:

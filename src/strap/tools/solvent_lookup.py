@@ -15,6 +15,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+from strap.tools._helpers import safe_tool_wrapper
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -469,6 +471,7 @@ def _parse_gwp_from_snippets(snippets: list[str]) -> tuple[float | None, str | N
 # Tool 1: lookup_solvent_price
 # ---------------------------------------------------------------------------
 
+@safe_tool_wrapper
 def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
     """Look up the bulk industrial price of a solvent.
 
@@ -539,6 +542,7 @@ def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
 # Tool 2: lookup_solvent_gwp
 # ---------------------------------------------------------------------------
 
+@safe_tool_wrapper
 def lookup_solvent_gwp(solvent: str) -> str:
     """Look up the cradle-to-gate GWP (Global Warming Potential) of a solvent.
 
