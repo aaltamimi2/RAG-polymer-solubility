@@ -2981,8 +2981,8 @@ async def plan_sequential_separation(
             {
                 "step": i + 1,
                 "target": s.get("target", ""),
-                "solvent": s.get("solvent", ""),
-                "selectivity": s.get("selectivity", 0),
+                "solvent": s["solvents"][0].get("solvent", "") if s.get("solvents") else "",
+                "selectivity": s["solvents"][0].get("selectivity", 0) if s.get("solvents") else 0,
             }
             for i, s in enumerate(best_steps)
         ],
@@ -3078,13 +3078,13 @@ async def analyze_integrated_separation(
 
         # Get GSK G-scores
         try:
-            solvent_filter = "', '".join(solvent_names)
+            placeholders = ", ".join(["?" for _ in solvent_names])
             gscore_query = f"""
             SELECT solvent_common_name, g_score, classification
             FROM gsk_dataset
-            WHERE LOWER(solvent_common_name) IN ('{solvent_filter.lower()}')
+            WHERE LOWER(solvent_common_name) IN ({placeholders})
             """
-            gscore_df = conn.execute(gscore_query).fetchdf()
+            gscore_df = conn.execute(gscore_query, [n.lower() for n in solvent_names]).fetchdf()
             if len(gscore_df) > 0:
                 for _, row in gscore_df.iterrows():
                     name = row["solvent_common_name"]
@@ -3525,7 +3525,7 @@ async def view_alternative_separation_sequence(
     sequence_rank: Optional[int] = None,
     starting_polymer: Optional[str] = None,
     top_k_solvents: int = 5,
-    temperature: float = 25.0,
+    temperature: float = 120.0,
     table_name: str = "common_solvents_database",
     polymer_column: str = "polymer",
     solvent_column: str = "solvent",
@@ -3541,7 +3541,7 @@ async def view_alternative_separation_sequence(
     - sequence_rank: Rank of sequence to view (1=best, 2=2nd best, etc.)
     - starting_polymer: Name of polymer to start with (alternative to rank)
     - top_k_solvents: Number of top solvents to show per step (default: 5)
-    - temperature: Target temperature in C (default: 25.0)
+    - temperature: Target temperature in C (default: 120.0)
 
     WHEN TO USE:
     - "Show me the 2nd best separation sequence"
@@ -3675,6 +3675,9 @@ async def view_alternative_separation_sequence(
                     ]
                     best_candidate = (target, top_solvents)
 
+            if best_candidate is None:
+                greedy_seq.extend(remaining_g)
+                break
             target, solvents = best_candidate
             greedy_seq.append(target)
             remaining_g.remove(target)

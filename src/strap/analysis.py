@@ -187,12 +187,12 @@ class SolventRanker:
         cp_range = _minmax(cps)
         energy_range = _minmax(energies)
 
-        # Normalize: bp/cp/energy inverted (lower = better), logp as-is
+        # Normalize: bp/cp/energy inverted (lower = better), logp inverted (lower = better for green chemistry)
         self._property_cache = {}
         for name, (bp, logp, cp, energy) in raw.items():
             self._property_cache[name] = {
                 "bp": 1.0 - (bp - bp_range[0]) / (bp_range[1] - bp_range[0]),
-                "logp": (logp - logp_range[0]) / (logp_range[1] - logp_range[0]),
+                "logp": 1.0 - (logp - logp_range[0]) / (logp_range[1] - logp_range[0]),
                 "cp": 1.0 - (cp - cp_range[0]) / (cp_range[1] - cp_range[0]),
                 "energy": 1.0 - (energy - energy_range[0]) / (energy_range[1] - energy_range[0]),
             }

@@ -403,7 +403,7 @@ def analyze_selective_solubility_enhanced(
     if search_mode == "threshold_search":
         start_threshold = 0.5
         temp_mid = (temp_min + temp_max) / 2
-        thresholds = [t for t in AdaptiveAnalyzer.SELECTIVITY_THRESHOLDS if t <= start_threshold]
+        thresholds = [t for t in AdaptiveAnalyzer.SELECTIVITY_THRESHOLDS if t >= start_threshold]
         ts_output = ["**Adaptive Threshold Search (inline)**\n"]
         ts_output.append(f"Target: {target_polymer}")
         ts_output.append(f"Comparing against: {', '.join(comp_list)}")

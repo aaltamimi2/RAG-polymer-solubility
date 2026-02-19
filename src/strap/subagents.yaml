@@ -82,6 +82,41 @@ subagents:
 
       IMPORTANT: If plan_multiple_separation_schemes returns fewer schemes than requested, synthesize from the available results. Do NOT retry with different parameters.
 
+      AVAILABLE TOOLS BY CATEGORY:
+
+      Sequential separation planning:
+      - plan_sequential_separation: enumerate all permutations for ≤4 polymers, greedy for >4
+      - view_alternative_separation_sequence: view 2nd/3rd best sequences by rank or starting polymer
+      - plan_multiple_separation_schemes: generate diverse schemes (max-selectivity, safest, lowest-energy)
+      - find_optimal_separation_sequence: greedy single-recommendation with full step details
+      - analyze_integrated_separation: full pipeline with GSK safety scores and energy estimates
+
+      Precipitation / antisolvent separation:
+      - find_antisolvents: find solvents that cause polymer precipitation
+      - find_antisolvent_pairs: find solvent+antisolvent combos for targeted precipitation
+      - analyze_selective_antisolvent_precipitation: compare antisolvent effectiveness across polymers
+      - find_differential_precipitation_solvents: solvents where polymers precipitate at different temps
+      - analyze_multi_polymer_precipitation: precipitation sequence for 3+ polymers
+      - analyze_precipitation_temperature: cloud point / precipitation temp for one pair
+      - compare_polymer_pairs_precipitation: compare precipitation windows across pairs
+      - check_atmospheric_feasibility: verify solvents below boiling point at operating temp
+      - check_multi_polymer_atmospheric_feasibility: feasibility for multi-polymer cascades
+
+      Fine-grained analysis:
+      - optimize_separation_temperature: sweep temperatures for a fixed polymer pair
+      - calculate_selectivity_detailed: single-solvent detailed selectivity breakdown
+      - rank_solvents_for_separation: rank all solvents for a polymer pair at given temp
+      - build_compatibility_matrix: cross-compatibility matrix for all polymer pairs
+      - find_challenging_polymer_pairs: identify hard-to-separate pairs
+      - get_supported_polymers_and_solvents: list all database-supported pairs
+
+      Solvent lookup:
+      - lookup_solvent_price: get solvent price from registry
+      - lookup_solvent_gwp: get solvent global warming potential
+
+      Reflection:
+      - think: internal reasoning scratchpad (does not count against tool budget)
+
       STRUCTURED RESULT REQUIREMENT:
       After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
       Extract all values from tool results — never fabricate data.
@@ -99,23 +134,28 @@ subagents:
         ],
         "min_selectivity_pct": 72.1,
         "avg_selectivity_pct": 78.7,
-        "top_solvents": ["Toluene", "Xylene", "Heptane"]
+        "top_solvents": ["Toluene", "Xylene", "Heptane"],
+        "solvent_mapping": {"LDPE": "Toluene", "PP": "Xylene"},
+        "top_k_sequences": [
+          {"rank": 1, "sequence": ["LDPE", "PP", "HDPE"], "min_selectivity": 72.1, "solvent_mapping": {"LDPE": "Toluene", "PP": "Xylene"}},
+          {"rank": 2, "sequence": ["PP", "LDPE", "HDPE"], "min_selectivity": 61.0, "solvent_mapping": {"PP": "Xylene", "LDPE": "Toluene"}}
+        ]
       }
       </STRUCTURED_RESULT>
-      Required: agent, schema_version, polymers, best_sequence, steps.
+      Required: agent, schema_version, polymers, best_sequence, steps, solvent_mapping, top_k_sequences.
     tool_groups:
       - separation_core
       - adaptive_separation
       - solvent_lookup
       - reflection
     guardrails:
-      max_tool_calls: 5
-      token_budget: 100000
+      max_tool_calls: 12
+      token_budget: 180000
       synthesis_tools:
         - plan_sequential_separation
         - plan_multiple_separation_schemes
         - find_optimal_separation_sequence
-      truncate_tool_results_after: 800
+      truncate_tool_results_after: 2000
       free_tools:
         - think
 

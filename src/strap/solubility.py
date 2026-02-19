@@ -207,7 +207,9 @@ def get_solubility(
         if method == INTERPOLATION:
             return None
 
-    return _sql_get_solubility(polymer, solvent, temperature_c)
+    resolved_polymer = POLYMER_ALIASES.get(polymer.strip().upper(), polymer.strip().upper())
+    resolved_solvent = resolve_to_interp_key(solvent) or solvent
+    return _sql_get_solubility(resolved_polymer, resolved_solvent, temperature_c)
 
 
 def get_solubility_batch(
@@ -243,7 +245,9 @@ def get_solubility_curve(
         if method == INTERPOLATION:
             return []
 
-    return _sql_get_curve(polymer, solvent, t_start_c, t_end_c, t_step_c)
+    resolved_polymer = POLYMER_ALIASES.get(polymer.strip().upper(), polymer.strip().upper())
+    resolved_solvent = resolve_to_interp_key(solvent) or solvent
+    return _sql_get_curve(resolved_polymer, resolved_solvent, t_start_c, t_end_c, t_step_c)
 
 
 def get_selectivity(
@@ -271,7 +275,9 @@ def get_selectivity(
         if method == INTERPOLATION:
             return ("none", -999.0, 0.0, 0.0)
 
-    return _sql_get_selectivity(target, others, temperature_c, used_solvents)
+    resolved_target = POLYMER_ALIASES.get(target.strip().upper(), target.strip().upper())
+    resolved_others = [POLYMER_ALIASES.get(o.strip().upper(), o.strip().upper()) for o in others]
+    return _sql_get_selectivity(resolved_target, resolved_others, temperature_c, used_solvents)
 
 
 def get_all_solvents_selectivity(
@@ -294,7 +300,9 @@ def get_all_solvents_selectivity(
         if method == INTERPOLATION:
             return []
 
-    return _sql_all_solvents_selectivity(target, others, temperature_c)
+    resolved_target = POLYMER_ALIASES.get(target.strip().upper(), target.strip().upper())
+    resolved_others = [POLYMER_ALIASES.get(o.strip().upper(), o.strip().upper()) for o in others]
+    return _sql_all_solvents_selectivity(resolved_target, resolved_others, temperature_c)
 
 
 # ------------------------------------------------------------------
@@ -661,11 +669,12 @@ def _sql_get_curve(
 ) -> list[dict]:
     conn = _get_db_conn()
     query = """
-    SELECT temperature___c_ as temperature, solubility____ as solubility
+    SELECT temperature___c_ as temperature, AVG(solubility____) as solubility
     FROM common_solvents_database
     WHERE UPPER(polymer) = UPPER(?)
       AND LOWER(solvent) = LOWER(?)
       AND temperature___c_ BETWEEN ? AND ?
+    GROUP BY temperature___c_
     ORDER BY temperature
     """
     try:
