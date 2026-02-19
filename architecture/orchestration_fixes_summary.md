@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes across 9 commits. 30+ files changed.
+All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes + 4 hardening fixes + 65 tests across 10 commits. 35+ files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -465,3 +465,45 @@ Middleware that programmatically extracts `<STRUCTURED_RESULT>` JSON blocks from
 - `SYSTEM_PROMPT` updated to mention `get_subagent_result()` and `get_all_subagent_results()`
 
 **Error handling:** Malformed JSON logs warning and skips (never raises). Missing blocks log info. ContextVar LookupError returns empty dict/None.
+
+---
+
+## Commit 10: `3899ad8` — Robustness Fixes & Test Suite (Fixes 1–4)
+
+7 files changed, 791 insertions, 10 deletions. 4 new test files (65 tests).
+
+### Fix 1: Token Budget Post-Call Enforcement
+**File:** `guardrails.py`
+
+- `_GuardState` gained `total_output_tokens: int = 0` field
+- `_track_tokens()` now counts both `input_tokens` and `output_tokens` from `usage_metadata`
+- Added `hasattr(response, "result")` guard for raw `AIMessage` fallback
+- Token budget check changed from `total_prompt_tokens >` to `(total_prompt_tokens + total_output_tokens) >=`
+- Both sync and async paths updated identically
+- Warning now logs all 4 values: budget, input, output, total
+
+### Fix 2: Gemini API Timeouts
+**File:** `vendor/rag.py`
+
+Three `generate_content()` call sites now include `request_options={"timeout": ...}`:
+- `GeminiFigureInterpreter.interpret_figure`: forwards existing `timeout=60` param (previously ignored)
+- `ContextualChunkEnricher.generate_context`: uses `self.timeout` (default 30s)
+- `ContextualChunkEnricher.generate_parent_context`: uses `self.timeout` (default 30s)
+- `ContextualChunkEnricher.__init__` gained `timeout: int = 30` parameter
+- All 3 `except Exception` blocks now check for timeout/deadline errors first with specific log messages
+
+### Fix 3: Subprocess stdout/stderr Limits
+**File:** `vendor/biosteam_runner.py`
+
+- Added `_MAX_SUBPROCESS_STDOUT_BYTES = 10MB` and `_MAX_SUBPROCESS_STDERR_BYTES = 2MB` constants
+- Post-capture guard after `subprocess.run()` reconstructs `CompletedProcess` with truncated output
+- Downstream `JSONDecodeError` handler already covers corrupted stdout from truncation
+
+### Fix 4: Test Suite (65 tests, 4 files)
+
+| File | Tests | Coverage target |
+|------|-------|----------------|
+| `test_guardrails.py` | 10 | Iteration/token/tool-call limits, free tools, state reset |
+| `test_result_extractor.py` | 19 | Regex extraction, middleware lifecycle, ContextVar isolation, orchestrator tools |
+| `test_sidecar.py` | 15 | Write/read validation, key regex, list enumeration, overwrite, size reporting |
+| `test_biosteam_runner.py` | 21 | Subprocess mocking, timeout/error/JSON handling, batch config, LCA CF injection, ranking |
