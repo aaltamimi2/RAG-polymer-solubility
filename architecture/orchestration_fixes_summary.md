@@ -223,3 +223,68 @@ PDF downloads had no size cap — a large or malicious URL could exhaust disk sp
 | L10 | Fragmented solvent aliases | **Resolved** — unified registry (prior commit) |
 | L11 | Sequential multi-polymer pipeline | **Resolved** — parallel batching |
 | L12 | Reflection tool discards text | **Resolved** — logging + echo |
+
+---
+
+## Commit 6: `6c391b6` — Per-Subagent Audit Quick Fixes (Q1–Q14)
+
+14 fixes from a comprehensive audit of all 8 DISSOLVE subagents. 8 files changed.
+
+### Q1–Q3, Q7: Expanded Tool Access for 4 Subagents
+**File:** `subagents.yaml`
+
+Subagents lacked access to tools they logically need:
+- Q1: `statistics-ml` gained `database_query` — can now query DuckDB directly
+- Q2: `separation-engineer` gained `solvent_lookup` — can check prices/GWP
+- Q3: `safety-analyst` gained `solvent_lookup` — can cross-reference cost with safety
+- Q7: `visualization-specialist` gained `biosteam` — can plot TEA/LCA results
+
+### Q10: Visualization Tool Budget Raised
+**File:** `subagents.yaml`
+
+`visualization-specialist` `max_tool_calls` raised from 3→5. Multi-chart requests were hitting the cap before completing all plots.
+
+### Q12: Statistics Table/Column Documentation
+**File:** `subagents.yaml`
+
+`statistics-ml` system prompt now includes all 3 available tables (`common_solvents_database`, `gsk_dataset`, `solvent_data`) with row counts, column names, and data ranges. Reduces failed queries from wrong column names.
+
+### Q13: Missing Synthesis Tool
+**File:** `subagents.yaml`
+
+Added `compare_groups_statistically` to `statistics-ml` `synthesis_tools` — was defined but not listed, so the agent couldn't invoke it.
+
+### Q4: PubChem Properties Bypass Fix
+**File:** `tools/safety_pubchem.py`
+
+`fetch_pubchem_properties` still used raw `urlopen()`, bypassing the rate limiter and retry wrapper added in Commit 5. Now uses `_pubchem_request()` like the other 3 fetch functions.
+
+### Q5: Visualization 1D Bar Chart NameError
+**File:** `tools/visualization.py`
+
+`plot_solvent_properties` 1D fallback branch referenced `df[...]` (undefined — no DataFrame exists in this path). Replaced with `solubility_map.get(solv, 0)` dict lookup.
+
+### Q6: Temperature Ceiling Raised to 250°C
+**File:** `tools/visualization.py`
+
+Hard cap was 160°C in 4 locations, blocking high-temperature dissolution studies. Raised to 250°C (database maximum). Default still 160°C when user omits temperature_max.
+
+### Q8: GSK SQL Injection Escaping
+**File:** `tools/safety_gsk.py`
+
+`get_solvent_gscore` and `get_family_alternatives` used raw f-string interpolation for user-supplied solvent names. Added `.replace("'", "''")` escaping at all 5 interpolation points.
+
+### Q9: PatentsView Abstract Search
+**File:** `vendor/patentsview_client.py`
+
+`search()` only queried `patent_title`. Now uses `_or` clause searching both `patent_title` and `patent_abstract`, significantly improving recall for dissolution-method patents.
+
+### Q11: Polymer/Solvent Introspection Tool
+**Files:** `tools/advanced_separation.py`, `tools/__init__.py`
+
+New `get_supported_polymers_and_solvents()` tool returns a catalogue of all polymers with their fitted solvents from interpolation coefficients. Registered in `separation_core` group. Eliminates guesswork about which polymer-solvent pairs are supported.
+
+### Q14: Patent Search Tool for Literature Agent
+**Files:** `tools/literature.py`, `tools/__init__.py`
+
+New `search_polymer_patents()` tool wraps the SerpAPI Google Patents client with polymer-specific search, formatted markdown output, and optional RAG ingestion. Registered in `patent` group.
