@@ -231,6 +231,23 @@ def get_reflection_tools() -> list:
     return _safe_import("strap.tools.reflection", ["think"])
 
 
+def get_sidecar_write_tools() -> list:
+    """write_sidecar tool — for scholar-researcher and patent-researcher."""
+    return _safe_import("strap.tools.sidecar", ["write_sidecar"])
+
+
+def get_sidecar_read_tools() -> list:
+    """read_sidecar tool — for rag-analyst."""
+    return _safe_import("strap.tools.sidecar", ["read_sidecar"])
+
+
+def get_result_extractor_tools() -> list:
+    """Orchestrator tools for querying accumulated structured results."""
+    return _safe_import("strap.result_extractor", [
+        "get_subagent_result", "get_all_subagent_results",
+    ])
+
+
 def get_separation_plot_tools() -> list:
     """Separation visualization tools (for visualization-specialist)."""
     return _safe_import("strap.tools.advanced_separation", [
@@ -284,6 +301,9 @@ def get_all_tools() -> list:
         get_thermal_prediction_tools,
         get_solvent_lookup_tools,
         get_reflection_tools,
+        get_sidecar_write_tools,
+        get_sidecar_read_tools,
+        get_result_extractor_tools,
     ]
     all_tools = []
     for getter in getters:

@@ -403,6 +403,19 @@ subagents:
       - For broad topics: 2 searches max (1 Scholar + 1 WoS or arXiv), then synthesize
       - For specific topics: 1 targeted search may suffice
 
+      ## SIDECAR HANDOFF — run AFTER all searches, BEFORE final synthesis
+      When rag-analyst will follow you in a sequential chain, call write_sidecar
+      ONCE to persist your full structured findings before synthesizing.
+
+      Key: "scholar_findings"
+      Data must be a JSON string with this schema:
+      {"agent": "scholar-researcher", "query": "<search query>", "n_results": <int>,
+       "papers": [{"title": "<title>", "year": <int_or_null>, "source": "<source>",
+                   "doi": "<doi_or_null>", "url": "<url>", "snippet": "<first 300 chars>"}],
+       "saved_to_rag": <true|false>}
+
+      If write_sidecar returns an error, continue — sidecar is best-effort.
+
       STRUCTURED RESULT REQUIREMENT:
       After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
       Extract all values from tool results — never fabricate data.
@@ -423,6 +436,7 @@ subagents:
       Required: agent, schema_version, query, n_results, papers (up to 5).
     tool_groups:
       - scholar
+      - sidecar_write
       - reflection
     guardrails:
       max_tool_calls: 6
@@ -434,6 +448,7 @@ subagents:
         - search_web_of_science
       free_tools:
         - think
+        - write_sidecar
 
   - name: patent-researcher
     description: >
@@ -465,6 +480,19 @@ subagents:
       - For specific patent numbers: look up the patent and synthesize immediately
       - Do NOT run more than 2 broad searches — refine within existing results
 
+      ## SIDECAR HANDOFF — run AFTER all searches, BEFORE final synthesis
+      When rag-analyst will follow you in a sequential chain, call write_sidecar
+      ONCE to persist your full patent findings before synthesizing.
+
+      Key: "patent_findings"
+      Data must be a JSON string with this schema:
+      {"agent": "patent-researcher", "query": "<search query>", "n_results": <int>,
+       "patents": [{"patent_id": "<number>", "title": "<title>", "assignee": "<assignee>",
+                    "filing_date": "<YYYY-MM-DD>", "url": "<url>", "snippet": "<first 300 chars>"}],
+       "saved_to_rag": <true|false>}
+
+      If write_sidecar returns an error, continue — sidecar is best-effort.
+
       STRUCTURED RESULT REQUIREMENT:
       After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
       Extract all values from tool results — never fabricate data.
@@ -485,6 +513,7 @@ subagents:
       Required: agent, schema_version, query, n_results, patents (up to 5).
     tool_groups:
       - patent
+      - sidecar_write
       - reflection
     guardrails:
       max_tool_calls: 6
@@ -497,6 +526,7 @@ subagents:
         - search_polymer_patents
       free_tools:
         - think
+        - write_sidecar
 
   - name: rag-analyst
     description: >
@@ -524,6 +554,14 @@ subagents:
       search_literature_rag and ask_literature search across ALL knowledgebases
       by default (STRAP-CORE, user-library, etc.). Use the knowledgebase parameter
       only if you need to restrict to a specific KB.
+
+      ## SIDECAR CONTEXT CHECK — do this FIRST, before any RAG search
+      1. Call read_sidecar("list") to see what upstream agents have written.
+      2. If "scholar_findings" is available: call read_sidecar("scholar_findings")
+         and incorporate those papers into your task context.
+      3. If "patent_findings" is available: call read_sidecar("patent_findings")
+         and incorporate those patents into your task context.
+      If no sidecar files are available, proceed with your normal workflow.
 
       WORKFLOW:
       1. Read the task description — it tells you what to search for.
@@ -559,6 +597,7 @@ subagents:
     tool_groups:
       - rag_core
       - rag_diagnostics
+      - sidecar_read
       - reflection
     guardrails:
       max_tool_calls: 8
@@ -569,6 +608,7 @@ subagents:
       truncate_tool_results_after: 2000
       free_tools:
         - think
+        - read_sidecar
 
   - name: visualization-specialist
     description: >

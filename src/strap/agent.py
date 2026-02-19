@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import atexit
 import logging
 import os
+import shutil
+import tempfile
 import uuid
 import warnings
 from pathlib import Path
@@ -29,6 +32,7 @@ from langchain.chat_models import init_chat_model  # noqa: E402
 _PACKAGE_DIR = Path(__file__).parent
 
 from .guardrails import SubagentGuardMiddleware  # noqa: E402
+from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
 from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
 from .verifier import OutputVerifierMiddleware  # noqa: E402
 import yaml  # noqa: E402
@@ -49,6 +53,9 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_scholar_tools,
     get_separation_core_tools,
     get_separation_plot_tools,
+    get_result_extractor_tools,
+    get_sidecar_read_tools,
+    get_sidecar_write_tools,
     get_solvent_lookup_tools,
     get_statistical_tools,
     get_thermal_prediction_tools,
@@ -75,7 +82,18 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "biosteam": get_biosteam_tools,
     "solvent_lookup": get_solvent_lookup_tools,
     "reflection": get_reflection_tools,
+    "sidecar_write": get_sidecar_write_tools,
+    "sidecar_read": get_sidecar_read_tools,
+    "result_extractor": get_result_extractor_tools,
 }
+
+def _create_session_scratch_dir() -> Path:
+    """Create a per-session temp directory for sidecar files."""
+    scratch = Path(tempfile.mkdtemp(prefix="strap_scratch_"))
+    atexit.register(shutil.rmtree, scratch, True)
+    logger.info("Session scratch directory: %s", scratch)
+    return scratch
+
 
 SYSTEM_PROMPT = """\
 {routing_table}
@@ -130,6 +148,10 @@ Sequential handoff — extract from <STRUCTURED_RESULT> and include in next task
 Parallel synthesis — when combining results from parallel agents:
 - Prefer numeric fields from <STRUCTURED_RESULT> over parsing prose for comparisons.
 
+You can also call get_subagent_result(agent_name) to retrieve the structured
+JSON from a completed subagent, or get_all_subagent_results() to see all results.
+These are faster than re-parsing prose when you need specific numeric fields.
+
 Fallback: if no <STRUCTURED_RESULT> block is present, extract data from the prose as before.
 """.format(routing_table=generate_routing_table())
 
@@ -160,11 +182,12 @@ class SubagentOverride(TypedDict, total=False):
     free_tools: set
 
 
-def _resolve_tools(group_names: list[str]) -> list:
+def _resolve_tools(group_names: list[str], registry: dict | None = None) -> list:
     """Resolve YAML tool_group names to actual tool function lists."""
+    r = registry if registry is not None else _TOOL_GROUP_REGISTRY
     tools = []
     for name in group_names:
-        getter = _TOOL_GROUP_REGISTRY.get(name)
+        getter = r.get(name)
         if getter:
             tools.extend(getter())
     return tools
@@ -329,20 +352,30 @@ def create_dissolve_agent(
         token_budget=500_000,
         max_tool_calls=12,
         truncate_tool_results_after=3000,
-        free_tools={"think", "task", "read_file", "write_file", "write_todos"},
+        free_tools={"think", "task", "read_file", "write_file", "write_todos",
+                    "get_subagent_result", "get_all_subagent_results"},
     )
 
+    # Structured result extractor: intercepts task() ToolMessages and
+    # extracts <STRUCTURED_RESULT> JSON blocks into a per-invocation registry.
+    result_extractor = StructuredResultExtractorMiddleware()
+
+    # Set up per-session scratch directory for sidecar tools
+    scratch_dir = _create_session_scratch_dir()
+    from .tools.sidecar import set_scratch_dir
+    set_scratch_dir(scratch_dir)
+
     # Middleware order (innermost → outermost):
-    #   routing → output_verifier → orchestrator_guard
+    #   routing → output_verifier → result_extractor → orchestrator_guard
     agent = create_deep_agent(
         model=model,
-        tools=get_core_tools(),
+        tools=get_core_tools() + get_result_extractor_tools(),
         subagents=_build_subagents(overrides=subagent_overrides),
         system_prompt=SYSTEM_PROMPT,
         memory=["./AGENTS.md"],
         skills=["./skills/"],
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-        middleware=[routing, output_verifier, orchestrator_guard],
+        middleware=[routing, output_verifier, result_extractor, orchestrator_guard],
         name="dissolve-agent",
         checkpointer=checkpointer,
     )
