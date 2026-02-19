@@ -9,7 +9,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from langsmith import Client as LangSmithClient
 from strap import agent as agent_module
-from strap.guardrails import SubagentGuardMiddleware
 
 QUERY = (
     "Find the optimal separation sequence for a mixed polymer waste stream "
@@ -23,24 +22,12 @@ QUERY = (
 
 
 def main():
-    # Monkey-patch: increase separation-engineer tool budget for this run
-    _orig_build = agent_module._build_subagents
-
-    def _patched_build():
-        subagents = _orig_build()
-        for sa in subagents:
-            if sa["name"] == "separation-engineer":
-                for mw in sa["middleware"]:
-                    if isinstance(mw, SubagentGuardMiddleware):
-                        mw._max_tool_calls = 20
-                        mw._synthesis_tools = set()
-                        print("Patched separation-engineer: "
-                              "max_tool_calls=20, synthesis_injection=off")
-        return subagents
-
-    agent_module._build_subagents = _patched_build
-    agent = agent_module.create_dissolve_agent()
-    agent_module._build_subagents = _orig_build  # restore
+    agent = agent_module.create_dissolve_agent(
+        subagent_overrides={
+            "separation-engineer": {"max_tool_calls": 20, "synthesis_tools": set()},
+        },
+    )
+    print("separation-engineer: max_tool_calls=20, synthesis_injection=off")
 
     print(f"Query: {QUERY}\n")
     print("Running agent (recursion_limit=250)...\n")

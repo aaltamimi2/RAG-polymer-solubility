@@ -15,7 +15,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -29,161 +32,62 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 # ------------------------------------------------------------------
-# Routing rules — single source of truth for prompt table + matcher
+# Routing rules — loaded from subagents.yaml at import time
 # ------------------------------------------------------------------
 
-ROUTING_RULES: list[dict] = [
-    {
-        "subagent": "separation-engineer",
-        "priority": 1,
-        "description": "Separation sequences, selectivity, dissolution, precipitation",
-        "phrases": [
-            "separation sequence", "optimal separation", "selective solvent",
-            "polymer separation", "separation order", "separation plan",
-            "sequential separation", "selective dissolution",
-            "separation cascade", "separation scheme",
-            r"dissolve.*but not", r"\d+\s*scheme",
-            r"separate\s+\w+\s+from",
-        ],
-        "high_stems": [
-            "precipitat", "antisolvent", "antisolvents",
-            "selectiv", "greedy", r"branch.and.bound",
-        ],
-        "low_stems": [
-            "separat", "dissolution", "dissolve",
-        ],
-        "negatives": [
-            "sql", "database", "table schema", "list polymers",
-            "list solvents", "available solvents", "available polymers",
-            "describe table",
-        ],
-    },
-    {
-        "subagent": "safety-analyst",
-        "priority": 2,
-        "description": "GSK G-scores, PubChem hazard/GHS, toxicity data",
-        "phrases": [
-            r"g.score", "ghs hazard", "pubchem safety",
-            "safety comparison", "solvent safety",
-        ],
-        "high_stems": [
-            "pubchem", "gscore", "ld50", "lc50", "biodegradation",
-            "safe",
-        ],
-        "low_stems": ["hazard", "toxic"],
-        "negatives": [],
-    },
-    {
-        "subagent": "biosteam-analyst",
-        "priority": 3,
-        "description": "TEA, LCA, BioSTEAM process simulation, costs, emissions, MSP, CAPEX, OPEX, GWP",
-        "phrases": [
-            r"techno.economic", "life cycle", "operating cost",
-            "capital cost", "minimum selling price",
-            "scale economics", "strap process",
-            "biosteam", "process simulation",
-            r"energy\s+case",
-            r"\bpet\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
-            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bpet\b",
-            r"\bldpe\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
-            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bldpe\b",
-            r"\bevoh\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)",
-            r"(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bevoh\b",
-        ],
-        "high_stems": [
-            "msp", "ghg", "payback", "biosteam", "capex", "opex",
-        ],
-        "low_stems": [
-            "tea", "lca", "emission", "cost", "gwp", "rigorous",
-        ],
-        "negatives": [],
-    },
-    {
-        "subagent": "scholar-researcher",
-        "priority": 4,
-        "description": "Google Scholar, Web of Science, research papers",
-        "phrases": [
-            "google scholar", "web of science",
-            "literature search", "research article",
-        ],
-        "high_stems": ["scholar"],
-        "low_stems": ["publication", "journal", "paper"],
-        "negatives": [],
-    },
-    {
-        "subagent": "patent-researcher",
-        "priority": 5,
-        "description": "Patent search, patent lookup",
-        "phrases": ["patent search", "patent number"],
-        "high_stems": ["patent"],
-        "low_stems": [],
-        "negatives": [],
-    },
-    {
-        "subagent": "rag-analyst",
-        "priority": 6,
-        "description": "RAG ingestion, literature Q&A, retrieval diagnostics",
-        "phrases": [
-            r"literature q&a", "rag index", "chunk quality",
-            "retrieval diagnostics",
-        ],
-        "high_stems": ["rag", "ingest"],
-        "low_stems": ["indexed", "embedding", "retrieval"],
-        "negatives": [],
-    },
-    {
-        "subagent": "visualization-specialist",
-        "priority": 7,
-        "description": "Plots, charts, heatmaps, dashboards",
-        "phrases": [
-            "solubility plot", "selectivity heatmap",
-            "comparison dashboard", "process flow diagram",
-        ],
-        "high_stems": ["heatmap", "dashboard", "plot", "chart"],
-        "low_stems": ["visualiz", "diagram", "figure"],
-        "negatives": [],
-    },
-    {
-        "subagent": "statistics-ml",
-        "priority": 8,
-        "description": "Statistics, regression, hypothesis testing, ML prediction, Tg lookup, thermal properties, new polymer solubility",
-        "phrases": [
-            "statistical summary", "confidence interval",
-            "hansen parameter", "ml predict",
-            "solubility prediction",
-            "glass transition", "glass transition temperature",
-            r"lookup\s+tg", r"predict\s+tg", r"\btg\s+of\b",
-            "thermal properties", "new polymer", "novel polymer",
-            "unknown polymer", "psmiles",
-            "melting temperature prediction", "predict tm",
-            "predict thermal", "enthalpy of fusion",
-            "heat capacity prediction", "generate solubility",
-            "polymer not in database",
-        ],
-        "high_stems": ["anova", "regression", "psmiles", "thermal", "enthalpy"],
-        "low_stems": [
-            "statistic", "correlation", "hypothesis", "machine learning",
-            "novel",
-        ],
-        "negatives": [],
-    },
-]
+def _load_routing_rules() -> tuple[list[dict], set[frozenset], dict[tuple, None]]:
+    """Load routing rules from subagents.yaml.
 
-# ------------------------------------------------------------------
-# Multi-agent execution patterns
-# ------------------------------------------------------------------
+    Builds ROUTING_RULES from subagent specs that have a ``routing:`` key,
+    and PARALLEL_PAIRS / SEQUENTIAL_PAIRS from the ``execution_pairs:`` section.
+    """
+    yaml_path = Path(__file__).parent / "subagents.yaml"
+    with open(yaml_path) as f:
+        data = yaml.safe_load(f)
 
-PARALLEL_PAIRS: set[frozenset[str]] = {
-    frozenset({"separation-engineer", "safety-analyst"}),
-    frozenset({"biosteam-analyst", "safety-analyst"}),
-}
+    # Support both flat-list format and new mapping format
+    if isinstance(data, dict):
+        specs = data.get("subagents", [])
+        exec_pairs = data.get("execution_pairs", {})
+    else:
+        specs = data
+        exec_pairs = {}
 
-SEQUENTIAL_PAIRS: dict[tuple[str, str], None] = {
-    ("separation-engineer", "biosteam-analyst"): None,
-    ("separation-engineer", "visualization-specialist"): None,
-    ("statistics-ml", "visualization-specialist"): None,
-    ("scholar-researcher", "rag-analyst"): None,
-}
+    # Build ROUTING_RULES from subagent specs that have a routing: section.
+    # The description field comes from the subagent's top-level description.
+    routing_rules: list[dict] = []
+    for spec in specs:
+        routing = spec.get("routing")
+        if not routing:
+            continue
+        rule = {
+            "subagent": spec["name"],
+            "priority": routing["priority"],
+            "description": spec["description"].strip(),
+            "phrases": list(routing.get("phrases", [])),
+            "high_stems": list(routing.get("high_stems", [])),
+            "low_stems": list(routing.get("low_stems", [])),
+            "negatives": list(routing.get("negatives", [])),
+        }
+        routing_rules.append(rule)
+
+    # Sort by priority so order matches the original hardcoded list
+    routing_rules.sort(key=lambda r: r["priority"])
+
+    # Build PARALLEL_PAIRS
+    parallel_pairs: set[frozenset] = set()
+    for pair in exec_pairs.get("parallel", []):
+        parallel_pairs.add(frozenset(pair))
+
+    # Build SEQUENTIAL_PAIRS
+    sequential_pairs: dict[tuple, None] = {}
+    for pair in exec_pairs.get("sequential", []):
+        sequential_pairs[(pair[0], pair[1])] = None
+
+    return routing_rules, parallel_pairs, sequential_pairs
+
+
+ROUTING_RULES, PARALLEL_PAIRS, SEQUENTIAL_PAIRS = _load_routing_rules()
 
 
 # ------------------------------------------------------------------
@@ -484,16 +388,66 @@ def generate_routing_table() -> str:
 # ------------------------------------------------------------------
 
 def _extract_completed_subagents(messages: list) -> list[str]:
-    """Extract subagent names from completed task() calls in message history."""
-    completed = []
+    """Extract subagent names from completed task() calls in message history.
+
+    A task() call is "completed" only when its corresponding ToolMessage
+    exists in the history.  This prevents counting in-flight parallel task()
+    dispatches as completed before the subagent has actually returned.
+    """
+    # Collect all task() dispatches: tool_call_id -> subagent_type
+    pending: dict[str, str] = {}
     for msg in messages:
         if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
             for tc in msg.tool_calls:
                 if tc.get("name") == "task":
                     sa = tc.get("args", {}).get("subagent_type", "")
-                    if sa:
-                        completed.append(sa)
+                    tc_id = tc.get("id", "")
+                    if sa and tc_id:
+                        pending[tc_id] = sa
+
+    if not pending:
+        return []
+
+    # Find tool_call_ids that have a matching ToolMessage (actually completed)
+    completed_ids: set[str] = set()
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            tc_id = getattr(msg, "tool_call_id", None)
+            if tc_id and tc_id in pending:
+                completed_ids.add(tc_id)
+
+    # Return completed subagent names in ToolMessage order, deduplicated
+    completed: list[str] = []
+    seen: set[str] = set()
+    for msg in messages:
+        if isinstance(msg, ToolMessage):
+            tc_id = getattr(msg, "tool_call_id", None)
+            if tc_id and tc_id in completed_ids:
+                sa = pending[tc_id]
+                if sa not in seen:
+                    seen.add(sa)
+                    completed.append(sa)
+
     return completed
+
+
+def _extract_all_task_subagents(messages: list) -> list[str]:
+    """Extract all subagent names dispatched via task(), completed or in-flight.
+
+    Returns deduplicated names in the order they were first dispatched.
+    Used to reconstruct the actual execution plan the orchestrator chose.
+    """
+    seen: set[str] = set()
+    dispatched: list[str] = []
+    for msg in messages:
+        if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
+            for tc in msg.tool_calls:
+                if tc.get("name") == "task":
+                    sa = tc.get("args", {}).get("subagent_type", "")
+                    if sa and sa not in seen:
+                        seen.add(sa)
+                        dispatched.append(sa)
+    return dispatched
 
 
 def _build_progress_directive(
@@ -507,6 +461,8 @@ def _build_progress_directive(
     done_set = set(completed)
     remaining = [r for r in ordered_plan if r["subagent"] not in done_set]
 
+    done_names = ", ".join(dict.fromkeys(completed)) if completed else "(none)"
+
     if not remaining:
         return (
             "\n\n[PROGRESS: All subagent steps are complete. "
@@ -515,7 +471,6 @@ def _build_progress_directive(
         )
 
     next_agent = remaining[0]
-    done_names = ", ".join(completed) if completed else "(none)"
     return (
         f"\n\n[PROGRESS: Completed subagents: {done_names}. "
         f'Suggested next: task(subagent_type="{next_agent["subagent"]}") '
@@ -526,8 +481,37 @@ def _build_progress_directive(
 
 
 def _get_ordered_plan(messages: list) -> list[dict]:
-    """Re-classify the user query and return the ordered plan of subagents."""
-    return classify_query_keywords(messages)
+    """Build the ordered execution plan from actual orchestrator history.
+
+    Instead of re-classifying the original query with keyword matching (which
+    may disagree with the LLM's routing decision), the plan is derived from
+    the actual task() dispatches in the message history.
+
+    1. Start with subagents actually dispatched (in dispatch order) — ground truth.
+    2. Append keyword-recommended agents not yet dispatched — advisory hints.
+    """
+    rules_by_name = {r["subagent"]: r for r in ROUTING_RULES}
+
+    # Ground truth: what the orchestrator actually dispatched
+    dispatched_names = _extract_all_task_subagents(messages)
+
+    plan: list[dict] = []
+    seen: set[str] = set()
+    for name in dispatched_names:
+        rule = rules_by_name.get(name)
+        if rule and name not in seen:
+            plan.append(rule)
+            seen.add(name)
+
+    # Advisory supplement: keyword-recommended agents not yet dispatched
+    keyword_matches = classify_query_keywords(messages)
+    for rule in keyword_matches:
+        name = rule["subagent"]
+        if name not in seen:
+            plan.append(rule)
+            seen.add(name)
+
+    return plan
 
 
 def _get_last_human_message(messages: list) -> str | None:
@@ -607,7 +591,9 @@ class RoutingMiddleware(AgentMiddleware):
 
             return request
 
-        # After task() calls: inject progress directive
+        # After task() calls: inject progress directive based on actual history.
+        # _get_ordered_plan derives the plan from what the orchestrator actually
+        # dispatched, not from re-predicting the original query.
         ordered_plan = _get_ordered_plan(request.messages)
 
         if len(ordered_plan) > 1:
@@ -615,6 +601,13 @@ class RoutingMiddleware(AgentMiddleware):
             if progress and request.system_message is not None:
                 new_system = append_to_system_message(
                     request.system_message, progress
+                )
+                logger.info(
+                    "routing_middleware: progress directive injected, "
+                    "completed=%s remaining=%s",
+                    completed,
+                    [r["subagent"] for r in ordered_plan
+                     if r["subagent"] not in set(completed)],
                 )
                 return request.override(system_message=new_system)
 

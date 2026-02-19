@@ -10,7 +10,11 @@ Based on the deep_research pattern from langchain-ai/deepagents.
 
 from __future__ import annotations
 
+import logging
+
 from ._helpers import safe_tool_wrapper
+
+logger = logging.getLogger(__name__)
 
 
 @safe_tool_wrapper
@@ -33,4 +37,8 @@ def think(reflection: str) -> str:
     Returns:
         Confirmation that reflection was recorded.
     """
-    return f"Reflection recorded. Continue with your next action based on this assessment."
+    logger.debug("Agent reflection: %s", reflection)
+    summary = reflection[:200].rstrip()
+    if len(reflection) > 200:
+        summary += "..."
+    return f"Reflection recorded: {summary}"

@@ -120,7 +120,7 @@ class OutputVerifierMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
         response = await handler(request)
-        return self._maybe_verify(request, response, handler)
+        return await self._amaybe_verify(request, response, handler)
 
     # -- core logic ---------------------------------------------------------
 
@@ -191,3 +191,70 @@ class OutputVerifierMiddleware(AgentMiddleware):
         return _parse_verdict(
             result.content if isinstance(result.content, str) else str(result.content)
         )
+
+    async def _averify(self, user_query: str, response_text: str) -> dict:
+        """Async version of _verify(): uses ainvoke() to avoid blocking the event loop."""
+        msgs = [
+            SystemMessage(content=_VERIFIER_SYSTEM_PROMPT),
+            HumanMessage(
+                content=f"USER QUERY:\n{user_query}\n\nAGENT RESPONSE:\n{response_text}"
+            ),
+        ]
+        result = await self._verifier_model.ainvoke(msgs)
+        return _parse_verdict(
+            result.content if isinstance(result.content, str) else str(result.content)
+        )
+
+    async def _amaybe_verify(self, request, response, handler):
+        """Async version of _maybe_verify(): awaits _averify() and handler() to avoid
+        blocking the event loop."""
+        if self._verified:
+            return response
+
+        result = getattr(response, "result", None)
+        if not result:
+            return response
+
+        ai_msg = result[0]
+        tool_calls = getattr(ai_msg, "tool_calls", None)
+        if tool_calls:
+            return response  # Agent still working — pass through
+
+        # Final synthesis detected
+        self._verified = True
+        content = _extract_text(getattr(ai_msg, "content", ""))
+        if not content or len(content) < 50:
+            return response
+
+        user_query = _get_user_query(request.messages)
+
+        try:
+            verdict = await self._averify(user_query, content)
+        except Exception:
+            logger.warning("verifier: model call failed — passing through", exc_info=True)
+            return response
+
+        if verdict.get("pass", True):
+            logger.info("verifier: PASS")
+            return response
+
+        if verdict.get("confidence") != "HIGH":
+            logger.info(
+                "verifier: issues found but confidence=%s — passing through",
+                verdict.get("confidence"),
+            )
+            return response
+
+        # HIGH-confidence issues — inject feedback and re-invoke
+        issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
+        logger.warning("verifier: HIGH confidence issues found:\n%s", issues_text)
+
+        feedback = (
+            f"\n\n[VERIFICATION FEEDBACK — revise your response]\n"
+            f"A quality check found these issues with your answer:\n"
+            f"{issues_text}\n"
+            f"Please revise your response to address these issues. "
+            f"Use the tool results already in context — do not call additional tools."
+        )
+        new_system = append_to_system_message(request.system_message, feedback)
+        return await handler(request.override(system_message=new_system))

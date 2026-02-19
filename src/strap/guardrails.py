@@ -3,7 +3,9 @@ limit + synthesis injection + old tool-result truncation."""
 
 from __future__ import annotations
 
+import contextvars
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from deepagents.middleware._utils import append_to_system_message
@@ -16,6 +18,19 @@ if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _GuardState:
+    iterations: int = 0
+    total_prompt_tokens: int = 0
+    total_tool_calls: int = 0
+    synthesis_tool_seen: bool = False
+
+
+_guard_state: contextvars.ContextVar[_GuardState] = contextvars.ContextVar(
+    "_guard_state"
+)
 
 
 class SubagentGuardMiddleware(AgentMiddleware):
@@ -56,25 +71,24 @@ class SubagentGuardMiddleware(AgentMiddleware):
         self._free_tools: set[str] = free_tools or set()
         self._keep_recent = keep_recent
 
-        # Per-invocation counters (reset in before_agent)
-        self._iterations = 0
-        self._total_prompt_tokens = 0
-        self._total_tool_calls = 0
-        self._synthesis_tool_seen = False
+    # -- per-invocation state (ContextVar-isolated) ---------------------------
+
+    @property
+    def _state(self) -> _GuardState:
+        try:
+            return _guard_state.get()
+        except LookupError:
+            state = _GuardState()
+            _guard_state.set(state)
+            return state
 
     # -- lifecycle: reset counters at task() invocation start ----------------
 
     def before_agent(self, state, runtime):
-        self._iterations = 0
-        self._total_prompt_tokens = 0
-        self._total_tool_calls = 0
-        self._synthesis_tool_seen = False
+        _guard_state.set(_GuardState())
 
     async def abefore_agent(self, state, runtime):
-        self._iterations = 0
-        self._total_prompt_tokens = 0
-        self._total_tool_calls = 0
-        self._synthesis_tool_seen = False
+        _guard_state.set(_GuardState())
 
     # -- model-call wrapper: enforce limits ----------------------------------
 
@@ -83,8 +97,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
-        self._iterations += 1
-        if self._iterations > self._max_iterations:
+        self._state.iterations += 1
+        if self._state.iterations > self._max_iterations:
             logger.warning(
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
@@ -106,11 +120,11 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         # Track tokens
         self._track_tokens(response)
-        if self._total_prompt_tokens > self._token_budget:
+        if self._state.total_prompt_tokens > self._token_budget:
             logger.warning(
                 "SubagentGuard: token budget (%d) exceeded at %d tokens",
                 self._token_budget,
-                self._total_prompt_tokens,
+                self._state.total_prompt_tokens,
             )
             return AIMessage(
                 content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
@@ -124,8 +138,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
         request: ModelRequest,
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
-        self._iterations += 1
-        if self._iterations > self._max_iterations:
+        self._state.iterations += 1
+        if self._state.iterations > self._max_iterations:
             logger.warning(
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
@@ -147,11 +161,11 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         # Track tokens
         self._track_tokens(response)
-        if self._total_prompt_tokens > self._token_budget:
+        if self._state.total_prompt_tokens > self._token_budget:
             logger.warning(
                 "SubagentGuard: token budget (%d) exceeded at %d tokens",
                 self._token_budget,
-                self._total_prompt_tokens,
+                self._state.total_prompt_tokens,
             )
             return AIMessage(
                 content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
@@ -169,7 +183,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         ai_msg = response.result[0]
         usage = getattr(ai_msg, "usage_metadata", None)
         if usage:
-            self._total_prompt_tokens += usage.get("input_tokens", 0)
+            self._state.total_prompt_tokens += usage.get("input_tokens", 0)
 
     def _enforce_tool_call_limit(
         self, response: ModelResponse
@@ -192,12 +206,12 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 tc for tc in tool_calls
                 if tc.get("name") not in self._free_tools
             ]
-            self._total_tool_calls += len(billable)
-        if self._total_tool_calls >= self._max_tool_calls:
+            self._state.total_tool_calls += len(billable)
+        if self._state.total_tool_calls >= self._max_tool_calls:
             logger.warning(
                 "SubagentGuard: tool call limit (%d) reached at %d calls",
                 self._max_tool_calls,
-                self._total_tool_calls,
+                self._state.total_tool_calls,
             )
             # Preserve any text the LLM already generated
             existing_text = getattr(ai_msg, "content", "") or ""
@@ -218,14 +232,14 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
     def _detect_synthesis_tools(self, messages: list) -> None:
         """Scan recent ToolMessages for synthesis tool results."""
-        if self._synthesis_tool_seen or not self._synthesis_tools:
+        if self._state.synthesis_tool_seen or not self._synthesis_tools:
             return
         # Walk backwards from the end; stop at the first AIMessage
         for msg in reversed(messages):
             if isinstance(msg, ToolMessage):
                 tool_name = getattr(msg, "name", None)
                 if tool_name and tool_name in self._synthesis_tools:
-                    self._synthesis_tool_seen = True
+                    self._state.synthesis_tool_seen = True
                     logger.info(
                         "SubagentGuard: synthesis tool '%s' detected — "
                         "will inject synthesis directive",
@@ -240,7 +254,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
     ) -> ModelRequest:
         """Append a synthesis directive to the system prompt if a key tool
         has already returned results."""
-        if not self._synthesis_tool_seen or request.system_message is None:
+        if not self._state.synthesis_tool_seen or request.system_message is None:
             return request
         directive = (
             "\n\n[NOTE] A comprehensive analysis tool has returned results. "
@@ -260,7 +274,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         reference its latest tool results."""
         if (
             self._truncate_tool_results_after is None
-            or self._iterations <= 1
+            or self._state.iterations <= 1
         ):
             return request
 

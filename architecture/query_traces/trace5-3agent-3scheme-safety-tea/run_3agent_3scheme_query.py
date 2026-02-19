@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from langsmith import Client as LangSmithClient
 from strap import agent as agent_module
-from strap.guardrails import SubagentGuardMiddleware
 
 QUERY = (
     "Find the optimal separation sequence for a mixed polymer waste stream "
@@ -29,8 +28,7 @@ QUERY = (
     "operating costs and determine the most cost-effective process."
 )
 
-# Guardrail patches per subagent
-PATCHES = {
+SUBAGENT_OVERRIDES = {
     "separation-engineer": {"max_tool_calls": 20, "synthesis_tools": set()},
     "safety-analyst": {"max_tool_calls": 15},
     "tea-lca-analyst": {"max_tool_calls": 15},
@@ -38,27 +36,11 @@ PATCHES = {
 
 
 def main():
-    _orig_build = agent_module._build_subagents
-
-    def _patched_build():
-        subagents = _orig_build()
-        for sa in subagents:
-            if sa["name"] in PATCHES:
-                patch = PATCHES[sa["name"]]
-                for mw in sa["middleware"]:
-                    if isinstance(mw, SubagentGuardMiddleware):
-                        if "max_tool_calls" in patch:
-                            mw._max_tool_calls = patch["max_tool_calls"]
-                        if "synthesis_tools" in patch:
-                            mw._synthesis_tools = patch["synthesis_tools"]
-                        print(f"Patched {sa['name']}: "
-                              f"max_tool_calls={mw._max_tool_calls}, "
-                              f"synthesis_tools={mw._synthesis_tools or 'default'}")
-        return subagents
-
-    agent_module._build_subagents = _patched_build
-    agent = agent_module.create_dissolve_agent()
-    agent_module._build_subagents = _orig_build
+    agent = agent_module.create_dissolve_agent(
+        subagent_overrides=SUBAGENT_OVERRIDES,
+    )
+    for name, overrides in SUBAGENT_OVERRIDES.items():
+        print(f"Override {name}: {overrides}")
 
     print(f"Query: {QUERY}\n")
     print("Running agent (recursion_limit=250)...\n")

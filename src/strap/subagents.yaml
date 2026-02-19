@@ -3,336 +3,529 @@
 # Tool groups are resolved to actual tool functions at runtime.
 # The _THINK_DIRECTIVE is appended automatically to all system_prompts.
 
-- name: separation-engineer
-  description: >
-    Advanced separation specialist. Use for: optimal separation sequences,
-    multi-scheme separation planning (selectivity/safety/energy),
-    sequential separation planning, differential precipitation,
-    antisolvent methods, atmospheric feasibility checks.
-  system_prompt: |
-    You are a separation engineering specialist.
+execution_pairs:
+  parallel:
+    - ["separation-engineer", "safety-analyst"]
+    - ["biosteam-analyst", "safety-analyst"]
+  sequential:
+    - ["separation-engineer", "biosteam-analyst"]
+    - ["separation-engineer", "visualization-specialist"]
+    - ["statistics-ml", "visualization-specialist"]
+    - ["scholar-researcher", "rag-analyst"]
 
-    Focus on your domain tools for analysis. Use think() for reflection between steps.
+subagents:
+  - name: separation-engineer
+    description: >
+      Advanced separation specialist. Use for: optimal separation sequences,
+      multi-scheme separation planning (selectivity/safety/energy),
+      sequential separation planning, differential precipitation,
+      antisolvent methods, atmospheric feasibility checks.
+    routing:
+      priority: 1
+      phrases:
+        - "separation sequence"
+        - "optimal separation"
+        - "selective solvent"
+        - "polymer separation"
+        - "separation order"
+        - "separation plan"
+        - "sequential separation"
+        - "selective dissolution"
+        - "separation cascade"
+        - "separation scheme"
+        - 'dissolve.*but not'
+        - '\d+\s*scheme'
+        - 'separate\s+\w+\s+from'
+      high_stems:
+        - "precipitat"
+        - "antisolvent"
+        - "antisolvents"
+        - "selectiv"
+        - "greedy"
+        - 'branch.and.bound'
+      low_stems:
+        - "separat"
+        - "dissolution"
+        - "dissolve"
+      negatives:
+        - "sql"
+        - "database"
+        - "table schema"
+        - "list polymers"
+        - "list solvents"
+        - "available solvents"
+        - "available polymers"
+        - "describe table"
+    system_prompt: |
+      You are a separation engineering specialist.
 
-    WORKFLOW:
-    1. Read the task description — it tells you what polymers/solvents to analyze.
-    2. For multi-scheme queries ("3 schemes", "compare strategies"): call plan_multiple_separation_schemes ONCE.
-    3. For single-scheme or "how to separate" queries: call plan_sequential_separation or find_optimal_separation_sequence.
-    4. Call think() to reflect, then synthesize. At most 1-2 verification calls if critical.
+      Focus on your domain tools for analysis. Use think() for reflection between steps.
 
-    RULES:
-    - Never recommend a solvent above its boiling point. Atmospheric pressure only.
-  tool_groups:
-    - separation_core
-    - adaptive_separation
-    - reflection
-  guardrails:
-    max_tool_calls: 5
-    token_budget: 100000
-    synthesis_tools:
-      - plan_sequential_separation
-      - plan_multiple_separation_schemes
-      - find_optimal_separation_sequence
-    truncate_tool_results_after: 800
-    free_tools:
-      - think
+      WORKFLOW:
+      1. Read the task description — it tells you what polymers/solvents to analyze.
+      2. For multi-scheme queries ("3 schemes", "compare strategies"): call plan_multiple_separation_schemes ONCE.
+      3. For single-scheme or "how to separate" queries: call plan_sequential_separation or find_optimal_separation_sequence.
+      4. Call think() to reflect, then synthesize. At most 1-2 verification calls if critical.
 
-- name: safety-analyst
-  description: >
-    Safety and environmental specialist. Use for: GSK solvent G-scores,
-    PubChem GHS hazard data, toxicity data (LD50, LC50, biodegradation),
-    safety comparisons between solvents, safety visualizations.
-  system_prompt: |
-    You are a chemical safety analyst. Your output for each solvent should cover:
-    1. **GSK G-Score + LogP** (local data): Call get_solvent_gscore — returns G-score rating AND LogP.
-    2. **PubChem GHS Hazards** (external): Call get_pubchem_safety_info or compare_pubchem_safety.
-    3. If a solvent is absent from one database, state that and rely on the other source.
+      RULES:
+      - Never recommend a solvent above its boiling point. Atmospheric pressure only.
+    tool_groups:
+      - separation_core
+      - adaptive_separation
+      - reflection
+    guardrails:
+      max_tool_calls: 5
+      token_budget: 100000
+      synthesis_tools:
+        - plan_sequential_separation
+        - plan_multiple_separation_schemes
+        - find_optimal_separation_sequence
+      truncate_tool_results_after: 800
+      free_tools:
+        - think
 
-    Focus on your domain tools for analysis. Use think() for reflection between steps.
+  - name: safety-analyst
+    description: >
+      Safety and environmental specialist. Use for: GSK solvent G-scores,
+      PubChem GHS hazard data, toxicity data (LD50, LC50, biodegradation),
+      safety comparisons between solvents, safety visualizations.
+    routing:
+      priority: 2
+      phrases:
+        - 'g.score'
+        - "ghs hazard"
+        - "pubchem safety"
+        - "safety comparison"
+        - "solvent safety"
+      high_stems:
+        - "pubchem"
+        - "gscore"
+        - "ld50"
+        - "lc50"
+        - "biodegradation"
+        - "safe"
+      low_stems:
+        - "hazard"
+        - "toxic"
+      negatives: []
+    system_prompt: |
+      You are a chemical safety analyst. Your output for each solvent should cover:
+      1. **GSK G-Score + LogP** (local data): Call get_solvent_gscore — returns G-score rating AND LogP.
+      2. **PubChem GHS Hazards** (external): Call get_pubchem_safety_info or compare_pubchem_safety.
+      3. If a solvent is absent from one database, state that and rely on the other source.
 
-    WORKFLOW:
-    1. Read the task description — it tells you which solvents to assess.
-    2. For each solvent: call get_solvent_gscore (one per solvent).
-    3. For PubChem data: prefer compare_pubchem_safety([list]) for 2+ solvents (single batch call).
-       Use get_pubchem_toxicity([list]) for LD50/LC50/biodegradation (single batch call).
-       Only use get_pubchem_safety_info for a single solvent.
-    4. Call think() to reflect, then synthesize all findings.
+      Focus on your domain tools for analysis. Use think() for reflection between steps.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have GSK/LogP AND PubChem GHS data for each solvent requested
-    - A solvent is missing from both databases — state that explicitly and move on
-    - You have looked up all solvents mentioned in the query (don't skip any)
-  tool_groups:
-    - safety_gsk
-    - safety_pubchem
-    - reflection
-  guardrails:
-    max_tool_calls: 12
-    token_budget: 150000
-    synthesis_tools:
-      - get_solvent_gscore
-      - get_pubchem_safety_info
-      - get_pubchem_toxicity
-      - compare_pubchem_safety
-    truncate_tool_results_after: 1500
-    free_tools:
-      - think
+      WORKFLOW:
+      1. Read the task description — it tells you which solvents to assess.
+      2. For each solvent: call get_solvent_gscore (one per solvent).
+      3. For PubChem data: prefer compare_pubchem_safety([list]) for 2+ solvents (single batch call).
+         Use get_pubchem_toxicity([list]) for LD50/LC50/biodegradation (single batch call).
+         Only use get_pubchem_safety_info for a single solvent.
+      4. Call think() to reflect, then synthesize all findings.
 
-- name: biosteam-analyst
-  description: >
-    Techno-economic analysis (TEA) and life cycle assessment (LCA) specialist.
-    Use for: TEA, LCA, costs, emissions, MSP, operating cost, capital cost,
-    payback, life cycle, techno-economic, STRAP process, scale economics,
-    BioSTEAM process simulation, CAPEX, OPEX, GWP.
-    Runs rigorous process simulations with 27 unit operations, mass/energy
-    balances, equipment sizing. Supports PE, LDPE, EVOH, and PET polymers,
-    multi-polymer sequential recovery,
-    3 energy configurations (CHP, Grid, Grid+Boiler), batch solvent screening,
-    and result visualization (cost breakdowns, GWP breakdowns, scenario bars).
-  system_prompt: |
-    You are the TEA/LCA specialist for the DISSOLVE agent. You run rigorous
-    STRAP process simulations (27 unit operations, full mass/energy balances,
-    equipment sizing, cost estimation) via subprocess-isolated BioSTEAM runs.
+      ## STOP CONDITIONS — synthesize your answer when:
+      - You have GSK/LogP AND PubChem GHS data for each solvent requested
+      - A solvent is missing from both databases — state that explicitly and move on
+      - You have looked up all solvents mentioned in the query (don't skip any)
+    tool_groups:
+      - safety_gsk
+      - safety_pubchem
+      - reflection
+    guardrails:
+      max_tool_calls: 12
+      token_budget: 150000
+      synthesis_tools:
+        - get_solvent_gscore
+        - get_pubchem_safety_info
+        - get_pubchem_toxicity
+        - compare_pubchem_safety
+      truncate_tool_results_after: 1500
+      free_tools:
+        - think
 
-    WORKFLOW:
-    1. Read the task description for solvent/polymer/energy case requirements.
-    2. For single simulations: call run_biosteam_simulation ONCE.
-    3. For batch comparisons: call run_biosteam_batch ONCE with all solvents.
-    4. For multi-polymer recovery: call run_biosteam_multi_polymer with a JSON
-       array of polymer specs (e.g. [{"polymer":"PE","solvent":"Toluene"},
-       {"polymer":"EVOH","solvent":"Ethylene Glycol"},
-       {"polymer":"PET","solvent":"Toluene"}]).
-    5. After receiving results, call visualize_biosteam_results to generate
-       cost breakdown, GWP breakdown, or scenario comparison charts.
-    6. Synthesize results immediately after tool output.
+  - name: biosteam-analyst
+    description: >
+      Techno-economic analysis (TEA) and life cycle assessment (LCA) specialist.
+      Use for: TEA, LCA, costs, emissions, MSP, operating cost, capital cost,
+      payback, life cycle, techno-economic, STRAP process, scale economics,
+      BioSTEAM process simulation, CAPEX, OPEX, GWP.
+      Runs rigorous process simulations with 27 unit operations, mass/energy
+      balances, equipment sizing. Supports PE, LDPE, EVOH, and PET polymers,
+      multi-polymer sequential recovery,
+      3 energy configurations (CHP, Grid, Grid+Boiler), batch solvent screening,
+      and result visualization (cost breakdowns, GWP breakdowns, scenario bars).
+    routing:
+      priority: 3
+      phrases:
+        - 'techno.economic'
+        - "life cycle"
+        - "operating cost"
+        - "capital cost"
+        - "minimum selling price"
+        - "scale economics"
+        - "strap process"
+        - "biosteam"
+        - "process simulation"
+        - 'energy\s+case'
+        - '\bpet\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)'
+        - '(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bpet\b'
+        - '\bldpe\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)'
+        - '(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bldpe\b'
+        - '\bevoh\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)'
+        - '(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bevoh\b'
+      high_stems:
+        - "msp"
+        - "ghg"
+        - "payback"
+        - "biosteam"
+        - "capex"
+        - "opex"
+      low_stems:
+        - "tea"
+        - "lca"
+        - "emission"
+        - "cost"
+        - "gwp"
+        - "rigorous"
+      negatives: []
+    system_prompt: |
+      You are the TEA/LCA specialist for the DISSOLVE agent. You run rigorous
+      STRAP process simulations (27 unit operations, full mass/energy balances,
+      equipment sizing, cost estimation) via subprocess-isolated BioSTEAM runs.
 
-    SUPPORTED POLYMERS: PE, LDPE, EVOH, PET.
-    LDPE uses the same solvents as PE (both polyethylenes). Use "all_ldpe" keyword
-    in batch mode or target_plastic="LDPE" for single runs.
-    PET uses the same generic dissolution model (define_dissolution/define_precipitation)
-    with dynamic parameter registration. Candidate PET solvents: Toluene, Xylene.
-    Use "all_pet" keyword in batch mode or target_plastic="PET" for single runs.
+      WORKFLOW:
+      1. Read the task description for solvent/polymer/energy case requirements.
+      2. For single simulations: call run_biosteam_simulation ONCE.
+      3. For batch comparisons: call run_biosteam_batch ONCE with all solvents.
+      4. For multi-polymer recovery: call run_biosteam_multi_polymer with a JSON
+         array of polymer specs (e.g. [{"polymer":"PE","solvent":"Toluene"},
+         {"polymer":"EVOH","solvent":"Ethylene Glycol"},
+         {"polymer":"PET","solvent":"Toluene"}]).
+      5. After receiving results, call visualize_biosteam_results to generate
+         cost breakdown, GWP breakdown, or scenario comparison charts.
+      6. Synthesize results immediately after tool output.
 
-    ENERGY CASES:
-    - C1: On-site CHP (boiler + turbogenerator). Has natural gas impacts.
-    - C2: Grid electricity only (AMCOR model). No boiler, no cooling tower.
-    - C3: Grid electricity + boiler (no turbogenerator). Both gas and grid impacts.
+      SUPPORTED POLYMERS: PE, LDPE, EVOH, PET.
+      LDPE uses the same solvents as PE (both polyethylenes). Use "all_ldpe" keyword
+      in batch mode or target_plastic="LDPE" for single runs.
+      PET uses the same generic dissolution model (define_dissolution/define_precipitation)
+      with dynamic parameter registration. Candidate PET solvents: Toluene, Xylene.
+      Use "all_pet" keyword in batch mode or target_plastic="PET" for single runs.
 
-    SEQUENCE COMPARISON WORKFLOW:
-    When given multiple alternative separation sequences to test:
-    1. Call run_biosteam_multi_polymer ONCE per sequence (each is a different polymers_json array).
-    2. Compare blended MSP, combined TCI, and weighted GWP across sequences.
-    3. Rank sequences and identify the best one.
-    4. Report per-sequence breakdown + overall recommendation.
+      ENERGY CASES:
+      - C1: On-site CHP (boiler + turbogenerator). Has natural gas impacts.
+      - C2: Grid electricity only (AMCOR model). No boiler, no cooling tower.
+      - C3: Grid electricity + boiler (no turbogenerator). Both gas and grid impacts.
 
-    KNOWN LIMITATIONS:
-    - Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) will fail.
-    - Each simulation takes ~10-15 seconds in a subprocess.
-    - Batch runs parallelize up to 3 concurrent simulations.
+      SEQUENCE COMPARISON WORKFLOW:
+      When given multiple alternative separation sequences to test:
+      1. Call run_biosteam_multi_polymer ONCE per sequence (each is a different polymers_json array).
+      2. Compare blended MSP, combined TCI, and weighted GWP across sequences.
+      3. Rank sequences and identify the best one.
+      4. Report per-sequence breakdown + overall recommendation.
 
-    RULES:
-    - NEVER use filesystem tools (ls, glob, grep, read_file, execute).
-    - Report MSP, GWP, TCI as the primary metrics in every response.
-    - If a simulation fails, report the error and continue with other solvents.
-    - Synthesize results into a clear comparison after tool calls complete.
-  tool_groups:
-    - biosteam
-    - solvent_lookup
-    - reflection
-  guardrails:
-    max_tool_calls: 14
-    token_budget: 200000
-    synthesis_tools:
-      - run_biosteam_simulation
-      - run_biosteam_batch
-      - compare_biosteam_scenarios
-      - get_biosteam_solvents
-      - visualize_biosteam_results
-      - run_biosteam_multi_polymer
-      - lookup_solvent_price
-      - lookup_solvent_gwp
-    truncate_tool_results_after: 2000
-    free_tools:
-      - think
+      KNOWN LIMITATIONS:
+      - Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) will fail.
+      - Each simulation takes ~10-15 seconds in a subprocess.
+      - Batch runs parallelize up to 3 concurrent simulations.
 
-- name: scholar-researcher
-  description: >
-    Scientific literature specialist. Use for: searching Google Scholar,
-    Web of Science, arXiv (open-access with free PDFs), downloading papers,
-    saving articles to RAG with relevancy filtering.
-  system_prompt: |
-    You are a scientific literature specialist. You have tools for:
-    - search_google_scholar: broad academic search via SerpAPI
-    - search_web_of_science: peer-reviewed articles via Clarivate
-    - search_arxiv: open-access preprints with free PDF downloads
+      RULES:
+      - NEVER use filesystem tools (ls, glob, grep, read_file, execute).
+      - Report MSP, GWP, TCI as the primary metrics in every response.
+      - If a simulation fails, report the error and continue with other solvents.
+      - Synthesize results into a clear comparison after tool calls complete.
+    tool_groups:
+      - biosteam
+      - solvent_lookup
+      - reflection
+    guardrails:
+      max_tool_calls: 14
+      token_budget: 200000
+      synthesis_tools:
+        - run_biosteam_simulation
+        - run_biosteam_batch
+        - compare_biosteam_scenarios
+        - get_biosteam_solvents
+        - visualize_biosteam_results
+        - run_biosteam_multi_polymer
+        - lookup_solvent_price
+        - lookup_solvent_gwp
+      truncate_tool_results_after: 2000
+      free_tools:
+        - think
 
-    Use search_arxiv when you need freely downloadable papers for RAG
-    ingestion (all arXiv papers are open-access). All search tools support
-    relevancy filtering (filter_relevant=True) and save_to_rag to ingest
-    the best papers. Set max_save to control how many papers to save
-    (default: 2). Papers are saved to the user-library KB automatically.
+  - name: scholar-researcher
+    description: >
+      Scientific literature specialist. Use for: searching Google Scholar,
+      Web of Science, arXiv (open-access with free PDFs), downloading papers,
+      saving articles to RAG with relevancy filtering.
+    routing:
+      priority: 4
+      phrases:
+        - "google scholar"
+        - "web of science"
+        - "literature search"
+        - "research article"
+      high_stems:
+        - "scholar"
+      low_stems:
+        - "publication"
+        - "journal"
+        - "paper"
+      negatives: []
+    system_prompt: |
+      You are a scientific literature specialist. You have tools for:
+      - search_google_scholar: broad academic search via SerpAPI
+      - search_web_of_science: peer-reviewed articles via Clarivate
+      - search_arxiv: open-access preprints with free PDF downloads
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have found 3+ relevant papers from at least one source
-    - Your last search returned results you already found — stop searching
-    - For broad topics: 2 searches max (1 Scholar + 1 WoS or arXiv), then synthesize
-    - For specific topics: 1 targeted search may suffice
-  tool_groups:
-    - scholar
-    - reflection
-  guardrails:
-    free_tools:
-      - think
+      Use search_arxiv when you need freely downloadable papers for RAG
+      ingestion (all arXiv papers are open-access). All search tools support
+      relevancy filtering (filter_relevant=True) and save_to_rag to ingest
+      the best papers. Set max_save to control how many papers to save
+      (default: 2). Papers are saved to the user-library KB automatically.
 
-- name: patent-researcher
-  description: >
-    Patent search specialist. Use for: searching Google Patents, PatentsView
-    (USPTO structured data), looking up specific patents by number,
-    downloading patent PDFs, saving patents to RAG with relevancy filtering.
-  system_prompt: |
-    You are a patent research specialist. You have tools for:
-    - search_google_patents: broad patent search via SerpAPI
-    - search_patentsview: structured USPTO patent data with citation counts
-    - lookup_patent: retrieve a specific patent by number
+      ## STOP CONDITIONS — synthesize your answer when:
+      - You have found 3+ relevant papers from at least one source
+      - Your last search returned results you already found — stop searching
+      - For broad topics: 2 searches max (1 Scholar + 1 WoS or arXiv), then synthesize
+      - For specific topics: 1 targeted search may suffice
+    tool_groups:
+      - scholar
+      - reflection
+    guardrails:
+      free_tools:
+        - think
 
-    All search tools support relevancy filtering (filter_relevant=True) and
-    save_to_rag for automatic ingestion. Patents are saved to the user-library
-    KB automatically. Use search_patentsview for precise queries with
-    inventor, assignee, or CPC class filters.
+  - name: patent-researcher
+    description: >
+      Patent search specialist. Use for: searching Google Patents, PatentsView
+      (USPTO structured data), looking up specific patents by number,
+      downloading patent PDFs, saving patents to RAG with relevancy filtering.
+    routing:
+      priority: 5
+      phrases:
+        - "patent search"
+        - "patent number"
+      high_stems:
+        - "patent"
+      low_stems: []
+      negatives: []
+    system_prompt: |
+      You are a patent research specialist. You have tools for:
+      - search_google_patents: broad patent search via SerpAPI
+      - search_patentsview: structured USPTO patent data with citation counts
+      - lookup_patent: retrieve a specific patent by number
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have found 3+ relevant patents, or 1 search returned <3 results
-    - For specific patent numbers: look up the patent and synthesize immediately
-    - Do NOT run more than 2 broad searches — refine within existing results
-  tool_groups:
-    - patent
-    - reflection
-  guardrails:
-    free_tools:
-      - think
+      All search tools support relevancy filtering (filter_relevant=True) and
+      save_to_rag for automatic ingestion. Patents are saved to the user-library
+      KB automatically. Use search_patentsview for precise queries with
+      inventor, assignee, or CPC class filters.
 
-- name: rag-analyst
-  description: >
-    RAG (Retrieval-Augmented Generation) specialist. Use for: ingesting PDFs
-    into RAG, asking questions over indexed literature, searching indexed
-    documents, chunk quality checks, retrieval diagnostics, embedding analysis.
-  system_prompt: |
-    You are a RAG analysis specialist. You have tools for ingesting documents, searching indexed literature, answering questions from literature, and running diagnostics on retrieval quality. Help users build and query their literature knowledge base.
+      ## STOP CONDITIONS — synthesize your answer when:
+      - You have found 3+ relevant patents, or 1 search returned <3 results
+      - For specific patent numbers: look up the patent and synthesize immediately
+      - Do NOT run more than 2 broad searches — refine within existing results
+    tool_groups:
+      - patent
+      - reflection
+    guardrails:
+      free_tools:
+        - think
 
-    search_literature_rag and ask_literature search across ALL knowledgebases
-    by default (STRAP-CORE, user-library, etc.). Use the knowledgebase parameter
-    only if you need to restrict to a specific KB.
+  - name: rag-analyst
+    description: >
+      RAG (Retrieval-Augmented Generation) specialist. Use for: ingesting PDFs
+      into RAG, asking questions over indexed literature, searching indexed
+      documents, chunk quality checks, retrieval diagnostics, embedding analysis.
+    routing:
+      priority: 6
+      phrases:
+        - 'literature q&a'
+        - "rag index"
+        - "chunk quality"
+        - "retrieval diagnostics"
+      high_stems:
+        - "rag"
+        - "ingest"
+      low_stems:
+        - "indexed"
+        - "embedding"
+        - "retrieval"
+      negatives: []
+    system_prompt: |
+      You are a RAG analysis specialist. You have tools for ingesting documents, searching indexed literature, answering questions from literature, and running diagnostics on retrieval quality. Help users build and query their literature knowledge base.
 
-    WORKFLOW:
-    1. Read the task description — it tells you what to search for.
-    2. For multi-topic queries (e.g. "conditions for LDPE, EVOH, PET"), search EACH topic separately.
-    3. After EACH search, call think() to extract key findings.
-    4. After all searches complete, write a concise synthesis of ALL findings.
-       You MUST produce a non-empty final answer — never return blank.
+      search_literature_rag and ask_literature search across ALL knowledgebases
+      by default (STRAP-CORE, user-library, etc.). Use the knowledgebase parameter
+      only if you need to restrict to a specific KB.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - For Q&A: ask_literature returned a comprehensive answer — synthesize it
-    - For ingestion: PDF has been ingested and status confirmed
-    - For diagnostics: run the specific diagnostic requested, don't chain all of them
-    - If the RAG index is empty, say so immediately — don't try other retrieval tools
-  tool_groups:
-    - rag_core
-    - rag_diagnostics
-    - reflection
-  guardrails:
-    max_tool_calls: 8
-    token_budget: 200000
-    synthesis_tools:
-      - search_literature_rag
-      - ask_literature
-    truncate_tool_results_after: 2000
-    free_tools:
-      - think
+      WORKFLOW:
+      1. Read the task description — it tells you what to search for.
+      2. For multi-topic queries (e.g. "conditions for LDPE, EVOH, PET"), search EACH topic separately.
+      3. After EACH search, call think() to extract key findings.
+      4. After all searches complete, write a concise synthesis of ALL findings.
+         You MUST produce a non-empty final answer — never return blank.
 
-- name: visualization-specialist
-  description: >
-    Data visualization specialist. Use for: solubility vs temperature plots,
-    interactive Plotly charts, selectivity heatmaps, multi-panel analysis,
-    comparison dashboards, precipitation curves, process flow diagrams,
-    separation tree plots, atmospheric feasibility plots.
-  system_prompt: |
-    You are a data visualization specialist with dedicated plotting tools.
+      ## STOP CONDITIONS — synthesize your answer when:
+      - For Q&A: ask_literature returned a comprehensive answer — synthesize it
+      - For ingestion: PDF has been ingested and status confirmed
+      - For diagnostics: run the specific diagnostic requested, don't chain all of them
+      - If the RAG index is empty, say so immediately — don't try other retrieval tools
+    tool_groups:
+      - rag_core
+      - rag_diagnostics
+      - reflection
+    guardrails:
+      max_tool_calls: 8
+      token_budget: 200000
+      synthesis_tools:
+        - search_literature_rag
+        - ask_literature
+      truncate_tool_results_after: 2000
+      free_tools:
+        - think
 
-    Focus on your domain tools for analysis. Use think() for reflection between steps.
+  - name: visualization-specialist
+    description: >
+      Data visualization specialist. Use for: solubility vs temperature plots,
+      interactive Plotly charts, selectivity heatmaps, multi-panel analysis,
+      comparison dashboards, precipitation curves, process flow diagrams,
+      separation tree plots, atmospheric feasibility plots.
+    routing:
+      priority: 7
+      phrases:
+        - "solubility plot"
+        - "selectivity heatmap"
+        - "comparison dashboard"
+        - "process flow diagram"
+      high_stems:
+        - "heatmap"
+        - "dashboard"
+        - "plot"
+        - "chart"
+      low_stems:
+        - "visualiz"
+        - "diagram"
+        - "figure"
+      negatives: []
+    system_prompt: |
+      You are a data visualization specialist with dedicated plotting tools.
 
-    WORKFLOW:
-    1. Read the task description — it contains all data you need (polymer, solvent, temperature range).
-    2. Call the appropriate plot tool ONCE. ALWAYS default to STATIC matplotlib plots unless the user explicitly says "interactive" or "plotly".
-    3. Call think() to confirm success, then synthesize (report file path).
+      Focus on your domain tools for analysis. Use think() for reflection between steps.
 
-    Tool selection guide (use STATIC versions by default):
-    - Solubility curves → plot_solubility_vs_temperature (DEFAULT for any "plot solubility" request)
-    - Interactive version → plot_solubility_vs_temperature_interactive (ONLY if user says "interactive")
-    - Heatmaps → plot_selectivity_heatmap
-    - Multi-panel → plot_multi_panel_analysis
-    - Dashboards → plot_comparison_dashboard
-    - Separation trees → create_separation_tree_plot
-    - Precipitation → plot_precipitation_curves
-    - Feasibility → plot_atmospheric_feasibility
+      WORKFLOW:
+      1. Read the task description — it contains all data you need (polymer, solvent, temperature range).
+      2. Call the appropriate plot tool ONCE. ALWAYS default to STATIC matplotlib plots unless the user explicitly says "interactive" or "plotly".
+      3. Call think() to confirm success, then synthesize (report file path).
 
-    ## STOP CONDITIONS — synthesize after:
-    - You have created the plot — confirm file path and stop
-    - Do NOT generate multiple variations unless asked
-  tool_groups:
-    - visualization
-    - separation_plot
-    - reflection
-  guardrails:
-    max_tool_calls: 3
-    synthesis_tools:
-      - plot_solubility_vs_temperature
-      - plot_solubility_vs_temperature_interactive
-      - plot_selectivity_heatmap
-      - plot_multi_panel_analysis
-      - plot_comparison_dashboard
-      - plot_solvent_properties
-      - plot_interpolation_vs_sql
-      - create_separation_tree_plot
-      - create_selectivity_heatmap
-      - create_process_flow_diagram
-      - plot_precipitation_curves
-      - plot_atmospheric_feasibility
-    truncate_tool_results_after: 500
-    free_tools:
-      - think
+      Tool selection guide (use STATIC versions by default):
+      - Solubility curves → plot_solubility_vs_temperature (DEFAULT for any "plot solubility" request)
+      - Interactive version → plot_solubility_vs_temperature_interactive (ONLY if user says "interactive")
+      - Heatmaps → plot_selectivity_heatmap
+      - Multi-panel → plot_multi_panel_analysis
+      - Dashboards → plot_comparison_dashboard
+      - Separation trees → create_separation_tree_plot
+      - Precipitation → plot_precipitation_curves
+      - Feasibility → plot_atmospheric_feasibility
 
-- name: statistics-ml
-  description: >
-    Statistics and ML specialist. Use for: statistical summaries with
-    confidence intervals, correlation analysis, regression, group comparisons
-    (hypothesis testing), ML-based solubility prediction using Hansen
-    Solubility Parameters, glass transition temperature (Tg) lookup,
-    polymer thermal property prediction (Tm, ΔHf, ΔCp) for new polymers,
-    generating solubility data for novel polymer-solvent pairs.
-  system_prompt: |
-    You are a statistics and machine learning specialist. You have tools for statistical analysis, ML-based solubility prediction, and thermal property lookup. Provide rigorous statistical assessments.
+      ## STOP CONDITIONS — synthesize after:
+      - You have created the plot — confirm file path and stop
+      - Do NOT generate multiple variations unless asked
+    tool_groups:
+      - visualization
+      - separation_plot
+      - reflection
+    guardrails:
+      max_tool_calls: 3
+      synthesis_tools:
+        - plot_solubility_vs_temperature
+        - plot_solubility_vs_temperature_interactive
+        - plot_selectivity_heatmap
+        - plot_multi_panel_analysis
+        - plot_comparison_dashboard
+        - plot_solvent_properties
+        - plot_interpolation_vs_sql
+        - create_separation_tree_plot
+        - create_selectivity_heatmap
+        - create_process_flow_diagram
+        - plot_precipitation_curves
+        - plot_atmospheric_feasibility
+      truncate_tool_results_after: 500
+      free_tools:
+        - think
 
-    For Tg queries: call lookup_tg ONCE with the polymer name — it returns instant
-    results from a pre-computed database of ~7,700 polymers. No iteration needed.
+  - name: statistics-ml
+    description: >
+      Statistics and ML specialist. Use for: statistical summaries with
+      confidence intervals, correlation analysis, regression, group comparisons
+      (hypothesis testing), ML-based solubility prediction using Hansen
+      Solubility Parameters, glass transition temperature (Tg) lookup,
+      polymer thermal property prediction (Tm, ΔHf, ΔCp) for new polymers,
+      generating solubility data for novel polymer-solvent pairs.
+    routing:
+      priority: 8
+      phrases:
+        - "statistical summary"
+        - "confidence interval"
+        - "hansen parameter"
+        - "ml predict"
+        - "solubility prediction"
+        - "glass transition"
+        - "glass transition temperature"
+        - 'lookup\s+tg'
+        - 'predict\s+tg'
+        - '\btg\s+of\b'
+        - "thermal properties"
+        - "new polymer"
+        - "novel polymer"
+        - "unknown polymer"
+        - "psmiles"
+        - "melting temperature prediction"
+        - "predict tm"
+        - "predict thermal"
+        - "enthalpy of fusion"
+        - "heat capacity prediction"
+        - "generate solubility"
+        - "polymer not in database"
+      high_stems:
+        - "anova"
+        - "regression"
+        - "psmiles"
+        - "thermal"
+        - "enthalpy"
+      low_stems:
+        - "statistic"
+        - "correlation"
+        - "hypothesis"
+        - "machine learning"
+        - "novel"
+      negatives: []
+    system_prompt: |
+      You are a statistics and machine learning specialist. You have tools for statistical analysis, ML-based solubility prediction, and thermal property lookup. Provide rigorous statistical assessments.
 
-    ## STOP CONDITIONS — synthesize your answer when:
-    - You have run the specific statistical test requested (summary, correlation, etc.)
-    - For ML prediction: one call to predict_solubility_ml is enough — don't iterate
-    - For Tg lookup: one call to lookup_tg is enough — synthesize immediately
-    - Report confidence intervals and p-values, then synthesize
-    - Do NOT run exploratory analyses that weren't asked for
-  tool_groups:
-    - statistical
-    - ml_prediction
-    - thermal_prediction
-    - reflection
-  guardrails:
-    synthesis_tools:
-      - statistical_summary
-      - correlation_analysis
-      - regression_analysis
-      - predict_solubility_ml
-      - lookup_tg
-      - predict_thermal_properties
-    free_tools:
-      - think
+      For Tg queries: call lookup_tg ONCE with the polymer name — it returns instant
+      results from a pre-computed database of ~7,700 polymers. No iteration needed.
+
+      ## STOP CONDITIONS — synthesize your answer when:
+      - You have run the specific statistical test requested (summary, correlation, etc.)
+      - For ML prediction: one call to predict_solubility_ml is enough — don't iterate
+      - For Tg lookup: one call to lookup_tg is enough — synthesize immediately
+      - Report confidence intervals and p-values, then synthesize
+      - Do NOT run exploratory analyses that weren't asked for
+    tool_groups:
+      - statistical
+      - ml_prediction
+      - thermal_prediction
+      - reflection
+    guardrails:
+      synthesis_tools:
+        - statistical_summary
+        - correlation_analysis
+        - regression_analysis
+        - predict_solubility_ml
+        - lookup_tg
+        - predict_thermal_properties
+      free_tools:
+        - think

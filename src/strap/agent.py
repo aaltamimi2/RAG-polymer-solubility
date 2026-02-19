@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
+from typing import TypedDict
 
 from dotenv import load_dotenv
 
@@ -123,6 +125,20 @@ _FILE_IO_DIRECTIVE = (
 )
 
 
+class SubagentOverride(TypedDict, total=False):
+    """Per-subagent guardrail overrides for create_dissolve_agent().
+
+    All fields are optional and correspond to SubagentGuardMiddleware
+    constructor parameters.
+    """
+    max_iterations: int
+    token_budget: int
+    max_tool_calls: int
+    synthesis_tools: set
+    truncate_tool_results_after: int | None
+    free_tools: set
+
+
 def _resolve_tools(group_names: list[str]) -> list:
     """Resolve YAML tool_group names to actual tool function lists."""
     tools = []
@@ -158,40 +174,87 @@ def _resolve_guardrails(cfg: dict | None) -> list:
 
 def _build_subagents(
     yaml_path: str | Path | None = None,
+    overrides: dict[str, SubagentOverride] | None = None,
 ) -> list[SubAgent]:
     """Load subagent definitions from YAML config.
 
     Falls back to ``subagents.yaml`` next to this module.
     The ``_THINK_DIRECTIVE`` is appended to every system prompt automatically.
+
+    Args:
+        yaml_path: Path to YAML config file. Defaults to subagents.yaml.
+        overrides: Optional dict mapping subagent name -> guardrail overrides.
+            Override keys mirror ``SubagentGuardMiddleware`` parameters:
+            ``max_tool_calls``, ``max_iterations``, ``token_budget``,
+            ``synthesis_tools``, ``truncate_tool_results_after``, ``free_tools``.
     """
     if yaml_path is None:
         yaml_path = _PACKAGE_DIR / "subagents.yaml"
 
     with open(yaml_path) as f:
-        specs = yaml.safe_load(f)
+        data = yaml.safe_load(f)
+
+    # Support both the old flat-list format and the new mapping format
+    # (with top-level "subagents" and "execution_pairs" keys).
+    if isinstance(data, dict):
+        specs = data["subagents"]
+    else:
+        specs = data
+
+    _overrides = overrides or {}
+
+    # Warn about override keys that don't match any known subagent name
+    known_names = {spec["name"] for spec in specs}
+    for name in _overrides:
+        if name not in known_names:
+            warnings.warn(
+                f"subagent_overrides contains unknown agent '{name}'. "
+                f"Known agents: {sorted(known_names)}",
+                stacklevel=3,
+            )
 
     subagents: list[SubAgent] = []
     for spec in specs:
+        agent_name = spec["name"]
+        guardrail_cfg = dict(spec.get("guardrails") or {})
+        if agent_name in _overrides:
+            guardrail_cfg.update(_overrides[agent_name])
+
         prompt = spec["system_prompt"].rstrip() + _FILE_IO_DIRECTIVE + _THINK_DIRECTIVE
         sa = SubAgent(
-            name=spec["name"],
+            name=agent_name,
             description=spec["description"].strip(),
             system_prompt=prompt,
             tools=_resolve_tools(spec.get("tool_groups", [])),
-            middleware=_resolve_guardrails(spec.get("guardrails")),
+            middleware=_resolve_guardrails(guardrail_cfg),
         )
         subagents.append(sa)
 
     return subagents
 
 
-def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro")):
+def create_dissolve_agent(
+    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro"),
+    subagent_overrides: dict[str, SubagentOverride] | None = None,
+):
     """Create and return a compiled DISSOLVE deep agent with subagents.
 
     Uses progressive loading:
     - ``memory`` (AGENTS.md) is always injected into the system prompt.
-    - ``skills`` (skills/\*) are loaded on demand by SkillsMiddleware.
+    - ``skills`` (skills/\\*) are loaded on demand by SkillsMiddleware.
     - ``system_prompt`` carries only the dynamic routing table.
+
+    Args:
+        model_name: LangChain model identifier (provider:model-name format).
+        subagent_overrides: Optional per-subagent guardrail overrides.
+            Dict mapping subagent name -> override fields.
+            See :class:`SubagentOverride` for valid keys.
+
+            Example::
+
+                create_dissolve_agent(subagent_overrides={
+                    "separation-engineer": {"max_tool_calls": 30},
+                })
     """
     model = init_chat_model(model_name)
 
@@ -222,7 +285,7 @@ def create_dissolve_agent(model_name: str = os.getenv("STRAP_MODEL", "google_gen
     agent = create_deep_agent(
         model=model,
         tools=get_core_tools(),
-        subagents=_build_subagents(),
+        subagents=_build_subagents(overrides=subagent_overrides),
         system_prompt=SYSTEM_PROMPT,
         memory=["./AGENTS.md"],
         skills=["./skills/"],
