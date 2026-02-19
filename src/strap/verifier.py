@@ -89,6 +89,10 @@ def _parse_verdict(text: str) -> dict:
         except (json.JSONDecodeError, TypeError):
             pass
     # Fail-open
+    logger.warning(
+        "verifier: could not parse verdict from response, fail-open activated — text: %.200s",
+        text,
+    )
     return {"pass": True}
 
 
@@ -182,6 +186,10 @@ class OutputVerifierMiddleware(AgentMiddleware):
         issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
         logger.warning("verifier: HIGH confidence issues found:\n%s", issues_text)
 
+        if request.system_message is None:
+            logger.warning("verifier: cannot inject feedback — no system message")
+            return response
+
         feedback = (
             f"\n\n[VERIFICATION FEEDBACK — revise your response]\n"
             f"A quality check found these issues with your answer:\n"
@@ -261,6 +269,10 @@ class OutputVerifierMiddleware(AgentMiddleware):
         # HIGH-confidence issues — inject feedback and re-invoke
         issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
         logger.warning("verifier: HIGH confidence issues found:\n%s", issues_text)
+
+        if request.system_message is None:
+            logger.warning("verifier: cannot inject feedback — no system message")
+            return response
 
         feedback = (
             f"\n\n[VERIFICATION FEEDBACK — revise your response]\n"

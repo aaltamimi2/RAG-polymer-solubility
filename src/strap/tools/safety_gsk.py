@@ -392,9 +392,10 @@ async def visualize_gscores(
         where_clauses = []
 
         if filter_by == "family" and family:
-            where_clauses.append(f"classification = '{family}'")
+            safe_family = family.replace("'", "''")
+            where_clauses.append(f"classification = '{safe_family}'")
         elif filter_by == "list" and solvent_list:
-            solvents = [s.strip() for s in solvent_list.split(',')]
+            solvents = [s.strip().replace("'", "''") for s in solvent_list.split(',')]
             solvent_filter = "', '".join(solvents)
             where_clauses.append(f"solvent_common_name IN ('{solvent_filter}')")
 

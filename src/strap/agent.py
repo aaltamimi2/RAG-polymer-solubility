@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import uuid
 import warnings
 from pathlib import Path
 from typing import TypedDict
+
+logger = logging.getLogger(__name__)
 
 from dotenv import load_dotenv
 
@@ -34,6 +37,7 @@ from .tools import get_core_tools  # noqa: E402
 from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_adaptive_separation_tools,
     get_biosteam_tools,
+    get_database_query_tools,
     get_interpolation_tools,
     get_ml_prediction_tools,
     get_patent_tools,
@@ -53,6 +57,7 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
 
 # Map YAML tool_group names → getter functions
 _TOOL_GROUP_REGISTRY: dict[str, callable] = {
+    "database_query": get_database_query_tools,
     "separation_core": get_separation_core_tools,
     "adaptive_separation": get_adaptive_separation_tools,
     "safety_gsk": get_safety_gsk_tools,
@@ -216,6 +221,17 @@ def _build_subagents(
 
     subagents: list[SubAgent] = []
     for spec in specs:
+        missing_field = False
+        for required_field in ("name", "system_prompt", "description"):
+            if required_field not in spec:
+                logger.warning(
+                    "subagents.yaml entry missing required field '%s': %s",
+                    required_field,
+                    spec.get("name", "<unnamed>"),
+                )
+                missing_field = True
+        if missing_field:
+            continue
         agent_name = spec["name"]
         guardrail_cfg = dict(spec.get("guardrails") or {})
         if agent_name in _overrides:

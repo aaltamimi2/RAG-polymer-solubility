@@ -6,13 +6,18 @@ Import tool lists by category for selective loading into subagents.
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def _safe_import(module_path: str, names: list[str]) -> list:
     """Import tool functions, returning empty list if module unavailable."""
     try:
         mod = __import__(module_path, fromlist=names)
         return [getattr(mod, n) for n in names if hasattr(mod, n)]
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to import %s: %s", module_path, e)
         return []
 
 
@@ -277,6 +282,7 @@ def get_all_tools() -> list:
         get_advanced_separation_tools,
         get_biosteam_tools,
         get_thermal_prediction_tools,
+        get_solvent_lookup_tools,
         get_reflection_tools,
     ]
     all_tools = []

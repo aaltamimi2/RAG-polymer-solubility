@@ -209,14 +209,14 @@ def get_cross_database_properties(solvent_name: str, conn) -> Dict[str, Any]:
     prop_name = normalize_solvent_name(solvent_name, "property")
     if prop_name:
         try:
-            query = f"""
+            query = """
             SELECT bp__oc_, logp, energy__j_g_, cp__j_g_k_
             FROM solvent_data
-            WHERE LOWER(solvent_name) = LOWER('{prop_name}')
-            OR LOWER(solvent_name) LIKE '%{prop_name.lower()}%'
+            WHERE LOWER(solvent_name) = LOWER(?)
+            OR LOWER(solvent_name) LIKE '%' || LOWER(?) || '%'
             LIMIT 1
             """
-            result = conn.execute(query).fetchdf()
+            result = conn.execute(query, [prop_name, prop_name]).fetchdf()
             if len(result) > 0:
                 row = result.iloc[0]
                 props['bp'] = row.get('bp__oc_')
@@ -229,14 +229,14 @@ def get_cross_database_properties(solvent_name: str, conn) -> Dict[str, Any]:
     gsk_name = normalize_solvent_name(solvent_name, "gsk")
     if gsk_name:
         try:
-            query = f"""
+            query = """
             SELECT g_score, classification
             FROM gsk_dataset
-            WHERE LOWER(solvent_common_name) = LOWER('{gsk_name}')
-            OR LOWER(solvent_common_name) LIKE '%{gsk_name.lower()}%'
+            WHERE LOWER(solvent_common_name) = LOWER(?)
+            OR LOWER(solvent_common_name) LIKE '%' || LOWER(?) || '%'
             LIMIT 1
             """
-            result = conn.execute(query).fetchdf()
+            result = conn.execute(query, [gsk_name, gsk_name]).fetchdf()
             if len(result) > 0:
                 row = result.iloc[0]
                 props['g_score'] = row.get('g_score')

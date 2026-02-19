@@ -120,8 +120,8 @@ async def predict_solubility_ml(
     - "Is PVDF soluble in DMF?"
     """
     try:
-        from strap.vendor.solubility_predictor import get_predictor
-        from visualization_library_v2 import generate_all_visualizations
+        if get_predictor is None:
+            return "ML predictor unavailable — strap.vendor.solubility_predictor could not be imported."
 
         PLOTS_DIR = get_plots_dir()
 
@@ -129,7 +129,10 @@ async def predict_solubility_ml(
         predictor = get_predictor()
 
         # First, try to get polymer HSP from CSV (since we don't know if DB tables exist)
-        csv_path = 'HSP-ML-integration/RED_values_complete_CORRECTED.csv'
+        from pathlib import Path
+        csv_path = Path(__file__).resolve().parent.parent.parent.parent / 'HSP-ML-integration' / 'RED_values_complete_CORRECTED.csv'
+        if not csv_path.exists():
+            return f"HSP data file not found at {csv_path}. Ensure the HSP-ML-integration directory is in the project root."
 
         try:
             hsp_data = pd.read_csv(csv_path)
@@ -298,6 +301,7 @@ async def predict_solubility_ml(
         # Generate visualizations
         if generate_visualizations:
             try:
+                from visualization_library_v2 import generate_all_visualizations
                 from datetime import datetime
 
                 # Create subdirectory for full viz set

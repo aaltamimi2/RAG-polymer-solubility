@@ -127,11 +127,14 @@ def _download_and_ingest(
                     total_bytes += len(chunk)
                     if total_bytes > _MAX_PDF_BYTES:
                         logger.warning(
-                            "PDF exceeds %d MB limit, truncating: %s",
-                            _MAX_PDF_BYTES // (1024 * 1024), pdf_url,
+                            "PDF exceeds %d byte limit, skipping: %s",
+                            _MAX_PDF_BYTES, pdf_url,
                         )
                         break
 
+            if total_bytes > _MAX_PDF_BYTES:
+                fpath.unlink(missing_ok=True)
+                continue  # skip adding to downloaded list
             downloaded.append(str(fpath))
         except Exception as e:
             failed.append(f"{title[:40]}... ({str(e)[:40]})")
@@ -242,6 +245,8 @@ def search_google_scholar(
     - "Find papers on Hansen solubility parameters"
     - "Search and save the 3 best papers on PET recycling to RAG"
     """
+    if not query or not query.strip():
+        return "Error: search query cannot be empty."
     try:
         from strap.vendor.serpapi_scholar import GoogleScholarClient
 
@@ -401,6 +406,8 @@ def search_google_patents(
     - "Find and save the best 3 patents on solvent-based PET recycling"
     - "What patents does Eastman have on polymer recycling?"
     """
+    if not query or not query.strip():
+        return "Error: search query cannot be empty."
     try:
         from strap.vendor.serpapi_patents import GooglePatentsClient
 
@@ -728,6 +735,8 @@ def search_patentsview(
     - "Find and save the top 3 USPTO patents on solvent-based recycling"
     - "What US patents does Eastman have on polymer recycling?"
     """
+    if not query or not query.strip():
+        return "Error: search query cannot be empty."
     try:
         from strap.vendor.patentsview_client import PatentsViewClient
 
@@ -986,6 +995,8 @@ def search_web_of_science(
     - "Find peer-reviewed papers on polymer recycling"
     - "What journal articles exist on Hansen solubility parameters?"
     """
+    if not query or not query.strip():
+        return "Error: search query cannot be empty."
     try:
         from strap.vendor.wos_client import WebOfScienceClient
 
@@ -1141,6 +1152,8 @@ def search_arxiv(
     - "Find and save open-access papers on Hansen solubility parameters"
     - "Search arXiv and ingest the best 3 papers on PET recycling to RAG"
     """
+    if not query or not query.strip():
+        return "Error: search query cannot be empty."
     try:
         from strap.vendor.arxiv_client import ArxivClient
 

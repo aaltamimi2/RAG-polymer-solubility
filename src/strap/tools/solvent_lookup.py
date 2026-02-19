@@ -372,9 +372,9 @@ def _serpapi_search(query: str, num_results: int = 5) -> list[dict[str, str]]:
     Returns list of {title, snippet, link} dicts. Returns empty list if
     SERPAPI_API_KEY is not set or the request fails.
     """
-    api_key = os.getenv("SERPAPI_API_KEY")
+    api_key = os.getenv("SERPAPI_KEY") or os.getenv("SERPAPI_API_KEY")
     if not api_key:
-        logger.debug("SERPAPI_API_KEY not set — skipping web search")
+        logger.debug("SERPAPI_KEY not set — skipping web search")
         return []
 
     try:

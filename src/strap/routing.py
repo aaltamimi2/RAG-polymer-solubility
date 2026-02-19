@@ -41,50 +41,57 @@ def _load_routing_rules() -> tuple[list[dict], set[frozenset], dict[tuple, None]
     Builds ROUTING_RULES from subagent specs that have a ``routing:`` key,
     and PARALLEL_PAIRS / SEQUENTIAL_PAIRS from the ``execution_pairs:`` section.
     """
-    yaml_path = Path(__file__).parent / "subagents.yaml"
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f)
+    try:
+        yaml_path = Path(__file__).parent / "subagents.yaml"
+        with open(yaml_path) as f:
+            data = yaml.safe_load(f)
 
-    # Support both flat-list format and new mapping format
-    if isinstance(data, dict):
-        specs = data.get("subagents", [])
-        exec_pairs = data.get("execution_pairs", {})
-    else:
-        specs = data
-        exec_pairs = {}
+        # Support both flat-list format and new mapping format
+        if isinstance(data, dict):
+            specs = data.get("subagents", [])
+            exec_pairs = data.get("execution_pairs", {})
+        else:
+            specs = data
+            exec_pairs = {}
 
-    # Build ROUTING_RULES from subagent specs that have a routing: section.
-    # The description field comes from the subagent's top-level description.
-    routing_rules: list[dict] = []
-    for spec in specs:
-        routing = spec.get("routing")
-        if not routing:
-            continue
-        rule = {
-            "subagent": spec["name"],
-            "priority": routing["priority"],
-            "description": spec["description"].strip(),
-            "phrases": list(routing.get("phrases", [])),
-            "high_stems": list(routing.get("high_stems", [])),
-            "low_stems": list(routing.get("low_stems", [])),
-            "negatives": list(routing.get("negatives", [])),
-        }
-        routing_rules.append(rule)
+        # Build ROUTING_RULES from subagent specs that have a routing: section.
+        # The description field comes from the subagent's top-level description.
+        routing_rules: list[dict] = []
+        for spec in specs:
+            routing = spec.get("routing")
+            if not routing:
+                continue
+            rule = {
+                "subagent": spec["name"],
+                "priority": routing.get("priority", 999),
+                "description": spec.get("description", "").strip(),
+                "phrases": list(routing.get("phrases", [])),
+                "high_stems": list(routing.get("high_stems", [])),
+                "low_stems": list(routing.get("low_stems", [])),
+                "negatives": list(routing.get("negatives", [])),
+            }
+            routing_rules.append(rule)
 
-    # Sort by priority so order matches the original hardcoded list
-    routing_rules.sort(key=lambda r: r["priority"])
+        # Sort by priority so order matches the original hardcoded list
+        routing_rules.sort(key=lambda r: r["priority"])
 
-    # Build PARALLEL_PAIRS
-    parallel_pairs: set[frozenset] = set()
-    for pair in exec_pairs.get("parallel", []):
-        parallel_pairs.add(frozenset(pair))
+        # Build PARALLEL_PAIRS
+        parallel_pairs: set[frozenset] = set()
+        for pair in exec_pairs.get("parallel", []):
+            parallel_pairs.add(frozenset(pair))
 
-    # Build SEQUENTIAL_PAIRS
-    sequential_pairs: dict[tuple, None] = {}
-    for pair in exec_pairs.get("sequential", []):
-        sequential_pairs[(pair[0], pair[1])] = None
+        # Build SEQUENTIAL_PAIRS
+        sequential_pairs: dict[tuple, None] = {}
+        for pair in exec_pairs.get("sequential", []):
+            sequential_pairs[(pair[0], pair[1])] = None
 
-    return routing_rules, parallel_pairs, sequential_pairs
+        return routing_rules, parallel_pairs, sequential_pairs
+
+    except Exception as e:
+        logger.warning(
+            "Failed to load routing rules from YAML: %s — using empty defaults", e
+        )
+        return {}, [], []
 
 
 ROUTING_RULES, PARALLEL_PAIRS, SEQUENTIAL_PAIRS = _load_routing_rules()

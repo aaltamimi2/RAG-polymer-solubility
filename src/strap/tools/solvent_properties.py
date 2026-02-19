@@ -234,8 +234,12 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
         sol_lower = solvent.lower().strip()
         sol_normalized = sol_lower.replace("-", "").replace(" ", "").replace(",", "")
 
+        # Escaped variants for safe SQL interpolation
+        sol_lower_safe = sol_lower.replace("'", "''")
+        sol_normalized_safe = sol_normalized.replace("'", "''")
+
         # Strategy 1: Exact match
-        query1 = f'SELECT * FROM {solvent_table} WHERE LOWER("{match_col}") = \'{sol_lower}\''
+        query1 = f'SELECT * FROM {solvent_table} WHERE LOWER("{match_col}") = \'{sol_lower_safe}\''
         try:
             df = conn.execute(query1).fetchdf()
             if len(df) > 0:
@@ -246,9 +250,10 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
         # Strategy 2: Try abbreviation mapping
         if sol_lower in ABBREVIATION_MAP:
             full_name = ABBREVIATION_MAP[sol_lower]
+            full_name_safe = full_name.replace("'", "''")
             query2 = (
                 f'SELECT * FROM {solvent_table} WHERE LOWER("{match_col}") '
-                f"LIKE '%{full_name}%' ORDER BY LENGTH(\"{match_col}\")"
+                f"LIKE '%{full_name_safe}%' ORDER BY LENGTH(\"{match_col}\")"
             )
             try:
                 df = conn.execute(query2).fetchdf()
@@ -260,7 +265,7 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
         # Strategy 3: Substring match
         query3 = (
             f'SELECT * FROM {solvent_table} WHERE LOWER("{match_col}") '
-            f"LIKE '%{sol_lower}%' ORDER BY LENGTH(\"{match_col}\")"
+            f"LIKE '%{sol_lower_safe}%' ORDER BY LENGTH(\"{match_col}\")"
         )
         try:
             df = conn.execute(query3).fetchdf()
@@ -272,7 +277,7 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
         # Strategy 4: Normalized match (remove special characters)
         query4 = f"""
         SELECT * FROM {solvent_table}
-        WHERE REPLACE(REPLACE(REPLACE(LOWER("{match_col}"), '-', ''), ' ', ''), ',', '') LIKE '%{sol_normalized}%'
+        WHERE REPLACE(REPLACE(REPLACE(LOWER("{match_col}"), '-', ''), ' ', ''), ',', '') LIKE '%{sol_normalized_safe}%'
         ORDER BY LENGTH("{match_col}")
         """
         try:
@@ -285,9 +290,10 @@ async def lookup_solvent_properties(solvent_names: list, solvent_table: str) -> 
         # Strategy 5: Check if full name contains the abbreviation as a word
         for abbrev, full in ABBREVIATION_MAP.items():
             if abbrev in sol_lower or sol_lower in full:
+                full_safe = full.replace("'", "''")
                 query5 = (
                     f'SELECT * FROM {solvent_table} WHERE LOWER("{match_col}") '
-                    f"LIKE '%{full}%' ORDER BY LENGTH(\"{match_col}\")"
+                    f"LIKE '%{full_safe}%' ORDER BY LENGTH(\"{match_col}\")"
                 )
                 try:
                     df = conn.execute(query5).fetchdf()
@@ -358,7 +364,8 @@ def get_solvent_properties(solvent_names: str) -> str:
         solvent_lower = solvent.lower().strip()
         search_terms = get_search_terms(solvent_lower)
         for term in search_terms:
-            conditions.append(f"LOWER({name_col}) LIKE '%{term}%'")
+            safe_term = term.replace("'", "''")
+            conditions.append(f"LOWER({name_col}) LIKE '%{safe_term}%'")
 
     where_clause = " OR ".join(conditions)
     query = f"SELECT * FROM {table_name} WHERE {where_clause}"
@@ -370,7 +377,10 @@ def get_solvent_properties(solvent_names: str) -> str:
 
     if result["rows"] == 0:
         # Try exact match
-        exact_conditions = [f"LOWER({name_col}) = '{s.lower()}'" for s in solvents]
+        exact_conditions = [
+            "LOWER({col}) = '{val}'".format(col=name_col, val=s.lower().replace("'", "''"))
+            for s in solvents
+        ]
         query = f"SELECT * FROM {table_name} WHERE {' OR '.join(exact_conditions)}"
         result = _execute_query(query, limit=50)
 
@@ -510,7 +520,10 @@ def rank_solvents_by_property(
     # Build query
     if filter_solvents:
         solvents = [s.strip() for s in filter_solvents.split(",")]
-        conditions = [f"LOWER({name_col}) LIKE '%{s.lower()}%'" for s in solvents]
+        conditions = [
+            "LOWER({col}) LIKE '%{val}%'".format(col=name_col, val=s.lower().replace("'", "''"))
+            for s in solvents
+        ]
         where_clause = f"WHERE ({' OR '.join(conditions)}) AND {target_col} IS NOT NULL"
     else:
         where_clause = f"WHERE {target_col} IS NOT NULL"

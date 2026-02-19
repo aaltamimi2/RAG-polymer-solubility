@@ -237,6 +237,7 @@ def check_column_values(table_name: str, column_name: str, limit: int = 50) -> s
     - "What polymers are in the database?"
     - "Show unique values in the solvent column"
     """
+    limit = max(1, min(limit, 500))  # cap between 1 and 500
     conn = get_connection()
 
     is_valid, msg = _verify_inputs(conn, table_name, {"column": column_name})

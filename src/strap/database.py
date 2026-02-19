@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from pathlib import Path
 from typing import Optional
 
 import duckdb
 import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 
 class Database:
@@ -27,7 +30,17 @@ class Database:
         return re.sub(r"[^a-z0-9_]", "_", col.lower().strip())
 
     def _load_all_csvs(self) -> None:
-        for csv_path in sorted(self.data_dir.glob("*.csv")):
+        if not self.data_dir.exists():
+            logger.warning(
+                "Data directory not found: %s — database will have no tables",
+                self.data_dir,
+            )
+            return
+        csv_files = sorted(self.data_dir.glob("*.csv"))
+        if not csv_files:
+            logger.warning("No CSV files found in %s", self.data_dir)
+            return
+        for csv_path in csv_files:
             table_name = csv_path.stem.lower().replace("-", "_").replace(" ", "_")
             table_name = re.sub(r"[^a-z0-9_]", "_", table_name)
             df = pd.read_csv(csv_path, encoding="utf-8-sig")

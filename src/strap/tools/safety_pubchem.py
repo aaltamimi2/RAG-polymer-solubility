@@ -49,9 +49,18 @@ def _pubchem_request(url: str, timeout: int = 15, max_retries: int = 3):
                                                         "User-Agent": "PolymerSolubilityApp/1.0"})
             resp = urllib.request.urlopen(req, timeout=timeout)
             return resp.read()
-        except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503) and attempt < max_retries - 1:
-                time.sleep(2 ** attempt)  # 1s, 2s, 4s backoff
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
+            code = getattr(e, "code", None)
+            if attempt < max_retries - 1:
+                wait = 2 ** attempt
+                logger.debug(
+                    "PubChem request failed (attempt %d/%d): %s — retrying in %ds",
+                    attempt + 1,
+                    max_retries,
+                    e,
+                    wait,
+                )
+                time.sleep(wait)
                 continue
             raise
     return None
@@ -361,6 +370,8 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
     - "Compare the safety of toluene, benzene, and ethanol"
     - "Which is safer: DCM or chloroform?"
     """
+    if isinstance(compounds, str):
+        compounds = [c.strip() for c in compounds.split(",") if c.strip()]
     if len(compounds) < 2:
         return "Please provide at least 2 compounds to compare."
     if len(compounds) > 5:
@@ -569,6 +580,8 @@ async def get_pubchem_toxicity(compounds: List[str]) -> str:
     - "Is acetone biodegradable?"
     - "Compare the environmental toxicity of DCM vs chloroform"
     """
+    if isinstance(compounds, str):
+        compounds = [c.strip() for c in compounds.split(",") if c.strip()]
     if not compounds:
         return "ERROR: No compounds provided. Pass a comma-separated list of chemical names."
     if len(compounds) > 5:

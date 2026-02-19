@@ -7,11 +7,13 @@ execution_pairs:
   parallel:
     - ["separation-engineer", "safety-analyst"]
     - ["biosteam-analyst", "safety-analyst"]
+    - ["scholar-researcher", "patent-researcher"]
   sequential:
     - ["separation-engineer", "biosteam-analyst"]
     - ["separation-engineer", "visualization-specialist"]
     - ["statistics-ml", "visualization-specialist"]
     - ["scholar-researcher", "rag-analyst"]
+    - ["statistics-ml", "rag-analyst"]
 
 subagents:
   - name: separation-engineer
@@ -69,6 +71,16 @@ subagents:
 
       RULES:
       - Never recommend a solvent above its boiling point. Atmospheric pressure only.
+
+      For selective solubility analysis with temperature optimization:
+      - find_optimal_separation_conditions: finds optimal temperature and selectivity for a target polymer
+      - analyze_selective_solubility_enhanced: broader analysis with ranking and enrichment options
+
+      For solvent cost and environmental context:
+      - lookup_solvent_price: get current solvent price (USD/kg)
+      - lookup_solvent_gwp: get solvent global warming potential
+
+      IMPORTANT: If plan_multiple_separation_schemes returns fewer schemes than requested, synthesize from the available results. Do NOT retry with different parameters.
     tool_groups:
       - separation_core
       - adaptive_separation
@@ -138,10 +150,9 @@ subagents:
       max_tool_calls: 12
       token_budget: 150000
       synthesis_tools:
-        - get_solvent_gscore
-        - get_pubchem_safety_info
-        - get_pubchem_toxicity
         - compare_pubchem_safety
+        - get_pubchem_toxicity
+        - get_family_alternatives
       truncate_tool_results_after: 1500
       free_tools:
         - think
@@ -283,11 +294,8 @@ subagents:
         - run_biosteam_simulation
         - run_biosteam_batch
         - compare_biosteam_scenarios
-        - get_biosteam_solvents
-        - visualize_biosteam_results
         - run_biosteam_multi_polymer
-        - lookup_solvent_price
-        - lookup_solvent_gwp
+        - visualize_biosteam_results
       truncate_tool_results_after: 2000
       free_tools:
         - think
@@ -332,6 +340,13 @@ subagents:
       - scholar
       - reflection
     guardrails:
+      max_tool_calls: 6
+      max_iterations: 10
+      token_budget: 120000
+      synthesis_tools:
+        - search_google_scholar
+        - search_arxiv
+        - search_web_of_science
       free_tools:
         - think
 
@@ -368,6 +383,14 @@ subagents:
       - patent
       - reflection
     guardrails:
+      max_tool_calls: 6
+      max_iterations: 10
+      token_budget: 120000
+      synthesis_tools:
+        - search_google_patents
+        - search_patentsview
+        - lookup_patent
+        - search_polymer_patents
       free_tools:
         - think
 
@@ -466,6 +489,10 @@ subagents:
       - Separation trees → create_separation_tree_plot
       - Precipitation → plot_precipitation_curves
       - Feasibility → plot_atmospheric_feasibility
+
+      For BioSTEAM TEA/LCA result visualization:
+      - visualize_biosteam_results: plot pre-computed BioSTEAM simulation data
+        Do NOT run BioSTEAM simulations yourself — only visualize results provided to you.
 
       ## STOP CONDITIONS — synthesize after:
       - You have created the plot — confirm file path and stop

@@ -264,6 +264,12 @@ def generate_solubility_for_new_polymer(
         sle_source = sle_df["source"].iloc[0]
 
     # --- Step 3: Fit A, B, C coefficients ---------------------------------
+    if sle_df is None or sle_df.empty:
+        return (
+            f"## {polymer_name} in {solvent_name}\n\n"
+            f"SLE calculation returned no data. The COSMO-RS interface may not "
+            f"support this polymer-solvent pair."
+        )
     temps_c_arr = sle_df["temperature_c"].values
     sols_pct_arr = sle_df["solubility_pct"].values
 

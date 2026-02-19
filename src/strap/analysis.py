@@ -219,8 +219,10 @@ class SolventRanker:
             target, others, temperature, min_selectivity=-50
         )
 
+        if not metrics:
+            return []
         scores = []
-        max_selectivity = max(m.selectivity for m in metrics) if metrics else 1.0
+        max_selectivity = max(m.selectivity for m in metrics)
 
         for m in metrics:
             props = self._get_props(m.solvent)

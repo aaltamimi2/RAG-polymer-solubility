@@ -221,6 +221,8 @@ def correlation_analysis(
     - "Is there a correlation between temperature and solubility?"
     - "Show the correlation matrix for these columns"
     """
+    if method not in ("pearson", "spearman", "kendall"):
+        return f"Error: method must be 'pearson', 'spearman', or 'kendall' (got '{method}')."
     conn = get_connection()
     col_list = [c.strip() for c in columns.split(',')]
     err = _sanitize_identifier(conn, table_name)
@@ -428,6 +430,8 @@ def regression_analysis(
     - "Fit a regression of solubility vs temperature"
     - "Is there a linear relationship between temperature and solubility?"
     """
+    if degree < 1 or degree > 5:
+        return f"Error: degree must be between 1 and 5 (got {degree}). High-degree polynomials overfit on small datasets."
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, x_column)
     if err:
@@ -476,6 +480,9 @@ def regression_analysis(
             if len(x) < degree + 1:
                 continue
 
+            if np.any(np.isnan(x)) or np.any(np.isnan(y)) or np.any(np.isinf(x)) or np.any(np.isinf(y)):
+                continue
+
             coeffs = np.polyfit(x, y, degree)
             poly = np.poly1d(coeffs)
             y_pred = poly(x)
@@ -495,6 +502,9 @@ def regression_analysis(
     else:
         x = df[x_column].values
         y = df[y_column].values
+
+        if np.any(np.isnan(x)) or np.any(np.isnan(y)) or np.any(np.isinf(x)) or np.any(np.isinf(y)):
+            return "Error: data contains NaN or infinite values. Clean the data before running regression."
 
         coeffs = np.polyfit(x, y, degree)
         poly = np.poly1d(coeffs)

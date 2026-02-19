@@ -637,16 +637,17 @@ def _sql_get_solubility(
     temp_tolerance: float = 10.0,
 ) -> Optional[float]:
     conn = _get_db_conn()
-    query = f"""
+    query = """
     SELECT AVG(solubility____) as avg_sol
     FROM common_solvents_database
-    WHERE UPPER(polymer) = UPPER('{polymer}')
-      AND LOWER(solvent) = LOWER('{solvent}')
-      AND temperature___c_ BETWEEN {temperature_c - temp_tolerance}
-                                AND {temperature_c + temp_tolerance}
+    WHERE UPPER(polymer) = UPPER(?)
+      AND LOWER(solvent) = LOWER(?)
+      AND temperature___c_ BETWEEN ? AND ?
     """
     try:
-        row = conn.execute(query).fetchone()
+        row = conn.execute(query, [polymer, solvent,
+                                   temperature_c - temp_tolerance,
+                                   temperature_c + temp_tolerance]).fetchone()
         if row and row[0] is not None:
             return float(row[0])
     except Exception as e:
@@ -659,16 +660,16 @@ def _sql_get_curve(
     t_start: float, t_end: float, t_step: float,
 ) -> list[dict]:
     conn = _get_db_conn()
-    query = f"""
+    query = """
     SELECT temperature___c_ as temperature, solubility____ as solubility
     FROM common_solvents_database
-    WHERE UPPER(polymer) = UPPER('{polymer}')
-      AND LOWER(solvent) = LOWER('{solvent}')
-      AND temperature___c_ BETWEEN {t_start} AND {t_end}
+    WHERE UPPER(polymer) = UPPER(?)
+      AND LOWER(solvent) = LOWER(?)
+      AND temperature___c_ BETWEEN ? AND ?
     ORDER BY temperature
     """
     try:
-        rows = conn.execute(query).fetchall()
+        rows = conn.execute(query, [polymer, solvent, t_start, t_end]).fetchall()
         return [
             {"temperature": float(r[0]), "solubility": float(r[1])}
             for r in rows
@@ -687,8 +688,12 @@ def _sql_get_selectivity(
 ) -> tuple[str, float, float, float]:
     conn = _get_db_conn()
     all_polymers = [target] + others
-    polymer_filter = "', '".join(all_polymers)
-    others_upper = ",".join(f"UPPER('{p}')" for p in others)
+    # Escape each name for safe IN-list interpolation
+    def _esc(s: str) -> str:
+        return s.replace("'", "''")
+    polymer_filter = "', '".join(_esc(p) for p in all_polymers)
+    others_upper = ",".join(f"UPPER('{_esc(p)}')" for p in others)
+    target_safe = _esc(target)
 
     query = f"""
     WITH solubility_data AS (
@@ -702,7 +707,7 @@ def _sql_get_selectivity(
     target_sol AS (
         SELECT solvent, avg_sol as target_solubility
         FROM solubility_data
-        WHERE UPPER(polymer) = UPPER('{target}')
+        WHERE UPPER(polymer) = UPPER('{target_safe}')
     ),
     others_max AS (
         SELECT solvent, MAX(avg_sol) as max_other
@@ -712,8 +717,8 @@ def _sql_get_selectivity(
     )
     SELECT t.solvent,
            t.target_solubility,
-           COALESCE(o.max_other, 0) as max_other,
-           (t.target_solubility - COALESCE(o.max_other, 0)) as selectivity
+           COALESCE(o.max_other, t.target_solubility) as max_other,
+           (t.target_solubility - COALESCE(o.max_other, t.target_solubility)) as selectivity
     FROM target_sol t
     LEFT JOIN others_max o ON LOWER(t.solvent) = LOWER(o.solvent)
     WHERE t.target_solubility > 0
@@ -745,8 +750,12 @@ def _sql_all_solvents_selectivity(
 ) -> list[dict]:
     conn = _get_db_conn()
     all_polymers = [target] + others
-    polymer_filter = "', '".join(all_polymers)
-    others_upper = ",".join(f"UPPER('{p}')" for p in others)
+    # Escape each name for safe IN-list interpolation
+    def _esc(s: str) -> str:
+        return s.replace("'", "''")
+    polymer_filter = "', '".join(_esc(p) for p in all_polymers)
+    others_upper = ",".join(f"UPPER('{_esc(p)}')" for p in others)
+    target_safe = _esc(target)
 
     query = f"""
     WITH solubility_data AS (
@@ -760,7 +769,7 @@ def _sql_all_solvents_selectivity(
     target_sol AS (
         SELECT solvent, avg_sol as target_solubility
         FROM solubility_data
-        WHERE UPPER(polymer) = UPPER('{target}')
+        WHERE UPPER(polymer) = UPPER('{target_safe}')
     ),
     others_max AS (
         SELECT solvent, MAX(avg_sol) as max_other
@@ -770,8 +779,8 @@ def _sql_all_solvents_selectivity(
     )
     SELECT t.solvent,
            t.target_solubility,
-           COALESCE(o.max_other, 0) as max_other,
-           (t.target_solubility - COALESCE(o.max_other, 0)) as selectivity
+           COALESCE(o.max_other, t.target_solubility) as max_other,
+           (t.target_solubility - COALESCE(o.max_other, t.target_solubility)) as selectivity
     FROM target_sol t
     LEFT JOIN others_max o ON LOWER(t.solvent) = LOWER(o.solvent)
     WHERE t.target_solubility > 0
