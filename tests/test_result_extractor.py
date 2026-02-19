@@ -1,5 +1,7 @@
 """Tests for StructuredResultExtractorMiddleware."""
 import json
+import threading
+import contextvars
 import pytest
 from unittest.mock import MagicMock
 from langchain_core.messages import ToolMessage
@@ -63,15 +65,16 @@ class TestAccessors:
 class TestMiddlewareLifecycle:
     def test_before_agent_resets_registry(self):
         from strap.result_extractor import (
-            StructuredResultExtractorMiddleware, _registry_state, _RegistryState,
+            StructuredResultExtractorMiddleware, _registry, _invocation_id, _RegistryState,
             get_structured_results,
         )
         mw = StructuredResultExtractorMiddleware()
         mw.before_agent(None, None)
-        # Manually insert a result
-        _registry_state.get().results["test-agent"] = {"key": "value"}
+        # Manually insert a result using the new storage API
+        inv_id = _invocation_id.get()
+        _registry[inv_id].results["test-agent"] = {"key": "value"}
         assert get_structured_results() == {"test-agent": {"key": "value"}}
-        # Reset
+        # Reset by calling before_agent again (creates a new invocation ID)
         mw.before_agent(None, None)
         assert get_structured_results() == {}
 
@@ -153,12 +156,13 @@ class TestMiddlewareLifecycle:
 class TestOrchestratorTools:
     def test_get_subagent_result_returns_json(self):
         from strap.result_extractor import (
-            StructuredResultExtractorMiddleware, _registry_state,
+            StructuredResultExtractorMiddleware, _registry, _invocation_id,
             get_subagent_result,
         )
         mw = StructuredResultExtractorMiddleware()
         mw.before_agent(None, None)
-        _registry_state.get().results["test-agent"] = {"value": 42}
+        inv_id = _invocation_id.get()
+        _registry[inv_id].results["test-agent"] = {"value": 42}
         result = get_subagent_result("test-agent")
         parsed = json.loads(result)
         assert parsed["value"] == 42
@@ -184,23 +188,101 @@ class TestOrchestratorTools:
     def test_get_subagent_result_lists_available_agents(self):
         """When requesting a missing agent, the error lists which agents do have results."""
         from strap.result_extractor import (
-            StructuredResultExtractorMiddleware, _registry_state,
+            StructuredResultExtractorMiddleware, _registry, _invocation_id,
             get_subagent_result,
         )
         mw = StructuredResultExtractorMiddleware()
         mw.before_agent(None, None)
-        _registry_state.get().results["present-agent"] = {"x": 1}
+        inv_id = _invocation_id.get()
+        _registry[inv_id].results["present-agent"] = {"x": 1}
         result = get_subagent_result("absent-agent")
         assert "present-agent" in result
 
     def test_get_all_subagent_results_with_data(self):
         from strap.result_extractor import (
-            StructuredResultExtractorMiddleware, _registry_state,
+            StructuredResultExtractorMiddleware, _registry, _invocation_id,
             get_all_subagent_results,
         )
         mw = StructuredResultExtractorMiddleware()
         mw.before_agent(None, None)
-        _registry_state.get().results["agent-x"] = {"metric": 99}
+        inv_id = _invocation_id.get()
+        _registry[inv_id].results["agent-x"] = {"metric": 99}
         result = get_all_subagent_results()
         parsed = json.loads(result)
         assert parsed["agent-x"]["metric"] == 99
+
+
+class TestThreadSafety:
+    def test_parallel_writes_from_threads(self):
+        """Simulate the sync ToolNode dispatch: multiple threads writing results."""
+        from strap.result_extractor import (
+            StructuredResultExtractorMiddleware,
+            _invocation_id, _registry, _registry_lock,
+            get_structured_results,
+        )
+        mw = StructuredResultExtractorMiddleware()
+        mw.before_agent(None, None)
+        inv_id = _invocation_id.get()
+
+        # Simulate 3 parallel task() calls writing from different threads
+        def write_result(agent_name, value):
+            # In the real sync path, copy_context() copies _invocation_id binding
+            # Simulate this by setting it in each thread
+            _invocation_id.set(inv_id)  # same inv_id as parent
+            with _registry_lock:
+                _registry[inv_id].results[agent_name] = {"value": value}
+
+        threads = []
+        for name, val in [("agent-a", 1), ("agent-b", 2), ("agent-c", 3)]:
+            t = threading.Thread(target=write_result, args=(name, val))
+            threads.append(t)
+            t.start()
+        for t in threads:
+            t.join()
+
+        results = get_structured_results()
+        assert len(results) == 3
+        assert results["agent-a"]["value"] == 1
+        assert results["agent-b"]["value"] == 2
+        assert results["agent-c"]["value"] == 3
+
+    def test_invocation_id_not_set_drops_result(self):
+        """If _invocation_id is not set (edge case), _process_result should drop silently."""
+        from strap.result_extractor import (
+            StructuredResultExtractorMiddleware, _invocation_id, get_structured_results,
+        )
+        from unittest.mock import MagicMock
+        from langchain_core.messages import ToolMessage
+        from langgraph.types import Command
+
+        mw = StructuredResultExtractorMiddleware()
+        # Do NOT call before_agent — invocation_id is unset
+        # Reset the ContextVar by running in a fresh context
+        ctx = contextvars.copy_context()
+
+        text = '<STRUCTURED_RESULT>\n{"agent": "test"}\n</STRUCTURED_RESULT>'
+        tool_msg = ToolMessage(content=text, tool_call_id="tc1")
+        cmd = Command(update={"messages": [tool_msg]})
+        request = MagicMock()
+        request.tool_call = {"name": "task", "args": {"subagent_type": "test-agent"}}
+        handler = MagicMock(return_value=cmd)
+
+        # Run in fresh context where _invocation_id is not set
+        def run_in_clean_ctx():
+            mw.wrap_tool_call(request, handler)
+
+        ctx.run(run_in_clean_ctx)
+        # Result should be dropped — no crash
+
+    def test_after_agent_cleans_up(self):
+        """after_agent removes the registry entry."""
+        from strap.result_extractor import (
+            StructuredResultExtractorMiddleware, _invocation_id, _registry,
+            get_structured_results,
+        )
+        mw = StructuredResultExtractorMiddleware()
+        mw.before_agent(None, None)
+        inv_id = _invocation_id.get()
+        assert inv_id in _registry
+        mw.after_agent(None, None)
+        assert inv_id not in _registry

@@ -2,7 +2,7 @@
 
 Intercepts task() ToolMessage responses from subagents, extracts
 <STRUCTURED_RESULT> JSON blocks, and stores them in a per-invocation
-ContextVar registry keyed by subagent name.
+thread-safe dict registry keyed by invocation ID.
 
 The original ToolMessage content is never modified — the extracted
 data is stored separately and made available via accessor functions.
@@ -14,6 +14,8 @@ import contextvars
 import json
 import logging
 import re
+import threading
+import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -30,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
-# Storage: per-invocation ContextVar registry
+# Storage: thread-safe invocation-ID-keyed registry
 # ------------------------------------------------------------------
 
 @dataclass
@@ -39,9 +41,24 @@ class _RegistryState:
     results: dict[str, dict] = field(default_factory=dict)
 
 
-_registry_state: contextvars.ContextVar[_RegistryState] = contextvars.ContextVar(
-    "_structured_result_registry"
+# Thread-safe registry keyed by invocation ID.
+# ContextVar stores only the immutable ID string — safe across copy_context().
+# Actual mutable state lives in the module-level dict, protected by a lock.
+_registry_lock = threading.Lock()
+_registry: dict[str, _RegistryState] = {}
+_invocation_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_structured_result_invocation_id"
 )
+
+
+def _get_current_state() -> _RegistryState | None:
+    """Get the _RegistryState for the current invocation, or None."""
+    try:
+        inv_id = _invocation_id.get()
+    except LookupError:
+        return None
+    with _registry_lock:
+        return _registry.get(inv_id)
 
 
 # Regex to extract <STRUCTURED_RESULT>...</STRUCTURED_RESULT> blocks.
@@ -80,18 +97,20 @@ def get_structured_results() -> dict[str, dict]:
     Keys are subagent names (e.g. "separation-engineer", "safety-analyst").
     Returns an empty dict if no results yet or outside middleware context.
     """
-    try:
-        return dict(_registry_state.get().results)
-    except LookupError:
+    state = _get_current_state()
+    if state is None:
         return {}
+    with _registry_lock:
+        return dict(state.results)
 
 
 def get_structured_result(agent_name: str) -> dict | None:
     """Return the structured result for a specific subagent, or None."""
-    try:
-        return _registry_state.get().results.get(agent_name)
-    except LookupError:
+    state = _get_current_state()
+    if state is None:
         return None
+    with _registry_lock:
+        return state.results.get(agent_name)
 
 
 # ------------------------------------------------------------------
@@ -157,17 +176,53 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
     1. Lets the handler execute the subagent normally.
     2. Extracts the subagent name from the tool call arguments.
     3. Finds and parses the <STRUCTURED_RESULT> block in the returned text.
-    4. Stores the result in a per-invocation ContextVar registry.
+    4. Stores the result in a per-invocation thread-safe dict registry.
     5. Returns the original result unmodified.
     """
 
     def before_agent(self, state, runtime) -> None:
-        _registry_state.set(_RegistryState())
-        logger.debug("result_extractor: registry reset for new invocation")
+        try:
+            from langgraph.config import get_config
+            cfg = get_config()
+            run_id = cfg.get("run_id")
+            inv_id = str(run_id) if run_id is not None else uuid.uuid4().hex
+        except Exception:
+            inv_id = uuid.uuid4().hex
+        _invocation_id.set(inv_id)
+        with _registry_lock:
+            _registry[inv_id] = _RegistryState()
+        logger.debug("result_extractor: registry initialized, invocation=%s", inv_id)
 
     async def abefore_agent(self, state, runtime) -> None:
-        _registry_state.set(_RegistryState())
-        logger.debug("result_extractor: registry reset for new invocation (async)")
+        try:
+            from langgraph.config import get_config
+            cfg = get_config()
+            run_id = cfg.get("run_id")
+            inv_id = str(run_id) if run_id is not None else uuid.uuid4().hex
+        except Exception:
+            inv_id = uuid.uuid4().hex
+        _invocation_id.set(inv_id)
+        with _registry_lock:
+            _registry[inv_id] = _RegistryState()
+        logger.debug("result_extractor: registry initialized (async), invocation=%s", inv_id)
+
+    def after_agent(self, state, runtime) -> None:
+        try:
+            inv_id = _invocation_id.get()
+            with _registry_lock:
+                _registry.pop(inv_id, None)
+            logger.debug("result_extractor: registry cleaned up, invocation=%s", inv_id)
+        except LookupError:
+            pass
+
+    async def aafter_agent(self, state, runtime) -> None:
+        try:
+            inv_id = _invocation_id.get()
+            with _registry_lock:
+                _registry.pop(inv_id, None)
+            logger.debug("result_extractor: registry cleaned up (async), invocation=%s", inv_id)
+        except LookupError:
+            pass
 
     def wrap_tool_call(
         self,
@@ -212,18 +267,27 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
             return
 
         try:
-            state = _registry_state.get()
+            inv_id = _invocation_id.get()
         except LookupError:
-            state = _RegistryState()
-            _registry_state.set(state)
-
-        if subagent_type in state.results:
-            logger.info(
-                "result_extractor: overwriting result for '%s' (duplicate call)",
+            logger.warning(
+                "result_extractor: no invocation ID in context for '%s' — dropping result",
                 subagent_type,
             )
+            return
 
-        state.results[subagent_type] = parsed
+        with _registry_lock:
+            reg_state = _registry.get(inv_id)
+            if reg_state is None:
+                reg_state = _RegistryState()
+                _registry[inv_id] = reg_state
+
+            if subagent_type in reg_state.results:
+                logger.info(
+                    "result_extractor: overwriting result for '%s' (duplicate call)",
+                    subagent_type,
+                )
+            reg_state.results[subagent_type] = parsed
+
         logger.info(
             "result_extractor: stored result for '%s' — keys: %s",
             subagent_type,
