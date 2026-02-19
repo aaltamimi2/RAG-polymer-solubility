@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes + 4 hardening fixes + 65 tests across 10 commits. 35+ files changed.
+All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes + 5 hardening fixes + 68 tests across 11 commits. 35+ files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -504,6 +504,34 @@ Three `generate_content()` call sites now include `request_options={"timeout": .
 | File | Tests | Coverage target |
 |------|-------|----------------|
 | `test_guardrails.py` | 10 | Iteration/token/tool-call limits, free tools, state reset |
-| `test_result_extractor.py` | 19 | Regex extraction, middleware lifecycle, ContextVar isolation, orchestrator tools |
+| `test_result_extractor.py` | 22 | Regex extraction, middleware lifecycle, thread safety, orchestrator tools |
 | `test_sidecar.py` | 15 | Write/read validation, key regex, list enumeration, overwrite, size reporting |
 | `test_biosteam_runner.py` | 21 | Subprocess mocking, timeout/error/JSON handling, batch config, LCA CF injection, ranking |
+
+---
+
+## Commit 11: `a370a52` — ContextVar Parallel Propagation Fix
+
+2 files changed, 179 insertions, 33 deletions.
+
+### Problem
+LangGraph's sync `ToolNode` uses `ContextThreadPoolExecutor` which calls `copy_context()` per worker thread. ContextVar `.set()` calls in worker threads are permanently lost — the parent thread never sees them. The `StructuredResultExtractorMiddleware` stored mutable `_RegistryState` objects in a ContextVar, which technically worked (dict mutations propagate via shared reference) but had a fragile fallback path where `.set()` of a new `_RegistryState` in threads was silently dropped.
+
+### Solution: Thread-safe invocation-ID-keyed registry
+**File:** `result_extractor.py`
+
+Replaced `_registry_state: ContextVar[_RegistryState]` with:
+- `_registry: dict[str, _RegistryState]` — module-level dict keyed by invocation ID, protected by `_registry_lock: threading.Lock`
+- `_invocation_id: ContextVar[str]` — stores only the immutable run_id string (safe across `copy_context()` because strings are never mutated)
+
+**Key invariant:** `_invocation_id.set()` is ONLY called in `before_agent`/`abefore_agent` (main thread, before any parallel dispatch). Worker threads read it via `.get()` but never call `.set()`. All mutable state access goes through `_registry_lock`.
+
+**Lifecycle:**
+- `before_agent`: derives `inv_id` from `langgraph.config.get_config()["run_id"]` (falls back to UUID), sets ContextVar, creates `_registry[inv_id]`
+- `wrap_tool_call`: reads `inv_id` from ContextVar, writes to `_registry[inv_id]` under lock
+- `after_agent` (NEW): removes `_registry[inv_id]` under lock (prevents memory leaks)
+
+**Tests:** 22 pass including 3 new thread safety tests:
+- `test_parallel_writes_from_threads`: 3 threads writing concurrently — all results visible
+- `test_invocation_id_not_set_drops_result`: no crash on missing context
+- `test_after_agent_cleans_up`: registry entry removed after cleanup
