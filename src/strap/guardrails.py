@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 class _GuardState:
     iterations: int = 0
     total_prompt_tokens: int = 0
+    total_output_tokens: int = 0
     total_tool_calls: int = 0
     synthesis_tool_seen: bool = False
 
@@ -120,11 +121,15 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         # Track tokens
         self._track_tokens(response)
-        if self._state.total_prompt_tokens > self._token_budget:
+        total_tokens = self._state.total_prompt_tokens + self._state.total_output_tokens
+        if total_tokens >= self._token_budget:
             logger.warning(
-                "SubagentGuard: token budget (%d) exceeded at %d tokens",
+                "SubagentGuard: token budget (%d) exceeded — "
+                "input=%d output=%d total=%d",
                 self._token_budget,
                 self._state.total_prompt_tokens,
+                self._state.total_output_tokens,
+                total_tokens,
             )
             return AIMessage(
                 content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
@@ -161,11 +166,15 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
         # Track tokens
         self._track_tokens(response)
-        if self._state.total_prompt_tokens > self._token_budget:
+        total_tokens = self._state.total_prompt_tokens + self._state.total_output_tokens
+        if total_tokens >= self._token_budget:
             logger.warning(
-                "SubagentGuard: token budget (%d) exceeded at %d tokens",
+                "SubagentGuard: token budget (%d) exceeded — "
+                "input=%d output=%d total=%d",
                 self._token_budget,
                 self._state.total_prompt_tokens,
+                self._state.total_output_tokens,
+                total_tokens,
             )
             return AIMessage(
                 content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
@@ -176,14 +185,19 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
     # -- helpers -------------------------------------------------------------
 
-    def _track_tokens(self, response: ModelResponse) -> None:
-        """Accumulate prompt tokens from the model response."""
-        if not response.result:
-            return
-        ai_msg = response.result[0]
+    def _track_tokens(self, response) -> None:
+        """Accumulate prompt + output tokens from the model response."""
+        if hasattr(response, "result"):
+            if not response.result:
+                return
+            ai_msg = response.result[0]
+        else:
+            ai_msg = response
+
         usage = getattr(ai_msg, "usage_metadata", None)
         if usage:
             self._state.total_prompt_tokens += usage.get("input_tokens", 0)
+            self._state.total_output_tokens += usage.get("output_tokens", 0)
 
     def _enforce_tool_call_limit(
         self, response: ModelResponse

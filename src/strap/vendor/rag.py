@@ -1065,6 +1065,7 @@ Use this context to understand how the authors interpret and discuss this figure
                     temperature=0.3,  # Lower temperature for factual analysis
                     max_output_tokens=4000,  # Increased for detailed interpretations
                 ),
+                request_options={"timeout": timeout},
             )
 
             interpretation = response.text
@@ -1079,6 +1080,16 @@ Use this context to understand how the authors interpret and discuss this figure
             }
 
         except Exception as e:
+            error_str = str(e)
+            if "timeout" in error_str.lower() or "deadline" in error_str.lower():
+                logger.warning("Gemini API timed out: %s", e)
+                return {
+                    "success": False,
+                    "error": str(e),
+                    "image_path": image_path,
+                    "caption": caption,
+                    "interpretation": f"[Figure interpretation timed out: {caption}]",
+                }
             logger.error(f"Figure interpretation failed: {e}")
             return {
                 "success": False,
@@ -3050,7 +3061,8 @@ Respond with ONLY the context, no explanations."""
         max_document_tokens: int = 100000,  # Gemini can handle large contexts
         max_chunk_tokens: int = 2000,
         cache_contexts: bool = True,
-        cache_file: str = "./rag_data/contextual_cache.json"
+        cache_file: str = "./rag_data/contextual_cache.json",
+        timeout: int = 30
     ):
         """
         Initialize the contextual enricher.
@@ -3063,6 +3075,7 @@ Respond with ONLY the context, no explanations."""
             max_chunk_tokens: Max tokens per chunk
             cache_contexts: Whether to cache generated contexts
             cache_file: Path to cache file
+            timeout: API timeout in seconds for Gemini requests
         """
         self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
         self.model_name = model_name
@@ -3071,6 +3084,7 @@ Respond with ONLY the context, no explanations."""
         self.max_chunk_tokens = max_chunk_tokens
         self.cache_contexts = cache_contexts
         self.cache_file = cache_file
+        self.timeout = timeout
 
         self._model = None
         self._cache: Dict[str, str] = {}
@@ -3184,6 +3198,7 @@ Respond with ONLY the context, no explanations."""
                     temperature=0.2,  # Low temperature for consistent outputs
                     max_output_tokens=150,  # Keep contexts short
                 ),
+                request_options={"timeout": self.timeout},
             )
 
             context = response.text.strip()
@@ -3196,6 +3211,10 @@ Respond with ONLY the context, no explanations."""
             return context
 
         except Exception as e:
+            error_str = str(e)
+            if "timeout" in error_str.lower() or "deadline" in error_str.lower():
+                logger.warning("Gemini API timed out: %s", e)
+                return ""
             logger.warning(f"Context generation failed: {e}")
             return ""
 
@@ -3427,6 +3446,7 @@ Respond with ONLY the context, no explanations."""
                     temperature=0.2,
                     max_output_tokens=300,  # More tokens for parent context
                 ),
+                request_options={"timeout": self.timeout},
             )
 
             context = response.text.strip()
@@ -3439,6 +3459,10 @@ Respond with ONLY the context, no explanations."""
             return context
 
         except Exception as e:
+            error_str = str(e)
+            if "timeout" in error_str.lower() or "deadline" in error_str.lower():
+                logger.warning("Gemini API timed out: %s", e)
+                return ""
             logger.warning(f"Parent context generation failed: {e}")
             return ""
 

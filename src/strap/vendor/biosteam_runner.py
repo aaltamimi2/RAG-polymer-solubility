@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 
 _WORKER_SCRIPT = Path(__file__).parent / "biosteam_worker.py"
 
+_MAX_SUBPROCESS_STDOUT_BYTES = 10 * 1024 * 1024   # 10 MB
+_MAX_SUBPROCESS_STDERR_BYTES = 2 * 1024 * 1024    # 2 MB
+
 # ---------------------------------------------------------------------------
 # Solvent / energy-case metadata (static, no BioSTEAM import needed)
 # ---------------------------------------------------------------------------
@@ -372,6 +375,24 @@ def run_single_simulation(config: dict, timeout: int = 120) -> dict:
             "solvent": solvent,
             "energy_case": energy,
         }
+
+    # Guard against runaway subprocess output (memory protection)
+    if result.stdout and len(result.stdout) > _MAX_SUBPROCESS_STDOUT_BYTES:
+        logger.warning(
+            "BioSTEAM stdout truncated: %d -> %d bytes",
+            len(result.stdout), _MAX_SUBPROCESS_STDOUT_BYTES,
+        )
+        result = subprocess.CompletedProcess(
+            result.args, result.returncode,
+            stdout=result.stdout[:_MAX_SUBPROCESS_STDOUT_BYTES],
+            stderr=(result.stderr or "")[:_MAX_SUBPROCESS_STDERR_BYTES],
+        )
+    elif result.stderr and len(result.stderr) > _MAX_SUBPROCESS_STDERR_BYTES:
+        result = subprocess.CompletedProcess(
+            result.args, result.returncode,
+            stdout=result.stdout,
+            stderr=result.stderr[:_MAX_SUBPROCESS_STDERR_BYTES],
+        )
 
     # Non-zero exit code
     if result.returncode != 0:
