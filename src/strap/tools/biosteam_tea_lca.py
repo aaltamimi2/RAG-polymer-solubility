@@ -82,6 +82,58 @@ _PET_SOLVENTS = [
 # LDPE solvents — same as PE (both polyethylenes dissolve in the same solvents)
 _LDPE_SOLVENTS = list(_PE_SOLVENTS)
 
+# ---------------------------------------------------------------------------
+# New-polymer solvent lists (PS / PP / PVC / PC)
+# ---------------------------------------------------------------------------
+# NOTE: PS, PP, and PVC use the PE dissolution model as an approximation
+# (PE-proxy).  thermosteam has no native oligomers for these polymers, so
+# BioSTEAM maps them to "PE" internally.  Use polymer-specific solvents for
+# improved physical fidelity of operating conditions, but treat TEA/LCA
+# numbers as order-of-magnitude estimates only.
+#
+# PC (polycarbonate) uses the native PColigomer in thermosteam — results are
+# more reliable than for the PE-proxy polymers.
+
+# PS (polystyrene) — PE-proxy approximation
+_PS_SOLVENTS = [
+    "Toluene",
+    "Xylene",
+    "Tetrahydrofuran",
+    "Acetone",
+    "2-Butanone",
+    "Cyclohexane",
+    "Benzene",
+    "Ethyl acetate",
+]
+
+# PP (polypropylene) — PE-proxy approximation
+_PP_SOLVENTS = [
+    "Toluene",
+    "Xylene",
+    "Dodecane",       # proxy for Decalin (not in thermosteam DB)
+    "Cyclohexane",
+    "Tetrahydrofuran",
+]
+
+# PVC (poly(vinyl chloride)) — PE-proxy approximation
+_PVC_SOLVENTS = [
+    "Tetrahydrofuran",
+    "2-Butanone",     # proxy for Cyclohexanone (not in thermosteam DB)
+    "N,N-Dimethylformamide",
+    "Acetone",
+]
+
+# PC (polycarbonate) — native thermosteam PColigomer support
+# Dichloromethane is included but is on the chlorinated blocklist and may
+# be filtered in automated batch runs.
+_PC_SOLVENTS = [
+    "Dichloromethane",       # in chlorinated blocklist — may be filtered
+    "Tetrahydrofuran",
+    "N,N-Dimethylformamide",
+    "Acetone",
+    "Toluene",
+]
+
 _ALL_ENERGY_CASES = ["C1", "C2", "C3"]
 
 from strap.solvent_registry import resolve_to_biosteam as _resolve_biosteam
@@ -100,6 +152,15 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
         return list(_EVOH_SOLVENTS_E2)
     if s == "all_pet":
         return list(_PET_SOLVENTS)
+    # New polymers (PS/PP/PVC use PE-proxy; PC is native)
+    if s == "all_ps":
+        return list(_PS_SOLVENTS)
+    if s == "all_pp":
+        return list(_PP_SOLVENTS)
+    if s == "all_pvc":
+        return list(_PVC_SOLVENTS)
+    if s == "all_pc":
+        return list(_PC_SOLVENTS)
     if s == "all":
         tp = target_plastic.upper()
         if tp == "EVOH":
@@ -108,6 +169,15 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
             return list(_PET_SOLVENTS)
         if tp == "LDPE":
             return list(_LDPE_SOLVENTS)
+        # New polymer dispatch for "all" keyword
+        if tp == "PS":
+            return list(_PS_SOLVENTS)
+        if tp == "PP":
+            return list(_PP_SOLVENTS)
+        if tp == "PVC":
+            return list(_PVC_SOLVENTS)
+        if tp == "PC":
+            return list(_PC_SOLVENTS)
         return list(_PE_SOLVENTS)
 
     # Check if full string is a known alias (handles comma-containing names)
@@ -154,9 +224,12 @@ def run_biosteam_simulation(
 
     Args:
         solvent: Solvent name (e.g. "Toluene", "Xylene", "Heptane").
-        target_plastic: Target plastic to recover — "PE", "LDPE", "EVOH", or "PET" (default "PE").
+        target_plastic: Target plastic to recover — "PE", "LDPE", "EVOH", "PET",
+            "PS", "PP", "PVC", or "PC" (default "PE").
             LDPE uses the same solvents as PE. PET uses the same generic dissolution model
-            with dynamic parameter registration.
+            with dynamic parameter registration. PS, PP, and PVC use the PE process model
+            as an approximation (PE-proxy) — results are order-of-magnitude estimates.
+            PC uses the native thermosteam PColigomer.
         energy_case: Energy configuration "C1" (CHP), "C2" (Grid+AMCOR), or "C3" (Grid+Boiler). Default "C1".
         target_plastic_percent: Target plastic weight percent in feed, 0-100 (default 60).
         processing_capacity: Plant capacity in metric tons/year (default 20000).
@@ -256,8 +329,12 @@ def run_biosteam_batch(
     Args:
         solvents: Comma-separated solvent names, or "all_pe" (PE solvents),
             "all_ldpe" (LDPE solvents, same as PE), "all_evoh" (EVOH solvents),
-            "all_pet" (PET solvents), or "all" (auto-select by target_plastic).
-        target_plastic: Target plastic "PE", "LDPE", "EVOH", or "PET" (default "PE").
+            "all_pet" (PET solvents), "all_ps" (PS solvents, PE-proxy),
+            "all_pp" (PP solvents, PE-proxy), "all_pvc" (PVC solvents, PE-proxy),
+            "all_pc" (PC solvents, native), or "all" (auto-select by target_plastic).
+        target_plastic: Target plastic "PE", "LDPE", "EVOH", "PET", "PS", "PP",
+            "PVC", or "PC" (default "PE"). PS/PP/PVC use the PE-proxy model
+            (approximate). PC uses the native thermosteam PColigomer.
         energy_cases: Comma-separated energy cases or "all" for C1,C2,C3 (default "C1").
         target_plastic_percent: Target plastic weight percent 0-100 (default 60).
         processing_capacity: Plant capacity in MT/yr (default 20000).
@@ -579,6 +656,26 @@ def get_biosteam_solvents() -> str:
         display += f"- {sv}\n"
     display += "\n*PET uses the same generic dissolution model (define_dissolution) with dynamic parameter registration.*\n"
 
+    display += f"\n### PS Solvents — PE-proxy approximation ({len(_PS_SOLVENTS)})\n"
+    for sv in _PS_SOLVENTS:
+        display += f"- {sv}\n"
+    display += "\n*PS (polystyrene) uses the PE process model as an approximation — economics/LCA are order-of-magnitude estimates.*\n"
+
+    display += f"\n### PP Solvents — PE-proxy approximation ({len(_PP_SOLVENTS)})\n"
+    for sv in _PP_SOLVENTS:
+        display += f"- {sv}\n"
+    display += "\n*PP (polypropylene) uses the PE process model as an approximation — economics/LCA are order-of-magnitude estimates.*\n"
+
+    display += f"\n### PVC Solvents — PE-proxy approximation ({len(_PVC_SOLVENTS)})\n"
+    for sv in _PVC_SOLVENTS:
+        display += f"- {sv}\n"
+    display += "\n*PVC (poly(vinyl chloride)) uses the PE process model as an approximation — economics/LCA are order-of-magnitude estimates.*\n"
+
+    display += f"\n### PC Solvents — native thermosteam support ({len(_PC_SOLVENTS)})\n"
+    for sv in _PC_SOLVENTS:
+        display += f"- {sv}\n"
+    display += "\n*PC (polycarbonate) uses the native PColigomer in thermosteam. Dichloromethane is on the chlorinated blocklist and may be filtered in batch runs.*\n"
+
     display += "\n### Energy Cases\n"
     display += "| Case | Description |\n|------|-------------|\n"
     display += "| C1 | Combined Heat & Power (CHP) with turbogenerator |\n"
@@ -601,6 +698,10 @@ def get_biosteam_solvents() -> str:
     display += f"- `all_evoh` -- {len(_EVOH_SOLVENTS)} EVOH solvents (E1 sequence)\n"
     display += f"- `all_evoh_e2` -- {len(_EVOH_SOLVENTS_E2)} EVOH solvents (E2 sequence)\n"
     display += f"- `all_pet` -- all {len(_PET_SOLVENTS)} PET solvents\n"
+    display += f"- `all_ps` -- all {len(_PS_SOLVENTS)} PS solvents (PE-proxy, approx.)\n"
+    display += f"- `all_pp` -- all {len(_PP_SOLVENTS)} PP solvents (PE-proxy, approx.)\n"
+    display += f"- `all_pvc` -- all {len(_PVC_SOLVENTS)} PVC solvents (PE-proxy, approx.)\n"
+    display += f"- `all_pc` -- all {len(_PC_SOLVENTS)} PC solvents (native thermosteam)\n"
     display += "- `all` (energy_cases) -- C1, C2, C3\n"
 
     display += "\n### Known Limitations\n"
@@ -618,6 +719,11 @@ def get_biosteam_solvents() -> str:
         "evoh_solvents_e1": list(_EVOH_SOLVENTS),
         "evoh_solvents_e2": list(_EVOH_SOLVENTS_E2),
         "pet_solvents": list(_PET_SOLVENTS),
+        # New polymers
+        "ps_solvents": list(_PS_SOLVENTS),    # PE-proxy approximation
+        "pp_solvents": list(_PP_SOLVENTS),    # PE-proxy approximation
+        "pvc_solvents": list(_PVC_SOLVENTS),  # PE-proxy approximation
+        "pc_solvents": list(_PC_SOLVENTS),    # native thermosteam PColigomer
         "energy_cases": list(_ALL_ENERGY_CASES),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),
         "dynamic_solvents": dynamic_solvents,
@@ -636,6 +742,7 @@ _POLYMER_MARKET_VALUES = {
     "PP": 1.15, "PS": 1.30, "PVC": 0.90,
     "PET": 1.05, "EVOH": 4.50, "Nylon6": 2.80,
     "Nylon66": 3.00, "PMMA": 2.50,
+    "PC": 2.50,  # polycarbonate (~$2.50/kg engineering resin)
 }
 
 

@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 # Default max papers to auto-save to RAG
 DEFAULT_MAX_SAVE = 2
 
+# Maximum PDF download size to prevent disk exhaustion
+_MAX_PDF_BYTES = 100 * 1024 * 1024  # 100 MB
+
 # ------------------------------------------------------------------
 # Shared helpers
 # ------------------------------------------------------------------
@@ -117,9 +120,17 @@ def _download_and_ingest(
                     )
             resp.raise_for_status()
 
+            total_bytes = 0
             with open(fpath, "wb") as f:
                 for chunk in resp.iter_content(chunk_size=8192):
                     f.write(chunk)
+                    total_bytes += len(chunk)
+                    if total_bytes > _MAX_PDF_BYTES:
+                        logger.warning(
+                            "PDF exceeds %d MB limit, truncating: %s",
+                            _MAX_PDF_BYTES // (1024 * 1024), pdf_url,
+                        )
+                        break
 
             downloaded.append(str(fpath))
         except Exception as e:

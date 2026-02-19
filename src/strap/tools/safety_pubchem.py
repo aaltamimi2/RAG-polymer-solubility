@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import asyncio
+import time
 import urllib.parse
 import urllib.request
 import urllib.error
@@ -24,6 +25,37 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 
+# ------------------------------------------------------------------
+# PubChem rate-limiting and retry helpers
+# ------------------------------------------------------------------
+
+_last_pubchem_request = 0.0
+
+
+def _rate_limit_pubchem():
+    global _last_pubchem_request
+    elapsed = time.time() - _last_pubchem_request
+    if elapsed < 0.25:  # max ~4 req/s, under PubChem's 5/s limit
+        time.sleep(0.25 - elapsed)
+    _last_pubchem_request = time.time()
+
+
+def _pubchem_request(url: str, timeout: int = 15, max_retries: int = 3):
+    """Fetch a URL from PubChem with rate limiting and exponential backoff on errors."""
+    for attempt in range(max_retries):
+        _rate_limit_pubchem()
+        try:
+            req = urllib.request.Request(url, headers={"Accept": "application/json",
+                                                        "User-Agent": "PolymerSolubilityApp/1.0"})
+            resp = urllib.request.urlopen(req, timeout=timeout)
+            return resp.read()
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503) and attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s backoff
+                continue
+            raise
+    return None
+
 
 # ------------------------------------------------------------------
 # Helper functions (not tool-wrapped)
@@ -33,11 +65,12 @@ def fetch_pubchem_cid(compound_name: str) -> Optional[int]:
     """Fetch PubChem CID (Compound ID) for a given compound name."""
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{urllib.parse.quote(compound_name)}/cids/JSON"
-        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode())
-            if 'IdentifierList' in data and 'CID' in data['IdentifierList']:
-                return data['IdentifierList']['CID'][0]
+        raw = _pubchem_request(url, timeout=10)
+        if raw is None:
+            return None
+        data = json.loads(raw.decode())
+        if 'IdentifierList' in data and 'CID' in data['IdentifierList']:
+            return data['IdentifierList']['CID'][0]
     except Exception as e:
         logger.warning(f"Could not fetch CID for {compound_name}: {e}")
     return None
@@ -61,68 +94,69 @@ def fetch_pubchem_ghs_data(cid: int) -> Optional[Dict]:
     """Fetch GHS safety classification data from PubChem."""
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=GHS+Classification"
-        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
-        with urllib.request.urlopen(req, timeout=15) as response:
-            data = json.loads(response.read().decode())
+        raw = _pubchem_request(url, timeout=15)
+        if raw is None:
+            return None
+        data = json.loads(raw.decode())
 
-            result = {
-                'cid': cid,
-                'pictograms': [],
-                'signal_word': None,
-                'hazard_statements': [],
-                'precautionary_codes': []
-            }
+        result = {
+            'cid': cid,
+            'pictograms': [],
+            'signal_word': None,
+            'hazard_statements': [],
+            'precautionary_codes': []
+        }
 
-            # Parse the nested JSON structure for GHS data
-            def extract_ghs_info(obj):
-                if isinstance(obj, dict):
-                    name = obj.get('Name', '')
+        # Parse the nested JSON structure for GHS data
+        def extract_ghs_info(obj):
+            if isinstance(obj, dict):
+                name = obj.get('Name', '')
 
-                    if name == 'Signal':
-                        value = obj.get('Value', {})
-                        if 'StringWithMarkup' in value:
-                            for item in value['StringWithMarkup']:
-                                if 'String' in item:
-                                    result['signal_word'] = item['String']
+                if name == 'Signal':
+                    value = obj.get('Value', {})
+                    if 'StringWithMarkup' in value:
+                        for item in value['StringWithMarkup']:
+                            if 'String' in item:
+                                result['signal_word'] = item['String']
 
-                    elif name == 'Pictogram(s)':
-                        value = obj.get('Value', {})
-                        if 'StringWithMarkup' in value:
-                            for item in value['StringWithMarkup']:
-                                if 'Markup' in item:
-                                    for markup in item['Markup']:
-                                        if 'Extra' in markup:
-                                            result['pictograms'].append(markup['Extra'])
+                elif name == 'Pictogram(s)':
+                    value = obj.get('Value', {})
+                    if 'StringWithMarkup' in value:
+                        for item in value['StringWithMarkup']:
+                            if 'Markup' in item:
+                                for markup in item['Markup']:
+                                    if 'Extra' in markup:
+                                        result['pictograms'].append(markup['Extra'])
 
-                    elif name == 'GHS Hazard Statements':
-                        value = obj.get('Value', {})
-                        if 'StringWithMarkup' in value:
-                            for item in value['StringWithMarkup']:
-                                if 'String' in item:
-                                    result['hazard_statements'].append(item['String'])
+                elif name == 'GHS Hazard Statements':
+                    value = obj.get('Value', {})
+                    if 'StringWithMarkup' in value:
+                        for item in value['StringWithMarkup']:
+                            if 'String' in item:
+                                result['hazard_statements'].append(item['String'])
 
-                    elif name == 'Precautionary Statement Codes':
-                        value = obj.get('Value', {})
-                        if 'StringWithMarkup' in value:
-                            for item in value['StringWithMarkup']:
-                                if 'String' in item:
-                                    result['precautionary_codes'].append(item['String'])
+                elif name == 'Precautionary Statement Codes':
+                    value = obj.get('Value', {})
+                    if 'StringWithMarkup' in value:
+                        for item in value['StringWithMarkup']:
+                            if 'String' in item:
+                                result['precautionary_codes'].append(item['String'])
 
-                    # Recurse into nested structures
-                    for key, val in obj.items():
-                        extract_ghs_info(val)
+                # Recurse into nested structures
+                for key, val in obj.items():
+                    extract_ghs_info(val)
 
-                elif isinstance(obj, list):
-                    for item in obj:
-                        extract_ghs_info(item)
+            elif isinstance(obj, list):
+                for item in obj:
+                    extract_ghs_info(item)
 
-            extract_ghs_info(data)
+        extract_ghs_info(data)
 
-            # Remove duplicates
-            result['pictograms'] = list(set(result['pictograms']))
-            result['hazard_statements'] = list(set(result['hazard_statements']))
+        # Remove duplicates
+        result['pictograms'] = list(set(result['pictograms']))
+        result['hazard_statements'] = list(set(result['hazard_statements']))
 
-            return result
+        return result
 
     except Exception as e:
         logger.warning(f"Could not fetch GHS data for CID {cid}: {e}")
@@ -133,71 +167,72 @@ def fetch_pubchem_toxicity_data(cid: int) -> Optional[Dict]:
     """Fetch toxicity and environmental data from PubChem."""
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug_view/data/compound/{cid}/JSON?heading=Toxicity"
-        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
-        with urllib.request.urlopen(req, timeout=20) as response:
-            data = json.loads(response.read().decode())
+        raw = _pubchem_request(url, timeout=20)
+        if raw is None:
+            return None
+        data = json.loads(raw.decode())
 
-            result = {
-                'cid': cid,
-                'ld50_values': [],
-                'lc50_values': [],
-                'biodegradation': [],
-                'aquatic_toxicity': [],
-                'ecological_info': []
-            }
+        result = {
+            'cid': cid,
+            'ld50_values': [],
+            'lc50_values': [],
+            'biodegradation': [],
+            'aquatic_toxicity': [],
+            'ecological_info': []
+        }
 
-            def extract_toxicity_info(obj, current_heading=''):
-                if isinstance(obj, dict):
-                    heading = obj.get('TOCHeading', current_heading)
+        def extract_toxicity_info(obj, current_heading=''):
+            if isinstance(obj, dict):
+                heading = obj.get('TOCHeading', current_heading)
 
-                    # Check for toxicity values in Information sections
-                    if 'Information' in obj:
-                        for info in obj['Information']:
-                            value = info.get('Value', {})
-                            string_value = ''
+                # Check for toxicity values in Information sections
+                if 'Information' in obj:
+                    for info in obj['Information']:
+                        value = info.get('Value', {})
+                        string_value = ''
 
-                            if 'StringWithMarkup' in value:
-                                for item in value['StringWithMarkup']:
-                                    if 'String' in item:
-                                        string_value = item['String']
-                                        break
-                            elif 'Number' in value:
-                                string_value = str(value['Number'])
+                        if 'StringWithMarkup' in value:
+                            for item in value['StringWithMarkup']:
+                                if 'String' in item:
+                                    string_value = item['String']
+                                    break
+                        elif 'Number' in value:
+                            string_value = str(value['Number'])
 
-                            if string_value:
-                                # Categorize by heading
-                                heading_lower = heading.lower()
-                                if 'ld50' in heading_lower or 'lethal dose' in heading_lower:
-                                    if len(result['ld50_values']) < 5:
-                                        result['ld50_values'].append(string_value[:200])
-                                elif 'lc50' in heading_lower or 'lethal concentration' in heading_lower:
-                                    if len(result['lc50_values']) < 3:
-                                        result['lc50_values'].append(string_value[:200])
-                                elif 'biodegradation' in heading_lower or 'biodegradability' in heading_lower:
-                                    if len(result['biodegradation']) < 3:
-                                        result['biodegradation'].append(string_value[:200])
-                                elif 'aquatic' in heading_lower or 'fish' in heading_lower or 'daphnia' in heading_lower:
-                                    if len(result['aquatic_toxicity']) < 3:
-                                        result['aquatic_toxicity'].append(string_value[:200])
-                                elif 'ecological' in heading_lower or 'environmental' in heading_lower:
-                                    if len(result['ecological_info']) < 3:
-                                        result['ecological_info'].append(string_value[:200])
+                        if string_value:
+                            # Categorize by heading
+                            heading_lower = heading.lower()
+                            if 'ld50' in heading_lower or 'lethal dose' in heading_lower:
+                                if len(result['ld50_values']) < 5:
+                                    result['ld50_values'].append(string_value[:200])
+                            elif 'lc50' in heading_lower or 'lethal concentration' in heading_lower:
+                                if len(result['lc50_values']) < 3:
+                                    result['lc50_values'].append(string_value[:200])
+                            elif 'biodegradation' in heading_lower or 'biodegradability' in heading_lower:
+                                if len(result['biodegradation']) < 3:
+                                    result['biodegradation'].append(string_value[:200])
+                            elif 'aquatic' in heading_lower or 'fish' in heading_lower or 'daphnia' in heading_lower:
+                                if len(result['aquatic_toxicity']) < 3:
+                                    result['aquatic_toxicity'].append(string_value[:200])
+                            elif 'ecological' in heading_lower or 'environmental' in heading_lower:
+                                if len(result['ecological_info']) < 3:
+                                    result['ecological_info'].append(string_value[:200])
 
-                    # Recurse into sections
-                    if 'Section' in obj:
-                        for section in obj['Section']:
-                            extract_toxicity_info(section, heading)
+                # Recurse into sections
+                if 'Section' in obj:
+                    for section in obj['Section']:
+                        extract_toxicity_info(section, heading)
 
-                    for key, val in obj.items():
-                        if key not in ['Section', 'Information']:
-                            extract_toxicity_info(val, heading)
+                for key, val in obj.items():
+                    if key not in ['Section', 'Information']:
+                        extract_toxicity_info(val, heading)
 
-                elif isinstance(obj, list):
-                    for item in obj:
-                        extract_toxicity_info(item, current_heading)
+            elif isinstance(obj, list):
+                for item in obj:
+                    extract_toxicity_info(item, current_heading)
 
-            extract_toxicity_info(data)
-            return result
+        extract_toxicity_info(data)
+        return result
 
     except Exception as e:
         logger.warning(f"Could not fetch toxicity data for CID {cid}: {e}")
@@ -428,6 +463,8 @@ async def visualize_pubchem_safety(
     - "Create a safety comparison chart for toluene, benzene, and xylene"
     - "Visualize PubChem hazard data for common solvents"
     """
+    if plt is None:
+        return "ERROR: matplotlib is not installed. Cannot generate safety chart."
     if len(compounds) < 2:
         return "Please provide at least 2 compounds to visualize."
     if len(compounds) > 5:
@@ -531,6 +568,8 @@ async def get_pubchem_toxicity(compounds: List[str]) -> str:
     - "Is acetone biodegradable?"
     - "Compare the environmental toxicity of DCM vs chloroform"
     """
+    if not compounds:
+        return "ERROR: No compounds provided. Pass a comma-separated list of chemical names."
     if len(compounds) > 5:
         compounds = compounds[:5]
 

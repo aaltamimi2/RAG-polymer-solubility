@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 import warnings
 from pathlib import Path
 from typing import TypedDict
@@ -233,9 +234,18 @@ def _build_subagents(
     return subagents
 
 
+def _get_or_create_thread_id(session_arg: str | None = None) -> str:
+    """Return *session_arg* unchanged, or generate a fresh 12-hex-char thread ID."""
+    if session_arg:
+        return session_arg
+    return uuid.uuid4().hex[:12]
+
+
 def create_dissolve_agent(
     model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro"),
     subagent_overrides: dict[str, SubagentOverride] | None = None,
+    checkpointer=None,
+    enable_persistence: bool = False,
 ):
     """Create and return a compiled DISSOLVE deep agent with subagents.
 
@@ -249,6 +259,14 @@ def create_dissolve_agent(
         subagent_overrides: Optional per-subagent guardrail overrides.
             Dict mapping subagent name -> override fields.
             See :class:`SubagentOverride` for valid keys.
+        checkpointer: Optional LangGraph checkpointer instance.  When provided,
+            the agent graph is compiled with cross-turn memory.  Pass any
+            ``BaseCheckpointSaver`` (e.g. ``MemorySaver``, ``SqliteSaver``).
+        enable_persistence: When ``True`` and *checkpointer* is ``None``,
+            automatically create an in-process ``MemorySaver`` checkpointer so
+            that conversation state survives across ``invoke()`` calls within
+            the same Python process.  For durable disk persistence, pass a
+            ``SqliteSaver`` via *checkpointer* instead.
 
             Example::
 
@@ -256,6 +274,9 @@ def create_dissolve_agent(
                     "separation-engineer": {"max_tool_calls": 30},
                 })
     """
+    if enable_persistence and checkpointer is None:
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
     model = init_chat_model(model_name)
 
     # Lightweight Gemini Flash model shared by both the routing classifier
@@ -292,6 +313,7 @@ def create_dissolve_agent(
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
         middleware=[routing, output_verifier, orchestrator_guard],
         name="dissolve-agent",
+        checkpointer=checkpointer,
     )
     return agent
 
@@ -320,6 +342,7 @@ def _extract_text(content) -> str:
 
 def main():
     """Interactive CLI — clean output inspired by Claude Code / Codex."""
+    import argparse
     import logging
     import readline  # noqa: F401 — enables arrow-key editing in input()
     import sys
@@ -331,6 +354,30 @@ def main():
     from rich.spinner import Spinner as RichSpinner
     from rich.live import Live
     from rich.text import Text
+
+    # ── Parse CLI arguments ──
+    parser = argparse.ArgumentParser(
+        prog="dissolve",
+        description="DISSOLVE — Data Integrated Solubility Solver via LLM Evaluation",
+        add_help=True,
+    )
+    parser.add_argument(
+        "--session",
+        metavar="SESSION_ID",
+        default=None,
+        help="Resume a previous session by its ID (printed at startup). "
+             "Omit to start a new session.",
+    )
+    parser.add_argument(
+        "--no-persist",
+        action="store_true",
+        default=False,
+        help="Disable in-process MemorySaver persistence (use raw history list instead).",
+    )
+    args = parser.parse_args()
+
+    use_checkpointer = not args.no_persist
+    thread_id = _get_or_create_thread_id(args.session)
 
     console = Console(stderr=True)
 
@@ -348,6 +395,9 @@ def main():
     console.print("[dim]Data Integrated Solubility Solver via LLM Evaluation[/]")
     if os.getenv("LANGSMITH_API_KEY"):
         console.print("[dim]LangSmith tracing:[/] [green]enabled[/]")
+    if use_checkpointer:
+        console.print(f"[dim]Session ID:[/] [bold]{thread_id}[/bold]  "
+                      "[dim](pass --session {id} to resume)[/]")
     console.print("[dim]Type [bold]quit[/bold] to exit.[/]\n")
 
     # ── Load agent with spinner ──
@@ -356,10 +406,15 @@ def main():
         console=console,
         transient=True,
     ):
-        agent = create_dissolve_agent()
+        agent = create_dissolve_agent(enable_persistence=use_checkpointer)
 
     out = Console()  # stdout console for answers
-    history: list = []  # accumulated conversation history across turns
+    history: list = []  # used only when checkpointer is disabled
+
+    # Build LangGraph config for checkpointer-aware invocations
+    invoke_config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 150}
+    # When no checkpointer, keep recursion_limit but skip thread_id
+    plain_config = {"recursion_limit": 150}
 
     # ── REPL ──
     while True:
@@ -373,8 +428,6 @@ def main():
             console.print("[dim]Goodbye![/]")
             break
 
-        history.append({"role": "user", "content": user_input})
-
         t0 = time.time()
         with Live(
             RichSpinner("dots", text=Text("Thinking...", style="dim")),
@@ -382,20 +435,33 @@ def main():
             transient=True,
         ):
             try:
-                result = agent.invoke({"messages": list(history)})
+                if use_checkpointer:
+                    # Checkpointer maintains full history — only send the new message
+                    result = agent.invoke(
+                        {"messages": [{"role": "user", "content": user_input}]},
+                        config=invoke_config,
+                    )
+                else:
+                    # No checkpointer — manually accumulate history each turn
+                    history.append({"role": "user", "content": user_input})
+                    result = agent.invoke(
+                        {"messages": list(history)},
+                        config=plain_config,
+                    )
             except KeyboardInterrupt:
                 console.print("\n[yellow]Interrupted.[/]\n")
-                # Remove the unanswered user message
-                history.pop()
+                if not use_checkpointer:
+                    history.pop()
                 continue
             except Exception as e:
                 console.print(f"\n[red]Error:[/] {e}\n")
-                history.pop()
+                if not use_checkpointer:
+                    history.pop()
                 continue
 
         elapsed = time.time() - t0
 
-        # Extract last AI message text and append to history
+        # Extract last AI message text
         answer = None
         for msg in reversed(result["messages"]):
             if hasattr(msg, "content") and msg.type == "ai" and msg.content:
@@ -403,7 +469,8 @@ def main():
                 break
 
         if answer:
-            history.append({"role": "assistant", "content": answer})
+            if not use_checkpointer:
+                history.append({"role": "assistant", "content": answer})
             out.print()
             out.print(Markdown(answer))
             console.print(f"\n[dim]({elapsed:.1f}s)[/]\n")

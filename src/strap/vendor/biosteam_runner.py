@@ -92,6 +92,61 @@ _PET_SOLVENTS = [
     "Benzene",
 ]
 _LDPE_SOLVENTS = list(_PE_SOLVENTS)  # LDPE dissolves in the same solvents as PE
+
+# ---------------------------------------------------------------------------
+# New-polymer solvent lists (PS / PP / PVC / PC)
+# ---------------------------------------------------------------------------
+# NOTE: PS, PP, and PVC are simulated using the PE process model (PE-proxy
+# approximation) because thermosteam has no native oligomers for these
+# polymers.  The solvent lists below reflect chemically appropriate solvents
+# for each polymer; BioSTEAM process economics are approximate.
+# Only solvents present in _SOLVENT_DEFAULTS / _SOLVENT_LCA_IFS are included
+# so that LCA characterisation factors are always available.
+
+# PS (polystyrene) — dissolves readily in aromatics and some polar solvents.
+# Runs under PE-proxy model (PS → PE internally).
+_PS_SOLVENTS = [
+    "Toluene",
+    "Xylene",
+    "Tetrahydrofuran",
+    "Acetone",
+    "2-Butanone",
+    "Cyclohexane",
+    "Benzene",
+    "Ethyl acetate",
+]
+
+# PP (polypropylene) — needs hot aromatic / cyclic solvents; limited solubility
+# at ambient temperatures.  Runs under PE-proxy model (PP → PE internally).
+_PP_SOLVENTS = [
+    "Toluene",
+    "Xylene",
+    "Dodecane",       # proxy for Decalin (not in thermosteam DB)
+    "Cyclohexane",
+    "Tetrahydrofuran",
+]
+
+# PVC (poly(vinyl chloride)) — dissolves in polar aprotic solvents.
+# Runs under PE-proxy model (PVC → PE internally).
+_PVC_SOLVENTS = [
+    "Tetrahydrofuran",
+    "2-Butanone",     # proxy for Cyclohexanone (not in thermosteam DB)
+    "N,N-Dimethylformamide",
+    "Acetone",
+]
+
+# PC (polycarbonate) — dissolves in chlorinated and polar solvents.
+# thermosteam ships a native PColigomer, so PC runs natively (no proxy).
+# Dichloromethane is listed here for completeness but is on the chlorinated
+# blocklist and may be filtered out in automated batch runs.
+_PC_SOLVENTS = [
+    "Dichloromethane",       # in chlorinated blocklist — may be filtered
+    "Tetrahydrofuran",
+    "N,N-Dimethylformamide",
+    "Acetone",
+    "Toluene",
+]
+
 _CHLORINATED_BLOCKLIST = [
     "Tetrachloroethylene", "o-Chlorotoluene",
     "Dichloromethane", "Chloroform",
@@ -509,6 +564,11 @@ def get_supported_solvents() -> dict:
         "evoh_solvents_e1": list(_EVOH_SOLVENTS_E1),
         "evoh_solvents_e2": list(_EVOH_SOLVENTS_E2),
         "pet_solvents": list(_PET_SOLVENTS),
+        # New polymers (PS/PP/PVC use PE-proxy; PC is native)
+        "ps_solvents": list(_PS_SOLVENTS),
+        "pp_solvents": list(_PP_SOLVENTS),
+        "pvc_solvents": list(_PVC_SOLVENTS),
+        "pc_solvents": list(_PC_SOLVENTS),
         "energy_cases": dict(_ENERGY_CASES),
         "solvent_defaults": dict(_SOLVENT_DEFAULTS),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),
@@ -516,6 +576,7 @@ def get_supported_solvents() -> dict:
             "Chlorinated solvents (TCE, OCT) fail due to HCl not in property package",
             "Each simulation takes ~10-15 seconds in subprocess",
             "BioSTEAM requires subprocess isolation (global state contamination)",
+            "PS, PP, PVC use the PE process model (PE-proxy) — approximate economics/LCA",
         ],
     }
 

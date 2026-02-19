@@ -8,6 +8,8 @@ sys.argv[1] and writes results as JSON to stdout.
 
 Usage:
     python biosteam_worker.py '{"solvent":"Toluene","target_plastic":"PE"}'
+    python biosteam_worker.py '{"solvent":"Toluene","target_plastic":"PS"}'
+    python biosteam_worker.py '{"solvent":"Dichloromethane","target_plastic":"PC"}'
 
 Input/Output contracts are documented in the calling module.
 All diagnostic output goes to stderr; only the final JSON goes to stdout.
@@ -32,13 +34,30 @@ _ENERGY_CASES = {
 }
 
 # Map polymer names to BaselineSTRAPProcess target_plastic values.
-# BioSTEAM only registers PEoligomer and EVOHoligomer in its chemical DB.
-# LDPE/HDPE use the same PE process model; PET uses the PE model with
-# different solvents (the dissolution/precipitation equipment is identical).
+# BioSTEAM only registers PEoligomer, EVOHoligomer, and PColigomer in its
+# chemical DB.  LDPE/HDPE use the same PE process model; PET uses the PE
+# model with different solvents (the dissolution/precipitation equipment is
+# identical).
+#
+# PE-proxy polymers (PS, PP, PVC):
+#   thermosteam has no native PS/PP/PVC oligomer.  These polymers are mapped
+#   to "PE" so that BioSTEAM can run the dissolution/precipitation flowsheet.
+#   Economics and LCA results are approximate — treat as order-of-magnitude
+#   estimates only.  Use polymer-specific solvents (see biosteam_runner.py)
+#   to improve physical fidelity of the operating conditions.
+#
+# PC (polycarbonate):
+#   thermosteam ships a native PColigomer, so PC maps to itself.
 _TARGET_PLASTIC_MAP = {
     "LDPE": "PE",
     "HDPE": "PE",
-    "PET": "PE",
+    "PET":  "PE",
+    # ── PE-proxy polymers (approximate economics / LCA) ──────────────────
+    "PS":   "PE",   # polystyrene — no native oligomer; PE flowsheet used
+    "PP":   "PE",   # polypropylene — no native oligomer; PE flowsheet used
+    "PVC":  "PE",   # poly(vinyl chloride) — no native oligomer; PE flowsheet used
+    # ── Native thermosteam support ────────────────────────────────────────
+    "PC":   "PC",   # polycarbonate — PColigomer exists in thermosteam
 }
 
 

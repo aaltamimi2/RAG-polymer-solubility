@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-9 of 12 identified limitations resolved across 3 commits. 16 files changed.
+9 of 12 identified limitations resolved + 6 security/reliability fixes across 4 commits. 20 files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -106,6 +106,53 @@ biosteam-analyst prompt listed only 2 PET solvents (Toluene, Xylene). Expanded t
 - Now checks `isinstance` for `NameError`, `ImportError`, `TimeoutError`, `ConnectionError`, `CalledProcessError`
 - Each error type gets targeted recovery suggestions
 - SQL/database suggestions preserved for database-related errors and as fallback
+
+---
+
+## Commit 4: `e83029f` — Security & Reliability Hardening (S1–S6)
+
+### S1+S2: SQL Injection Fixes
+**Files:** `tools/database_query.py`, `tools/statistical.py`
+
+Two critical SQL injection vectors closed:
+
+**database_query.py** — `validate_and_query` verification branch passed `filters` directly into `conn.execute()`, bypassing the keyword blocklist entirely.
+- Added table-name validation via `DataValidator.verify_table_exists()` before any SQL
+- Routed verification queries through `_execute_query()` (enforces keyword blocklist)
+- Expanded blocklist with 5 DuckDB-specific commands: `COPY`, `ATTACH`, `EXPORT`, `LOAD`, `IMPORT`
+
+**statistical.py** — All 4 tools (`statistical_summary`, `correlation_analysis`, `regression_analysis`, `compare_groups_statistically`) used raw f-string interpolation for filters, table names, and column names.
+- Added `_check_filters()` — validates filters against keyword blocklist
+- Added `_sanitize_identifier()` — validates table/column names against live DuckDB schema
+- All 4 tools now call both validators before building any SQL
+- `compare_groups_statistically` now uses DuckDB parameterized queries (`?` placeholders) for `group1`/`group2` values
+
+### S3: Missing `@safe_tool_wrapper`
+**File:** `tools/solvent_lookup.py`
+
+`lookup_solvent_price` and `lookup_solvent_gwp` were the only tool functions without `@safe_tool_wrapper`. Unhandled exceptions (e.g., `requests.ConnectionError` from SerpAPI) would crash the agent instead of returning error strings. Both now wrapped.
+
+### S4: Verifier Race Condition
+**File:** `verifier.py`
+
+`OutputVerifierMiddleware._verified` was a plain instance attribute shared across concurrent requests — Request A setting it to `True` could cause Request B to skip verification.
+- Converted to `contextvars.ContextVar[bool]` matching the pattern in `guardrails.py`
+- Added `_verified` property with `LookupError` fallback
+- `before_agent()`/`abefore_agent()` reset the flag per invocation
+
+### S5: Silent Engine Import Failures
+**File:** `tools/advanced_separation.py`
+
+Four `except Exception: pass` blocks silently swallowed import failures, leaving names undefined until `NameError` at call time.
+- Added `logger.warning()` with exception details for startup observability
+- Set `None` sentinels for all imported names (matches `biosteam_tea_lca.py` pattern)
+
+### S6: Dependency Pinning
+**File:** `pyproject.toml`
+
+- Pinned `deepagents>=0.3.10,<0.4` (prevents breaking changes from upstream 0.x releases)
+- Added optional dependency groups: `biosteam` (biosteam, thermosteam), `ml` (torch, sentence-transformers), `rag` (qdrant-client), `literature` (rdkit)
+- Updated `all` extra to include all groups
 
 ---
 
