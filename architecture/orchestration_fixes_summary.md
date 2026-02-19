@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-11 of 12 identified limitations resolved + 6 security/reliability fixes + 4 reliability improvements across 5 commits. 24 files changed.
+All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes across 9 commits. 30+ files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -215,7 +215,7 @@ PDF downloads had no size cap — a large or malicious URL could exhaust disk sp
 | L2 | Hardcoded routing rules | **Resolved** — moved to YAML |
 | L3 | Monkey-patched tool budgets | **Resolved** — clean override API |
 | L4 | Shared guard counters | **Resolved** — ContextVar isolation |
-| L5 | String-only inter-agent communication | Open (Large effort) |
+| L5 | String-only inter-agent communication | **Resolved** — JSON envelopes + STRUCTURED_RESULT protocol + sidecar + middleware |
 | L6 | Re-prediction for progress tracking | **Resolved** — history-based |
 | L7 | No checkpointer / cross-session memory | **Resolved** — MemorySaver + CLI flags |
 | L8 | BioSTEAM only 4 polymers | **Resolved** — 8 polymers (PE-proxy + native PC) |
@@ -355,3 +355,113 @@ New `search_polymer_patents()` tool wraps the SerpAPI Google Patents client with
 - R24 (`solvent_registry.py`): Added 9 missing BioSTEAM solvents (pyridazine, butanediol, diethanolamine, diethylene glycol, GBL, methylcyclohexane, sec-butyl acetate, isobutyl acetate, dodecanol)
 - R26 (`database_query.py`): `check_column_values` limit capped at [1, 500]
 - R27 (`literature.py`): Empty/whitespace query guard on all 5 search tools
+
+---
+
+## Commit 8: `9637fe3` — L5 Structured Inter-Agent Communication (Phases 1–3)
+
+5 files changed, 432 insertions, 48 deletions. Resolves L5 (string-only inter-agent communication) — the last open limitation.
+
+### Phase 1: JSON Envelopes for Tool Functions (3 files, 11 functions)
+
+All tool return paths now use a consistent `json.dumps({"display": <markdown>, "data": <structured_dict>})` envelope, matching the pattern already used by BioSTEAM tools.
+
+**File:** `tools/safety_gsk.py` (3 functions)
+- `get_solvent_gscore` — 4 return paths wrapped; `data.found`, `data.g_score`, `data._fuzzy_matched`
+- `get_family_alternatives` — 3 return paths wrapped; `data.alternatives[]` with name/g_score/cas
+- `visualize_gscores` — 4 return paths wrapped; `data.filepath`, `data.statistics.{mean,median,min,max}`
+
+**File:** `tools/safety_pubchem.py` (4 functions)
+- `get_pubchem_safety_info` — `data.cid`, `data.signal_word`, `data.pictograms`, `data.hazard_statements`
+- `compare_pubchem_safety` — `data.safest`, `data.most_hazardous`, `data.compounds[]`; added `safest_name = None` init guard
+- `get_pubchem_toxicity` — `data.compounds[]` with `ld50`/`lc50` values
+- `visualize_pubchem_safety` — 5 return paths wrapped; `data.filepath`, `data.n_compounds`
+
+**File:** `tools/statistical.py` (4 functions)
+- `statistical_summary` — `data.columns`, `data.statistics` with proper `float()`/`int()` casting
+- `correlation_analysis` — `data.correlation_matrix`, `data.significant_pairs[]`
+- `regression_analysis` — `data.slope`, `data.r_squared`, `data.group_results[]` for grouped path
+- `compare_groups_statistically` — `data.t_test`, `data.mann_whitney`, `data.cohens_d`
+
+### Phase 2: Subagent `<STRUCTURED_RESULT>` Protocol
+**File:** `subagents.yaml` (all 8 subagents)
+
+Added `STRUCTURED RESULT REQUIREMENT` section to every subagent's `system_prompt` with:
+- Per-agent JSON schema specifying required keys and types
+- Instruction to append `<STRUCTURED_RESULT>...</STRUCTURED_RESULT>` block after prose synthesis
+- Example output for each agent type
+
+Schemas by agent:
+- `separation-engineer`: `best_sequence`, `top_k_sequences[].solvent_mapping`, `n_polymers`
+- `safety-analyst`: `solvents[].g_score`, `solvents[].hazard_codes`, `safest_solvent`
+- `biosteam-analyst`: `results[].msp_usd_per_kg`, `results[].gwp_kg_co2_per_kg`
+- `scholar-researcher`: `papers[].title`, `papers[].doi`, `n_results`
+- `patent-researcher`: `patents[].patent_id`, `patents[].title`, `n_results`
+- `rag-analyst`: `sources[].title`, `sources[].relevance_score`, `answer_confidence`
+- `visualization-specialist`: `plots[].filepath`, `plots[].description`
+- `statistics-ml`: `summary`, `predictions[]`, `model_type`
+
+### Phase 3: Orchestrator Structured Results Section
+**File:** `agent.py`
+
+Added `## Structured results from subagents` to `SYSTEM_PROMPT` with:
+- Sequential handoff instructions: extract from `<STRUCTURED_RESULT>` and include in next `task()` description
+- Explicit handoff chains: separation→biosteam, separation→visualization, statistics→visualization
+- Parallel synthesis guidance: prefer numeric fields from structured data over parsing prose
+- Fallback: if no block present, extract from prose as before
+
+---
+
+## Commit 9: `592c950` — L5 Sidecar File Handoff & Result Extractor Middleware (Phases 4–5)
+
+5 files changed, 444 insertions, 6 deletions. 2 new files created.
+
+### Phase 4: Per-Session Sidecar File Handoff
+**New file:** `tools/sidecar.py`
+
+File-based sidecar for high-bandwidth sequential subagent pairs where `<STRUCTURED_RESULT>` data volume exceeds what fits cleanly in a ToolMessage string.
+
+- `set_scratch_dir(path)` — module-level configuration called once at agent startup
+- `write_sidecar(key, data)` — validates key (regex `[a-zA-Z0-9_-]{1,64}`), validates JSON, writes to `{scratch_dir}/{key}.json`
+- `read_sidecar(key)` — reads sidecar file; special key `"list"` enumerates available files
+
+**Scratch directory lifecycle** (in `agent.py`):
+- `_create_session_scratch_dir()` creates `/tmp/strap_scratch_{uuid}/`
+- `atexit.register(shutil.rmtree, ...)` ensures cleanup on process exit
+- Called once in `create_dissolve_agent()` before `_build_subagents()`
+
+**Tool registration** (in `tools/__init__.py`, `agent.py`):
+- `get_sidecar_write_tools()` / `get_sidecar_read_tools()` — separate getters for access control
+- `"sidecar_write"` and `"sidecar_read"` entries in `_TOOL_GROUP_REGISTRY`
+
+**Subagent integration** (`subagents.yaml`):
+- `scholar-researcher`: `sidecar_write` tool group + `write_sidecar` free tool + SIDECAR HANDOFF prompt (key: `"scholar_findings"`)
+- `patent-researcher`: `sidecar_write` tool group + `write_sidecar` free tool + SIDECAR HANDOFF prompt (key: `"patent_findings"`)
+- `rag-analyst`: `sidecar_read` tool group + `read_sidecar` free tool + SIDECAR CONTEXT CHECK prompt (reads upstream findings before RAG search)
+
+### Phase 5: StructuredResultExtractorMiddleware
+**New file:** `result_extractor.py`
+
+Middleware that programmatically extracts `<STRUCTURED_RESULT>` JSON blocks from subagent responses, eliminating the need for the orchestrator LLM to parse them from prose.
+
+**Storage:** `contextvars.ContextVar[_RegistryState]` — per-invocation isolation matching the `guardrails.py` pattern. `_RegistryState.results` maps subagent name → parsed dict.
+
+**Extraction:** `_STRUCTURED_RESULT_RE` regex with `re.DOTALL` and non-greedy `.*?` — handles multi-line JSON, stops at first closing tag.
+
+**Middleware hooks:**
+- `before_agent()` / `abefore_agent()` — resets registry per invocation
+- `wrap_tool_call()` / `awrap_tool_call()` — intercepts `task()` calls only; calls handler first, then extracts from result
+- `_extract_text_from_result()` — handles both raw `ToolMessage` and `Command(update={"messages": [ToolMessage(...)]})`
+- Last-write-wins dedup for duplicate subagent calls
+
+**Orchestrator tools:**
+- `get_subagent_result(agent_name)` — retrieves one agent's structured result as JSON string
+- `get_all_subagent_results()` — retrieves all accumulated results
+- Both registered as orchestrator free tools (don't count against tool-call budget)
+
+**Integration** (`agent.py`):
+- Middleware position: `[routing, output_verifier, result_extractor, orchestrator_guard]`
+- Orchestrator tools added to `get_core_tools() + get_result_extractor_tools()`
+- `SYSTEM_PROMPT` updated to mention `get_subagent_result()` and `get_all_subagent_results()`
+
+**Error handling:** Malformed JSON logs warning and skips (never raises). Missing blocks log info. ContextVar LookupError returns empty dict/None.
