@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-9 of 12 identified limitations resolved + 6 security/reliability fixes across 4 commits. 20 files changed.
+11 of 12 identified limitations resolved + 6 security/reliability fixes + 4 reliability improvements across 5 commits. 24 files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -156,6 +156,57 @@ Four `except Exception: pass` blocks silently swallowed import failures, leaving
 
 ---
 
+## Commit 5: `3f39f71` — Polymer Expansion, Persistence & Reliability (L7, L8 + 4 fixes)
+
+### L8: PS/PP/PVC/PC Polymer Support
+**Files:** `vendor/biosteam_worker.py`, `vendor/biosteam_runner.py`, `tools/biosteam_tea_lca.py`, `subagents.yaml`
+
+Expanded BioSTEAM from 4 to 8 supported polymers using two strategies:
+
+**PE-proxy (approximate economics):** PS, PP, PVC map to the PE dissolution flowsheet. thermosteam lacks native oligomers for these polymers, so the PE process model provides directionally correct CAPEX/OPEX at equivalent conditions.
+- Added `PS→PE`, `PP→PE`, `PVC→PE` to `_TARGET_PLASTIC_MAP` in `biosteam_worker.py`
+- Added `_PS_SOLVENTS` (8), `_PP_SOLVENTS` (5), `_PVC_SOLVENTS` (4) with chemically appropriate solvents
+- All solvent names validated against `_SOLVENT_DEFAULTS` / `_SOLVENT_LCA_IFS`
+
+**Native support:** PC (polycarbonate) has `PColigomer` in thermosteam but was never exposed.
+- Added `PC→PC` to `_TARGET_PLASTIC_MAP`
+- Added `_PC_SOLVENTS` (5) and `PC: $2.50/kg` to `_POLYMER_MARKET_VALUES`
+
+Extended `_expand_solvents()` with `all_ps`, `all_pp`, `all_pvc`, `all_pc` keywords. Updated `get_biosteam_solvents()` display and biosteam-analyst prompt with all 8 polymers.
+
+### L7: Session Persistence via MemorySaver
+**File:** `agent.py`
+
+Added cross-session memory support using LangGraph's checkpointer API:
+- New `checkpointer` and `enable_persistence` params on `create_dissolve_agent()`
+- Lazy `MemorySaver` import when `enable_persistence=True` (no extra deps required)
+- Forwarded to `create_deep_agent(..., checkpointer=checkpointer)`
+- New `--session SESSION_ID` CLI flag to resume a previous session
+- New `--no-persist` flag to opt out of persistence
+- When active: only new user message sent per turn (checkpointer manages full history)
+- When inactive: original `history` list behavior preserved (full backward compatibility)
+- Session ID printed at startup for resume reference
+
+### Fix: PubChem Rate Limiting & Retry
+**File:** `tools/safety_pubchem.py`
+
+PubChem API calls had no rate limiting, no retry, and silently returned `None` on any error.
+- Added `_rate_limit_pubchem()` — enforces 0.25s spacing (~4 req/s, under PubChem's 5/s limit)
+- Added `_pubchem_request()` — retry wrapper with exponential backoff (1s, 2s, 4s) on HTTP 429/5xx
+- Replaced raw `urlopen` in all 3 `fetch_pubchem_*` functions with `_pubchem_request()`
+- Fixed indentation error in `fetch_pubchem_ghs_data` and `fetch_pubchem_toxicity_data` (leftover from removed `with` block)
+- Added `plt is None` guard in `visualize_pubchem_safety`
+- Added empty-list guard in `get_pubchem_toxicity`
+
+### Fix: PDF Download Byte Limit
+**File:** `tools/literature.py`
+
+PDF downloads had no size cap — a large or malicious URL could exhaust disk space.
+- Added `_MAX_PDF_BYTES = 100 * 1024 * 1024` (100 MB) module-level constant
+- Streaming loop now tracks `total_bytes` and breaks with `logger.warning` on limit exceeded
+
+---
+
 ## Limitation Status
 
 | ID | Limitation | Status |
@@ -166,8 +217,8 @@ Four `except Exception: pass` blocks silently swallowed import failures, leaving
 | L4 | Shared guard counters | **Resolved** — ContextVar isolation |
 | L5 | String-only inter-agent communication | Open (Large effort) |
 | L6 | Re-prediction for progress tracking | **Resolved** — history-based |
-| L7 | No checkpointer / cross-session memory | Open (Medium effort) |
-| L8 | BioSTEAM only 4 polymers | Open (Large effort) |
+| L7 | No checkpointer / cross-session memory | **Resolved** — MemorySaver + CLI flags |
+| L8 | BioSTEAM only 4 polymers | **Resolved** — 8 polymers (PE-proxy + native PC) |
 | L9 | Sync verifier blocking event loop | **Resolved** — async path |
 | L10 | Fragmented solvent aliases | **Resolved** — unified registry (prior commit) |
 | L11 | Sequential multi-polymer pipeline | **Resolved** — parallel batching |
