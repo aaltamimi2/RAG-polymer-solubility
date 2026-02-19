@@ -7,6 +7,7 @@ polymer solubility data.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from datetime import datetime
@@ -157,6 +158,7 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
         result = await async_db.execute_async(query)
 
         # If no exact match and fuzzy matching enabled, try fuzzy match
+        _fuzzy_matched = False
         if len(result) == 0 and use_fuzzy_matching:
             match_result = _fuzzy_match_solvent_name(solvent_name, dataset="gsk", threshold=80)
 
@@ -171,25 +173,28 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
                 result = await async_db.execute_async(query)
 
                 if len(result) > 0:
+                    _fuzzy_matched = True
                     output = [f"**GSK G-Score Analysis**\n"]
                     output.append(f"Fuzzy matched '{solvent_name}' -> '{matched_name}' (confidence: {match_result['score']}%)\n")
             else:
-                return (
+                not_found_msg = (
                     f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
                     f"(154 solvents). Do NOT estimate or fabricate a G-score. "
                     f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
                     f"retrieve GHS hazard classification from PubChem as a fallback. "
                     f"Report this solvent as 'Not in GSK database' in your assessment."
                 )
+                return json.dumps({"display": not_found_msg, "data": {"found": False, "solvent_name": solvent_name}}, indent=2)
 
         if len(result) == 0:
-            return (
+            not_found_msg = (
                 f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
                 f"(154 solvents). Do NOT estimate or fabricate a G-score. "
                 f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
                 f"retrieve GHS hazard classification from PubChem as a fallback. "
                 f"Report this solvent as 'Not in GSK database' in your assessment."
             )
+            return json.dumps({"display": not_found_msg, "data": {"found": False, "solvent_name": solvent_name}}, indent=2)
 
         # Format output
         if 'output' not in locals():
@@ -229,11 +234,22 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
 
         output.append("**Note:** G-score is the geometric mean of Environment, Health, Safety, and Waste (EHSW) scores.")
 
-        return "\n".join(output)
+        display_str = "\n".join(output)
+        data_dict = {
+            "found": True,
+            "solvent_name": row['solvent_common_name'],
+            "classification": row['classification'],
+            "g_score": float(row['g_score']),
+            "safety_rating": rating,
+            "cas_number": str(row.get('cas_number', '')),
+            "fuzzy_matched": _fuzzy_matched,
+        }
+        return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
     except Exception as e:
         logger.error(f"Error in get_solvent_gscore: {e}")
-        return f"Error retrieving G-score: {str(e)}"
+        err_msg = f"Error retrieving G-score: {str(e)}"
+        return json.dumps({"display": err_msg, "data": {"found": False, "error": str(e)}}, indent=2)
 
 
 @safe_tool_wrapper
@@ -293,7 +309,7 @@ async def get_family_alternatives(
                     family_result = await async_db.execute_async(query)
 
             if len(family_result) == 0:
-                return (
+                msg = (
                     f"**NOT FOUND**: Could not find solvent '{solvent_name}' in GSK dataset. "
                     f"To browse a family directly, call get_family_alternatives("
                     f"solvent_name='{solvent_name}', family_override='<family>') where "
@@ -301,6 +317,7 @@ async def get_family_alternatives(
                     f"Dipolar Aprotics, Esters, Ethers, Halogenated, Hydrocarbons, "
                     f"Ketones, Other, water and acids."
                 )
+                return json.dumps({"display": msg, "data": {"found": False, "input_solvent": solvent_name}})
 
             family = family_result.iloc[0]['classification']
 
@@ -355,11 +372,27 @@ async def get_family_alternatives(
             best = alternatives.iloc[0]
             output.append(f"\n**Recommendation:** For best safety, consider **{best['solvent_common_name']}** (G-score: {best['g_score']:.2f})")
 
-        return "\n".join(output)
+        display_str = "\n".join(output)
+        alternatives_list = []
+        for _, row in alternatives.iterrows():
+            alternatives_list.append({
+                "solvent_name": row['solvent_common_name'],
+                "g_score": float(row['g_score']),
+                "cas_number": str(row.get('cas_number', '')),
+            })
+        data_dict = {
+            "found": True,
+            "input_solvent": solvent_name,
+            "family": family,
+            "alternatives": alternatives_list,
+            "count": len(alternatives_list),
+        }
+        return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
     except Exception as e:
         logger.error(f"Error in get_family_alternatives: {e}")
-        return f"Error retrieving family alternatives: {str(e)}"
+        err_msg = f"Error retrieving family alternatives: {str(e)}"
+        return json.dumps({"display": err_msg, "data": {"found": False, "error": str(e)}}, indent=2)
 
 
 @safe_tool_wrapper
@@ -415,7 +448,8 @@ async def visualize_gscores(
         df = await async_db.execute_async(query)
 
         if len(df) == 0:
-            return "No solvents match the specified criteria."
+            msg = "No solvents match the specified criteria."
+            return json.dumps({"display": msg, "data": {"success": False, "error": msg}})
 
         # Create plot
         plots_dir = get_plots_dir()
@@ -500,7 +534,8 @@ async def visualize_gscores(
             plt.tight_layout()
             filename = f"gscore_box_{timestamp}.png"
         else:
-            return f"Invalid plot_type '{plot_type}'. Use 'bar', 'scatter', or 'box'."
+            msg = f"Invalid plot_type '{plot_type}'. Use 'bar', 'scatter', or 'box'."
+            return json.dumps({"display": msg, "data": {"success": False, "error": msg}})
 
         filepath = os.path.join(plots_dir, filename)
         plt.savefig(filepath, dpi=300, bbox_inches='tight')
@@ -519,8 +554,22 @@ async def visualize_gscores(
         output.append(f"- Excellent solvents (>=8.0): {len(df[df['g_score'] >= 8.0])}")
         output.append(f"- Good solvents (>=6.0): {len(df[df['g_score'] >= 6.0])}")
 
-        return "\n".join(output)
+        display_str = "\n".join(output)
+        data_dict = {
+            "success": True,
+            "plot_type": plot_type,
+            "filepath": filepath,
+            "n_solvents": len(df),
+            "statistics": {
+                "mean": float(df['g_score'].mean()),
+                "median": float(df['g_score'].median()),
+                "min": float(df['g_score'].min()),
+                "max": float(df['g_score'].max()),
+            },
+        }
+        return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
     except Exception as e:
         logger.error(f"Error in visualize_gscores: {e}")
-        return f"Error creating visualization: {str(e)}"
+        err_msg = f"Error creating visualization: {str(e)}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": str(e)}}, indent=2)

@@ -116,6 +116,21 @@ When asked to propose separation sequences AND test them in BioSTEAM:
     Seq 2: [{{"polymer":"PET","solvent":"Toluene"}},{{"polymer":"LDPE","solvent":"Xylene"}},{{"polymer":"EVOH","solvent":"Ethylene Glycol"}}]
     ..."
 5. Synthesize: rank sequences by blended MSP and GWP.
+
+## Structured results from subagents
+Each subagent appends a <STRUCTURED_RESULT> JSON block at the end of its response.
+Use it as the authoritative source for numeric data when delegating downstream.
+
+Sequential handoff — extract from <STRUCTURED_RESULT> and include in next task():
+- separation-engineer → biosteam-analyst: extract top_k_sequences[*].solvent_mapping
+- separation-engineer → visualization-specialist: extract best_sequence and solvent_mapping
+- statistics-ml → visualization-specialist: extract summary stats or prediction results
+- safety-analyst results: read g_score and hazard_codes per solvent
+
+Parallel synthesis — when combining results from parallel agents:
+- Prefer numeric fields from <STRUCTURED_RESULT> over parsing prose for comparisons.
+
+Fallback: if no <STRUCTURED_RESULT> block is present, extract data from the prose as before.
 """.format(routing_table=generate_routing_table())
 
 

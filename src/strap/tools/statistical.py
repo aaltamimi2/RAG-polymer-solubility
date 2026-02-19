@@ -134,14 +134,17 @@ def statistical_summary(
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, value_column)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     if group_by_column is not None:
         err = _sanitize_identifier(conn, table_name, group_by_column)
         if err:
-            return f"Input validation failed: {err}"
+            err_msg = f"Input validation failed: {err}"
+            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     filter_err = _check_filters(filters)
     if filter_err:
-        return f"Input validation failed: {filter_err}"
+        err_msg = f"Input validation failed: {filter_err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -177,7 +180,8 @@ def statistical_summary(
 
     result = _execute_query(query, limit=1000)
     if not result["success"]:
-        return f"Query failed: {result.get('error')}"
+        err_msg = f"Query failed: {result.get('error')}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     df = result["dataframe"]
 
@@ -198,8 +202,35 @@ def statistical_summary(
             ci = 1.96 * df['std'].iloc[0] / np.sqrt(df['n'].iloc[0])
             output.append(f"\n**95% CI:** {df['mean'].iloc[0]:.4f} +/- {ci:.4f}")
 
+    if group_by_column:
+        groups_list = []
+        for _, row in df.iterrows():
+            groups_list.append({
+                "group": str(row[group_by_column]),
+                "n": int(row['n']),
+                "mean": float(row['mean']),
+                "std": float(row['std']) if not pd.isna(row['std']) else None,
+            })
+        data_dict = {
+            "success": True, "table_name": table_name, "value_column": value_column,
+            "group_by_column": group_by_column, "filters": filters,
+            "n": int(df['n'].sum()), "mean": None, "groups": groups_list,
+        }
+    else:
+        data_dict = {
+            "success": True, "table_name": table_name, "value_column": value_column,
+            "group_by_column": None, "filters": filters,
+            "n": int(df['n'].iloc[0]),
+            "mean": float(df['mean'].iloc[0]),
+            "std": float(df['std'].iloc[0]) if not pd.isna(df['std'].iloc[0]) else None,
+            "min": float(df['min'].iloc[0]),
+            "median": float(df['median'].iloc[0]),
+            "max": float(df['max'].iloc[0]),
+            "groups": None,
+        }
+
     del df
-    return "\n".join(output)
+    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -222,19 +253,23 @@ def correlation_analysis(
     - "Show the correlation matrix for these columns"
     """
     if method not in ("pearson", "spearman", "kendall"):
-        return f"Error: method must be 'pearson', 'spearman', or 'kendall' (got '{method}')."
+        err_msg = f"Error: method must be 'pearson', 'spearman', or 'kendall' (got '{method}')."
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     conn = get_connection()
     col_list = [c.strip() for c in columns.split(',')]
     err = _sanitize_identifier(conn, table_name)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     for col in col_list:
         err = _sanitize_identifier(conn, table_name, col)
         if err:
-            return f"Input validation failed: {err}"
+            err_msg = f"Input validation failed: {err}"
+            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     filter_err = _check_filters(filters)
     if filter_err:
-        return f"Input validation failed: {filter_err}"
+        err_msg = f"Input validation failed: {filter_err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -242,12 +277,14 @@ def correlation_analysis(
     result = _execute_query(query, limit=100000)
 
     if not result["success"]:
-        return f"Query failed: {result.get('error')}"
+        err_msg = f"Query failed: {result.get('error')}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     df = result["dataframe"].dropna()
 
     if len(df) < 3:
-        return f"Insufficient data for correlation analysis (n={len(df)})"
+        err_msg = f"Insufficient data for correlation analysis (n={len(df)})"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     corr_matrix = df.corr(method=method)
 
@@ -257,6 +294,7 @@ def correlation_analysis(
     output.append(corr_matrix.round(3).to_markdown())
 
     output.append("\n**Significant Correlations (p < 0.05):**")
+    significant_pairs = []
     for i, col1 in enumerate(col_list):
         for col2 in col_list[i+1:]:
             try:
@@ -271,6 +309,7 @@ def correlation_analysis(
                     strength = "strong" if abs(r) > 0.7 else "moderate" if abs(r) > 0.4 else "weak"
                     direction = "positive" if r > 0 else "negative"
                     output.append(f"  - {col1} vs {col2}: r={r:.3f}, p={p:.4f} ({strength} {direction})")
+                    significant_pairs.append({"col1": col1, "col2": col2, "r": float(r), "p_value": float(p), "strength": strength})
             except Exception:
                 pass
 
@@ -284,8 +323,16 @@ def correlation_analysis(
     filepath = save_plot(fig, "correlation_matrix", "matplotlib")
     output.append(f"\n{_get_plot_url(filepath)}")
 
+    data_dict = {
+        "success": True, "table_name": table_name, "columns": col_list,
+        "method": method, "n": len(df),
+        "correlation_matrix": corr_matrix.round(4).to_dict(),
+        "significant_pairs": significant_pairs,
+        "plot_filepath": filepath,
+    }
+
     del df
-    return "\n".join(output)
+    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -314,13 +361,16 @@ async def compare_groups_statistically(
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, value_column)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     err = _sanitize_identifier(conn, table_name, group_column)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     filter_err = _check_filters(filters)
     if filter_err:
-        return f"Input validation failed: {filter_err}"
+        err_msg = f"Input validation failed: {filter_err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     where_clause = f"WHERE {filters} AND" if filters else "WHERE"
 
@@ -338,16 +388,19 @@ async def compare_groups_statistically(
             loop.run_in_executor(None, lambda: conn.execute(base_query, [group2]).fetchdf()),
         )
     except Exception as e:
-        return f"Query failed: {str(e)[:300]}"
+        err_msg = f"Query failed: {str(e)[:300]}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     if len(df1) == 0 or len(df2) == 0:
-        return f"No data returned for groups: {group1} ({len(df1)} rows), {group2} ({len(df2)} rows)"
+        err_msg = f"No data returned for groups: {group1} ({len(df1)} rows), {group2} ({len(df2)} rows)"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     data1 = df1[value_column].dropna()
     data2 = df2[value_column].dropna()
 
     if len(data1) < 3 or len(data2) < 3:
-        return f"Insufficient data: {group1} has {len(data1)}, {group2} has {len(data2)} samples"
+        err_msg = f"Insufficient data: {group1} has {len(data1)}, {group2} has {len(data2)} samples"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     output = [f"**Statistical Comparison: {group1} vs {group2}**\n"]
 
@@ -404,7 +457,17 @@ async def compare_groups_statistically(
     filepath = save_plot(fig, "group_comparison", "matplotlib")
     output.append(f"\n{_get_plot_url(filepath)}")
 
-    return "\n".join(output)
+    data_dict = {
+        "success": True, "table_name": table_name,
+        "value_column": value_column, "group_column": group_column,
+        "group1": {"name": group1, "n": int(len(data1)), "mean": float(data1.mean()), "std": float(data1.std())},
+        "group2": {"name": group2, "n": int(len(data2)), "mean": float(data2.mean()), "std": float(data2.std())},
+        "t_test": {"t_statistic": float(t_stat), "p_value": float(t_p), "significant": bool(t_p < 0.05)},
+        "mann_whitney": {"u_statistic": float(u_stat), "p_value": float(u_p), "significant": bool(u_p < 0.05)},
+        "cohens_d": float(cohens_d), "effect_size": effect_size,
+        "plot_filepath": filepath,
+    }
+    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -431,21 +494,26 @@ def regression_analysis(
     - "Is there a linear relationship between temperature and solubility?"
     """
     if degree < 1 or degree > 5:
-        return f"Error: degree must be between 1 and 5 (got {degree}). High-degree polynomials overfit on small datasets."
+        err_msg = f"Error: degree must be between 1 and 5 (got {degree}). High-degree polynomials overfit on small datasets."
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, x_column)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     err = _sanitize_identifier(conn, table_name, y_column)
     if err:
-        return f"Input validation failed: {err}"
+        err_msg = f"Input validation failed: {err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     if group_by is not None:
         err = _sanitize_identifier(conn, table_name, group_by)
         if err:
-            return f"Input validation failed: {err}"
+            err_msg = f"Input validation failed: {err}"
+            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
     filter_err = _check_filters(filters)
     if filter_err:
-        return f"Input validation failed: {filter_err}"
+        err_msg = f"Input validation failed: {filter_err}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -456,7 +524,8 @@ def regression_analysis(
 
     result = _execute_query(query, limit=100000)
     if not result["success"]:
-        return f"Query failed: {result.get('error')}"
+        err_msg = f"Query failed: {result.get('error')}"
+        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
     df = result["dataframe"].dropna()
 
@@ -472,6 +541,7 @@ def regression_analysis(
 
         output.append("**Regression Results by Group:**\n")
 
+        group_results = []
         for i, group in enumerate(groups):
             group_data = df[df[group_by] == group]
             x = group_data[x_column].values
@@ -493,6 +563,7 @@ def regression_analysis(
             rmse = np.sqrt(np.mean((y - y_pred) ** 2))
 
             output.append(f"**{group}:** R²={r2:.4f}, RMSE={rmse:.4f}")
+            group_results.append({"group": str(group), "n": len(x), "r_squared": float(r2), "rmse": float(rmse)})
 
             axes[0].scatter(x, y, alpha=0.5, color=colors[i], label=f'{group} (R²={r2:.3f})')
             x_line = np.linspace(x.min(), x.max(), 100)
@@ -504,7 +575,8 @@ def regression_analysis(
         y = df[y_column].values
 
         if np.any(np.isnan(x)) or np.any(np.isnan(y)) or np.any(np.isinf(x)) or np.any(np.isinf(y)):
-            return "Error: data contains NaN or infinite values. Clean the data before running regression."
+            err_msg = "Error: data contains NaN or infinite values. Clean the data before running regression."
+            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
 
         coeffs = np.polyfit(x, y, degree)
         poly = np.poly1d(coeffs)
@@ -515,6 +587,7 @@ def regression_analysis(
         r2 = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0
         rmse = np.sqrt(np.mean((y - y_pred) ** 2))
 
+        slope = intercept = p_value = std_err = None
         if degree == 1:
             slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
             output.append(f"**Linear Regression:**")
@@ -546,5 +619,25 @@ def regression_analysis(
     filepath = save_plot(fig, "regression_analysis", "matplotlib")
     output.append(f"\n{_get_plot_url(filepath)}")
 
+    if group_by and group_by in df.columns:
+        data_dict = {
+            "success": True, "table_name": table_name,
+            "x_column": x_column, "y_column": y_column,
+            "degree": degree, "n": len(df),
+            "r_squared": None, "rmse": None, "slope": None,
+            "group_results": group_results, "plot_filepath": filepath,
+        }
+    else:
+        data_dict = {
+            "success": True, "table_name": table_name,
+            "x_column": x_column, "y_column": y_column,
+            "degree": degree, "n": len(df),
+            "r_squared": float(r2), "rmse": float(rmse),
+            "slope": float(slope) if slope is not None else None,
+            "intercept": float(intercept) if intercept is not None else None,
+            "p_value": float(p_value) if p_value is not None else None,
+            "group_results": None, "plot_filepath": filepath,
+        }
+
     del df
-    return "\n".join(output)
+    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)

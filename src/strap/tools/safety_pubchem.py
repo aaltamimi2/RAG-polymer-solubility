@@ -295,7 +295,8 @@ async def get_pubchem_safety_info(compound_name: str) -> str:
     # Step 1: Get CID
     cid = fetch_pubchem_cid(search_name)
     if not cid:
-        return f"Compound '{compound_name}' not found in PubChem. Try using the full chemical name or check spelling."
+        msg = f"Compound '{compound_name}' not found in PubChem. Try using the full chemical name or check spelling."
+        return json.dumps({"display": msg, "data": {"found": False, "compound_name": compound_name}})
 
     output.append(f"# PubChem Safety Profile: {compound_name.title()}\n")
     output.append(f"**PubChem CID:** [{cid}](https://pubchem.ncbi.nlm.nih.gov/compound/{cid})\n")
@@ -356,7 +357,18 @@ async def get_pubchem_safety_info(compound_name: str) -> str:
     # Add link to full PubChem page
     output.append(f"\n**Full Safety Data:** [View on PubChem](https://pubchem.ncbi.nlm.nih.gov/compound/{cid}#section=Safety-and-Hazards)")
 
-    return "\n".join(output)
+    display_str = "\n".join(output)
+    data_dict = {
+        "found": True,
+        "compound_name": search_name,
+        "cid": cid,
+        "molecular_formula": props.get('MolecularFormula') if props else None,
+        "molecular_weight": float(props['MolecularWeight']) if props and 'MolecularWeight' in props else None,
+        "signal_word": ghs_data.get('signal_word') if ghs_data else None,
+        "pictograms": ghs_data.get('pictograms', []) if ghs_data else [],
+        "hazard_statements": ghs_data.get('hazard_statements', []) if ghs_data else [],
+    }
+    return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -373,7 +385,8 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
     if isinstance(compounds, str):
         compounds = [c.strip() for c in compounds.split(",") if c.strip()]
     if len(compounds) < 2:
-        return "Please provide at least 2 compounds to compare."
+        msg = "Please provide at least 2 compounds to compare."
+        return json.dumps({"display": msg, "data": {"error": msg, "compounds": compounds}})
     if len(compounds) > 5:
         compounds = compounds[:5]
 
@@ -427,6 +440,8 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
     output.append("## Recommendation\n")
 
     valid_data = [c for c in compound_data if c['cid'] is not None]
+    safest_name = None
+    most_hazardous_name = None
     if valid_data:
         # Rank by: no Danger signal > Warning > Danger, then fewer pictograms
         def hazard_rank(c):
@@ -438,6 +453,8 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
         ranked = sorted(valid_data, key=hazard_rank)
         best = ranked[0]
         worst = ranked[-1]
+        safest_name = best['name']
+        most_hazardous_name = worst['name']
 
         # Build contextual summary
         if best['signal_word'] is None or best['signal_word'] == 'Warning':
@@ -457,7 +474,21 @@ async def compare_pubchem_safety(compounds: List[str]) -> str:
 
     output.append("\n*Data sourced from PubChem GHS Classification*")
 
-    return "\n".join(output)
+    display_str = "\n".join(output)
+    compounds_list = []
+    for c in compound_data:
+        compounds_list.append({
+            "name": c['name'],
+            "cid": c.get('cid'),
+            "signal_word": c.get('signal_word'),
+            "n_pictograms": len(c.get('pictograms', [])),
+        })
+    data_dict = {
+        "compounds": compounds_list,
+        "safest_compound": safest_name,
+        "most_hazardous_compound": most_hazardous_name,
+    }
+    return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -476,9 +507,11 @@ async def visualize_pubchem_safety(
     - "Visualize PubChem hazard data for common solvents"
     """
     if plt is None:
-        return "ERROR: matplotlib is not installed. Cannot generate safety chart."
+        msg = "ERROR: matplotlib is not installed. Cannot generate safety chart."
+        return json.dumps({"display": msg, "data": {"success": False, "error": msg}})
     if len(compounds) < 2:
-        return "Please provide at least 2 compounds to visualize."
+        msg = "Please provide at least 2 compounds to visualize."
+        return json.dumps({"display": msg, "data": {"success": False, "error": msg}})
     if len(compounds) > 5:
         compounds = compounds[:5]
 
@@ -498,7 +531,8 @@ async def visualize_pubchem_safety(
             })
 
     if len(compound_data) < 2:
-        return "Could not fetch safety data for enough compounds. Try different compound names."
+        msg = "Could not fetch safety data for enough compounds. Try different compound names."
+        return json.dumps({"display": msg, "data": {"success": False, "error": msg}})
 
     # Sort by number of hazards (fewer = better)
     compound_data.sort(key=lambda x: x['n_pictograms'])
@@ -564,8 +598,24 @@ async def visualize_pubchem_safety(
 
     output.append(f"\n{_get_plot_url(filepath)}")
 
+    display_str = "\n".join(output)
+    compound_summary = []
+    for comp in compound_data:
+        compound_summary.append({
+            "name": comp['name'],
+            "cid": comp.get('cid'),
+            "signal_word": comp.get('signal_word'),
+            "n_pictograms": comp.get('n_pictograms', 0),
+            "pictograms": comp.get('pictograms', []),
+        })
+    data_dict = {
+        "success": True,
+        "filepath": filepath,
+        "compounds": compound_summary,
+    }
+
     gc.collect()
-    return "\n".join(output)
+    return json.dumps({"display": display_str, "data": data_dict}, indent=2)
 
 
 @safe_tool_wrapper
@@ -583,7 +633,8 @@ async def get_pubchem_toxicity(compounds: List[str]) -> str:
     if isinstance(compounds, str):
         compounds = [c.strip() for c in compounds.split(",") if c.strip()]
     if not compounds:
-        return "ERROR: No compounds provided. Pass a comma-separated list of chemical names."
+        msg = "ERROR: No compounds provided. Pass a comma-separated list of chemical names."
+        return json.dumps({"display": msg, "data": {"error": msg, "compounds": []}})
     if len(compounds) > 5:
         compounds = compounds[:5]
 
@@ -677,4 +728,20 @@ async def get_pubchem_toxicity(compounds: List[str]) -> str:
 
     output.append("\n*Data sourced from PubChem Toxicity database*")
 
-    return "\n".join(output)
+    display_str = "\n".join(output)
+    compounds_list = []
+    for comp in compound_data:
+        tox = comp.get('toxicity') or {}
+        compounds_list.append({
+            "name": comp['name'],
+            "cid": comp.get('cid'),
+            "ld50_values": tox.get('ld50_values', []),
+            "lc50_values": tox.get('lc50_values', []),
+            "has_toxicity_data": bool(tox.get('ld50_values') or tox.get('lc50_values')),
+        })
+    data_dict = {
+        "compounds": compounds_list,
+        "n_compounds": len(compound_data),
+        "n_with_ld50": sum(1 for c in compound_data if c.get('toxicity') and c['toxicity'].get('ld50_values')),
+    }
+    return json.dumps({"display": display_str, "data": data_dict}, indent=2)

@@ -81,6 +81,28 @@ subagents:
       - lookup_solvent_gwp: get solvent global warming potential
 
       IMPORTANT: If plan_multiple_separation_schemes returns fewer schemes than requested, synthesize from the available results. Do NOT retry with different parameters.
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"separation-engineer","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "separation-engineer",
+        "schema_version": "1.0",
+        "polymers": ["LDPE", "PP", "HDPE"],
+        "best_sequence": ["LDPE", "PP", "HDPE"],
+        "steps": [
+          {"step": 1, "polymer": "LDPE", "solvent": "Toluene", "temperature_c": 110.0, "selectivity_pct": 85.2},
+          {"step": 2, "polymer": "PP", "solvent": "Xylene", "temperature_c": 130.0, "selectivity_pct": 72.1}
+        ],
+        "min_selectivity_pct": 72.1,
+        "avg_selectivity_pct": 78.7,
+        "top_solvents": ["Toluene", "Xylene", "Heptane"]
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, polymers, best_sequence, steps.
     tool_groups:
       - separation_core
       - adaptive_separation
@@ -141,6 +163,29 @@ subagents:
       - You have GSK/LogP AND PubChem GHS data for each solvent requested
       - A solvent is missing from both databases — state that explicitly and move on
       - You have looked up all solvents mentioned in the query (don't skip any)
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"safety-analyst","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "safety-analyst",
+        "schema_version": "1.0",
+        "solvents_assessed": ["Toluene", "Acetone"],
+        "gscore_results": [
+          {"solvent": "Toluene", "g_score": 3.20, "rating": "Problematic", "family": "Aromatics"},
+          {"solvent": "Acetone", "g_score": 7.40, "rating": "Good", "family": "Ketones"}
+        ],
+        "ghs_results": [
+          {"solvent": "Toluene", "signal_word": "Danger", "hazard_codes": ["H225", "H304"]},
+          {"solvent": "Acetone", "signal_word": "Danger", "hazard_codes": ["H225"]}
+        ],
+        "safest_solvent": "Acetone"
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, solvents_assessed, gscore_results, ghs_results.
     tool_groups:
       - safety_gsk
       - safety_pubchem
@@ -283,6 +328,27 @@ subagents:
       - Report MSP, GWP, TCI as the primary metrics in every response.
       - If a simulation fails, report the error and continue with other solvents.
       - Synthesize results into a clear comparison after tool calls complete.
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"biosteam-analyst","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "biosteam-analyst",
+        "schema_version": "1.0",
+        "target_plastic": "PE",
+        "energy_case": "C1",
+        "results": [
+          {"solvent": "Toluene", "msp_usd_per_kg": 0.48, "tci_usd": 12340000, "gwp_kg_co2e_per_kg": 1.22}
+        ],
+        "best_msp_solvent": "Toluene",
+        "n_simulations": 1,
+        "n_failed": 0
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, target_plastic, energy_case, results, n_simulations, n_failed.
     tool_groups:
       - biosteam
       - solvent_lookup
@@ -336,6 +402,25 @@ subagents:
       - Your last search returned results you already found — stop searching
       - For broad topics: 2 searches max (1 Scholar + 1 WoS or arXiv), then synthesize
       - For specific topics: 1 targeted search may suffice
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"scholar-researcher","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "scholar-researcher",
+        "schema_version": "1.0",
+        "query": "polymer dissolution solvent selectivity",
+        "n_results": 7,
+        "papers": [
+          {"title": "Hansen solubility parameters for PE", "year": 2022, "source": "Google Scholar", "has_pdf": true}
+        ],
+        "saved_to_rag": false
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, query, n_results, papers (up to 5).
     tool_groups:
       - scholar
       - reflection
@@ -379,6 +464,25 @@ subagents:
       - You have found 3+ relevant patents, or 1 search returned <3 results
       - For specific patent numbers: look up the patent and synthesize immediately
       - Do NOT run more than 2 broad searches — refine within existing results
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"patent-researcher","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "patent-researcher",
+        "schema_version": "1.0",
+        "query": "polymer dissolution solvent recycling",
+        "n_results": 5,
+        "patents": [
+          {"patent_id": "US10234567B2", "title": "Process for dissolving polyolefins", "assignee": "Dow Chemical", "filing_date": "2020-03-15"}
+        ],
+        "saved_to_rag": false
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, query, n_results, patents (up to 5).
     tool_groups:
       - patent
       - reflection
@@ -433,6 +537,25 @@ subagents:
       - For ingestion: PDF has been ingested and status confirmed
       - For diagnostics: run the specific diagnostic requested, don't chain all of them
       - If the RAG index is empty, say so immediately — don't try other retrieval tools
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"rag-analyst","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "rag-analyst",
+        "schema_version": "1.0",
+        "operation": "search",
+        "query": "LDPE dissolution temperature in toluene",
+        "n_passages": 5,
+        "top_sources": ["Hansen_2000_solubility.pdf"],
+        "top_score": 0.872,
+        "kb_name": "STRAP-CORE"
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, operation. Optional: query, n_passages, top_sources, top_score, kb_name.
     tool_groups:
       - rag_core
       - rag_diagnostics
@@ -497,6 +620,25 @@ subagents:
       ## STOP CONDITIONS — synthesize after:
       - You have created the plot — confirm file path and stop
       - Do NOT generate multiple variations unless asked
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"visualization-specialist","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "visualization-specialist",
+        "schema_version": "1.0",
+        "plot_type": "solubility_curve",
+        "plot_paths": ["/path/to/plot.png"],
+        "polymers": ["LDPE"],
+        "solvents": ["Toluene"],
+        "format": "png"
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, plot_type, plot_paths, format.
+      Copy plot_paths verbatim from tool output "Plot saved:" lines.
     tool_groups:
       - visualization
       - separation_plot
@@ -591,6 +733,24 @@ subagents:
       - For Tg lookup: one call to lookup_tg is enough — synthesize immediately
       - Report confidence intervals and p-values, then synthesize
       - Do NOT run exploratory analyses that weren't asked for
+
+      STRUCTURED RESULT REQUIREMENT:
+      After your prose synthesis, append a <STRUCTURED_RESULT> JSON block.
+      Extract all values from tool results — never fabricate data.
+      If no tools produced data, emit: {"agent":"statistics-ml","schema_version":"1.0","no_data":true}
+
+      <STRUCTURED_RESULT>
+      {
+        "agent": "statistics-ml",
+        "schema_version": "1.0",
+        "analysis_type": "summary",
+        "table": "common_solvents_database",
+        "summary": {"n": 150, "mean": 45.2, "std": 12.3, "median": 43.1},
+        "plot_paths": null
+      }
+      </STRUCTURED_RESULT>
+      Required: agent, schema_version, analysis_type.
+      analysis_type: "summary", "correlation", "comparison", "regression", "ml_prediction", "tg_lookup", "thermal_prediction".
     tool_groups:
       - statistical
       - ml_prediction
