@@ -523,7 +523,7 @@ def plot_solubility_vs_temperature(
     solvent_list = _normalize_solvent_names(solvent_list)
 
     t_start = max(temperature_min or 25.0, 25.0)
-    t_end = min(temperature_max or 160.0, 160.0)
+    t_end = min(temperature_max or 160.0, 250.0)
 
     _apply_pub_style()
     n_curves = len(polymer_list) * len(solvent_list)
@@ -620,7 +620,7 @@ def plot_solubility_vs_temperature_interactive(
     solvent_list = _normalize_solvent_names(solvent_list)
 
     t_start = max(temperature_min or 25.0, 25.0)
-    t_end = min(temperature_max or 160.0, 160.0)
+    t_end = min(temperature_max or 160.0, 250.0)
 
     fig = go.Figure()
     colors = px.colors.qualitative.Plotly
@@ -889,7 +889,7 @@ def plot_multi_panel_analysis(
     # Build curves dict: polymer -> {temps: [...], sols: [...]}
     curves: Dict[str, Dict[str, list]] = {}
     for poly in all_polymers:
-        curve = get_solubility_curve(poly, solvent, 25.0, 160.0, 5.0)
+        curve = get_solubility_curve(poly, solvent, 25.0, 250.0, 5.0)
         if curve:
             curves[poly] = {
                 "temps": [pt["temperature"] for pt in curve],
@@ -1205,7 +1205,7 @@ def plot_interpolation_vs_sql(
         return "No polymer-solvent pairs provided."
 
     t_start = max(temperature_min, 25.0)
-    t_end = min(temperature_max, 160.0)
+    t_end = min(temperature_max, 250.0)
 
     n_pairs = len(pairs)
     n_cols = min(n_pairs, 3)
@@ -1483,11 +1483,10 @@ async def plot_solvent_properties(
         solvent_data_1d = []
         for solv in solvents_found:
             if solv in props and props[solv][property_lower] is not None:
-                solubility = df[df[solvent_column] == solv]["avg_solubility"].values[0]
                 solvent_data_1d.append({
                     "solvent": solv,
                     "property_value": props[solv][property_lower],
-                    "solubility": solubility,
+                    "solubility": solubility_map.get(solv, 0),
                 })
 
     if not solvent_data_1d:

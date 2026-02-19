@@ -3772,6 +3772,59 @@ async def view_alternative_separation_sequence(
 
 
 # ============================================================================
+# Introspection Tool
+# ============================================================================
+
+@safe_tool_wrapper
+def get_supported_polymers_and_solvents() -> str:
+    """List all polymers and their available solvents in the interpolation coefficient database.
+
+    Returns a formatted catalogue of every polymer-solvent pair that has fitted
+    ln(S) = A + B/T + C/T² coefficients, along with the valid temperature range.
+    Use this before running separation or solubility tools to confirm that the
+    polymer or solvent of interest is supported — tools silently return null/zero
+    for unsupported pairs.
+
+    WHEN TO USE:
+    - "Which polymers are supported?"
+    - "Does the database have data for PET with toluene?"
+    - "What solvents are available for HDPE?"
+    - "List all supported polymer-solvent combinations"
+    """
+    from strap.solubility import _load_coefficients, _get_known_names
+
+    _, lookup = _load_coefficients()
+    known_polymers, _ = _get_known_names(lookup)
+
+    # Build a dict: polymer -> sorted list of solvents (fitted entries only)
+    polymer_solvents: dict[str, list[str]] = {}
+    for (polymer, solvent), entry in lookup.items():
+        if entry.get("category") == "fitted":
+            polymer_solvents.setdefault(polymer, []).append(solvent)
+
+    if not polymer_solvents:
+        return "No fitted interpolation coefficients found in the database."
+
+    output = [
+        "# Interpolation Coefficient Database — Supported Polymers & Solvents\n",
+        f"**Temperature range:** 25–160 °C (extrapolation flagged outside fitted range)\n",
+        f"**Total polymers:** {len(polymer_solvents)}\n",
+    ]
+
+    for polymer in sorted(polymer_solvents):
+        solvents = sorted(polymer_solvents[polymer])
+        output.append(f"\n## {polymer} ({len(solvents)} solvents)")
+        output.append(", ".join(solvents))
+
+    output.append(
+        "\n\n---\n"
+        "**Note:** Names are case-normalised (polymers UPPER, solvents lower). "
+        "Common aliases (e.g. POLYSTYRENE→PS, PA6→NYLON6) are resolved automatically."
+    )
+    return "\n".join(output)
+
+
+# ============================================================================
 # Tool Collection
 # ============================================================================
 
@@ -3802,6 +3855,8 @@ ADVANCED_SEPARATION_TOOLS = [
     plan_sequential_separation,
     analyze_integrated_separation,
     view_alternative_separation_sequence,
+    # Introspection tool
+    get_supported_polymers_and_solvents,
 ]
 
 __all__ = [
@@ -3828,5 +3883,6 @@ __all__ = [
     "plan_sequential_separation",
     "analyze_integrated_separation",
     "view_alternative_separation_sequence",
+    "get_supported_polymers_and_solvents",
     "ADVANCED_SEPARATION_TOOLS",
 ]

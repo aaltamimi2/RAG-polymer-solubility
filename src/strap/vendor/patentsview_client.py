@@ -101,7 +101,7 @@ class PatentsViewClient:
         Full-text search of US granted patents.
 
         Args:
-            query_text: Search terms (matched against patent_title)
+            query_text: Search terms (matched against patent_title and patent_abstract)
             date_from: Start date filter (YYYY-MM-DD)
             date_to: End date filter (YYYY-MM-DD)
             assignee: Filter by assignee organization (substring match)
@@ -112,8 +112,14 @@ class PatentsViewClient:
         """
         logger.info(f"Searching PatentsView for: {query_text}")
 
-        # Build query
-        conditions = [{"_text_any": {"patent_title": query_text}}]
+        # Build query — search both title and abstract so patents where key
+        # terms appear only in the abstract are not missed.
+        conditions = [
+            {"_or": [
+                {"_text_any": {"patent_title": query_text}},
+                {"_text_any": {"patent_abstract": query_text}},
+            ]}
+        ]
 
         if date_from:
             conditions.append({"_gte": {"patent_date": date_from}})

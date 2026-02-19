@@ -147,10 +147,11 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
         async_db = _get_async_db()
 
         # Try exact match first
+        safe_name = solvent_name.replace("'", "''")
         query = f"""
         SELECT solvent_common_name, classification, g_score, cas_number
         FROM gsk_dataset
-        WHERE LOWER(solvent_common_name) = LOWER('{solvent_name}')
+        WHERE LOWER(solvent_common_name) = LOWER('{safe_name}')
         """
 
         result = await async_db.execute_async(query)
@@ -161,10 +162,11 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
 
             if match_result:
                 matched_name = match_result["matched_name"]
+                safe_matched_name = matched_name.replace("'", "''")
                 query = f"""
                 SELECT solvent_common_name, classification, g_score, cas_number
                 FROM gsk_dataset
-                WHERE LOWER(solvent_common_name) = LOWER('{matched_name}')
+                WHERE LOWER(solvent_common_name) = LOWER('{safe_matched_name}')
                 """
                 result = await async_db.execute_async(query)
 
@@ -269,10 +271,11 @@ async def get_family_alternatives(
             family = family_override
         else:
             # First, find the family of the input solvent
+            safe_name = solvent_name.replace("'", "''")
             query = f"""
             SELECT classification
             FROM gsk_dataset
-            WHERE LOWER(solvent_common_name) = LOWER('{solvent_name}')
+            WHERE LOWER(solvent_common_name) = LOWER('{safe_name}')
             """
 
             family_result = await async_db.execute_async(query)
@@ -281,10 +284,11 @@ async def get_family_alternatives(
             if len(family_result) == 0 and use_fuzzy_matching:
                 match_result = _fuzzy_match_solvent_name(solvent_name, dataset="gsk", threshold=80)
                 if match_result:
+                    safe_matched_name = match_result["matched_name"].replace("'", "''")
                     query = f"""
                     SELECT classification
                     FROM gsk_dataset
-                    WHERE LOWER(solvent_common_name) = LOWER('{match_result["matched_name"]}')
+                    WHERE LOWER(solvent_common_name) = LOWER('{safe_matched_name}')
                     """
                     family_result = await async_db.execute_async(query)
 
@@ -301,12 +305,13 @@ async def get_family_alternatives(
             family = family_result.iloc[0]['classification']
 
         # Get all solvents from the same family
+        safe_family = family.replace("'", "''")
         min_score_clause = f"AND g_score >= {min_gscore}" if min_gscore is not None else ""
 
         query = f"""
         SELECT solvent_common_name, g_score, cas_number
         FROM gsk_dataset
-        WHERE classification = '{family}'
+        WHERE classification = '{safe_family}'
         {min_score_clause}
         ORDER BY g_score DESC
         LIMIT {limit + 1}

@@ -72,6 +72,7 @@ subagents:
     tool_groups:
       - separation_core
       - adaptive_separation
+      - solvent_lookup
       - reflection
     guardrails:
       max_tool_calls: 5
@@ -131,6 +132,7 @@ subagents:
     tool_groups:
       - safety_gsk
       - safety_pubchem
+      - solvent_lookup
       - reflection
     guardrails:
       max_tool_calls: 12
@@ -471,9 +473,10 @@ subagents:
     tool_groups:
       - visualization
       - separation_plot
+      - biosteam
       - reflection
     guardrails:
-      max_tool_calls: 3
+      max_tool_calls: 5
       synthesis_tools:
         - plot_solubility_vs_temperature
         - plot_solubility_vs_temperature_interactive
@@ -543,6 +546,18 @@ subagents:
       For Tg queries: call lookup_tg ONCE with the polymer name — it returns instant
       results from a pre-computed database of ~7,700 polymers. No iteration needed.
 
+      AVAILABLE DATABASE TABLES:
+      - common_solvents_database: 10,612 rows
+        Columns: solvent, temperature____c_, solubility____, polymer
+        (11 polymers: EVOH, HDPE, LDPE, Nylon6, Nylon66, PC, PES, PET, PP, PS, PVC)
+        (32 solvents, temperatures 25-160°C)
+      - gsk_dataset: 153 rows
+        Columns: classification, solvent_common_name, ipuac_name, solvent_smiles, cas_number, g_score
+      - solvent_data: 1,007 rows
+        Columns: s_n, solvent_name, solvent_name_in_cosmobase, cas_number, cid, bp__oc_, th, logp, cp__j_g_k_, energy__j_g_
+
+      Use list_tables() and describe_table() to verify column names before querying.
+
       ## STOP CONDITIONS — synthesize your answer when:
       - You have run the specific statistical test requested (summary, correlation, etc.)
       - For ML prediction: one call to predict_solubility_ml is enough — don't iterate
@@ -553,11 +568,13 @@ subagents:
       - statistical
       - ml_prediction
       - thermal_prediction
+      - database_query
       - reflection
     guardrails:
       synthesis_tools:
         - statistical_summary
         - correlation_analysis
+        - compare_groups_statistically
         - regression_analysis
         - predict_solubility_ml
         - lookup_tg

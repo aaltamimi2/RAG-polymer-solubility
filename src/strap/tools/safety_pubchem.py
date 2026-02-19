@@ -80,11 +80,12 @@ def fetch_pubchem_properties(cid: int) -> Optional[Dict]:
     """Fetch compound properties from PubChem."""
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/{cid}/property/MolecularFormula,MolecularWeight/JSON"
-        req = urllib.request.Request(url, headers={'User-Agent': 'PolymerSolubilityApp/1.0'})
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode())
-            if 'PropertyTable' in data and 'Properties' in data['PropertyTable']:
-                return data['PropertyTable']['Properties'][0]
+        raw = _pubchem_request(url, timeout=10)
+        if raw is None:
+            return None
+        data = json.loads(raw.decode())
+        if 'PropertyTable' in data and 'Properties' in data['PropertyTable']:
+            return data['PropertyTable']['Properties'][0]
     except Exception as e:
         logger.warning(f"Could not fetch properties for CID {cid}: {e}")
     return None

@@ -544,6 +544,154 @@ def search_google_patents(
 
 
 # ============================================================
+# Structured Polymer Patent Search (Google Patents / SerpAPI)
+# ============================================================
+
+@safe_tool_wrapper
+def search_polymer_patents(
+    polymer: str,
+    solvent: Optional[str] = None,
+    process_type: Optional[str] = None,
+    max_results: int = 10,
+    save_to_rag: bool = False,
+    max_save: int = DEFAULT_MAX_SAVE,
+    knowledgebase: Optional[str] = None,
+) -> str:
+    """Search Google Patents for polymer-related patents using structured queries.
+
+    Builds a smarter combined query from polymer name, optional solvent, and
+    optional process type — more targeted than a free-text search.
+
+    Args:
+        polymer: Polymer name (e.g., "PET", "polystyrene", "HDPE")
+        solvent: Solvent name (e.g., "toluene", "DMF") — optional
+        process_type: Process keyword (e.g., "dissolution", "recycling", "recovery") — optional
+        max_results: Maximum results to return (default: 10, max: 20)
+        save_to_rag: Download patent PDFs and ingest into RAG (default: False)
+        max_save: Max patents to save when save_to_rag is True (default: 2)
+        knowledgebase: RAG knowledgebase name (default: active KB; creates new if needed)
+
+    WHEN TO USE:
+    - "Find patents on PET dissolution in DMF"
+    - "Search patents for HDPE recycling"
+    - "What patents exist for polystyrene solvent recovery?"
+    - "Find polymer dissolution patents and save the best 3 to RAG"
+    """
+    try:
+        from strap.vendor.serpapi_patents import GooglePatentsClient
+
+        client = GooglePatentsClient()
+
+        patents = client.search_polymer_patents(
+            polymer_name=polymer,
+            solvent_name=solvent,
+            process_type=process_type,
+            max_results=min(max_results, 20),
+        )
+
+        if not patents:
+            parts = [polymer]
+            if solvent:
+                parts.append(solvent)
+            if process_type:
+                parts.append(process_type)
+            query_desc = " + ".join(parts)
+            return (
+                f"No patents found for: {query_desc}\n\n"
+                "Try:\n- Using a common name (e.g. 'polystyrene' instead of 'PS')\n"
+                "- Removing the solvent or process_type filter\n"
+                "- Using search_google_patents for a free-text search"
+            )
+
+        # Format output
+        parts = [polymer]
+        if solvent:
+            parts.append(solvent)
+        if process_type:
+            parts.append(process_type)
+        query_desc = " + ".join(parts)
+
+        output = [f"# Polymer Patent Search: {query_desc}\n"]
+        output.append(f"**Found:** {len(patents)} patents\n")
+
+        output.append("\n## Patents\n")
+
+        for i, patent in enumerate(patents, 1):
+            patent_id = patent.get("patent_id", "N/A")
+            title = patent.get("title", "N/A")
+            link = patent.get("link", f"https://patents.google.com/patent/{patent_id}")
+            output.append(f"\n### {i}. [{patent_id}: {title}]({link})")
+
+            output.append(f"**Assignee:** {patent.get('assignee', 'N/A')}")
+
+            inventors_list = patent.get("inventors", [])
+            inv_str = ", ".join(inventors_list[:3])
+            if len(inventors_list) > 3:
+                inv_str += f" et al. ({len(inventors_list)} total)"
+            output.append(f"**Inventors:** {inv_str or 'Not available'}")
+
+            filing_date = patent.get("filing_date", "N/A")
+            grant_date = patent.get("grant_date", "N/A")
+            if filing_date != "N/A":
+                output.append(f"**Filed:** {filing_date}")
+            if grant_date != "N/A":
+                output.append(f"**Granted:** {grant_date}")
+
+            output.append(f"**Country:** {patent.get('country', 'Unknown')}")
+
+            pdf_link = patent.get("pdf_link")
+            if pdf_link:
+                output.append(f"[PDF Available]({pdf_link})")
+
+            snippet = patent.get("snippet", "")
+            if snippet:
+                output.append(f"*{snippet[:400]}{'...' if len(snippet) > 400 else ''}*")
+
+        output.append("\n\n---")
+        output.append(f"**Polymer:** {polymer}")
+        if solvent:
+            output.append(f"**Solvent:** {solvent}")
+        if process_type:
+            output.append(f"**Process:** {process_type}")
+        output.append(f"**Results Shown:** {len(patents)}")
+
+        # --- save_to_rag ---
+        if save_to_rag:
+            dl_items = []
+            for p in patents:
+                pid = p.get("patent_id", "")
+                num = pid.lstrip("US") if pid.startswith("US") else pid
+                pdf_url = (
+                    p.get("pdf_link")
+                    or f"https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/{num}"
+                )
+                dl_items.append({
+                    "url": pdf_url,
+                    "alt_url": f"https://patents.google.com/patent/{pid}/download",
+                    "filename": f"{pid}_{p.get('title', 'patent')[:40]}",
+                    "title": p.get("title", pid),
+                })
+
+            output.extend(
+                _download_and_ingest(dl_items, max_save, knowledgebase, "patent")
+            )
+
+        return "\n".join(output)
+
+    except ValueError as e:
+        if "SERPAPI_KEY" in str(e):
+            return (
+                "Polymer patent search requires a SerpAPI key.\n\n"
+                "**Setup:**\n1. Get key from: https://serpapi.com/\n"
+                "2. Set `SERPAPI_KEY=your-key`\n3. Restart"
+            )
+        return f"Error: {e}"
+    except Exception as e:
+        logger.error(f"Polymer patent search error: {e}")
+        return f"Search failed: {e}\n\nPlease try again or simplify your query."
+
+
+# ============================================================
 # PatentsView Search (US USPTO granted patents)
 # ============================================================
 

@@ -109,6 +109,7 @@ def get_literature_tools() -> list:
         "search_google_scholar", "search_google_patents",
         "lookup_patent", "search_web_of_science",
         "search_arxiv", "search_patentsview",
+        "search_polymer_patents",
     ])
 
 
@@ -121,6 +122,7 @@ def get_scholar_tools() -> list:
 def get_patent_tools() -> list:
     return _safe_import("strap.tools.literature", [
         "search_google_patents", "lookup_patent", "search_patentsview",
+        "search_polymer_patents",
     ])
 
 
@@ -170,6 +172,7 @@ def get_advanced_separation_tools() -> list:
         "plan_multiple_separation_schemes",
         "analyze_integrated_separation",
         "view_alternative_separation_sequence",
+        "get_supported_polymers_and_solvents",
     ])
 
 
@@ -197,6 +200,7 @@ def get_separation_core_tools() -> list:
         "find_antisolvents",
         "find_antisolvent_pairs",
         "analyze_selective_antisolvent_precipitation",
+        "get_supported_polymers_and_solvents",
     ])
 
 
