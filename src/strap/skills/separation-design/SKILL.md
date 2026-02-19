@@ -8,7 +8,7 @@ or process design for polymer mixtures.
 1. Delegate to separation-engineer with full polymer list and any temperature constraints
 2. Review the returned separation plan for completeness
 3. If the user also wants cost or safety analysis, delegate sequentially to
-   tea-lca-analyst or safety-analyst with the separation results
+   biosteam-analyst or safety-analyst with the separation results
 
 ## What to Include in the Task Description
 

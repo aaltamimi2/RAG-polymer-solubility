@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Run 3-scheme 9-polymer query with sequential safety + TEA analysis.
 
-Routing: separation-engineer -> tea-lca-analyst -> safety-analyst (sequential)
+Routing: separation-engineer -> biosteam-analyst -> safety-analyst (sequential)
 Patches: increased tool budgets for all 3 subagents, synthesis injection off
 for separation-engineer.
 """
@@ -30,7 +30,7 @@ QUERY = (
 
 SUBAGENT_OVERRIDES = {
     "separation-engineer": {"max_tool_calls": 20, "synthesis_tools": set()},
-    "tea-lca-analyst": {"max_tool_calls": 15},
+    "biosteam-analyst": {"max_tool_calls": 15},
 }
 
 
