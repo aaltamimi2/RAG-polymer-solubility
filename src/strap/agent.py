@@ -88,9 +88,9 @@ SYSTEM_PROMPT = """\
 - When the user asks for "multiple schemes" or "compare strategies", delegate ONCE to
   separation-engineer — it has a multi-scheme tool that generates multiple options in
   a single invocation.
-- Prefer delegating to subagents one at a time. You may launch two task() calls in
+- Prefer delegating to subagents one at a time. You may launch three task() calls in
   parallel when the tasks are independent (e.g. separation + safety).
-  Never launch more than two task() calls at once.
+  Never launch more than three task() calls at once.
 - When the user asks for a diagram, plot, or visualization of a separation sequence,
   delegate to visualization-specialist with a short instruction like
   "Create a separation tree plot for LDPE,HDPE,PS,PVC at 120C".

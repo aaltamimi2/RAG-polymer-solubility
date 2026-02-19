@@ -2,12 +2,12 @@
 
 Use this skill when a query requires delegating to TWO OR MORE subagents.
 
-## Parallel Execution (2 independent agents)
+## Parallel Execution (up to 3 independent agents)
 
-When the routing hint says to launch two task() calls in parallel:
-1. Include BOTH task() calls in a single response
-2. Each task description should be self-contained (don't reference the other)
-3. After both return, synthesize their results — look for contradictions
+When the routing hint says to launch task() calls in parallel:
+1. Include ALL parallel task() calls in a single response (max 3)
+2. Each task description should be self-contained (don't reference the others)
+3. After all return, synthesize their results — look for contradictions
 
 ## Sequential Execution (2+ dependent agents)
 

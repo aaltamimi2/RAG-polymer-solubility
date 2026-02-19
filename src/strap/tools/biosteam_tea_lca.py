@@ -893,15 +893,22 @@ def run_biosteam_multi_polymer(
     total_gwp_weighted = 0.0
     total_weight = 0.0
 
+    # --- Pass 1: validate specs and build configs (keep per-spec metadata) ---
+    # Each entry in pending_items is either a ready-to-run dict or a pre-built
+    # error record.  We process them in two lists so that invalid specs are
+    # handled immediately while valid ones are batched.
+    pending_items: list[dict] = []   # holds metadata + config for valid specs
+    early_errors: list[tuple[int, dict]] = []  # (original_index, error_record)
+
     for i, spec in enumerate(polymers):
         polymer = spec.get("polymer")
         solvent = spec.get("solvent")
         if not polymer or not solvent:
-            per_polymer_results.append({
+            early_errors.append((i, {
                 "polymer": polymer or f"spec_{i}",
                 "success": False,
                 "error": "Missing required 'polymer' or 'solvent' field",
-            })
+            }))
             continue
 
         # Look up stage defaults when sequence_stages provided
@@ -929,7 +936,38 @@ def run_biosteam_multi_polymer(
         if spec.get("dissolution_temp_c") is not None:
             config["dissolution_temperature_c"] = spec["dissolution_temp_c"]
 
-        result = run_single_simulation(config)
+        pending_items.append({
+            "original_index": i,
+            "polymer": polymer,
+            "solvent": solvent,
+            "stage_label": stage_label,
+            "config": config,
+        })
+
+    # --- Pass 2: run all valid configs in parallel via ThreadPoolExecutor ---
+    valid_configs = [item["config"] for item in pending_items]
+    batch_results = run_batch_simulations(valid_configs, max_parallel=3)
+
+    # --- Pass 3: merge batch results with per-spec metadata ---
+    # Reconstruct per_polymer_results in original spec order.
+    # Build a mapping from original index -> error record for early errors.
+    error_by_index = {idx: rec for idx, rec in early_errors}
+    # Build a mapping from original index -> (item metadata, raw result).
+    result_by_index: dict[int, tuple[dict, dict]] = {}
+    for item, raw_result in zip(pending_items, batch_results):
+        result_by_index[item["original_index"]] = (item, raw_result)
+
+    for i in range(len(polymers)):
+        if i in error_by_index:
+            per_polymer_results.append(error_by_index[i])
+            continue
+
+        item, result = result_by_index[i]
+        polymer = item["polymer"]
+        solvent = item["solvent"]
+        stage_label = item["stage_label"]
+        config = item["config"]
+
         result["polymer"] = polymer
         result["solvent"] = solvent
 

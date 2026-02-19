@@ -10,6 +10,7 @@ import gc
 import re
 import os
 import logging
+import subprocess
 import time
 import asyncio
 from functools import wraps
@@ -62,13 +63,45 @@ def _format_tool_result(result) -> str:
 
 
 def _format_tool_error(func_name: str, error: Exception) -> str:
-    return (
-        f"ERROR in {func_name}:\n"
-        f"{str(error)[:500]}\n\n"
-        f"Suggestions:\n"
-        f"- Verify input parameters with describe_table()\n"
-        f"- Check values with check_column_values()\n"
-        f"- Use verify_data_accuracy() to confirm data exists"
+    """Format tool error with context-aware recovery suggestions."""
+    error_msg = str(error)[:500]
+    header = f"ERROR in {func_name}:\n{error_msg}\n\nSuggestions:\n"
+
+    if isinstance(error, NameError):
+        return header + (
+            "- This tool depends on an engine/module that failed to load.\n"
+            "- Try a different tool or approach for this task.\n"
+            "- Report this as a system configuration issue."
+        )
+    if isinstance(error, ImportError):
+        return header + (
+            "- A required dependency is not installed.\n"
+            "- Try a different tool or approach for this task.\n"
+            "- Report this as a system configuration issue."
+        )
+    if isinstance(error, (TimeoutError, ConnectionError, OSError)):
+        return header + (
+            "- An external service (API/network) timed out or is unreachable.\n"
+            "- Wait a moment and retry, or try with fewer items.\n"
+            "- If the issue persists, skip this step and note the data gap."
+        )
+    if isinstance(error, subprocess.CalledProcessError) or "subprocess" in error_msg.lower() or "biosteam" in error_msg.lower():
+        return header + (
+            "- A subprocess simulation failed.\n"
+            "- Check that the polymer and solvent names are valid.\n"
+            "- Try a different solvent or check supported polymers with get_biosteam_solvents()."
+        )
+    if "sql" in error_msg.lower() or (isinstance(error, RuntimeError) and "query" in error_msg.lower()):
+        return header + (
+            "- Verify input parameters with describe_table()\n"
+            "- Check values with check_column_values()\n"
+            "- Use verify_data_accuracy() to confirm data exists"
+        )
+    # Default fallback — keep the database suggestions for genuinely unknown errors
+    return header + (
+        "- Verify input parameters with describe_table()\n"
+        "- Check values with check_column_values()\n"
+        "- Use verify_data_accuracy() to confirm data exists"
     )
 
 

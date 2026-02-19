@@ -210,7 +210,7 @@ subagents:
       LDPE uses the same solvents as PE (both polyethylenes). Use "all_ldpe" keyword
       in batch mode or target_plastic="LDPE" for single runs.
       PET uses the same generic dissolution model (define_dissolution/define_precipitation)
-      with dynamic parameter registration. Candidate PET solvents: Toluene, Xylene.
+      with dynamic parameter registration. Candidate PET solvents: Toluene, Xylene, Acetone, N,N-Dimethylformamide, Tetrahydrofuran, 2-Butanone, Benzene.
       Use "all_pet" keyword in batch mode or target_plastic="PET" for single runs.
 
       ENERGY CASES:
