@@ -288,3 +288,70 @@ New `get_supported_polymers_and_solvents()` tool returns a catalogue of all poly
 **Files:** `tools/literature.py`, `tools/__init__.py`
 
 New `search_polymer_patents()` tool wraps the SerpAPI Google Patents client with polymer-specific search, formatted markdown output, and optional RAG ingestion. Registered in `patent` group.
+
+---
+
+## Commit 7: `b679b94` — Robustness Hardening (R1–R28)
+
+28 fixes from comprehensive 5-agent robustness audit. 19 files changed, 338 insertions, 103 deletions.
+
+### R6–R9, R21: SQL Injection Fixes (4 files)
+**Files:** `safety_gsk.py`, `solvent_properties.py`, `_helpers.py`, `solubility.py`
+
+- R6: `visualize_gscores` — escaped `family`/`solvent_list` before SQL interpolation
+- R7: `get_solvent_properties` / `lookup_solvent_properties` — escaped all LIKE clause terms
+- R8: `get_cross_database_properties` — converted to DuckDB parameterized `?` queries
+- R9: 4 SQL fallback functions in `solubility.py` — parameterized with `?` placeholders
+- R21: `COALESCE(o.max_other, 0)` → `COALESCE(o.max_other, t.target_solubility)` — missing competitor data now conservatively assumes equal dissolution instead of zero
+
+### R1, R5a, R16: Agent Factory & Tool Loading
+**Files:** `agent.py`, `tools/__init__.py`
+
+- R1: Added `"database_query": get_database_query_tools` to `_TOOL_GROUP_REGISTRY` — `statistics-ml` was launching with no DB tools
+- R5a: Added validation loop in `_build_subagents()` — malformed YAML entries logged and skipped instead of KeyError crash
+- R16: `_safe_import` now logs `WARNING` on import failures instead of silent `return []`. Added `get_solvent_lookup_tools` to `get_all_tools()`
+
+### R4, R5b: Routing Crash Protection
+**File:** `routing.py`
+
+- R4: `_load_routing_rules()` wrapped in try/except — missing/corrupt YAML falls back to empty rules with logged warning instead of killing the entire module import
+- R5b: Hard key access (`routing["priority"]`, `spec["description"]`) replaced with `.get()` defaults
+
+### R10, R11: Verifier Reliability
+**File:** `verifier.py`
+
+- R10: Added `system_message is None` guard in both sync and async re-invocation paths
+- R11: `_parse_verdict` fail-open now logs `WARNING` instead of silently returning `pass=True`
+
+### R2, R3, R18: PubChem & Thermal Prediction
+**Files:** `safety_pubchem.py`, `thermal_prediction.py`
+
+- R2: `compare_pubchem_safety` / `get_pubchem_toxicity` — added `isinstance(compounds, str)` coercion (LLM sends string, not List)
+- R3: `generate_solubility_for_new_polymer` — added `sle_df is None or sle_df.empty` guard before accessing `.values`
+- R18: `_pubchem_request` retry now catches `URLError`/`OSError` (not just `HTTPError`)
+
+### R12: ML Prediction Fix
+**File:** `tools/ml_prediction.py`
+
+- Removed always-failing `visualization_library_v2` import (moved inside conditional block)
+- Removed duplicate `get_predictor` import; added `is None` guard
+- Replaced hardcoded relative CSV path with `Path(__file__).resolve().parent...` + existence check
+
+### R13–R15, R25, R28: Config & Prompt Robustness
+**File:** `subagents.yaml`
+
+- R13: Added `max_tool_calls: 6`, `max_iterations: 10`, `token_budget: 120000`, and `synthesis_tools` to `scholar-researcher` and `patent-researcher` (were unbounded)
+- R14: Removed premature synthesis triggers — `lookup_solvent_price`/`gwp` from biosteam-analyst, `get_solvent_gscore`/`get_pubchem_safety_info` from safety-analyst
+- R15: Added tool documentation to separation-engineer (adaptive tools, solvent lookup, STOP condition) and visualization-specialist (BioSTEAM viz only)
+- R28: Added `["scholar-researcher", "patent-researcher"]` parallel pair and `["statistics-ml", "rag-analyst"]` sequential pair
+
+### R17, R19–R27: Medium Resilience Fixes (8 files)
+
+- R17 (`database.py`): Startup warnings for missing data dir / empty CSV list
+- R19 (`literature.py`): Truncated PDFs now deleted instead of ingested into RAG
+- R20 (`analysis.py`): `if not metrics: return []` guard before `max()` call
+- R22 (`statistical.py`): Degree range [1-5] validation, NaN/inf guard before polyfit, correlation method validation
+- R23 (`solvent_lookup.py`): Standardized `SERPAPI_KEY` with `SERPAPI_API_KEY` fallback
+- R24 (`solvent_registry.py`): Added 9 missing BioSTEAM solvents (pyridazine, butanediol, diethanolamine, diethylene glycol, GBL, methylcyclohexane, sec-butyl acetate, isobutyl acetate, dodecanol)
+- R26 (`database_query.py`): `check_column_values` limit capped at [1, 500]
+- R27 (`literature.py`): Empty/whitespace query guard on all 5 search tools
