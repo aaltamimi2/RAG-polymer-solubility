@@ -1,6 +1,6 @@
 # Orchestration Fixes Summary
 
-All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes + 5 hardening fixes + 68 tests across 11 commits. 35+ files changed.
+All 12 identified limitations resolved + 6 security/reliability fixes + 28 robustness fixes + 14 quick fixes + 5 hardening fixes + 11 separation-engineer audit fixes + 68 tests across 12 commits. 40+ files changed.
 
 ## Commit 1: `d77e255` — Core Orchestration Fixes (L2, L3, L4, L6, L9, L12)
 
@@ -535,3 +535,83 @@ Replaced `_registry_state: ContextVar[_RegistryState]` with:
 - `test_parallel_writes_from_threads`: 3 threads writing concurrently — all results visible
 - `test_invocation_id_not_set_drops_result`: no crash on missing context
 - `test_after_agent_cleans_up`: registry entry removed after cleanup
+
+---
+
+## Commit 12: `ade0a10` — Separation Engineer Audit Fixes (11 bugs)
+
+5 files changed, 72 insertions, 20 deletions. Comprehensive audit by 4 parallel agents identified 26+ issues; 11 critical/high-priority bugs fixed.
+
+### 3 Critical Logic Fixes
+
+**Bug 1 — Exhaustive steps builder empty solvent/zero selectivity**
+**File:** `tools/advanced_separation.py` (lines 2984–2985)
+
+`plan_sequential_separation` exhaustive path built structured output steps by calling `s.get("solvent", "")` and `s.get("selectivity", 0)`, but those keys are nested under `s["solvents"][0]` in the exhaustive schema (unlike the greedy path which has flat keys).
+- Fixed: `s["solvents"][0].get("solvent", "")` with `if s.get("solvents") else ""` guard
+
+**Bug 2 — LogP score direction inverted in SolventRanker**
+**File:** `analysis.py` (line 195)
+
+Min-max normalization mapped lowest LogP → 0.0, highest LogP → 1.0, causing the ranker to **favor high-LogP solvents** (more bioaccumulative, less green). All other properties (bp, cp, energy) were correctly inverted.
+- Fixed: `1.0 - (logp - logp_range[0]) / (logp_range[1] - logp_range[0])`
+- Updated comment to reflect all four properties now inverted
+
+**Bug 3 — threshold_search filter logic inverted**
+**File:** `tools/adaptive_separation.py` (line 406)
+
+With `SELECTIVITY_THRESHOLDS = [50, 30, 20, 15, 10, 5, 2, 1, 0.5, 0.1]` and `start_threshold = 0.5`, the `<= start_threshold` filter yielded only `[0.5, 0.1]` (most lenient). The algorithm should start stringent and relax.
+- Fixed: `>= start_threshold` → yields `[50, 30, 20, 15, 10, 5, 2, 1, 0.5]`
+
+### 4 High-Priority Code Fixes
+
+**Bug 4 — SQL injection in analyze_integrated_separation**
+**File:** `tools/advanced_separation.py` (lines 3081–3087)
+
+GSK G-score lookup used f-string interpolation: `IN ('{solvent_filter.lower()}')`. Solvent names containing single quotes (e.g., `2,2'-Dithiodiethanol`) could break or exploit the query.
+- Fixed: parameterized query with `?` placeholders and `[n.lower() for n in solvent_names]`
+
+**Bug 5 — NoneType crash in view_alternative_separation_sequence**
+**File:** `tools/advanced_separation.py` (line 3678)
+
+Greedy fallback: `best_candidate` remained `None` when all `_get_all_sel_greedy()` calls returned empty (no solvent data for any candidate at the specified temperature). Unpacking `target, solvents = best_candidate` raised `TypeError`.
+- Fixed: `if best_candidate is None: greedy_seq.extend(remaining_g); break`
+
+**Bug 6 — Default temperature inconsistency**
+**File:** `tools/advanced_separation.py` (line 3528)
+
+`view_alternative_separation_sequence` defaulted to 25°C while `plan_sequential_separation` uses 120°C. Users running the pair without explicit temperature got mismatched results.
+- Fixed: default changed to 120.0, docstring updated
+
+**Bug 10 — SQL fallback receives unresolved solvent aliases**
+**File:** `solubility.py` (4 public functions)
+
+When interpolation returned `None`, the code fell through to `_sql_get_solubility(polymer, solvent, ...)` with the original unresolved name (e.g., `"THF"` instead of `"tetrahydrofuran"`). The database stores canonical names, so lookups silently failed.
+- Fixed: added `POLYMER_ALIASES.get()` + `resolve_to_interp_key()` before each of the 4 SQL fallback calls: `get_solubility`, `get_solubility_curve`, `get_selectivity`, `get_all_solvents_selectivity`
+
+**Bug 11 — _sql_get_curve returns duplicate rows**
+**File:** `solubility.py` (lines 671–677)
+
+Query had no `GROUP BY` or aggregation. Replicated measurements at the same temperature created duplicate entries that broke downstream plotting and interpolation.
+- Fixed: `AVG(solubility____)` with `GROUP BY temperature___c_`
+
+### 3 Configuration Fixes
+
+**Bug 7 — STRUCTURED_RESULT schema missing fields**
+**File:** `subagents.yaml`
+
+The orchestrator's BioSTEAM pipeline depends on `top_k_sequences` and `solvent_mapping` from the separation-engineer's structured result, but the schema example didn't include them.
+- Fixed: added both fields to the JSON example and `Required:` line
+
+**Bug 8 — Guardrails too restrictive**
+**File:** `subagents.yaml`
+
+Separation-engineer had the lowest limits of all subagents despite handling the most complex tasks.
+- `max_tool_calls`: 5 → 12
+- `token_budget`: 100,000 → 180,000
+- `truncate_tool_results_after`: 800 → 2,000
+
+**Bug 9 — 16 of 24 tools undocumented**
+**File:** `subagents.yaml`
+
+Added "AVAILABLE TOOLS BY CATEGORY" section documenting all 24 tools across 5 categories: sequential planning (5), precipitation/antisolvent (9), fine-grained analysis (6), solvent lookup (2), reflection (1).
