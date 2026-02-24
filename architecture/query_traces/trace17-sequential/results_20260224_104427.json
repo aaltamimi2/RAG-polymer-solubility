@@ -1,0 +1,339 @@
+{
+  "timestamp": "20260224_104427",
+  "campaign": "sequential",
+  "n_queries": 10,
+  "results": [
+    {
+      "name": "seq-sep-tea-1",
+      "query": "Plan a separation sequence for LDPE/PP/HDPE mixed waste using selective dissolution, then run a BioSTEAM TEA for the top-ranked solvent under C1.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 122.8,
+      "total_tokens": 82988,
+      "input_tokens": 80080,
+      "output_tokens": 2908,
+      "n_tool_calls": 6,
+      "n_messages": 13,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c9073-871a-7863-8336-77e1eed589a2",
+      "answer_preview": "Of course. Here is the planned separation sequence and the corresponding techno-economic analysis for your mixed LDPE/PP/HDPE waste stream.\n\n### 1. Optimal Separation Sequence\n\nThe recommended separation process, determined at 120\u00b0C, follows a two-stage dissolution:\n\n1.  **Dissolve LDPE:** **Ethanol** is used to selectively dissolve LDPE, leaving PP and HDPE as solids.\n2.  **Dissolve PP:** **Tetrahydrofuran (THF)** is then used to dissolve the PP from the remaining solids.\n3.  **Isolate HDPE:** ...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:22:21.315956",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-sep-tea-1/seq-sep-tea-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-sep-tea-2",
+      "query": "Find the best solvent for separating EVOH from PE in a multilayer film waste. Then estimate the MSP and GWP via BioSTEAM simulation.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 79.6,
+      "total_tokens": 64001,
+      "input_tokens": 61882,
+      "output_tokens": 2119,
+      "n_tool_calls": 4,
+      "n_messages": 10,
+      "tool_names": [
+        "write_todos",
+        "rank_solvents_selectivity",
+        "write_todos",
+        "task"
+      ],
+      "trace_id": "019c9075-7ad5-79a0-9652-5005869d1f03",
+      "answer_preview": "Based on the solvent screening, Dimethyl Sulfoxide (DMSO) is the best solvent for separating EVOH from Polyethylene (PE) at 120\u00b0C, with a selectivity of 30.1. It is also safe for atmospheric operation with a boiling point of 189\u00b0C.\n\nNow, I will proceed with the BioSTEAM simulation to estimate the Minimum Selling Price (MSP) and Global Warming Potential (GWP) for this separation process.",
+      "routing_match": false,
+      "timestamp": "2026-02-24T10:23:46.019874",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-sep-tea-2/seq-sep-tea-2_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-sep-viz-1",
+      "query": "Find the optimal separation sequence for PS/PET/PC at up to 120\u00b0C, then create a selectivity heatmap showing the results.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 79.9,
+      "total_tokens": 55463,
+      "input_tokens": 53421,
+      "output_tokens": 2042,
+      "n_tool_calls": 5,
+      "n_messages": 10,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos"
+      ],
+      "trace_id": "019c9076-c280-73a2-8dc8-a562ba517d1f",
+      "answer_preview": "The optimal separation sequence for the PS/PET/PC mixture at a maximum temperature of 120\u00b0C has been determined, and a corresponding selectivity heatmap has been generated.\n\n### Optimal Separation Sequence: PS \u2192 PC \u2192 PET\n\nThe most effective strategy is to first dissolve Polystyrene (PS), then Polycarbonate (PC), leaving Polyethylene Terephthalate (PET) as the final solid polymer.\n\n1.  **Separate PS:**\n    *   **Solvent:** Triethylamine\n    *   **Temperature:** 120\u00b0C\n    *   **Rationale:** At thi...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:25:10.015328",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-sep-viz-2",
+      "query": "Plan a separation cascade for LDPE/HDPE/PP, then create a process flow diagram showing the dissolution stages.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 73.2,
+      "total_tokens": 69553,
+      "input_tokens": 67695,
+      "output_tokens": 1858,
+      "n_tool_calls": 6,
+      "n_messages": 12,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c9078-0da4-76f2-adf2-e039cf455305",
+      "answer_preview": "I have successfully planned a separation cascade for a mixture of LDPE, HDPE, and PP and created a corresponding process flow diagram.\n\n### Separation Plan\n\nThe most effective method is a sequential process that removes one polymer at a time, starting with LDPE, followed by PP, which leaves purified HDPE.\n\n**Step 1: Dissolve LDPE**\n*   **Target Polymer**: LDPE\n*   **Solvent**: Ethanol\n*   **Temperature**: 120\u00b0C\n*   **Action**: The initial polymer mixture (LDPE, HDPE, PP) is treated with Ethanol ...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:26:34.191673",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-sep-viz-2/seq-sep-viz-2_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-stats-viz-1",
+      "query": "Look up the glass transition temperature for polycarbonate, then plot solubility vs temperature curves for PC in its three best solvents.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "statistics-ml",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "statistics-ml",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 69.4,
+      "total_tokens": 106145,
+      "input_tokens": 103281,
+      "output_tokens": 2864,
+      "n_tool_calls": 7,
+      "n_messages": 16,
+      "tool_names": [
+        "task",
+        "rank_solvents_selectivity",
+        "query_database",
+        "query_database",
+        "list_tables",
+        "query_database",
+        "task"
+      ],
+      "trace_id": "019c9079-5575-7461-8689-1569e7e7bc12",
+      "answer_preview": "The glass transition temperature (Tg) for Polycarbonate (PC) is approximately 147.7 \u00b0C (with reported values of 145.5 \u00b0C and 149.9 \u00b0C).\n\nThe three best solvents for PC at 120\u00b0C are:\n1.  **Propanone** (Acetone)\n2.  **THF** (Tetrahydrofuran)\n3.  **Isopropylamine**\n\nHere is a plot of the solubility of Polycarbonate in these three solvents as a function of temperature:\n![Solubility vs Temperature for PC](plots/pc_propanone_thf_isopropylamine_solubility_vs_temp.png)",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:27:52.827868",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-stats-viz-1/seq-stats-viz-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-stats-viz-2",
+      "query": "Run a correlation analysis between solvent boiling point and LDPE solubility at 110\u00b0C, then plot the results.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "statistics-ml",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "statistics-ml"
+      ],
+      "wall_time_s": 128.1,
+      "total_tokens": 41333,
+      "input_tokens": 40271,
+      "output_tokens": 1062,
+      "n_tool_calls": 3,
+      "n_messages": 7,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "get_subagent_result"
+      ],
+      "trace_id": "019c907a-893b-7d52-a2e5-215b9c285f42",
+      "answer_preview": "",
+      "routing_match": false,
+      "timestamp": "2026-02-24T10:30:05.621973",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-scholar-rag-1",
+      "query": "Search Google Scholar for recent publications on polyolefin dissolution in terpene-based green solvents. Save relevant papers to RAG, then summarize the key findings from the indexed literature.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "scholar-researcher",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "scholar-researcher",
+        "rag-analyst",
+        "rag-analyst"
+      ],
+      "wall_time_s": 275.6,
+      "total_tokens": 94348,
+      "input_tokens": 92205,
+      "output_tokens": 2143,
+      "n_tool_calls": 6,
+      "n_messages": 14,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "task",
+        "write_todos"
+      ],
+      "trace_id": "019c907c-8ee2-7182-b843-f55d473b7b8f",
+      "answer_preview": "I have completed the literature search and summarization task. Here are the key findings:\n\n**Recent Publications on Polyolefin Dissolution in Green Solvents:**\n\nA search of recent literature has identified several key papers on the dissolution of polyolefins in terpene-based and other green solvents. The following publications from 2022-2024 were found to be most relevant and have been saved to the RAG knowledge base for further analysis:\n\n*   \"Greening the physical recycling of HDPE: dissolutio...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:34:46.248457",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-scholar-rag-1/seq-scholar-rag-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-scholar-rag-2",
+      "query": "Search arXiv for papers on solvent-based multilayer packaging recycling. Ingest the best papers, then ask the literature what temperatures are used for EVOH dissolution.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "scholar-researcher",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "scholar-researcher",
+        "rag-analyst"
+      ],
+      "wall_time_s": 92.4,
+      "total_tokens": 79983,
+      "input_tokens": 78852,
+      "output_tokens": 1131,
+      "n_tool_calls": 5,
+      "n_messages": 12,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos"
+      ],
+      "trace_id": "019c9080-d78d-7943-8181-645f51b15ffe",
+      "answer_preview": "Based on the literature review, the typical temperature range for dissolving EVOH is 95-100\u00b0C. Solvents like DMSO and DMF are effective in this range. For example, one study measured EVOH solubility in DMSO at 95\u00b0C and in DMF at 100\u00b0C.",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:36:24.808611",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace17-sequential/seq-scholar-rag-2/seq-scholar-rag-2_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-stats-rag",
+      "query": "Predict the solubility of PMMA in Acetone at 80\u00b0C using the ML model, then search the RAG index for literature data on PMMA dissolution to validate the prediction.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "statistics-ml",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "statistics-ml",
+        "rag-analyst"
+      ],
+      "wall_time_s": 202.7,
+      "total_tokens": 76581,
+      "input_tokens": 74654,
+      "output_tokens": 1927,
+      "n_tool_calls": 5,
+      "n_messages": 12,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos"
+      ],
+      "trace_id": "019c9082-596b-7e40-8af1-54574224f1e6",
+      "answer_preview": "I was unable to provide a numerical prediction for the solubility of PMMA in Acetone at 80\u00b0C because the required machine learning model is currently unavailable and PMMA is not in the database.\n\nHowever, I was able to search the RAG index for relevant literature. The search confirmed that PMMA, being an acrylic-type polymer resin, is generally soluble in organic solvents like acetone. One study highlighted that while the solubility limit is high, the rate of dissolution (or liquefaction) can va...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:39:52.456687",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "seq-sep-tea-3",
+      "query": "Find the optimal 4-polymer separation sequence for LDPE/HDPE/PS/PP, then run multi-polymer BioSTEAM recovery with the recommended solvents under C1.",
+      "pattern": "sequential",
+      "expected_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 268.8,
+      "total_tokens": 100468,
+      "input_tokens": 95795,
+      "output_tokens": 4673,
+      "n_tool_calls": 6,
+      "n_messages": 14,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c9085-84f6-79c1-a4fc-ab6ef2f4dfe5",
+      "answer_preview": "I have completed a two-step analysis to determine the optimal separation sequence for a mixture of LDPE, HDPE, PS, and PP and to evaluate its techno-economic feasibility using BioSTEAM. Here is a summary of the findings and the final recommendation.\n\n### Step 1: Optimal Separation Sequence\n\nThe `separation-engineer` identified the following optimal sequence for separating the four polymers at 120\u00b0C:\n\n1.  **Dissolve PS in propanone**\n2.  **Dissolve LDPE in ethanol**\n3.  **Dissolve PP in Tetrahydr...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:44:25.520631",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    }
+  ]
+}

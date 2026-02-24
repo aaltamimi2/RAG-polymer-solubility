@@ -277,7 +277,7 @@ def get_latest_trace_id(
             runs = list(client.list_runs(
                 project_name=project,
                 is_root=True,
-                limit=5,
+                limit=10,
             ))
         except Exception as e:
             print(f"  LangSmith query failed (attempt {attempt + 1}): {e}")
@@ -285,16 +285,20 @@ def get_latest_trace_id(
             continue
 
         if runs:
+            # Only consider dissolve-agent chain runs (not individual LLM calls)
+            agent_runs = [
+                r for r in runs
+                if r.name == "dissolve-agent" and r.run_type == "chain"
+            ]
+            pool = agent_runs if agent_runs else runs
+
             if after_time:
-                # Filter to runs started after our timestamp
-                # Handle timezone-aware vs naive datetimes
                 candidates = []
-                for r in runs:
+                for r in pool:
                     if not r.start_time:
                         continue
                     r_time = r.start_time
                     a_time = after_time
-                    # Make both aware or both naive for comparison
                     if r_time.tzinfo is None and a_time.tzinfo is not None:
                         a_time = a_time.replace(tzinfo=None)
                     elif r_time.tzinfo is not None and a_time.tzinfo is None:
@@ -305,7 +309,7 @@ def get_latest_trace_id(
                     candidates.sort(key=lambda r: r.start_time, reverse=True)
                     return str(candidates[0].trace_id)
             else:
-                return str(runs[0].trace_id)
+                return str(pool[0].trace_id)
 
         if attempt < 5:
             _time.sleep(3)

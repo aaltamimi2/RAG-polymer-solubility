@@ -19,7 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 matplotlib.rcParams["font.family"] = "sans-serif"
 matplotlib.rcParams["font.sans-serif"] = [
-    "Liberation Sans", "Arial", "DejaVu Sans",
+    "DejaVu Sans", "Liberation Sans", "Arial",
 ]
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, Rectangle

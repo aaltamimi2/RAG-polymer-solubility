@@ -225,6 +225,11 @@ def fetch_trace_structure(client: Client, trace_id: str) -> dict:
     all_runs.sort(key=lambda r: r.start_time)
 
     root = next((r for r in all_runs if r.parent_run_id is None), all_runs[0])
+    # Re-fetch root with full outputs (list_runs may truncate them)
+    try:
+        root = client.read_run(root.id)
+    except Exception:
+        pass  # fall back to list_runs version
     root_start = root.start_time
     run_map = {str(r.id): r for r in all_runs}
 

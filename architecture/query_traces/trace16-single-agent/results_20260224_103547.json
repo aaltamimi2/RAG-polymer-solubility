@@ -1,0 +1,281 @@
+{
+  "timestamp": "20260224_103547",
+  "campaign": "single-agent",
+  "n_queries": 10,
+  "results": [
+    {
+      "name": "single-separation",
+      "query": "Find the optimal separation sequence for a PP/PS/PVC mixed waste stream using selective dissolution at atmospheric pressure.",
+      "pattern": "single",
+      "expected_subagents": [
+        "separation-engineer"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 113.0,
+      "total_tokens": 41446,
+      "input_tokens": 38493,
+      "output_tokens": 2953,
+      "n_tool_calls": 2,
+      "n_messages": 6,
+      "tool_names": [
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9072-9fcc-7520-ba7f-2d96eb93c8e4",
+      "answer_preview": "Based on a detailed analysis, the optimal, atmospherically feasible separation sequence for your PP/PS/PVC mixed waste stream at 120\u00b0C has been determined. A subsequent techno-economic and life-cycle analysis was performed to evaluate the process viability.\n\n### **Optimal Separation Sequence**\n\nThe recommended process involves two sequential dissolution steps:\n\n1.  **Step 1: Separate Polypropylene (PP)**\n    *   **Solvent**: Dodecane (Boiling Point: 216\u00b0C)\n    *   **Action**: The mixed plastics ...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:21:12.038544",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-separation/single-separation_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-safety",
+      "query": "Assess the GSK safety G-scores, PubChem GHS hazards, and LD50 toxicity data for Toluene, Xylene, and Tetrahydrofuran.",
+      "pattern": "single",
+      "expected_subagents": [
+        "safety-analyst"
+      ],
+      "actual_subagents": [
+        "safety-analyst"
+      ],
+      "wall_time_s": 45.7,
+      "total_tokens": 25495,
+      "input_tokens": 24520,
+      "output_tokens": 975,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c9074-6aa7-7e71-bc56-0edc68bcb64f",
+      "answer_preview": "Here is the safety assessment for Toluene, Xylene, and Tetrahydrofuran:\n\n**Toluene**\n*   **GSK G-Score**: Not available in the GSK solvent selection guide.\n*   **PubChem GHS Hazard**: Classified as \"Danger\". It is flammable, an irritant, and poses a health hazard.\n*   **Toxicity**: No specific LD50 or LC50 data was found in PubChem, but it is reported to be readily biodegradable.\n\n**Xylene**\n*   No safety information was found for Xylene in either the GSK or PubChem databases.\n\n**Tetrahydrofuran...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:22:04.613216",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-safety/single-safety_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-biosteam-sim",
+      "query": "Run a rigorous BioSTEAM STRAP process simulation for Toluene dissolving PE under energy case C1 at 20,000 MT/yr capacity.",
+      "pattern": "single",
+      "expected_subagents": [
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 56.6,
+      "total_tokens": 24557,
+      "input_tokens": 23966,
+      "output_tokens": 591,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c9075-369a-7291-a818-72ac3d498686",
+      "answer_preview": "The simulation for dissolving Polyethylene (PE) in Toluene under the C1 energy case (on-site CHP) at a capacity of 20,000 metric tons per year is complete.\n\nHere are the key results from the analysis:\n\n*   **Minimum Selling Price (MSP):** The minimum selling price for the recovered PE is **$1.14 per kg**.\n*   **Total Capital Investment (TCI):** The total capital investment required for the plant is **$83.34 million**.\n*   **Global Warming Potential (GWP):** The process has a global warming poten...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:23:05.745331",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-biosteam-sim/single-biosteam-sim_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-biosteam-batch",
+      "query": "Compare all PE solvents in BioSTEAM under energy case C1. Rank them by MSP.",
+      "pattern": "single",
+      "expected_subagents": [
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 283.4,
+      "total_tokens": 29043,
+      "input_tokens": 27479,
+      "output_tokens": 1564,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c9076-25aa-74d3-bd58-2087bfa7933f",
+      "answer_preview": "Based on the BioSTEAM analysis for polyethylene (PE) solvents under energy case C1, here is the ranking of the top 5 solvents by Minimum Selling Price (MSP):\n\nThe most economically favorable solvent is **Methyl acetate**, with an MSP of **$0.9395/kg**. This solvent also has the lowest Global Warming Potential (GWP) of 0.9135 kg CO2e/kg of recycled PE.\n\nHere are the top 5 solvents ranked by MSP:\n1.  **Methyl acetate**: MSP $0.9395/kg\n2.  **Ethyl acetate**: MSP $0.9477/kg\n3.  **Tetrahydrofuran**: ...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:27:54.527944",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-biosteam-batch/single-biosteam-batch_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-uncertainty",
+      "query": "Run a Monte Carlo uncertainty analysis for Toluene/PE recovery under C1. How confident are we in the MSP estimate?",
+      "pattern": "single",
+      "expected_subagents": [
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 129.7,
+      "total_tokens": 26040,
+      "input_tokens": 24319,
+      "output_tokens": 1721,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c907a-8e7a-7822-a811-24f47d69fef3",
+      "answer_preview": "Based on the Monte Carlo uncertainty analysis for the Toluene/PE recovery process under the C1 energy configuration, we can be very confident in the model's estimate, as it shows no sensitivity to the uncertainties tested.\n\nThe key statistics for the Minimum Selling Price (MSP) are:\n*   **Mean MSP:** $1.1351 / kg\n*   **90% Confidence Interval (P5-P95):** $1.1351 to $1.1351 / kg\n*   **Standard Deviation:** $0.00\n\nThis lack of variance is an unexpected result from a Monte Carlo simulation. It indi...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:30:08.565220",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-uncertainty/single-uncertainty_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-tornado",
+      "query": "Which parameter drives MSP the most for Xylene PE recovery under C1? Run a tornado sensitivity analysis.",
+      "pattern": "single",
+      "expected_subagents": [
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 92.2,
+      "total_tokens": 25016,
+      "input_tokens": 24096,
+      "output_tokens": 920,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c907c-a531-7f82-8fa4-dbe3f35e4d27",
+      "answer_preview": "Based on the tornado sensitivity analysis for PE recovery using Xylene under the C1 configuration, the baseline Minimum Selling Price (MSP) is **$0.98/kg**.\n\nThe analysis reveals that the MSP is remarkably insensitive to the parameters tested. While the **solvent price** was identified as the top-ranked parameter, it, along with all other tested variables (solvent loss, dissolution temperature, precipitation temperature, and transportation distance), showed a **0.0% impact** on the MSP.\n\nThis in...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:31:47.522761",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-tornado/single-tornado_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-sweep",
+      "query": "How does MSP change with solvent price for Heptane PE recovery? Sweep solvent price from $0.50 to $2.00/kg.",
+      "pattern": "single",
+      "expected_subagents": [
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 101.5,
+      "total_tokens": 26204,
+      "input_tokens": 24732,
+      "output_tokens": 1472,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c907e-206f-7ee1-891d-02ac37f91387",
+      "answer_preview": "I ran a techno-economic analysis to determine how the Minimum Selling Price (MSP) of recovered polyethylene (PE) changes with the price of the solvent, Heptane. The analysis swept the solvent price from $0.50/kg to $2.00/kg.\n\nInterestingly, the MSP of the recovered PE is not sensitive to the price of Heptane in this range. The key results are:\n\n*   **Minimum Selling Price (MSP):** Remained constant at **$1.03/kg**\n*   **Total Capital Investment (TCI):** Remained constant at **$75.4 million**\n*  ...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:33:35.764363",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-sweep/single-sweep_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-viz",
+      "query": "Plot solubility vs temperature curves for LDPE in Toluene, Xylene, and Heptane from 25 to 150\u00b0C.",
+      "pattern": "single",
+      "expected_subagents": [
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "visualization-specialist"
+      ],
+      "wall_time_s": 34.8,
+      "total_tokens": 24301,
+      "input_tokens": 23833,
+      "output_tokens": 468,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c907f-c863-76a3-94b6-77427921d3af",
+      "answer_preview": "I have generated the requested plot of solubility vs. temperature for LDPE in Toluene, Xylene, and Heptane from 25 to 150\u00b0C. The plot is available at the following location:\n\n`./plots/ldpe_toluene_1_2_dimethylbenzene_1_4_dimethylbenzene_solubility_vs_temp.png`\n\nIs there anything else I can help you with?",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:34:18.138796",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "single-stats-ml",
+      "query": "Look up the glass transition temperature for polystyrene. Then predict the solubility of PS in Toluene at 110\u00b0C using the ML model.",
+      "pattern": "single",
+      "expected_subagents": [
+        "statistics-ml"
+      ],
+      "actual_subagents": [
+        "statistics-ml",
+        "statistics-ml"
+      ],
+      "wall_time_s": 38.1,
+      "total_tokens": 25142,
+      "input_tokens": 24546,
+      "output_tokens": 596,
+      "n_tool_calls": 2,
+      "n_messages": 5,
+      "tool_names": [
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9080-6901-72a3-8b11-fe86c2f61522",
+      "answer_preview": "Based on the analysis, here are the results:\n\n*   **Glass Transition Temperature (Tg) of Polystyrene:** The glass transition temperature for common commercial polystyrene is approximately **98.0\u00b0C** (371.1 K).\n\n*   **Solubility Prediction:** The machine learning model for solubility prediction is currently unavailable. As a fallback, a search for experimental data for Polystyrene in Toluene at 110\u00b0C was performed, but no data was found for these conditions in the database. Therefore, a solubilit...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:35:01.858721",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace16-single-agent/single-stats-ml/single-stats-ml_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "single-rag",
+      "query": "Search the RAG index for information about EVOH dissolution conditions and solvent selection from the indexed literature.",
+      "pattern": "single",
+      "expected_subagents": [
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "rag-analyst"
+      ],
+      "wall_time_s": 36.0,
+      "total_tokens": 24278,
+      "input_tokens": 23909,
+      "output_tokens": 369,
+      "n_tool_calls": 1,
+      "n_messages": 4,
+      "tool_names": [
+        "task"
+      ],
+      "trace_id": "019c9081-1288-77b0-abef-a41f94e3a1e4",
+      "answer_preview": "I was unable to find any information about EVOH dissolution because the document index is currently empty.\n\nWould you like me to search for and ingest relevant scientific literature on this topic? This will allow me to answer your questions about EVOH and other polymers.",
+      "routing_match": true,
+      "timestamp": "2026-02-24T10:35:44.598939",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    }
+  ]
+}
