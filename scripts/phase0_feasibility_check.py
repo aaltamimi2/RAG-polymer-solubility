@@ -7,11 +7,11 @@ For each polymer with known thermal data (Tm, ΔHf, ΔCp), compute the
     ln(x_ideal) = -(ΔHf / R) * (1/T - 1/Tm) + (ΔCp / R) * (Tm/T - 1 - ln(Tm/T))
 
 Compare these ideal solubility curves against the existing COSMO-RS fitted
-coefficients (ln(S) = A + B/T + C/T²) to quantify:
+coefficients (ln(S) = A + B/T + C·ln(T), modified Apelblat) to quantify:
 
 1. How much of the temperature dependence comes from thermal properties
    vs. activity coefficient (γ) contributions from COSMO-RS
-2. Whether the ln(S) = A + B/T + C/T² model can capture SLE-derived curves
+2. Whether the ln(S) = A + B/T + C·ln(T) model can capture SLE-derived curves
 3. Sensitivity of fitted A,B,C to Tm perturbations (±30K, ±60K)
 
 This validates the pipeline link BEFORE investing in ML model training.
@@ -58,8 +58,8 @@ def sle_ideal_solubility(
 
 
 def interp_model(t_k: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    """ln(S%) = A + B/T_K + C/T_K²"""
-    return a + b / t_k + c / t_k**2
+    """ln(S%) = A + B/T_K + C*ln(T_K)  (modified Apelblat)"""
+    return a + b / t_k + c * np.log(t_k)
 
 
 def r_squared(y_actual: np.ndarray, y_predicted: np.ndarray) -> float:
@@ -287,12 +287,12 @@ def main() -> None:
         print(f"  → ratio >> 1 means COSMO-RS γ contribution dominates (solvent affinity matters)")
         print(f"  → ratio ≈ 1 means ideal SLE is a good approximation")
         print(f"  → ratio << 1 means COSMO-RS predicts lower solubility than ideal (unfavorable γ)")
-        print(f"\nIdeal SLE curve fit to ln(S)=A+B/T+C/T²:")
+        print(f"\nIdeal SLE curve fit to ln(S)=A+B/T+C·ln(T):")
         print(f"  R² stats: min={min(ideal_r2s):.6f}  mean={np.mean(ideal_r2s):.6f}  max={max(ideal_r2s):.6f}")
-        print(f"  → High R² confirms the A+B/T+C/T² functional form can capture SLE-derived curves")
+        print(f"  → High R² confirms the A+B/T+C·ln(T) functional form can capture SLE-derived curves")
 
     print("\nKey questions answered:")
-    print("  1. Can ln(S)=A+B/T+C/T² fit SLE-derived curves? → Check ideal fit R² above")
+    print("  1. Can ln(S)=A+B/T+C·ln(T) fit SLE-derived curves? → Check ideal fit R² above")
     print("  2. How much does γ matter? → Check COSMO/Ideal ratio above")
     print("  3. How sensitive are curves to Tm error? → Check Part 2 MaxΔS% above")
     print("\nIf ideal fit R² > 0.99 and MaxΔS%(±30K) < 5%, proceed to Phase 1.")

@@ -83,13 +83,13 @@ COEFF_JSON = _PROJECT_ROOT / "data" / "solubility_coefficients.json"
 # ---------------------------------------------------------------------------
 
 def fit_abc(temps_c: np.ndarray, sols_pct: np.ndarray) -> dict:
-    """Fit ln(S%) = A + B/T + C/T^2 and return coefficients + R^2."""
+    """Fit ln(S%) = A + B/T + C*ln(T) and return coefficients + R^2 (modified Apelblat)."""
     s_clamped = np.clip(sols_pct, 1e-12, 100.0)
     ln_s = np.log(s_clamped)
     t_k = temps_c + 273.15
 
     def model(t, a, b, c):
-        return a + b / t + c / t ** 2
+        return a + b / t + c * np.log(t)
 
     try:
         popt, _ = curve_fit(model, t_k, ln_s, p0=[0, 0, 0], maxfev=10000)
@@ -105,7 +105,7 @@ def fit_abc(temps_c: np.ndarray, sols_pct: np.ndarray) -> dict:
 def solubility_from_abc(A: float, B: float, C: float, temps_c: np.ndarray) -> np.ndarray:
     """Compute S% from A,B,C coefficients at given temperatures."""
     t_k = temps_c + 273.15
-    ln_s = A + B / t_k + C / t_k ** 2
+    ln_s = A + B / t_k + C * np.log(t_k)
     return np.clip(np.exp(ln_s), 0.0, 100.0)
 
 

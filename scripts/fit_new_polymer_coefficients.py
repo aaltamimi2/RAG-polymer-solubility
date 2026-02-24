@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit ln(S%) = A + B/T_K + C/T_K^2 for ML-generated solubility data of novel polymers.
+"""Fit ln(S%) = A + B/T_K + C*ln(T_K) for ML-generated solubility data of novel polymers (modified Apelblat).
 
 Pipeline:  ML thermal prediction -> COSMO-RS SLE -> solubility curve -> fit -> store
 Output:    data/generated_coefficients.json  (merged on repeated runs)
@@ -56,8 +56,8 @@ R2_THRESHOLD = 0.98
 # Core model (identical to the original script)
 # ---------------------------------------------------------------------------
 def _model(t_k: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    """ln(S%) = A + B/T_K + C/T_K^2"""
-    return a + b / t_k + c / t_k**2
+    """ln(S%) = A + B/T_K + C*ln(T_K)  (modified Apelblat)"""
+    return a + b / t_k + c * np.log(t_k)
 
 
 def _r_squared(y_actual: np.ndarray, y_predicted: np.ndarray) -> float:
@@ -434,7 +434,7 @@ def save_generated_coefficients(
     output = {
         "description": (
             "ML-generated solubility interpolation coefficients: "
-            "ln(S%) = A + B/T_K + C/T_K^2"
+            "ln(S%) = A + B/T_K + C*ln(T_K)  (modified Apelblat)"
         ),
         "note": (
             "Generated via ML thermal prediction + COSMO-RS SLE. "

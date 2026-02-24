@@ -41,6 +41,7 @@ class SeparationStep:
     temperature: float
     is_viable: bool = True
     notes: str = ""
+    safety_score: Optional[float] = None  # GSK G-score (0-10, higher = safer)
 
     @property
     def selectivity_ratio(self) -> float:
@@ -300,15 +301,35 @@ class DPSeparator(SeparatorBase):
         self,
         polymers: List[str],
         temperature: float = 120.0,
-        objective: str = "max_min",  # "max_min" or "max_sum"
+        objective: str = "max_min",  # "max_min", "max_sum", or "max_min_safety"
+        top_k: int = 1,
+        min_selectivity: float = 5.0,
     ) -> SeparationResult:
-        """Find optimal sequence using dynamic programming."""
+        """Find optimal sequence using dynamic programming.
+
+        Args:
+            polymers: List of polymer names.
+            temperature: Target temperature in C.
+            objective: Optimization objective:
+                - "max_min": maximize bottleneck selectivity (default)
+                - "max_sum": maximize total selectivity
+                - "max_min_safety": maximize bottleneck G-score subject to
+                  selectivity >= min_selectivity
+            top_k: Number of top sequences to return (default: 1).
+            min_selectivity: Selectivity floor for safety mode (default: 5.0).
+        """
         import time
         start_time = time.time()
 
         n = len(polymers)
         if n > 12:
             raise ValueError(f"Too many polymers ({n}) for DP. Max is 12.")
+
+        # Route to safety DP if requested
+        if objective == "max_min_safety":
+            return await self._dp_safety(
+                polymers, temperature, min_selectivity, top_k,
+            )
 
         # Precompute all selectivities
         selectivity_cache: Dict[Tuple[int, int], Tuple[str, float, float, float]] = {}
@@ -356,6 +377,14 @@ class DPSeparator(SeparatorBase):
                 if remaining == 0:
                     continue
 
+                popcount = bin(remaining).count("1")
+                if popcount == 1:
+                    # Last polymer: isolation step — propagate to dp[0]
+                    idx = next(i for i in range(n) if remaining & (1 << i))
+                    if 0 not in dp or current_min > dp[0][0]:
+                        dp[0] = (current_min, idx, remaining)
+                    continue
+
                 for i in range(n):
                     if not (remaining & (1 << i)):
                         continue
@@ -401,13 +430,129 @@ class DPSeparator(SeparatorBase):
         elapsed_ms = (time.time() - start_time) * 1000
         sequence = SeparationSequence(polymers=polymers, steps=steps)
 
+        # Extract top-K sequences if requested
+        if top_k > 1:
+            all_sequences = self._extract_top_k_sequences(
+                polymers, selectivity_cache, temperature, k=top_k,
+            )
+            if not all_sequences:
+                all_sequences = [sequence]
+        else:
+            all_sequences = [sequence]
+
         return SeparationResult(
             best_sequence=sequence,
-            all_sequences=[sequence],
+            all_sequences=all_sequences,
             algorithm="dynamic_programming",
             computation_time_ms=elapsed_ms,
             nodes_explored=nodes_explored,
         )
+
+    def _extract_top_k_sequences(
+        self,
+        polymers: List[str],
+        selectivity_cache: Dict[Tuple[int, int], Tuple[str, float, float, float]],
+        temperature: float,
+        k: int = 10,
+    ) -> List[SeparationSequence]:
+        """Extract top-K separation sequences using forward beam DP.
+
+        Uses the precomputed selectivity_cache to enumerate the K best
+        complete separation sequences ranked by min_selectivity (descending).
+        """
+        n = len(polymers)
+        full_mask = (1 << n) - 1
+        INF = float('inf')
+
+        # beam[mask] = [(min_sel_so_far, [removal_indices])]
+        beam: Dict[int, List[Tuple[float, List[int]]]] = {
+            full_mask: [(INF, [])]
+        }
+
+        for mask in range(full_mask, 0, -1):
+            if mask not in beam:
+                continue
+
+            popcount = bin(mask).count("1")
+            if popcount == 1:
+                # Last polymer: isolation step — propagate to empty set
+                idx = next(i for i in range(n) if mask & (1 << i))
+                for min_sel, seq in beam[mask]:
+                    if 0 not in beam:
+                        beam[0] = []
+                    beam[0].append((min_sel, seq + [idx]))
+                    beam[0].sort(key=lambda x: x[0], reverse=True)
+                    if len(beam[0]) > k:
+                        beam[0] = beam[0][:k]
+                continue
+
+            for min_sel, seq in beam[mask]:
+                for i in range(n):
+                    if not (mask & (1 << i)):
+                        continue
+                    child = mask ^ (1 << i)
+                    cache_key = (i, mask)
+                    if cache_key not in selectivity_cache:
+                        continue
+                    _, sel, _, _ = selectivity_cache[cache_key]
+                    new_min = min(min_sel, sel) if seq else sel
+
+                    if child not in beam:
+                        beam[child] = []
+                    beam[child].append((new_min, seq + [i]))
+                    beam[child].sort(key=lambda x: x[0], reverse=True)
+                    if len(beam[child]) > k:
+                        beam[child] = beam[child][:k]
+
+        # Convert top-K paths to SeparationSequence objects
+        sequences: List[SeparationSequence] = []
+        for min_sel, idx_seq in beam.get(0, []):
+            steps = self._build_steps_from_indices(
+                polymers, idx_seq, selectivity_cache, temperature,
+            )
+            sequences.append(SeparationSequence(polymers=polymers, steps=steps))
+
+        return sequences
+
+    def _build_steps_from_indices(
+        self,
+        polymers: List[str],
+        idx_sequence: List[int],
+        cache: Dict[Tuple[int, int], Tuple[str, float, float, float]],
+        temperature: float,
+    ) -> List[SeparationStep]:
+        """Build SeparationStep list from an index removal sequence."""
+        n = len(polymers)
+        steps = []
+        remaining_mask = (1 << n) - 1
+
+        for step_num, polymer_idx in enumerate(idx_sequence, 1):
+            polymer = polymers[polymer_idx]
+            cache_key = (polymer_idx, remaining_mask)
+            child_mask = remaining_mask ^ (1 << polymer_idx)
+            remaining_list = [polymers[i] for i in range(n) if child_mask & (1 << i)]
+
+            if cache_key in cache:
+                solvent, sel, target_sol, other_max = cache[cache_key]
+            else:
+                solvent, sel, target_sol, other_max = "N/A", 0.0, 0.0, 0.0
+
+            is_last = (child_mask == 0) or (bin(remaining_mask).count("1") == 1)
+            steps.append(SeparationStep(
+                step_number=step_num,
+                target_polymer=polymer,
+                remaining_polymers=remaining_list,
+                solvent=solvent if not is_last else "N/A",
+                selectivity=sel if not is_last else 100.0,
+                target_solubility=target_sol if not is_last else 100.0,
+                max_other_solubility=other_max if not is_last else 0.0,
+                temperature=temperature,
+                is_viable=sel >= 5.0 if not is_last else True,
+                notes="Last polymer - no separation needed" if is_last else "",
+            ))
+            remaining_mask = child_mask
+
+        return steps
 
     def _reconstruct_sequence(
         self,
@@ -424,12 +569,14 @@ class DPSeparator(SeparatorBase):
         step_num = n
         sequence_order = []
 
-        while current in dp:
+        visited = set()
+        while current in dp and current not in visited:
+            visited.add(current)
             _, last_idx, prev = dp[current]
             sequence_order.append((last_idx, current, prev))
             if prev == (1 << n) - 1:
                 break
-            current = prev ^ (1 << last_idx)
+            current = prev
 
         # Reverse to get forward order
         sequence_order.reverse()
@@ -489,6 +636,357 @@ class DPSeparator(SeparatorBase):
         )
         result = await greedy.find_optimal_sequence(polymers, temperature)
         return result.best_sequence.steps
+
+    # ------------------------------------------------------------------
+    # Safety-constrained DP: maximize min G-score subject to selectivity floor
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _load_gscore_map(db_connection: Any) -> Dict[str, float]:
+        """Load GSK G-scores into a {lowercase_name: score} dict."""
+        gscore_map: Dict[str, float] = {}
+        try:
+            rows = db_connection.execute(
+                "SELECT solvent_common_name, g_score FROM gsk_dataset"
+            ).fetchall()
+            for name, score in rows:
+                if score is not None:
+                    gscore_map[name.strip().lower()] = float(score)
+        except Exception:
+            pass
+
+        # Abbreviation mappings (interpolation model names → GSK names)
+        _ABBREV = {
+            "dmf": "dimethylformamide", "thf": "tetrahydrofuran",
+            "dcm": "dichloromethane", "ch2cl2": "dichloromethane",
+            "chcl3": "chloroform", "meoh": "methanol", "etoh": "ethanol",
+            "1,2-dimethylbenzene": "o-xylene", "1,4-dimethylbenzene": "p-xylene",
+            "n-heptane": "heptane", "n-hexane": "hexane",
+            "glycol": "ethylene glycol", "h2o": "water",
+            "propanone": "acetone", "butanone": "methyl ethyl ketone",
+            "ethylacetate": "ethyl acetate", "dimethylsulfoxide": "dimethyl sulfoxide",
+            "dimethylformamide": "n,n-dimethylformamide",
+            "acetylacetone": "2,4-pentanedione",
+        }
+        for abbr, full in _ABBREV.items():
+            if full in gscore_map and abbr not in gscore_map:
+                gscore_map[abbr] = gscore_map[full]
+        return gscore_map
+
+    def _build_safety_cache(
+        self,
+        polymers: List[str],
+        temperature: float,
+        gscore_map: Dict[str, float],
+        min_selectivity: float = 5.0,
+    ) -> Tuple[Dict[Tuple[int, int], Tuple[str, float, float]], int]:
+        """Build per-edge cache choosing the safest viable solvent.
+
+        For each (target_idx, mask), calls get_all_solvents_selectivity to
+        get ALL solvents, annotates with G-scores, filters by selectivity
+        threshold, and picks the solvent with the highest G-score.
+
+        Returns:
+            safety_cache: {(target_idx, mask) -> (solvent, selectivity, gscore)}
+            nodes_explored: count of cache entries built
+        """
+        from strap.solubility import get_all_solvents_selectivity
+
+        n = len(polymers)
+        safety_cache: Dict[Tuple[int, int], Tuple[str, float, float]] = {}
+        nodes_explored = 0
+
+        for target_idx in range(n):
+            for mask in range(1, 1 << n):
+                if not (mask & (1 << target_idx)):
+                    continue
+                others_mask = mask ^ (1 << target_idx)
+                if others_mask == 0:
+                    continue
+
+                target = polymers[target_idx]
+                others = [polymers[i] for i in range(n) if others_mask & (1 << i)]
+                results = get_all_solvents_selectivity(target, others, temperature)
+                nodes_explored += 1
+
+                if not results:
+                    safety_cache[(target_idx, mask)] = ("N/A", 0.0, 0.0)
+                    continue
+
+                # Annotate with G-scores
+                for r in results:
+                    r["gscore"] = gscore_map.get(r["solvent"].lower(), 0.0)
+
+                # Filter: selectivity >= threshold AND has G-score
+                viable = [r for r in results
+                          if r["selectivity"] >= min_selectivity and r["gscore"] > 0]
+                if not viable:
+                    viable = [r for r in results if r["gscore"] > 0]
+                if not viable:
+                    viable = results[:1]
+
+                best = max(viable, key=lambda r: r["gscore"])
+                safety_cache[(target_idx, mask)] = (
+                    best["solvent"], best["selectivity"], best["gscore"],
+                )
+
+        return safety_cache, nodes_explored
+
+    async def _dp_safety(
+        self,
+        polymers: List[str],
+        temperature: float,
+        min_selectivity: float = 5.0,
+        top_k: int = 1,
+    ) -> SeparationResult:
+        """Safety-constrained DP: maximize min G-score subject to selectivity floor.
+
+        Args:
+            polymers: List of polymer names.
+            temperature: Target temperature in C.
+            min_selectivity: Minimum selectivity threshold for viable solvents.
+            top_k: Number of top sequences to return.
+
+        Returns:
+            SeparationResult with best sequence and optional top-K.
+        """
+        import time
+        start_time = time.time()
+
+        n = len(polymers)
+        gscore_map = self._load_gscore_map(self.conn)
+        safety_cache, nodes_explored = self._build_safety_cache(
+            polymers, temperature, gscore_map, min_selectivity,
+        )
+
+        # DP: maximize min G-score along path
+        full_mask = (1 << n) - 1
+        INF = float("inf")
+        dp: Dict[int, Tuple[float, int, int]] = {}
+
+        # Initialize: remove one polymer from full set
+        for i in range(n):
+            rem = full_mask ^ (1 << i)
+            _, sel, gs = safety_cache.get((i, full_mask), ("N/A", 0.0, 0.0))
+            if rem == 0:
+                dp[0] = (gs, i, full_mask)
+            elif rem not in dp or gs > dp[rem][0]:
+                dp[rem] = (gs, i, full_mask)
+
+        # Fill DP table
+        for mask in range(full_mask - 1, -1, -1):
+            if mask not in dp:
+                continue
+            cur_min_gs = dp[mask][0]
+            if mask == 0:
+                continue
+            popcount = bin(mask).count("1")
+            if popcount == 1:
+                idx = next(i for i in range(n) if mask & (1 << i))
+                if 0 not in dp or cur_min_gs > dp[0][0]:
+                    dp[0] = (cur_min_gs, idx, mask)
+                continue
+            for i in range(n):
+                if not (mask & (1 << i)):
+                    continue
+                new_mask = mask ^ (1 << i)
+                _, sel, gs = safety_cache.get((i, mask), ("N/A", 0.0, 0.0))
+                new_min = min(cur_min_gs, gs)
+                if new_mask not in dp or new_min > dp[new_mask][0]:
+                    dp[new_mask] = (new_min, i, mask)
+
+        # Reconstruct best path
+        steps = self._reconstruct_safety_sequence(
+            polymers, dp, safety_cache, temperature,
+        )
+
+        elapsed_ms = (time.time() - start_time) * 1000
+        sequence = SeparationSequence(polymers=polymers, steps=steps)
+
+        # Top-K
+        if top_k > 1:
+            all_sequences = self._extract_top_k_safety_sequences(
+                polymers, safety_cache, temperature, k=top_k,
+            )
+            if not all_sequences:
+                all_sequences = [sequence]
+        else:
+            all_sequences = [sequence]
+
+        return SeparationResult(
+            best_sequence=sequence,
+            all_sequences=all_sequences,
+            algorithm="dynamic_programming_safety",
+            computation_time_ms=elapsed_ms,
+            nodes_explored=nodes_explored,
+        )
+
+    def _reconstruct_safety_sequence(
+        self,
+        polymers: List[str],
+        dp: Dict[int, Tuple[float, int, int]],
+        cache: Dict[Tuple[int, int], Tuple[str, float, float]],
+        temperature: float,
+    ) -> List[SeparationStep]:
+        """Reconstruct separation sequence from safety DP results."""
+        n = len(polymers)
+        sequence_order = []
+        current = 0
+
+        while current in dp:
+            _, last_idx, prev = dp[current]
+            sequence_order.append((last_idx, current, prev))
+            if prev == (1 << n) - 1:
+                break
+            current = prev
+
+        sequence_order.reverse()
+        steps = []
+
+        for step_num, (polymer_idx, remaining_mask, from_mask) in enumerate(sequence_order, 1):
+            polymer = polymers[polymer_idx]
+            cache_key = (polymer_idx, from_mask)
+
+            if cache_key in cache:
+                solvent, sel, gs = cache[cache_key]
+            else:
+                solvent, sel, gs = "unknown", 0.0, 0.0
+
+            remaining = [polymers[i] for i in range(n)
+                        if remaining_mask & (1 << i)]
+
+            is_last = not remaining
+            steps.append(SeparationStep(
+                step_number=step_num,
+                target_polymer=polymer,
+                remaining_polymers=remaining,
+                solvent=solvent if not is_last else "N/A",
+                selectivity=sel if not is_last else 100.0,
+                target_solubility=0.0,
+                max_other_solubility=0.0,
+                temperature=temperature,
+                is_viable=sel >= 5.0 if not is_last else True,
+                safety_score=gs if not is_last else None,
+                notes="Last polymer - no separation needed" if is_last else "",
+            ))
+
+        # Add final polymer if needed
+        if len(steps) < n:
+            separated = {s.target_polymer for s in steps}
+            last_polymer = [p for p in polymers if p not in separated][0]
+            steps.append(SeparationStep(
+                step_number=len(steps) + 1,
+                target_polymer=last_polymer,
+                remaining_polymers=[],
+                solvent="N/A",
+                selectivity=100.0,
+                target_solubility=100.0,
+                max_other_solubility=0.0,
+                temperature=temperature,
+                safety_score=None,
+                notes="Last polymer - no separation needed",
+            ))
+
+        return steps
+
+    def _extract_top_k_safety_sequences(
+        self,
+        polymers: List[str],
+        safety_cache: Dict[Tuple[int, int], Tuple[str, float, float]],
+        temperature: float,
+        k: int = 10,
+    ) -> List[SeparationSequence]:
+        """Extract top-K safety-optimized sequences using forward beam DP."""
+        n = len(polymers)
+        full_mask = (1 << n) - 1
+        INF = float("inf")
+
+        beam: Dict[int, List[Tuple[float, List[int]]]] = {
+            full_mask: [(INF, [])]
+        }
+
+        for mask in range(full_mask, 0, -1):
+            if mask not in beam:
+                continue
+            popcount = bin(mask).count("1")
+            if popcount == 1:
+                idx = next(i for i in range(n) if mask & (1 << i))
+                for min_gs, seq in beam[mask]:
+                    if 0 not in beam:
+                        beam[0] = []
+                    beam[0].append((min_gs, seq + [idx]))
+                    beam[0].sort(key=lambda x: x[0], reverse=True)
+                    if len(beam[0]) > k:
+                        beam[0] = beam[0][:k]
+                continue
+
+            for min_gs, seq in beam[mask]:
+                for i in range(n):
+                    if not (mask & (1 << i)):
+                        continue
+                    child = mask ^ (1 << i)
+                    cache_key = (i, mask)
+                    if cache_key not in safety_cache:
+                        continue
+                    _, sel, gs = safety_cache[cache_key]
+                    new_min = min(min_gs, gs) if seq else gs
+
+                    if child not in beam:
+                        beam[child] = []
+                    beam[child].append((new_min, seq + [i]))
+                    beam[child].sort(key=lambda x: x[0], reverse=True)
+                    if len(beam[child]) > k:
+                        beam[child] = beam[child][:k]
+
+        sequences: List[SeparationSequence] = []
+        for min_gs, idx_seq in beam.get(0, []):
+            steps = self._build_safety_steps_from_indices(
+                polymers, idx_seq, safety_cache, temperature,
+            )
+            sequences.append(SeparationSequence(polymers=polymers, steps=steps))
+
+        return sequences
+
+    def _build_safety_steps_from_indices(
+        self,
+        polymers: List[str],
+        idx_sequence: List[int],
+        cache: Dict[Tuple[int, int], Tuple[str, float, float]],
+        temperature: float,
+    ) -> List[SeparationStep]:
+        """Build SeparationStep list from safety cache index sequence."""
+        n = len(polymers)
+        steps = []
+        remaining_mask = (1 << n) - 1
+
+        for step_num, polymer_idx in enumerate(idx_sequence, 1):
+            polymer = polymers[polymer_idx]
+            cache_key = (polymer_idx, remaining_mask)
+            child_mask = remaining_mask ^ (1 << polymer_idx)
+            remaining_list = [polymers[i] for i in range(n) if child_mask & (1 << i)]
+
+            if cache_key in cache:
+                solvent, sel, gs = cache[cache_key]
+            else:
+                solvent, sel, gs = "N/A", 0.0, 0.0
+
+            is_last = (child_mask == 0) or (bin(remaining_mask).count("1") == 1)
+            steps.append(SeparationStep(
+                step_number=step_num,
+                target_polymer=polymer,
+                remaining_polymers=remaining_list,
+                solvent=solvent if not is_last else "N/A",
+                selectivity=sel if not is_last else 100.0,
+                target_solubility=0.0,
+                max_other_solubility=0.0,
+                temperature=temperature,
+                is_viable=sel >= 5.0 if not is_last else True,
+                safety_score=gs if not is_last else None,
+                notes="Last polymer - no separation needed" if is_last else "",
+            ))
+            remaining_mask = child_mask
+
+        return steps
 
 
 class BranchAndBoundSeparator(SeparatorBase):
@@ -667,6 +1165,14 @@ async def find_best_separation(
         else:
             algorithm = "greedy"
 
+    top_k = kwargs.pop("top_k", 1)
+    objective = kwargs.pop("objective", "max_min")
+    min_selectivity = kwargs.pop("min_selectivity", 5.0)
+
+    # Safety objective requires DP
+    if objective == "max_min_safety":
+        algorithm = "dp"
+
     if algorithm == "greedy":
         separator = GreedySeparator(db_connection, **kwargs)
     elif algorithm == "dp":
@@ -676,4 +1182,9 @@ async def find_best_separation(
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
 
+    if algorithm == "dp":
+        return await separator.find_optimal_sequence(
+            polymers, temperature, objective=objective,
+            top_k=top_k, min_selectivity=min_selectivity,
+        )
     return await separator.find_optimal_sequence(polymers, temperature)

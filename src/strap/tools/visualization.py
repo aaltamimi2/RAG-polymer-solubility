@@ -1271,7 +1271,7 @@ def plot_interpolation_vs_sql(
     output += f"Temperature range: {t_start}C - {t_end}C\n"
     for polymer, solvent in pairs:
         output += f"  - {polymer} in {solvent}\n"
-    output += "\nBlue line = interpolation model (ln(S) = A + B/T + C/T^2)\n"
+    output += "\nBlue line = interpolation model (ln(S) = A + B/T + C·ln(T), modified Apelblat)\n"
     output += "Orange dots = raw database values\n"
     output += f"\n{_get_plot_url(filepath)}"
 

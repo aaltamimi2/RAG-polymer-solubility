@@ -47,9 +47,9 @@ def _import_cosmo_interface():
 
 
 def _fit_abc(temps_c: np.ndarray, sols_pct: np.ndarray) -> dict:
-    """Fit ln(S%) = A + B/T + C/T^2 and return coefficients + R^2.
+    """Fit ln(S%) = A + B/T + C*ln(T) and return coefficients + R^2 (modified Apelblat).
 
-    Mirrors the fitting logic from scripts/phase0_feasibility_check.py.
+    Mirrors the fitting logic from scripts/fit_solubility_coefficients.py.
     """
     from scipy.optimize import curve_fit
 
@@ -58,7 +58,7 @@ def _fit_abc(temps_c: np.ndarray, sols_pct: np.ndarray) -> dict:
     t_k = temps_c + 273.15
 
     def model(t, a, b, c):
-        return a + b / t + c / t**2
+        return a + b / t + c * np.log(t)
 
     try:
         popt, _ = curve_fit(model, t_k, ln_s, p0=[0, 0, 0], maxfev=10000)
@@ -282,7 +282,7 @@ def generate_solubility_for_new_polymer(
     # --- Predict at the requested temperature -----------------------------
     if a_coeff is not None:
         t_k_req = temperature_c + 273.15
-        ln_s = a_coeff + b_coeff / t_k_req + c_coeff / t_k_req**2
+        ln_s = a_coeff + b_coeff / t_k_req + c_coeff * np.log(t_k_req)
         s_pct = float(np.clip(np.exp(ln_s), 0.0, 100.0))
     else:
         # Fitting failed -- interpolate directly from the SLE curve
@@ -301,7 +301,7 @@ def generate_solubility_for_new_polymer(
     if a_coeff is not None:
         lines.extend([
             "",
-            "### Fitted Coefficients (ln S% = A + B/T + C/T^2)",
+            "### Fitted Coefficients (ln S% = A + B/T + C·ln T, modified Apelblat)",
             "",
             "| Coefficient | Value |",
             "|-------------|-------|",

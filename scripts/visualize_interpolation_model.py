@@ -81,7 +81,7 @@ def _load_data():
 
 def _predict_s(entry, temp_c):
     t_k = temp_c + 273.15
-    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] / t_k**2
+    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] * np.log(t_k)
     return float(np.clip(np.exp(ln_s), 0.0, 100.0))
 
 
@@ -542,7 +542,7 @@ def fig8_drop100_impact(df, lookup, coeffs):
 
     # Re-fit WITH 100% points to get comparison R²
     def model(t_k, a, b, c):
-        return a + b/t_k + c/t_k**2
+        return a + b/t_k + c * np.log(t_k)
 
     def r_sq(y, yp):
         ss_res = np.sum((y - yp)**2)
@@ -642,7 +642,7 @@ def fig9_model_summary(coeffs):
     text = (
         "SOLUBILITY INTERPOLATION MODEL\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"Model:     ln(S%) = A + B/T_K + C/T_K²\n"
+        f"Model:     ln(S%) = A + B/T_K + C·ln(T_K)  (modified Apelblat)\n"
         f"Source:    COSMO-RS simulation data\n"
         f"CSV:       data/COMMON-SOLVENTS-DATABASE.csv\n\n"
         f"MODEL STORED AT\n"

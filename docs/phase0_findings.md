@@ -8,7 +8,7 @@
 
 ## Key Results
 
-### 1. A+B/T+C/T² model fits SLE curves
+### 1. A+B/T+C·ln(T) model fits SLE curves (modified Apelblat)
 All ideal fit R² = **0.994–1.000**. The existing interpolation functional form works for SLE-derived data. No model change needed.
 
 ### 2. Activity coefficient (γ) from COSMO-RS is critical

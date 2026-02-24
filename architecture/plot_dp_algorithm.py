@@ -625,6 +625,1032 @@ def plot_dp_lattice(data, output_path, *, start_label_above=False,
     print(f"Saved: {output_path}")
 
 
+# ── Top-K path extraction ─────────────────────────────────────────
+
+def extract_top_k_paths(data, k=10):
+    """Extract top-K separation paths using forward beam DP.
+
+    Operates on the plot script's sel_cache format: (solvent, selectivity).
+    Returns a list of K paths, each a list of edge dicts matching the
+    existing path format used by plot_dp_lattice.
+    """
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+    INF = float("inf")
+
+    # beam[mask] = [(min_sel_so_far, [removal_indices])]
+    beam = {full_mask: [(INF, [])]}
+
+    for mask in range(full_mask, 0, -1):
+        if mask not in beam:
+            continue
+        popcount = bin(mask).count("1")
+
+        if popcount == 1:
+            idx = next(i for i in range(n) if mask & (1 << i))
+            for min_sel, seq in beam[mask]:
+                if 0 not in beam:
+                    beam[0] = []
+                beam[0].append((min_sel, seq + [idx]))
+                beam[0].sort(key=lambda x: x[0], reverse=True)
+                if len(beam[0]) > k:
+                    beam[0] = beam[0][:k]
+            continue
+
+        for min_sel, seq in beam[mask]:
+            for i in range(n):
+                if not (mask & (1 << i)):
+                    continue
+                child = mask ^ (1 << i)
+                cache_key = (i, mask)
+                if cache_key not in sel_cache:
+                    continue
+                _, sel = sel_cache[cache_key]
+                new_min = min(min_sel, sel) if seq else sel
+
+                if child not in beam:
+                    beam[child] = []
+                beam[child].append((new_min, seq + [i]))
+                beam[child].sort(key=lambda x: x[0], reverse=True)
+                if len(beam[child]) > k:
+                    beam[child] = beam[child][:k]
+
+    # Convert to path-edge-dict format
+    results = []
+    for min_sel, idx_seq in beam.get(0, []):
+        path = []
+        remaining = full_mask
+        for polymer_idx in idx_seq:
+            child = remaining ^ (1 << polymer_idx)
+            solv, sel = sel_cache.get((polymer_idx, remaining), ("N/A", 0.0))
+            is_last = (bin(remaining).count("1") == 1)
+            path.append({
+                "from_mask": remaining,
+                "to_mask": child,
+                "removed_idx": polymer_idx,
+                "removed": polymers[polymer_idx],
+                "solvent": solv if not is_last else "N/A",
+                "selectivity": sel if not is_last else 0.0,
+            })
+            remaining = child
+        results.append({"path": path, "min_sel": min_sel})
+
+    return results
+
+
+# ── Full enumeration: all n! sequences ────────────────────────────
+
+def enumerate_all_sequences(data):
+    """Enumerate ALL n! separation sequences and their min selectivities.
+
+    Returns:
+        edge_best: dict mapping (from_mask, to_mask) to best min_selectivity
+                   of any complete path passing through that edge.
+        all_min_sels: sorted list of (min_sel, sequence_str) for all n! paths.
+        stats: dict with summary statistics.
+    """
+    from itertools import permutations
+
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+
+    # For each edge, track the best min_selectivity of any path through it
+    edge_best = {}  # (from_mask, to_mask) -> best min_sel
+    all_min_sels = []
+    count = 0
+
+    for perm in permutations(range(n)):
+        remaining = full_mask
+        path_edges = []
+        min_sel = float("inf")
+
+        for polymer_idx in perm:
+            child = remaining ^ (1 << polymer_idx)
+            # Last polymer: isolation step, no selectivity
+            if bin(remaining).count("1") == 1:
+                path_edges.append((remaining, child))
+                remaining = child
+                continue
+            key = (polymer_idx, remaining)
+            _, sel = sel_cache.get(key, ("N/A", 0.0))
+            min_sel = min(min_sel, sel)
+            path_edges.append((remaining, child))
+            remaining = child
+
+        # Record this path's min_sel for all its edges
+        for edge in path_edges:
+            if edge not in edge_best or min_sel > edge_best[edge]:
+                edge_best[edge] = min_sel
+
+        seq_str = " → ".join(polymers[i] for i in perm)
+        all_min_sels.append((min_sel, seq_str))
+        count += 1
+
+    all_min_sels.sort(key=lambda x: x[0], reverse=True)
+
+    sels = [s for s, _ in all_min_sels]
+    stats = {
+        "total": count,
+        "best": sels[0],
+        "worst": sels[-1],
+        "median": sels[count // 2],
+        "mean": sum(sels) / count,
+        "p90": sels[int(count * 0.10)],  # 90th percentile (top 10%)
+        "p10": sels[int(count * 0.90)],  # 10th percentile (bottom 10%)
+    }
+
+    return edge_best, all_min_sels, stats
+
+
+def top_k_unique_from_enumeration(data, all_min_sels, k=10):
+    """Extract top-K paths with UNIQUE min-selectivity values.
+
+    Picks one representative sequence per distinct min_sel score from
+    the sorted enumeration results. Returns path-edge-dict format.
+    """
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+
+    seen_scores = set()
+    results = []
+
+    for score, seq_str in all_min_sels:
+        # Round to 1 decimal to group near-identical scores
+        rounded = round(score, 1)
+        if rounded in seen_scores:
+            continue
+        seen_scores.add(rounded)
+
+        # Parse sequence string back to indices
+        names = [s.strip() for s in seq_str.split("→")]
+        idx_seq = [polymers.index(name) for name in names]
+
+        # Build path edges
+        path = []
+        remaining = full_mask
+        for polymer_idx in idx_seq:
+            child = remaining ^ (1 << polymer_idx)
+            solv, sel = sel_cache.get((polymer_idx, remaining), ("N/A", 0.0))
+            is_last = (bin(remaining).count("1") == 1)
+            path.append({
+                "from_mask": remaining,
+                "to_mask": child,
+                "removed_idx": polymer_idx,
+                "removed": polymers[polymer_idx],
+                "solvent": solv if not is_last else "N/A",
+                "selectivity": sel if not is_last else 0.0,
+            })
+            remaining = child
+        results.append({"path": path, "min_sel": score})
+
+        if len(results) >= k:
+            break
+
+    return results
+
+
+def top_k_unique_safety_from_enumeration(data, all_scores, k=10):
+    """Extract top-K paths with UNIQUE min G-score values (safety mode).
+
+    Uses safety sel_cache format: (solvent, selectivity, gscore).
+    """
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+
+    seen_scores = set()
+    results = []
+
+    for min_gs, min_sel, seq_str in all_scores:
+        rounded = round(min_gs, 1)
+        if rounded in seen_scores:
+            continue
+        seen_scores.add(rounded)
+
+        names = [s.strip() for s in seq_str.split("→")]
+        idx_seq = [polymers.index(name) for name in names]
+
+        path = []
+        remaining = full_mask
+        for polymer_idx in idx_seq:
+            child = remaining ^ (1 << polymer_idx)
+            entry = sel_cache.get((polymer_idx, remaining), ("N/A", 0.0, 0.0))
+            solv, sel, gs = entry
+            is_last = (bin(remaining).count("1") == 1)
+            path.append({
+                "from_mask": remaining,
+                "to_mask": child,
+                "removed_idx": polymer_idx,
+                "removed": polymers[polymer_idx],
+                "solvent": solv if not is_last else "N/A",
+                "selectivity": sel if not is_last else 0.0,
+                "gscore": gs if not is_last else 0.0,
+            })
+            remaining = child
+        results.append({"path": path, "min_gs": min_gs})
+
+        if len(results) >= k:
+            break
+
+    return results
+
+
+def enumerate_all_sequences_safety(data):
+    """Enumerate ALL n! sequences tracking min G-score (safety metric).
+
+    Uses the safety sel_cache format: (solvent, selectivity, gscore).
+
+    Returns:
+        edge_best: dict mapping (from_mask, to_mask) to best min_gscore
+                   of any complete path passing through that edge.
+        all_scores: sorted list of (min_gscore, min_sel, sequence_str).
+        stats: dict with summary statistics.
+    """
+    from itertools import permutations
+
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+
+    edge_best = {}
+    all_scores = []
+    count = 0
+
+    for perm in permutations(range(n)):
+        remaining = full_mask
+        path_edges = []
+        min_gs = float("inf")
+        min_sel = float("inf")
+
+        for polymer_idx in perm:
+            child = remaining ^ (1 << polymer_idx)
+            if bin(remaining).count("1") == 1:
+                path_edges.append((remaining, child))
+                remaining = child
+                continue
+            key = (polymer_idx, remaining)
+            entry = sel_cache.get(key, ("N/A", 0.0, 0.0))
+            _, sel, gs = entry
+            min_gs = min(min_gs, gs)
+            min_sel = min(min_sel, sel)
+            path_edges.append((remaining, child))
+            remaining = child
+
+        for edge in path_edges:
+            if edge not in edge_best or min_gs > edge_best[edge]:
+                edge_best[edge] = min_gs
+
+        seq_str = " → ".join(polymers[i] for i in perm)
+        all_scores.append((min_gs, min_sel, seq_str))
+        count += 1
+
+    all_scores.sort(key=lambda x: x[0], reverse=True)
+
+    gs_vals = [g for g, _, _ in all_scores]
+    stats = {
+        "total": count,
+        "best": gs_vals[0],
+        "worst": gs_vals[-1],
+        "median": gs_vals[count // 2],
+        "mean": sum(gs_vals) / count,
+        "p90": gs_vals[int(count * 0.10)],
+        "p10": gs_vals[int(count * 0.90)],
+    }
+
+    return edge_best, all_scores, stats
+
+
+def extract_top_k_paths_safety(data, k=10):
+    """Extract top-K safety-optimized paths using forward beam DP.
+
+    Uses the safety sel_cache format: (solvent, selectivity, gscore).
+    """
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+    INF = float("inf")
+
+    beam = {full_mask: [(INF, [])]}
+
+    for mask in range(full_mask, 0, -1):
+        if mask not in beam:
+            continue
+        popcount = bin(mask).count("1")
+
+        if popcount == 1:
+            idx = next(i for i in range(n) if mask & (1 << i))
+            for min_gs, seq in beam[mask]:
+                if 0 not in beam:
+                    beam[0] = []
+                beam[0].append((min_gs, seq + [idx]))
+                beam[0].sort(key=lambda x: x[0], reverse=True)
+                if len(beam[0]) > k:
+                    beam[0] = beam[0][:k]
+            continue
+
+        for min_gs, seq in beam[mask]:
+            for i in range(n):
+                if not (mask & (1 << i)):
+                    continue
+                child = mask ^ (1 << i)
+                cache_key = (i, mask)
+                if cache_key not in sel_cache:
+                    continue
+                _, sel, gs = sel_cache[cache_key]
+                new_min = min(min_gs, gs) if seq else gs
+
+                if child not in beam:
+                    beam[child] = []
+                beam[child].append((new_min, seq + [i]))
+                beam[child].sort(key=lambda x: x[0], reverse=True)
+                if len(beam[child]) > k:
+                    beam[child] = beam[child][:k]
+
+    results = []
+    for min_gs, idx_seq in beam.get(0, []):
+        path = []
+        remaining = full_mask
+        for polymer_idx in idx_seq:
+            child = remaining ^ (1 << polymer_idx)
+            entry = sel_cache.get((polymer_idx, remaining), ("N/A", 0.0, 0.0))
+            solv, sel, gs = entry
+            is_last = (bin(remaining).count("1") == 1)
+            path.append({
+                "from_mask": remaining,
+                "to_mask": child,
+                "removed_idx": polymer_idx,
+                "removed": polymers[polymer_idx],
+                "solvent": solv if not is_last else "N/A",
+                "selectivity": sel if not is_last else 0.0,
+                "gscore": gs if not is_last else 0.0,
+            })
+            remaining = child
+        results.append({"path": path, "min_gs": min_gs})
+
+    return results
+
+
+def plot_dp_lattice_all(data, edge_best, all_min_sels, stats, output_path,
+                        top_k_results=None, mode="selectivity"):
+    """Plot DP lattice with edges shaded by best-path-through-edge metric.
+
+    Each edge is colored by the best min_selectivity (or min G-score in
+    safety mode) achievable by any complete sequence passing through that
+    edge (green=high, red=low). Optionally overlays top-K paths.
+
+    Args:
+        mode: "selectivity" or "safety". Changes titles, labels, colorbar.
+    """
+    from math import comb, factorial
+    from matplotlib.collections import LineCollection
+    from matplotlib.colors import Normalize
+    import matplotlib.cm as cm
+
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+
+    max_level_count = max(comb(n, kk) for kk in range(n + 1))
+
+    # ── Layout ──
+    lvl_y = 1.6
+    node_sp = max(0.28, 14.0 / max_level_count)
+    r_norm, r_opt, r_end = 0.10, 0.40, 0.52
+    node_fs = 20
+    title_fs, sub_fs, level_fs = 42, 26, 22
+    result_fs = 20
+    legend_fs = 20
+    save_dpi = 300
+
+    positions = {}
+    for level in range(n + 1):
+        nodes = sorted(m for m in range(1 << n) if bin(m).count("1") == level)
+        cnt = len(nodes)
+        for i, mask in enumerate(nodes):
+            x = (i - (cnt - 1) / 2) * node_sp
+            y = level * lvl_y
+            positions[mask] = (x, y)
+
+    # ── Colormap normalization from edge_best values ──
+    best_vals = [v for v in edge_best.values() if v != float("inf")]
+    if best_vals:
+        vmin = min(best_vals)
+        vmax = max(best_vals)
+    else:
+        vmin, vmax = 0, 100
+    if vmin == vmax:
+        vmin -= 1
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    cmap = cm.viridis
+
+    # ── Top-K path data (optional overlay) ──
+    k = len(top_k_results) if top_k_results else 0
+    _RANK_COLORS = [
+        "#0173b2",  # rank 1: strong blue
+        "#de8f05",  # rank 2: orange
+        "#029e73",  # rank 3: teal
+        "#cc78bc",  # rank 4: pink
+        "#949494",  # rank 5: gray
+    ]
+    _MUTED = "#b0b0b0"
+
+    topk_edges = set()
+    topk_nodes = set()
+    if top_k_results:
+        for rank, result in enumerate(top_k_results):
+            for edge in result["path"]:
+                fm, tm = edge["from_mask"], edge["to_mask"]
+                topk_edges.add((fm, tm))
+                topk_nodes.add(fm)
+                topk_nodes.add(tm)
+
+    # ── Figure ──
+    xs = [p[0] for p in positions.values()]
+    ys = [p[1] for p in positions.values()]
+    pad_x, pad_y = 3.5, 3.0
+    fig_w = max(14, max(xs) - min(xs) + 2 * pad_x)
+    n_table_lines = min(k, 10) if top_k_results else 10
+    fig_h = max(ys) - min(ys) + 2 * pad_y + 8
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.set_xlim(min(xs) - pad_x, max(xs) + pad_x)
+    ax.set_ylim(min(ys) - pad_y - 6, max(ys) + pad_y + 2)
+    ax.set_facecolor("white")
+    ax.axis("off")
+    fig.patch.set_facecolor("white")
+
+    # ── Title ──
+    is_safety = (mode == "safety")
+    metric_name = "G-Score (Safety)" if is_safety else "Min-Selectivity"
+    metric_short = "G-Score" if is_safety else "Selectivity"
+    top = max(ys) + pad_y + 0.8
+    n_factorial = factorial(n)
+    title_str = (f"ALL {n_factorial:,} SEQUENCES \u2014 {metric_name.upper()} LANDSCAPE"
+                 if is_safety else
+                 f"ALL {n_factorial:,} SEPARATION SEQUENCES (BITMASK DP)")
+    ax.text(0, top + 0.4, title_str,
+            ha="center", va="center", fontsize=title_fs, fontweight="bold",
+            color="#1a252f")
+    sub_str = (f"{n} polymers  |  Edges colored by best-path min {metric_short}  |  "
+               f"Dark = high, Light = low")
+    ax.text(0, top - 0.3, sub_str,
+            ha="center", va="center", fontsize=sub_fs, color="#34495e")
+
+    # ── All edges: colored by best-path-through-edge ──
+    segments, seg_colors = [], []
+    for level in range(1, n + 1):
+        for mask in range(1 << n):
+            if bin(mask).count("1") != level:
+                continue
+            for i in range(n):
+                if not (mask & (1 << i)):
+                    continue
+                child = mask ^ (1 << i)
+                if (mask, child) in topk_edges:
+                    continue
+                x1, y1 = positions[mask]
+                x2, y2 = positions[child]
+                segments.append([(x1, y1), (x2, y2)])
+                best_min = edge_best.get((mask, child), 0.0)
+                if best_min == float("inf"):
+                    best_min = vmax
+                seg_colors.append(cmap(norm(best_min)))
+
+    edge_lw = 0.8
+    edge_alpha = 0.45
+    lc = LineCollection(segments, colors=seg_colors,
+                        linewidths=edge_lw, alpha=edge_alpha, zorder=1)
+    ax.add_collection(lc)
+
+    # ── Top-K path overlay ──
+    if top_k_results:
+        # Draw glow layer for rank 1 first (underneath)
+        for edge in top_k_results[0]["path"]:
+            fm, tm = edge["from_mask"], edge["to_mask"]
+            x1, y1 = positions[fm]
+            x2, y2 = positions[tm]
+            r1 = r_end if (fm == full_mask or fm == 0) else r_opt
+            r2 = r_end if (tm == full_mask or tm == 0) else r_opt
+            gap1, gap2 = r1 + 0.04, r2 + 0.04
+            ax.annotate("", xy=(x2, y2 + gap2), xytext=(x1, y1 - gap1),
+                         arrowprops=dict(arrowstyle="-", lw=10, color=_RANK_COLORS[0],
+                                         mutation_scale=22, alpha=0.18),
+                         zorder=1.5)
+
+        for rank, result in enumerate(top_k_results):
+            path = result["path"]
+            if rank == 0:
+                color = _RANK_COLORS[0]
+                lw = 5.0
+                ls = "-"
+            elif rank < 5:
+                color = _RANK_COLORS[min(rank, len(_RANK_COLORS) - 1)]
+                lw = 3.5
+                ls = "-"
+            else:
+                color = _MUTED
+                lw = 2.0
+                ls = "--"
+
+            for edge in path:
+                fm, tm = edge["from_mask"], edge["to_mask"]
+                x1, y1 = positions[fm]
+                x2, y2 = positions[tm]
+                r1 = r_end if (fm == full_mask or fm == 0) else r_opt
+                r2 = r_end if (tm == full_mask or tm == 0) else r_opt
+                gap1, gap2 = r1 + 0.04, r2 + 0.04
+                ax.annotate("", xy=(x2, y2 + gap2), xytext=(x1, y1 - gap1),
+                             arrowprops=dict(arrowstyle="-|>", lw=lw, color=color,
+                                             mutation_scale=22, linestyle=ls),
+                             zorder=2 + (k - rank))
+
+        # Rank 1 labels
+        for edge in top_k_results[0]["path"]:
+            fm, tm = edge["from_mask"], edge["to_mask"]
+            x1, y1 = positions[fm]
+            x2, y2 = positions[tm]
+            mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+            dx = x2 - x1
+            off_x = 2.0 if dx >= 0 else -2.0
+            ha_align = "left" if off_x > 0 else "right"
+            sel = edge["selectivity"]
+            c = _RANK_COLORS[0]
+            is_iso = sel == 0.0 and edge["solvent"] == "N/A"
+            if is_iso:
+                label = f"\u2212{edge['removed']}\n(isolated)"
+            elif is_safety:
+                gs = edge.get("gscore", 0.0)
+                label = f"\u2212{edge['removed']}\n{edge['solvent']} (G:{gs:.1f})"
+            else:
+                label = f"\u2212{edge['removed']}\n{edge['solvent']} ({sel:.1f}%)"
+            ax.text(mx + off_x, my, label, ha=ha_align, va="center",
+                    fontsize=20, color=c, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="none",
+                              alpha=0.92),
+                    zorder=6)
+
+    # ── Nodes ──
+    for mask, (x, y) in positions.items():
+        is_topk = mask in topk_nodes
+        is_full = mask == full_mask
+        is_empty = mask == 0
+
+        if is_full:
+            fc, ec, tc = "#3498db", "#1a252f", "white"
+            r = r_end
+        elif is_empty:
+            fc, ec, tc = "#2ecc71", "#1a252f", "white"
+            r = r_end
+        elif is_topk:
+            fc, ec, tc = "#ffeaa7", "#e67e22", "#2c3e50"
+            r = r_opt
+        else:
+            fc, ec = "#f0f1f3", "#ced4da"
+            tc = "#6c757d"
+            r = r_norm
+
+        lw = 3.0 if (is_topk or is_full or is_empty) else 0.6
+        circle = plt.Circle((x, y), r, facecolor=fc, edgecolor=ec,
+                             linewidth=lw, zorder=4)
+        ax.add_patch(circle)
+
+        if is_full:
+            ax.text(x, y, "FULL", ha="center", va="center",
+                    fontsize=node_fs, fontweight="bold", color=tc, zorder=5)
+        elif is_empty:
+            ax.text(x, y, "\u2205", ha="center", va="center",
+                    fontsize=node_fs + 2, fontweight="bold", color=tc, zorder=5)
+
+    # ── Level labels ──
+    rx = max(xs) + pad_x - 0.8
+    for level in range(n + 1):
+        ly = level * lvl_y
+        if level == n:
+            label = f"FULL SET\n({level} polymers)"
+        elif level == 0:
+            label = "ALL SEPARATED\n(0 remaining)"
+        else:
+            label = f"{comb(n, level)} states\n({level} remaining)"
+        ax.text(rx, ly, label, ha="center", va="center",
+                fontsize=level_fs, color="#2c3e50", style="italic")
+
+    # ── Colorbar ──
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar_ax = fig.add_axes([0.10, 0.02, 0.80, 0.018])
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    cbar_label = ("Best-path min G-Score through edge" if is_safety
+                   else "Best-path min-selectivity through edge (%)")
+    cbar.set_label(cbar_label, fontsize=legend_fs + 2, weight="bold")
+    cbar.ax.tick_params(labelsize=legend_fs - 2, width=1.5, length=5)
+    cbar.outline.set_linewidth(0.8)
+
+    # ── Statistics + ranked table ──
+    table_y = min(ys) - pad_y - 0.2
+    line_h = 0.50
+    ax.text(0, table_y,
+            f"DISTRIBUTION ({stats['total']:,} sequences)",
+            ha="center", va="center",
+            fontsize=result_fs + 4, fontweight="bold", color="#1a252f")
+    table_y -= line_h * 0.8
+
+    unit = "" if is_safety else "%"
+    stat_line = (
+        f"Best: {stats['best']:.1f}{unit}  |  "
+        f"Median: {stats['median']:.1f}{unit}  |  "
+        f"Mean: {stats['mean']:.1f}{unit}  |  "
+        f"P90: {stats['p90']:.1f}{unit}  |  "
+        f"P10: {stats['p10']:.1f}{unit}  |  "
+        f"Worst: {stats['worst']:.1f}{unit}"
+    )
+    ax.text(0, table_y, stat_line, ha="center", va="center",
+            fontsize=result_fs, color="#2c3e50", family="monospace")
+    table_y -= line_h
+
+    # Top sequences — show deduplicated top_k_results when available
+    unique_label = " (unique scores)" if top_k_results else ""
+    hdr = (f"TOP SEQUENCES (by min G-Score{unique_label})" if is_safety
+           else f"TOP SEQUENCES{unique_label}")
+    ax.text(0, table_y, hdr, ha="center", va="center",
+            fontsize=result_fs + 2, fontweight="bold", color="#2c3e50")
+    table_y -= line_h * 0.6
+
+    if top_k_results:
+        show_n = min(10, len(top_k_results))
+        for rank in range(show_n):
+            result = top_k_results[rank]
+            path = result["path"]
+            seq_str = " → ".join(e["removed"] for e in path)
+            if is_safety:
+                score = result["min_gs"]
+                score_str = f"{score:>5.1f}"
+            else:
+                score = result["min_sel"]
+                score_str = f"{score:>6.1f}%"
+            if score == float("inf"):
+                score_str = "  inf"
+            rank_num = rank + 1
+
+            if rank < len(_RANK_COLORS):
+                color = _RANK_COLORS[rank]
+            else:
+                color = _MUTED
+
+            line = f"#{rank_num:<3}  {score_str}  {seq_str}"
+            ax.text(-(fig_w / 2 - pad_x), table_y, line, ha="left", va="center",
+                    fontsize=result_fs - 2,
+                    fontweight="bold" if rank == 0 else "normal",
+                    color=color, family="monospace")
+            table_y -= line_h
+    else:
+        show_n = min(10, len(all_min_sels))
+        for rank in range(show_n):
+            entry = all_min_sels[rank]
+            if is_safety:
+                score, _, seq_str = entry
+                score_str = f"{score:>5.1f}"
+            else:
+                score, seq_str = entry
+                score_str = f"{score:>6.1f}%"
+            if score == float("inf"):
+                score_str = "  inf"
+            s = entry[0] if entry[0] != float("inf") else vmax
+            color = cmap(norm(s))
+
+            line = f"#{rank + 1:<3}  {score_str}  {seq_str}"
+            ax.text(-(fig_w / 2 - pad_x), table_y, line, ha="left", va="center",
+                    fontsize=result_fs - 2,
+                    fontweight="bold" if rank == 0 else "normal",
+                    color=color, family="monospace")
+            table_y -= line_h
+
+    # ── Legend ──
+    items = [
+        mpatches.Patch(fc="#3498db", ec="black", label="Start (full mixture)"),
+        mpatches.Patch(fc="#2ecc71", ec="black", label="Goal (all separated)"),
+    ]
+    if top_k_results:
+        items.append(mpatches.Patch(fc="#ffeaa7", ec="#f39c12", label="Top-K path node"))
+        for rk in range(min(k, 5)):
+            items.append(mpatches.Patch(
+                fc=_RANK_COLORS[rk], ec="black", label=f"Rank {rk + 1}"))
+        if k > 5:
+            items.append(mpatches.Patch(fc=_MUTED, ec="black", label=f"Ranks 6\u2013{k}"))
+    items.append(mpatches.Patch(fc="#f5f6fa", ec="#dcdde1", label="Other state"))
+
+    ax.legend(handles=items, loc="upper left", fontsize=legend_fs,
+              frameon=True, fancybox=True, edgecolor="#bdc3c7",
+              title="Legend", title_fontsize=legend_fs + 2,
+              bbox_to_anchor=(0.0, 1.0))
+
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.96, bottom=0.05)
+    fig.savefig(output_path, dpi=save_dpi, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+
+
+# ── Top-K lattice plot with continuous colormap ───────────────────
+
+def plot_dp_lattice_topk(data, top_k_results, output_path):
+    """Plot DP lattice with continuous green-red colormap and top-K highlighted paths."""
+    from math import comb, factorial
+    from matplotlib.collections import LineCollection
+    from matplotlib.colors import Normalize
+    import matplotlib.cm as cm
+
+    n = data["n"]
+    polymers = data["polymers"]
+    full_mask = data["full_mask"]
+    sel_cache = data["sel_cache"]
+    k = len(top_k_results)
+
+    max_level_count = max(comb(n, kk) for kk in range(n + 1))
+    large = max_level_count > 20
+
+    def mask_label(mask):
+        names = [polymers[i] for i in range(n) if mask & (1 << i)]
+        return ", ".join(names) if names else "\u2205"
+
+    # ── Adaptive layout constants ──
+    lvl_y = 1.6
+    node_sp = max(0.28, 14.0 / max_level_count)
+    r_norm, r_opt, r_end = 0.08, 0.38, 0.50
+    edge_lw, edge_alpha = 0.4, 0.25
+    node_fs = 20
+    title_fs, sub_fs, level_fs = 44, 28, 24
+    result_fs = 20
+    legend_fs = 20
+    save_dpi = 200
+
+    # ── Positions ──
+    positions = {}
+    for level in range(n + 1):
+        nodes = sorted(m for m in range(1 << n) if bin(m).count("1") == level)
+        cnt = len(nodes)
+        for i, mask in enumerate(nodes):
+            x = (i - (cnt - 1) / 2) * node_sp
+            y = level * lvl_y
+            positions[mask] = (x, y)
+
+    # ── Collect all selectivity values for colormap normalization ──
+    all_sels = [sel for (_, sel) in sel_cache.values() if sel != 0.0]
+    if all_sels:
+        vmin = min(all_sels)
+        vmax = max(all_sels)
+    else:
+        vmin, vmax = 0, 100
+    if vmin == vmax:
+        vmin = vmin - 1
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    cmap = cm.RdYlGn  # red=low, yellow=mid, green=high
+
+    # ── Top-K path data ──
+    # Rank colors: Rank 1 thick blue, Ranks 2-5 distinct, Ranks 6+ muted dashed
+    _RANK_COLORS = [
+        "#2c7bb6",  # rank 1: strong blue
+        "#d7191c",  # rank 2: red
+        "#fdae61",  # rank 3: orange
+        "#abd9e9",  # rank 4: light blue
+        "#756bb1",  # rank 5: purple
+    ]
+    _MUTED = "#999999"
+
+    topk_edges = set()  # all edges in any top-K path
+    topk_nodes = set()
+    rank1_edges = set()
+    for rank, result in enumerate(top_k_results):
+        for edge in result["path"]:
+            fm, tm = edge["from_mask"], edge["to_mask"]
+            topk_edges.add((fm, tm))
+            topk_nodes.add(fm)
+            topk_nodes.add(tm)
+            if rank == 0:
+                rank1_edges.add((fm, tm))
+
+    # ── Figure sizing ──
+    xs = [p[0] for p in positions.values()]
+    ys = [p[1] for p in positions.values()]
+    pad_x, pad_y = 3.0, 2.5
+    fig_w = max(14, max(xs) - min(xs) + 2 * pad_x)
+    fig_h = max(ys) - min(ys) + 2 * pad_y + 8  # extra space for result table
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    ax.set_xlim(min(xs) - pad_x, max(xs) + pad_x)
+    ax.set_ylim(min(ys) - pad_y - 6, max(ys) + pad_y + 2)
+    ax.axis("off")
+
+    # ── Title ──
+    top = max(ys) + pad_y + 0.8
+    ax.text(0, top + 0.4,
+            f"TOP-{k} SEPARATION SEQUENCES (BITMASK DP)",
+            ha="center", va="center", fontsize=title_fs, fontweight="bold",
+            color="#2c3e50")
+    n_lookups = data["n_precomputed"]
+    n_factorial = int(np.prod(range(1, n + 1)))
+    total_ops = n ** 2 * (1 << n) * 32
+    ax.text(0, top - 0.3,
+            f"{n} polymers | {n_lookups:,} selectivity lookups | "
+            f"O(n\u00b2\u00b72\u207f) \u2248 {total_ops:,} ops | "
+            f"{n_factorial:,} possible orderings",
+            ha="center", va="center", fontsize=sub_fs, color="#2c3e50")
+
+    # ── Background edges: continuous colormap ──
+    segments, seg_colors = [], []
+    for level in range(1, n + 1):
+        for mask in range(1 << n):
+            if bin(mask).count("1") != level:
+                continue
+            for i in range(n):
+                if not (mask & (1 << i)):
+                    continue
+                child = mask ^ (1 << i)
+                if (mask, child) in topk_edges:
+                    continue
+                x1, y1 = positions[mask]
+                x2, y2 = positions[child]
+                segments.append([(x1, y1), (x2, y2)])
+                key = (i, mask)
+                sel = sel_cache[key][1] if key in sel_cache else 0.0
+                seg_colors.append(cmap(norm(sel)))
+
+    lc = LineCollection(segments, colors=seg_colors,
+                        linewidths=edge_lw, alpha=edge_alpha, zorder=1)
+    ax.add_collection(lc)
+
+    # ── Top-K path edges ──
+    for rank, result in enumerate(top_k_results):
+        path = result["path"]
+        if rank == 0:
+            color = _RANK_COLORS[0]
+            lw = 4.0
+            ls = "-"
+        elif rank < 5:
+            color = _RANK_COLORS[rank]
+            lw = 3.0
+            ls = "-"
+        else:
+            color = _MUTED
+            lw = 1.5
+            ls = "--"
+
+        for edge in path:
+            fm, tm = edge["from_mask"], edge["to_mask"]
+            x1, y1 = positions[fm]
+            x2, y2 = positions[tm]
+            r1 = r_end if (fm == full_mask or fm == 0) else r_opt
+            r2 = r_end if (tm == full_mask or tm == 0) else r_opt
+            gap1, gap2 = r1 + 0.04, r2 + 0.04
+            ax.annotate("", xy=(x2, y2 + gap2), xytext=(x1, y1 - gap1),
+                         arrowprops=dict(arrowstyle="-|>", lw=lw, color=color,
+                                         mutation_scale=20, linestyle=ls),
+                         zorder=2 + (k - rank))
+
+    # ── Rank 1 edge labels ──
+    rank1_path = top_k_results[0]["path"]
+    for edge in rank1_path:
+        fm, tm = edge["from_mask"], edge["to_mask"]
+        x1, y1 = positions[fm]
+        x2, y2 = positions[tm]
+        mx, my = (x1 + x2) / 2, (y1 + y2) / 2
+        dx = x2 - x1
+        off = 2.0
+        off_x = off if dx >= 0 else -off
+        ha_align = "left" if off_x > 0 else "right"
+        sel = edge["selectivity"]
+        c = _RANK_COLORS[0]
+        is_iso = sel == 0.0 and edge["solvent"] == "N/A"
+        if is_iso:
+            label = f"\u2212{edge['removed']}\n(isolated)"
+        else:
+            label = f"\u2212{edge['removed']}\n{edge['solvent']} ({sel:.1f}%)"
+        ax.text(mx + off_x, my, label, ha=ha_align, va="center",
+                fontsize=22, color=c, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=c,
+                          alpha=0.92, lw=1.2),
+                zorder=6)
+
+    # ── Nodes ──
+    for mask, (x, y) in positions.items():
+        is_topk = mask in topk_nodes
+        is_full = mask == full_mask
+        is_empty = mask == 0
+
+        if is_full:
+            fc, ec, tc = "#3498db", "#2c3e50", "white"
+            r = r_end
+        elif is_empty:
+            fc, ec, tc = "#2ecc71", "#2c3e50", "white"
+            r = r_end
+        elif is_topk:
+            fc, ec, tc = "#ffeaa7", "#f39c12", "#2c3e50"
+            r = r_opt
+        else:
+            fc, ec = "#f5f6fa", "#dcdde1"
+            tc = "#95a5a6"
+            r = r_norm
+
+        lw = 3.0 if (is_topk or is_full or is_empty) else 0.3
+        circle = plt.Circle((x, y), r, facecolor=fc, edgecolor=ec,
+                             linewidth=lw, zorder=4)
+        ax.add_patch(circle)
+
+        if is_full:
+            ax.text(x, y, "FULL", ha="center", va="center",
+                    fontsize=node_fs, fontweight="bold", color=tc, zorder=5)
+        elif is_empty:
+            ax.text(x, y, "\u2205", ha="center", va="center",
+                    fontsize=node_fs + 2, fontweight="bold", color=tc, zorder=5)
+
+    # ── Level labels ──
+    rx = max(xs) + pad_x - 0.8
+    for level in range(n + 1):
+        ly = level * lvl_y
+        if level == n:
+            label = f"FULL SET\n({level} polymers)"
+        elif level == 0:
+            label = "ALL SEPARATED\n(0 remaining)"
+        else:
+            label = f"{comb(n, level)} states\n({level} remaining)"
+        ax.text(rx, ly, label, ha="center", va="center",
+                fontsize=level_fs, color="#2c3e50", style="italic")
+
+    # ── Colorbar ──
+    sm = cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar_ax = fig.add_axes([0.15, 0.02, 0.7, 0.015])
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
+    cbar.set_label("Selectivity (%)", fontsize=legend_fs)
+    cbar.ax.tick_params(labelsize=legend_fs - 4)
+
+    # ── Top-K results table (below lattice) ──
+    table_y = min(ys) - pad_y - 0.2
+    line_h = 0.45
+    ax.text(0, table_y, "RANKED SEQUENCES", ha="center", va="center",
+            fontsize=result_fs + 4, fontweight="bold", color="#2c3e50")
+    table_y -= line_h * 0.8
+
+    # Header
+    hdr = f"{'Rank':>4}  {'Min Sel':>8}  {'Sequence'}"
+    ax.text(-(fig_w / 2 - pad_x), table_y, hdr, ha="left", va="center",
+            fontsize=result_fs - 2, fontweight="bold", color="#2c3e50",
+            family="monospace")
+    table_y -= line_h * 0.6
+
+    for rank, result in enumerate(top_k_results):
+        path = result["path"]
+        seq_str = " \u2192 ".join(e["removed"] for e in path)
+        min_sel = result["min_sel"]
+        if min_sel == float("inf"):
+            min_sel = 0.0
+        rank_num = rank + 1
+
+        if rank < len(_RANK_COLORS):
+            color = _RANK_COLORS[rank]
+        else:
+            color = _MUTED
+
+        line = f"#{rank_num:<3}  {min_sel:>7.1f}%  {seq_str}"
+        ax.text(-(fig_w / 2 - pad_x), table_y, line, ha="left", va="center",
+                fontsize=result_fs - 2, fontweight="bold" if rank == 0 else "normal",
+                color=color, family="monospace")
+        table_y -= line_h
+
+    # ── Legend ──
+    items = [
+        mpatches.Patch(fc="#3498db", ec="black", label="Start (full mixture)"),
+        mpatches.Patch(fc="#ffeaa7", ec="#f39c12", label="Top-K path node"),
+        mpatches.Patch(fc="#f5f6fa", ec="#dcdde1", label="Other state"),
+        mpatches.Patch(fc="#2ecc71", ec="black", label="Goal (all separated)"),
+    ]
+    for rank in range(min(k, 5)):
+        c = _RANK_COLORS[rank]
+        items.append(mpatches.Patch(fc=c, ec="black", label=f"Rank {rank + 1}"))
+    if k > 5:
+        items.append(mpatches.Patch(fc=_MUTED, ec="black", label=f"Ranks 6\u2013{k}"))
+
+    ax.legend(handles=items, loc="upper left", fontsize=legend_fs,
+              frameon=True, fancybox=True, edgecolor="#bdc3c7",
+              title="Legend", title_fontsize=legend_fs + 2,
+              bbox_to_anchor=(0.0, 1.0))
+
+    fig.subplots_adjust(left=0.02, right=0.98, top=0.96, bottom=0.05)
+    fig.savefig(output_path, dpi=save_dpi, bbox_inches="tight",
+                facecolor="white", edgecolor="none")
+    plt.close(fig)
+    print(f"Saved: {output_path}")
+
+
 # ── Cascade plot (for large n) ────────────────────────────────────
 
 def plot_dp_cascade(data, output_path):
@@ -803,6 +1829,10 @@ if __name__ == "__main__":
                         help="Use 4 polymers (default: 9)")
     parser.add_argument("--cascade", action="store_true",
                         help="Use compact cascade view instead of full lattice")
+    parser.add_argument("--top-k", type=int, default=0,
+                        help="Extract and plot top-K sequences (e.g., --top-k 10)")
+    parser.add_argument("--all", action="store_true",
+                        help="Enumerate all n! sequences; shade edges by best-path metric")
     parser.add_argument("-t", "--temp", type=float, default=120.0,
                         help="Temperature in C (default: 120)")
     parser.add_argument("-o", "--output", default=None, help="Output path")
@@ -829,9 +1859,99 @@ if __name__ == "__main__":
     opt_path_str = arrow.join(e["removed"] for e in data["path"])
     print(f"  Optimal path:        {opt_path_str}")
 
-    out = args.output or str(HERE / "dp_algorithm_visual.png")
+    if args.all:
+        from math import factorial
 
-    if args.cascade:
+        # ── Figure 1: Selectivity landscape ──
+        print(f"\n{'='*60}")
+        print(f"FIGURE 1: SELECTIVITY LANDSCAPE")
+        print(f"{'='*60}")
+        print(f"Enumerating all {factorial(n):,} sequences (selectivity)...")
+        t1 = time.time()
+        edge_best, all_min_sels, stats = enumerate_all_sequences(data)
+        dt2 = time.time() - t1
+        print(f"  Enumeration time: {dt2:.2f}s")
+        print(f"  Best min sel:     {stats['best']:.1f}%")
+        print(f"  Median min sel:   {stats['median']:.1f}%")
+        print(f"  Mean min sel:     {stats['mean']:.1f}%")
+        print(f"  Worst min sel:    {stats['worst']:.1f}%")
+
+        top_k_k = max(args.top_k, 10)
+        top_k_results = top_k_unique_from_enumeration(data, all_min_sels, k=top_k_k)
+
+        print(f"\nTop {len(top_k_results)} sequences (unique min-selectivity):")
+        for rank, result in enumerate(top_k_results, 1):
+            path = result["path"]
+            seq_str = arrow.join(e["removed"] for e in path)
+            min_sel = result["min_sel"]
+            if min_sel == float("inf"):
+                min_sel = 0.0
+            print(f"  #{rank:>2}: min_sel={min_sel:>6.1f}%  {seq_str}")
+
+        out_sel = args.output or str(HERE / "dp_lattice_sweep" / f"dp_lattice_n{n}_all_selectivity.png")
+        plot_dp_lattice_all(data, edge_best, all_min_sels, stats, out_sel,
+                            top_k_results=top_k_results, mode="selectivity")
+
+        # ── Figure 2: Safety landscape ──
+        print(f"\n{'='*60}")
+        print(f"FIGURE 2: SAFETY (G-SCORE) LANDSCAPE")
+        print(f"{'='*60}")
+        print(f"Building safety-optimized DP data...")
+        t2 = time.time()
+        data_safety = build_dp_data_safety(polys, temperature=args.temp)
+        dt3 = time.time() - t2
+        print(f"  Safety cache build: {dt3:.1f}s")
+
+        print(f"Enumerating all {factorial(n):,} sequences (safety)...")
+        t3 = time.time()
+        edge_best_s, all_scores_s, stats_s = enumerate_all_sequences_safety(data_safety)
+        dt4 = time.time() - t3
+        print(f"  Enumeration time: {dt4:.2f}s")
+        print(f"  Best min G-score: {stats_s['best']:.1f}")
+        print(f"  Median min G:     {stats_s['median']:.1f}")
+        print(f"  Mean min G:       {stats_s['mean']:.1f}")
+        print(f"  Worst min G:      {stats_s['worst']:.1f}")
+
+        top_k_safety = top_k_unique_safety_from_enumeration(
+            data_safety, all_scores_s, k=top_k_k,
+        )
+
+        print(f"\nTop {len(top_k_safety)} sequences (unique min G-score):")
+        for rank, result in enumerate(top_k_safety, 1):
+            path = result["path"]
+            seq_str = arrow.join(e["removed"] for e in path)
+            min_gs = result["min_gs"]
+            if min_gs == float("inf"):
+                min_gs = 0.0
+            sels = [e["selectivity"] for e in path if e["selectivity"] != 0.0]
+            min_sel = min(sels) if sels else 0.0
+            print(f"  #{rank:>2}: min_G={min_gs:>4.1f}  min_sel={min_sel:>6.1f}%  {seq_str}")
+
+        out_safe = str(HERE / "dp_lattice_sweep" / f"dp_lattice_n{n}_all_safety.png")
+        plot_dp_lattice_all(data_safety, edge_best_s, all_scores_s, stats_s,
+                            out_safe, top_k_results=top_k_safety, mode="safety")
+
+    elif args.top_k > 0:
+        print(f"\nExtracting top-{args.top_k} sequences...")
+        t1 = time.time()
+        top_k_results = extract_top_k_paths(data, k=args.top_k)
+        dt2 = time.time() - t1
+        print(f"  Beam DP time: {dt2:.2f}s")
+        print(f"  Sequences found: {len(top_k_results)}\n")
+
+        for rank, result in enumerate(top_k_results, 1):
+            path = result["path"]
+            seq_str = arrow.join(e["removed"] for e in path)
+            min_sel = result["min_sel"]
+            if min_sel == float("inf"):
+                min_sel = 0.0
+            print(f"  #{rank:>2}: min_sel={min_sel:>6.1f}%  {seq_str}")
+
+        out = args.output or str(HERE / "dp_lattice_sweep" / f"dp_lattice_n{n}_topk.png")
+        plot_dp_lattice_topk(data, top_k_results, out)
+    elif args.cascade:
+        out = args.output or str(HERE / "dp_algorithm_visual.png")
         plot_dp_cascade(data, out)
     else:
+        out = args.output or str(HERE / "dp_algorithm_visual.png")
         plot_dp_lattice(data, out)

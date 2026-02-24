@@ -1,4 +1,4 @@
-"""Visualize the solubility interpolation model: ln(S) = A + B/T + C/T².
+"""Visualize the solubility interpolation model: ln(S) = A + B/T + C·ln(T) (modified Apelblat).
 
 Generates 5 figures:
 1. Representative solubility curves (predicted vs raw data)
@@ -104,7 +104,7 @@ def load_raw_csv():
 def predict_curve(entry, temps_c):
     """Predict solubility for an array of temperatures."""
     t_k = np.array(temps_c) + 273.15
-    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] / t_k**2
+    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] * np.log(t_k)
     return np.clip(np.exp(ln_s), 0.0, 100.0)
 
 

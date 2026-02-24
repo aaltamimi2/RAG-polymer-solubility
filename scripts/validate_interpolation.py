@@ -19,9 +19,9 @@ COEFF_PATH = DATA_DIR / "solubility_coefficients.json"
 
 
 def _predict(entry: dict, temp_c: float) -> float:
-    """ln(S) = A + B/T_K + C/T_K^2 → S clamped to [0, 100]."""
+    """ln(S) = A + B/T_K + C*ln(T_K) → S clamped to [0, 100] (modified Apelblat)."""
     t_k = temp_c + 273.15
-    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] / t_k**2
+    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] * np.log(t_k)
     return float(np.clip(np.exp(ln_s), 0.0, 100.0))
 
 

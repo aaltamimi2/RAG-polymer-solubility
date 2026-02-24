@@ -146,6 +146,131 @@ def format_separation_result(result) -> str:
     return "\n".join(output)
 
 
+def format_safety_result(result) -> str:
+    """Format safety-optimized SeparationResult as readable markdown."""
+    seq = result.best_sequence
+
+    output = [
+        "# Safety-Optimized Separation Sequence\n",
+        f"**Algorithm:** {result.algorithm}",
+        f"**Computation Time:** {result.computation_time_ms:.1f}ms",
+        f"**Nodes Explored:** {result.nodes_explored}\n",
+    ]
+
+    sequence_str = " -> ".join(s.target_polymer for s in seq.steps)
+    output.append(f"**Sequence:** {sequence_str}")
+    output.append(f"**Status:** {seq.status.value}")
+    output.append(f"**Minimum Selectivity:** {seq.min_selectivity:.1f}%")
+    output.append(f"**Average Selectivity:** {seq.avg_selectivity:.1f}%")
+
+    safety_scores = [s.safety_score for s in seq.steps if s.safety_score is not None]
+    if safety_scores:
+        output.append(f"**Min G-Score:** {min(safety_scores):.1f}/10")
+        output.append(f"**Avg G-Score:** {sum(safety_scores)/len(safety_scores):.1f}/10")
+    output.append("")
+
+    output.append("## Step-by-Step Breakdown\n")
+    for step in seq.steps:
+        if step.remaining_polymers:
+            status = "OK" if step.is_viable else "LOW"
+            gs_str = f"G-Score: {step.safety_score:.1f}/10" if step.safety_score else "G-Score: N/A"
+            output.append(
+                f"**Step {step.step_number}: Separate {step.target_polymer}**\n"
+                f"  - Solvent: {step.solvent}\n"
+                f"  - Temperature: {step.temperature}C\n"
+                f"  - Selectivity: {step.selectivity:.1f}% [{status}]\n"
+                f"  - {gs_str}\n"
+                f"  - Remaining: {', '.join(step.remaining_polymers)}\n"
+            )
+        else:
+            output.append(
+                f"**Step {step.step_number}: {step.target_polymer} isolated**\n"
+            )
+
+    return "\n".join(output)
+
+
+def format_top_k_safety_results(result, polymers_str: str) -> str:
+    """Format top-K safety-optimized sequences as a ranked markdown table."""
+    sequences = result.all_sequences
+    if not sequences:
+        return "No sequences found."
+
+    output = [
+        "# Top Safety-Optimized Sequences\n",
+        f"**Polymers:** {polymers_str}",
+        f"**Algorithm:** {result.algorithm}",
+        f"**Sequences found:** {len(sequences)}",
+        f"**Computation time:** {result.computation_time_ms:.1f}ms\n",
+        "| Rank | Sequence | Min Sel (%) | Min G-Score | Bottleneck |",
+        "|------|----------|-------------|-------------|------------|",
+    ]
+
+    for i, seq in enumerate(sequences, 1):
+        seq_str = " \u2192 ".join(s.target_polymer for s in seq.steps)
+        real_steps = [s for s in seq.steps if s.remaining_polymers]
+        safety_scores = [s.safety_score for s in real_steps if s.safety_score is not None]
+        min_gs = min(safety_scores) if safety_scores else 0.0
+        if real_steps:
+            bottleneck = min(
+                (s for s in real_steps if s.safety_score is not None),
+                key=lambda s: s.safety_score,
+                default=real_steps[0],
+            )
+            bn_str = f"{bottleneck.target_polymer} (G:{bottleneck.safety_score:.1f})"
+        else:
+            bn_str = "N/A"
+        output.append(
+            f"| {i} | {seq_str} | {seq.min_selectivity:.1f} | "
+            f"{min_gs:.1f} | {bn_str} |"
+        )
+
+    # Detail on rank 1
+    best = sequences[0]
+    output.append(f"\n## Rank 1 Detail\n")
+    output.append(format_safety_result(result))
+
+    return "\n".join(output)
+
+
+def format_top_k_results(result, polymers_str: str) -> str:
+    """Format top-K separation sequences as a ranked markdown table."""
+    sequences = result.all_sequences
+    if not sequences:
+        return "No sequences found."
+
+    output = [
+        "# Top Separation Sequences\n",
+        f"**Polymers:** {polymers_str}",
+        f"**Algorithm:** {result.algorithm}",
+        f"**Sequences found:** {len(sequences)}",
+        f"**Computation time:** {result.computation_time_ms:.1f}ms\n",
+        "| Rank | Sequence | Min Sel (%) | Avg Sel (%) | Bottleneck |",
+        "|------|----------|-------------|-------------|------------|",
+    ]
+
+    for i, seq in enumerate(sequences, 1):
+        seq_str = " \u2192 ".join(s.target_polymer for s in seq.steps)
+        # Find bottleneck step (lowest selectivity, excluding last)
+        real_steps = [s for s in seq.steps if s.remaining_polymers]
+        if real_steps:
+            bottleneck = min(real_steps, key=lambda s: s.selectivity)
+            bn_str = f"{bottleneck.target_polymer} ({bottleneck.selectivity:.1f}%)"
+        else:
+            bn_str = "N/A"
+        output.append(
+            f"| {i} | {seq_str} | {seq.min_selectivity:.1f} | "
+            f"{seq.avg_selectivity:.1f} | {bn_str} |"
+        )
+
+    # Detail on rank 1
+    best = sequences[0]
+    output.append(f"\n## Rank 1 Detail\n")
+    output.append(format_separation_result(result))
+
+    return "\n".join(output)
+
+
 def format_optimization_result(result) -> str:
     """Format OptimizationResult as readable markdown."""
     output = [
@@ -206,6 +331,9 @@ def find_optimal_separation_sequence(
     polymers: str,
     temperature: float = 120.0,
     algorithm: str = "auto",
+    top_k: int = 1,
+    objective: str = "max_min",
+    min_selectivity: float = 5.0,
 ) -> str:
     """Find the optimal order to separate multiple polymers using greedy, DP, or branch-and-bound.
 
@@ -214,12 +342,24 @@ def find_optimal_separation_sequence(
         temperature: Target separation temperature in Celsius (default: 120)
         algorithm: "greedy", "dp", "branch_and_bound", "auto", or "compare" (default: "auto").
             Use "compare" to run greedy vs DP side-by-side.
+        top_k: Number of top sequences to return ranked by min selectivity (default: 1).
+            Requires DP algorithm (n <= 12). Use top_k=10 for ranked comparison.
+        objective: Optimization objective (default: "max_min"):
+            - "max_min": maximize bottleneck selectivity (standard)
+            - "max_min_safety": maximize bottleneck GSK G-score subject to
+              selectivity >= min_selectivity. Use this when safety matters more
+              than maximizing selectivity.
+        min_selectivity: Selectivity floor for safety objective (default: 5.0).
+            Only used when objective="max_min_safety". Lower values allow
+            more solvent choices (potentially safer but less selective).
 
     WHEN TO USE:
     - "What's the best order to separate LDPE, HDPE, PET, and PP?"
     - "Optimize separation sequence for 5 polymers at 100C"
     - "Compare greedy vs optimal separation for multilayer film"
-    - "Is the greedy solution good enough for these polymers?"
+    - "Return top 10 separation sequences for these polymers"
+    - "Find the safest separation sequence for these polymers"
+    - "Optimize for safety with at least 7% selectivity"
     """
     polymer_list = parse_polymer_list(polymers)
 
@@ -268,6 +408,28 @@ def find_optimal_separation_sequence(
             output.append(f"Recommendation: Use {'greedy' if improvement < 2 else 'optimal'} for this case.")
 
         return "\n".join(output)
+
+    # Safety objective: force DP with safety mode
+    if objective == "max_min_safety":
+        if len(polymer_list) > 12:
+            return "Error: Safety objective requires n <= 12 for DP algorithm."
+        result = run_async(find_best_separation(
+            polymer_list, conn, temperature, "dp",
+            objective="max_min_safety", min_selectivity=min_selectivity,
+            top_k=top_k,
+        ))
+        if top_k > 1:
+            return format_top_k_safety_results(result, ", ".join(polymer_list))
+        return format_safety_result(result)
+
+    # Force DP when top_k > 1 (beam DP requires the full selectivity cache)
+    if top_k > 1:
+        if len(polymer_list) > 12:
+            return "Error: top_k > 1 requires n <= 12 for DP algorithm."
+        result = run_async(find_best_separation(
+            polymer_list, conn, temperature, "dp", top_k=top_k,
+        ))
+        return format_top_k_results(result, ", ".join(polymer_list))
 
     # Standard mode: run single algorithm
     result = run_async(find_best_separation(polymer_list, conn, temperature, algorithm))
@@ -3783,7 +3945,7 @@ def get_supported_polymers_and_solvents() -> str:
     """List all polymers and their available solvents in the interpolation coefficient database.
 
     Returns a formatted catalogue of every polymer-solvent pair that has fitted
-    ln(S) = A + B/T + C/T² coefficients, along with the valid temperature range.
+    ln(S) = A + B/T + C·ln(T) coefficients (modified Apelblat), along with the valid temperature range.
     Use this before running separation or solubility tools to confirm that the
     polymer or solvent of interest is supported — tools silently return null/zero
     for unsupported pairs.

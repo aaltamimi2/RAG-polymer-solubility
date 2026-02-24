@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fit ln(S) = A + B/T_K + C/T_K^2 for every (polymer, solvent) pair.
+"""Fit ln(S) = A + B/T_K + C*ln(T_K) for every (polymer, solvent) pair (modified Apelblat).
 
 Reads data/COMMON-SOLVENTS-DATABASE.csv and writes
 data/solubility_coefficients.json with 352 coefficient entries.
@@ -34,8 +34,8 @@ R2_THRESHOLD = 0.98
 
 
 def _model(t_k: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    """ln(S) = A + B/T_K + C/T_K^2"""
-    return a + b / t_k + c / t_k**2
+    """ln(S) = A + B/T_K + C*ln(T_K)  (modified Apelblat)"""
+    return a + b / t_k + c * np.log(t_k)
 
 
 def _r_squared(y_actual: np.ndarray, y_predicted: np.ndarray) -> float:
@@ -169,7 +169,7 @@ def main() -> None:
         })
 
     output = {
-        "description": "Solubility interpolation coefficients: ln(S%) = A + B/T_K + C/T_K^2",
+        "description": "Solubility interpolation coefficients: ln(S%) = A + B/T_K + C*ln(T_K)  (modified Apelblat)",
         "note": "Exact S=100% points (COSMO-RS NaN artifacts) excluded before fitting.",
         "source": "COMMON-SOLVENTS-DATABASE.csv",
         "model_path": "data/solubility_coefficients.json",

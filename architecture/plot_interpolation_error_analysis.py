@@ -57,7 +57,7 @@ def apply_pub_style():
 
 def predict(entry, temp_c):
     t_k = temp_c + 273.15
-    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] / t_k**2
+    ln_s = entry["A"] + entry["B"] / t_k + entry["C"] * np.log(t_k)
     return np.clip(np.exp(ln_s), 0.0, 100.0)
 
 
