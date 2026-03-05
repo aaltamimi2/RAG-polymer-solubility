@@ -21,6 +21,7 @@ from typing import Optional
 #   gsk_db      — name in the gsk_dataset SQL table (may differ or be None)
 #   biosteam    — exact name for BioSTEAM / thermosteam registry (None if N/A)
 #   bp_db_key   — lowercase key in the solvent_data table for BP/LogP cache
+#   cas         — CAS registry number (for GreenSolventDB 10K lookup)
 #   aliases     — every user-facing spelling that should resolve to this entry
 #                  (the interp_key itself is added automatically)
 
@@ -32,6 +33,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Water",
         "biosteam": None,
         "bp_db_key": "water",
+        "cas": "7732-18-5",
         "aliases": ["water"],
     },
     # ── Ketones ──
@@ -41,6 +43,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Acetone",
         "biosteam": "Acetone",
         "bp_db_key": "acetone",
+        "cas": "67-64-1",
         "aliases": ["acetone", "2-propanone"],
     },
     "butanone": {
@@ -48,7 +51,8 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "property_db": "Methyl ethyl ketone",
         "gsk_db": "2-Butanone",
         "biosteam": "2-Butanone",
-        "bp_db_key": "methyl ethyl ketone",
+        "bp_db_key": "methyl ethyl ketone (mek)",
+        "cas": "78-93-3",
         "aliases": ["methyl ethyl ketone", "mek"],
     },
     "acetylacetone": {
@@ -57,6 +61,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Acetylacetone",
         "bp_db_key": "2,4-pentanedione",
+        "cas": "123-54-6",
         "aliases": ["2,4-pentanedione", "acac"],
     },
     # ── Polar aprotic ──
@@ -66,6 +71,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "DMF",
         "biosteam": "N,N-Dimethylformamide",
         "bp_db_key": "dimethyl formamide (dmf)",
+        "cas": "68-12-2",
         "aliases": ["dmf", "n,n-dimethylformamide", "dimethyl formamide"],
     },
     "dimethylsulfoxide": {
@@ -74,6 +80,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Dimethyl sulfoxide",
         "biosteam": "Dimethyl sulfoxide",
         "bp_db_key": "dimethyl sulfoxide (dmso)",
+        "cas": "67-68-5",
         "aliases": ["dmso", "dimethyl sulfoxide"],
     },
     # ── Halogenated ──
@@ -83,6 +90,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Dichloromethane",
         "biosteam": "Dichloromethane",
         "bp_db_key": "methylene dichloride (dichloromethane)",
+        "cas": "75-09-2",
         "aliases": ["dichloromethane", "dcm", "methylene chloride"],
     },
     "chcl3": {
@@ -91,6 +99,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Chloroform",
         "biosteam": None,
         "bp_db_key": "chloroform",
+        "cas": "67-66-3",
         "aliases": ["chloroform", "trichloromethane"],
     },
     # ── Esters ──
@@ -100,6 +109,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Ethyl acetate",
         "biosteam": "Ethyl acetate",
         "bp_db_key": "ethyl acetate",
+        "cas": "141-78-6",
         "aliases": ["ethyl acetate", "etac"],
     },
     "methylacetate": {
@@ -108,6 +118,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Methyl acetate",
         "biosteam": "Methyl acetate",
         "bp_db_key": "methyl acetate",
+        "cas": "79-20-9",
         "aliases": ["methyl acetate"],
     },
     # ── Ethers ──
@@ -117,6 +128,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "THF",
         "biosteam": "Tetrahydrofuran",
         "bp_db_key": "tetrahydrofuran (thf)",
+        "cas": "109-99-9",
         "aliases": ["tetrahydrofuran"],
     },
     "thp": {
@@ -125,14 +137,16 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Tetrahydropyran",
         "bp_db_key": "tetrahydropyran",
+        "cas": "142-68-7",
         "aliases": ["tetrahydropyran"],
     },
     "diphenylether": {
         "interp_key": "diphenylether",
         "property_db": "Diphenyl ether",
-        "gsk_db": None,
+        "gsk_db": "Diphenyl ether",
         "biosteam": "Diphenyl ether",
         "bp_db_key": "diphenyl ether",
+        "cas": "101-84-8",
         "aliases": ["diphenyl ether"],
     },
     "2,3-dihydropyran": {
@@ -140,7 +154,8 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "property_db": None,
         "gsk_db": None,
         "biosteam": "2,3-Dihydropyran",
-        "bp_db_key": None,
+        "bp_db_key": "dihydropyran",
+        "cas": "110-87-2",
         "aliases": ["dihydropyran"],
     },
     # ── Glycols ──
@@ -150,6 +165,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Ethylene glycol",
         "biosteam": "Ethylene Glycol",
         "bp_db_key": "ethylene glycol",
+        "cas": "107-21-1",
         "aliases": ["ethylene glycol", "meg", "monoethylene glycol", "1,2-ethanediol"],
     },
     "propyleneglycol": {
@@ -158,6 +174,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "1,2-Propanediol",
         "biosteam": "Propylene Glycol",
         "bp_db_key": "propylene glycol",
+        "cas": "57-55-6",
         "aliases": ["propylene glycol", "1,2-propanediol"],
     },
     # ── Aromatics ──
@@ -167,6 +184,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Toluene",
         "biosteam": "Toluene",
         "bp_db_key": None,
+        "cas": "108-88-3",
         "aliases": ["phme", "toluol", "methylbenzene"],
     },
     "benzene": {
@@ -175,6 +193,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Benzene",
         "biosteam": "Benzene",
         "bp_db_key": None,
+        "cas": "71-43-2",
         "aliases": ["phh"],
     },
     "1,2-dimethylbenzene": {
@@ -183,6 +202,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "o-Xylene",
         "biosteam": "o-Xylene",
         "bp_db_key": "o-xylene",
+        "cas": "95-47-6",
         "aliases": ["o-xylene", "ortho-xylene"],
     },
     "1,4-dimethylbenzene": {
@@ -191,6 +211,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "p-Xylene",
         "biosteam": "p-Xylene",
         "bp_db_key": "xylene",
+        "cas": "106-42-3",
         "aliases": ["p-xylene", "para-xylene"],
     },
     # ── Alkanes ──
@@ -200,6 +221,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "n-Heptane",
         "biosteam": "Heptane",
         "bp_db_key": "heptane",
+        "cas": "142-82-5",
         "aliases": ["heptane"],
     },
     "hexane": {
@@ -208,6 +230,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "n-Hexane",
         "biosteam": "Hexane",
         "bp_db_key": None,
+        "cas": "110-54-3",
         "aliases": ["n-hexane"],
     },
     "dodecane": {
@@ -216,6 +239,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Dodecane",
         "biosteam": "Dodecane",
         "bp_db_key": None,
+        "cas": "112-40-3",
         "aliases": [],
     },
     "cyclohexane": {
@@ -224,6 +248,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Cyclohexane",
         "biosteam": "Cyclohexane",
         "bp_db_key": None,
+        "cas": "110-82-7",
         "aliases": [],
     },
     # ── Alcohols ──
@@ -233,6 +258,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Methanol",
         "biosteam": "Methanol",
         "bp_db_key": None,
+        "cas": "67-56-1",
         "aliases": ["meoh"],
     },
     "ethanol": {
@@ -241,6 +267,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Ethanol",
         "biosteam": "Ethanol",
         "bp_db_key": None,
+        "cas": "64-17-5",
         "aliases": ["etoh"],
     },
     "propanol": {
@@ -249,6 +276,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "1-Propanol",
         "biosteam": "1-Propanol",
         "bp_db_key": "1-propanol",
+        "cas": "71-23-8",
         "aliases": ["1-propanol", "n-propanol"],
     },
     "2-propanol": {
@@ -257,15 +285,17 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "2-Propanol",
         "biosteam": "Isopropanol",
         "bp_db_key": "isopropanol",
+        "cas": "67-63-0",
         "aliases": ["isopropanol", "ipa", "isopropyl alcohol"],
     },
     "tert-butanol": {
         "interp_key": "tert-butanol",
         "property_db": "tert-Butanol",
-        "gsk_db": "tert-Butanol",
+        "gsk_db": "t-Butanol",
         "biosteam": "tert-Butanol",
-        "bp_db_key": "tert-butyl alcohol",
-        "aliases": ["tert-butyl alcohol"],
+        "bp_db_key": "t-butyl alcohol",
+        "cas": "75-65-0",
+        "aliases": ["tert-butyl alcohol", "t-butyl alcohol"],
     },
     "cyclohexanol": {
         "interp_key": "cyclohexanol",
@@ -273,6 +303,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Cyclohexanol",
         "biosteam": "Cyclohexanol",
         "bp_db_key": None,
+        "cas": "108-93-0",
         "aliases": [],
     },
     # ── Amines ──
@@ -282,6 +313,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": "Triethylamine",
         "biosteam": "Triethylamine",
         "bp_db_key": None,
+        "cas": "121-44-8",
         "aliases": ["tea"],
     },
     "isopropylamine": {
@@ -289,8 +321,9 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "property_db": "Isopropylamine",
         "gsk_db": None,
         "biosteam": None,
-        "bp_db_key": None,
-        "aliases": [],
+        "bp_db_key": "isopropyl amine (2-propan amine)",
+        "cas": "75-31-0",
+        "aliases": ["isopropyl amine"],
     },
     # ── BioSTEAM-only solvents (no solubility/property/GSK data) ──
     "pyridazine": {
@@ -300,6 +333,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Pyridazine",
         "bp_db_key": None,
+        "cas": "289-80-5",
         "aliases": ["pyridazine"],
     },
     "butanediol": {
@@ -309,6 +343,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "butane-1,4-diol",
         "bp_db_key": None,
+        "cas": "110-63-4",
         "aliases": ["butanediol", "1,4-butanediol", "bdo", "butane-1,4-diol"],
     },
     "diethanolamine": {
@@ -318,6 +353,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Diethanolamine",
         "bp_db_key": None,
+        "cas": "111-42-2",
         "aliases": ["diethanolamine", "dea"],
     },
     "diethylene_glycol": {
@@ -327,6 +363,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Diethylene glycol",
         "bp_db_key": None,
+        "cas": "111-46-6",
         "aliases": ["diethylene glycol", "deg"],
     },
     "gbl": {
@@ -336,6 +373,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "gamma-butyrolactone",
         "bp_db_key": None,
+        "cas": "96-48-0",
         "aliases": ["gamma-butyrolactone", "gbl", "butyrolactone"],
     },
     "methylcyclohexane": {
@@ -345,6 +383,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Methylcyclohexane",
         "bp_db_key": None,
+        "cas": "108-87-2",
         "aliases": ["methylcyclohexane", "mch"],
     },
     "sec_butyl_acetate": {
@@ -354,6 +393,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "sec-Butyl Acetate",
         "bp_db_key": None,
+        "cas": "105-46-4",
         "aliases": ["sec-butyl acetate", "sba"],
     },
     "isobutyl_acetate": {
@@ -363,6 +403,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Isobutyl Acetate",
         "bp_db_key": None,
+        "cas": "110-19-0",
         "aliases": ["isobutyl acetate"],
     },
     "dodecanol": {
@@ -372,7 +413,18 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "gsk_db": None,
         "biosteam": "Dodecanol",
         "bp_db_key": None,
+        "cas": "112-53-8",
         "aliases": ["dodecanol", "1-dodecanol", "lauryl alcohol"],
+    },
+    # ── Lactones ──
+    "gvl": {
+        "interp_key": "gvl",
+        "property_db": "gamma-Valerolactone",
+        "gsk_db": None,
+        "biosteam": None,
+        "bp_db_key": "gvl",
+        "cas": "108-29-2",
+        "aliases": ["gamma-valerolactone", "γ-valerolactone"],
     },
 }
 

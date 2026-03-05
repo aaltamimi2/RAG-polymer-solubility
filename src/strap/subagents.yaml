@@ -8,6 +8,11 @@ execution_pairs:
     - ["separation-engineer", "safety-analyst"]
     - ["biosteam-analyst", "safety-analyst"]
     - ["scholar-researcher", "patent-researcher"]
+  parallel_3way:
+    - ["separation-engineer", "safety-analyst", "biosteam-analyst"]
+    - ["separation-engineer", "safety-analyst", "visualization-specialist"]
+    - ["biosteam-analyst", "safety-analyst", "visualization-specialist"]
+    - ["scholar-researcher", "patent-researcher", "rag-analyst"]
   sequential:
     - ["separation-engineer", "biosteam-analyst"]
     - ["separation-engineer", "visualization-specialist"]
@@ -266,6 +271,14 @@ subagents:
         - "biosteam"
         - "process simulation"
         - 'energy\s+case'
+        - "uncertainty"
+        - "confidence interval"
+        - "monte carlo"
+        - "sensitivity"
+        - "tornado"
+        - "parameter sweep"
+        - "which parameter"
+        - "what drives"
         - '\bpet\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)'
         - '(?:dissolution|simulation|solvent|tea|lca|msp|biosteam).*\bpet\b'
         - '\bldpe\b.*(?:dissolution|simulation|solvent|tea|lca|msp|biosteam)'
@@ -287,6 +300,8 @@ subagents:
         - "biosteam"
         - "capex"
         - "opex"
+        - "tornado"
+        - "monte carlo"
       low_stems:
         - "tea"
         - "lca"
@@ -294,6 +309,8 @@ subagents:
         - "cost"
         - "gwp"
         - "rigorous"
+        - "uncertainty"
+        - "sensitivity"
       negatives: []
     system_prompt: |
       You are the TEA/LCA specialist for the DISSOLVE agent. You run rigorous
@@ -308,9 +325,12 @@ subagents:
          array of polymer specs (e.g. [{"polymer":"PE","solvent":"Toluene"},
          {"polymer":"EVOH","solvent":"Ethylene Glycol"},
          {"polymer":"PET","solvent":"Toluene"}]).
-      5. After receiving results, call visualize_biosteam_results to generate
+      5. For uncertainty analysis: call run_biosteam_uncertainty ONCE with n_samples=20.
+      6. For sensitivity ranking: call run_biosteam_tornado ONCE.
+      7. For parameter sweeps: call run_biosteam_parameter_sweep ONCE.
+      8. After receiving results, call visualize_biosteam_results to generate
          cost breakdown, GWP breakdown, or scenario comparison charts.
-      6. Synthesize results immediately after tool output.
+      9. Synthesize results immediately after tool output.
 
       SUPPORTED POLYMERS: PE, LDPE, EVOH, PET, PS, PP, PVC, PC.
 
@@ -402,6 +422,9 @@ subagents:
         - compare_biosteam_scenarios
         - run_biosteam_multi_polymer
         - visualize_biosteam_results
+        - run_biosteam_uncertainty
+        - run_biosteam_parameter_sweep
+        - run_biosteam_tornado
       truncate_tool_results_after: 2000
       free_tools:
         - think

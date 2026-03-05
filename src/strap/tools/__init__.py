@@ -217,6 +217,9 @@ def get_biosteam_tools() -> list:
         "get_biosteam_solvents",
         "visualize_biosteam_results",
         "run_biosteam_multi_polymer",
+        "run_biosteam_uncertainty",
+        "run_biosteam_parameter_sweep",
+        "run_biosteam_tornado",
     ])
 
 

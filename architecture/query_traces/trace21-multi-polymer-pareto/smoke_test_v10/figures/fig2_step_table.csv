@@ -1,0 +1,4 @@
+Rank,Label,avg_msp,avg_gwp,total_msp,total_gwp,is_pareto,step1_polymer,step1_solvent,step1_temp_c,step1_msp,step1_gwp,step2_polymer,step2_solvent,step2_temp_c,step2_msp,step2_gwp,step3_polymer,step3_solvent,step3_temp_c,step3_msp,step3_gwp
+1,Seq B: Tol/EtOAc/PC,1.0689,1.0354,3.2068,3.1062,True,PE,Toluene,110,1.1037483558885832,0.972557132751723,PET,Ethyl acetate,80,1.076835279002521,0.9110399152055387,EVOH,Propylene Carbonate,120,1.0262235711662977,1.2226157447679342
+2,Seq A: EG/DMSO/DMF,1.0759,1.1696,3.2276,3.5087,False,PE,Ethylene Glycol,120,1.077348879963113,1.2843803433294758,PET,Dimethyl sulfoxide,135,1.0634072166483937,1.1512425426923565,EVOH,"N,N-Dimethylformamide",100,1.08683691830151,1.0731133446725643
+3,Seq C: Dod/PG/DMSO,1.1313,1.2542,3.3939,3.7625,False,PE,Dodecane,130,1.2167149478587458,1.3142914276374258,PET,Propylene Glycol,160,1.1137929838611025,1.296935162035153,EVOH,Dimethyl sulfoxide,135,1.063407216648394,1.1512425426923565

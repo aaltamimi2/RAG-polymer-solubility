@@ -1,0 +1,641 @@
+{
+  "phase": "multi-polymer",
+  "timestamp": "20260227_132017",
+  "feedstock": {
+    "PE": 0.4,
+    "PET": 0.3,
+    "EVOH": 0.3
+  },
+  "polymers": [
+    "EVOH",
+    "PE",
+    "PET"
+  ],
+  "n_combinations": 15,
+  "n_pareto": 8,
+  "combinations": [
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0607,
+      "total_gwp": 1.0254,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Dimethyl sulfoxide",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0607,
+      "total_gwp": 1.0264,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Dimethyl sulfoxide",
+          "msp": 1.0570883096445105,
+          "gwp": 1.148091115125999
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0713,
+      "total_gwp": 0.9771,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Dimethyl sulfoxide",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0713,
+      "total_gwp": 0.9781,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Dimethyl sulfoxide",
+          "msp": 1.0570883096445105,
+          "gwp": 1.148091115125999
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "N,N-Dimethylformamide",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0714,
+      "total_gwp": 1.0055,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "N,N-Dimethylformamide",
+          "msp": 1.0927510467838368,
+          "gwp": 1.0786678507643916
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0738,
+      "total_gwp": 0.975,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Dimethyl sulfoxide",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0738,
+      "total_gwp": 0.976,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Dimethyl sulfoxide",
+          "msp": 1.0570883096445105,
+          "gwp": 1.148091115125999
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "N,N-Dimethylformamide",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.082,
+      "total_gwp": 0.9573,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "N,N-Dimethylformamide",
+          "msp": 1.0927510467838368,
+          "gwp": 1.0786678507643916
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethanol",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0835,
+      "total_gwp": 0.973,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethanol",
+          "msp": 1.1333223848933014,
+          "gwp": 0.9702656472457436
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "N,N-Dimethylformamide",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0845,
+      "total_gwp": 0.9552,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "N,N-Dimethylformamide",
+          "msp": 1.0927510467838368,
+          "gwp": 1.0786678507643916
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Triethylamine",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0932,
+      "total_gwp": 0.9727,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Triethylamine",
+          "msp": 1.1657326924207323,
+          "gwp": 0.9693552198958049
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethanol",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0942,
+      "total_gwp": 0.9247,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethanol",
+          "msp": 1.1333223848933014,
+          "gwp": 0.9702656472457436
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethanol",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0967,
+      "total_gwp": 0.9226,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethanol",
+          "msp": 1.1333223848933014,
+          "gwp": 0.9702656472457436
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Triethylamine",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.1039,
+      "total_gwp": 0.9245,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Triethylamine",
+          "msp": 1.1657326924207323,
+          "gwp": 0.9693552198958049
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": false
+    },
+    {
+      "solvents": {
+        "EVOH": "Triethylamine",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.1064,
+      "total_gwp": 0.9224,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Triethylamine",
+          "msp": 1.1657326924207323,
+          "gwp": 0.9693552198958049
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    }
+  ],
+  "pareto_combinations": [
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "o-Chlorotoluene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0607,
+      "total_gwp": 1.0254,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796306,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0713,
+      "total_gwp": 0.9771,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "gamma-butyrolactone",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0738,
+      "total_gwp": 0.975,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "gamma-butyrolactone",
+          "msp": 1.0570958227530514,
+          "gwp": 1.1447676804668152
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "N,N-Dimethylformamide",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.082,
+      "total_gwp": 0.9573,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "N,N-Dimethylformamide",
+          "msp": 1.0927510467838368,
+          "gwp": 1.0786678507643916
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "N,N-Dimethylformamide",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0845,
+      "total_gwp": 0.9552,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "N,N-Dimethylformamide",
+          "msp": 1.0927510467838368,
+          "gwp": 1.0786678507643916
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethanol",
+        "PE": "Ethyl acetate",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0942,
+      "total_gwp": 0.9247,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethanol",
+          "msp": 1.1333223848933014,
+          "gwp": 0.9702656472457436
+        },
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethanol",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.0967,
+      "total_gwp": 0.9226,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethanol",
+          "msp": 1.1333223848933014,
+          "gwp": 0.9702656472457436
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Triethylamine",
+        "PE": "Benzene",
+        "PET": "Benzene"
+      },
+      "total_msp": 1.1064,
+      "total_gwp": 0.9224,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Triethylamine",
+          "msp": 1.1657326924207323,
+          "gwp": 0.9693552198958049
+        },
+        "PE": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        },
+        "PET": {
+          "solvent": "Benzene",
+          "msp": 1.0809602477945013,
+          "gwp": 0.9022416877786608
+        }
+      },
+      "is_pareto": true
+    }
+  ]
+}

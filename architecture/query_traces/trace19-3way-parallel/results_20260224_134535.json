@@ -1,0 +1,362 @@
+{
+  "timestamp": "20260224_134535",
+  "campaign": "3-way-parallel",
+  "n_queries": 10,
+  "results": [
+    {
+      "name": "3way-sep-safe-bio-1",
+      "query": "Find the optimal separation sequence for LDPE/PP/HDPE mixed waste, assess the GSK safety G-scores and PubChem hazards for each recommended solvent, and run BioSTEAM TEA simulations under energy case C1 to estimate MSP and GWP for the top solvent.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 99.3,
+      "total_tokens": 82401,
+      "input_tokens": 79377,
+      "output_tokens": 3024,
+      "n_tool_calls": 6,
+      "n_messages": 13,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "task",
+        "write_todos"
+      ],
+      "trace_id": "019c9103-20d3-7a21-83c2-a5d514aa58c6",
+      "answer_preview": "Here is the comprehensive analysis for the separation of a mixed waste stream of LDPE, PP, and HDPE.\n\n### 1. Optimal Separation Sequence\n\nThe recommended separation sequence, as determined by our separation engineering specialist, is as follows:\n\n1.  **Separate LDPE:** Use **ethanol** at 120\u00b0C to selectively dissolve LDPE.\n2.  **Separate PP:** Use **tetrahydrofuran (THF)** at 120\u00b0C to dissolve PP, leaving HDPE as the solid.\n3.  **HDPE Recovery:** The remaining solid is HDPE.\n\nThis sequence was i...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T12:58:53.153515",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-bio-1/3way-sep-safe-bio-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-sep-safe-bio-2",
+      "query": "Plan a selective dissolution scheme to separate PS from PVC at atmospheric pressure. Get LD50 toxicity and GSK G-score data for each candidate solvent. Also run a BioSTEAM batch comparison of the viable solvents for PS recovery under C1.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 110.4,
+      "total_tokens": 72448,
+      "input_tokens": 69136,
+      "output_tokens": 3312,
+      "n_tool_calls": 7,
+      "n_messages": 13,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c9104-dcc0-7dd0-9332-401054326109",
+      "answer_preview": "Based on the comprehensive analysis, here is the recommended plan for selectively dissolving Polystyrene (PS) from a mixture with Polyvinyl Chloride (PVC).\n\n### **Overall Recommendation: Ethyl Acetate**\n\nThe best solvent for this separation is **Ethyl acetate**. It offers the best balance of safety, economic viability, and separation performance.\n\n### **1. Separation Scheme**\n\nThe `separation-engineer` identified three potential solvents for selectively dissolving PS. Here is a summary of the fi...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:00:52.770413",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-bio-2/3way-sep-safe-bio-2_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-sep-safe-bio-3",
+      "query": "Identify solvents that selectively dissolve EVOH from PE in a multilayer film waste stream. Evaluate each solvent's safety profile (GSK G-score, PubChem GHS hazards). Run a BioSTEAM process simulation for the safest viable solvent under energy case C2.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "biosteam-analyst"
+      ],
+      "wall_time_s": 126.3,
+      "total_tokens": 129472,
+      "input_tokens": 124617,
+      "output_tokens": 4855,
+      "n_tool_calls": 8,
+      "n_messages": 18,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "write_todos"
+      ],
+      "trace_id": "019c9106-ac08-71c2-b0c8-b28e9752e02e",
+      "answer_preview": "Based on the analysis, here is a summary of the findings and recommendations for selectively dissolving EVOH from a PE/EVOH multilayer film waste stream.\n\n### 1. Solvent Selection for Separation\n\nThe primary goal was to find a solvent that effectively dissolves EVOH while leaving PE (both LDPE and HDPE) undissolved at 120\u00b0C. The most promising solvents identified were:\n\n*   **Dimethyl sulfoxide (DMSO):** Demonstrated the highest selectivity (30.13), making it the most effective at separating the...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:03:08.895544",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-bio-3/3way-sep-safe-bio-3_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-sep-safe-viz-1",
+      "query": "Find the optimal separation sequence for PC/PS/PET mixed waste using selective dissolution. Assess GSK safety G-scores for each recommended solvent. Create a selectivity heatmap showing polymer-solvent selectivity across the waste stream.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 72.7,
+      "total_tokens": 29537,
+      "input_tokens": 27570,
+      "output_tokens": 1967,
+      "n_tool_calls": 4,
+      "n_messages": 7,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9108-ba9f-7e23-827b-95461c97688a",
+      "answer_preview": "This is an excellent query that requires a multi-faceted approach, combining process engineering, safety analysis, and data visualization. I will delegate the work to three specialist agents who will work in parallel to provide a comprehensive solution.\n\nHere is my plan:\n\n1.  **Separation Engineer**: I will task this specialist with finding the optimal, most energy-efficient, and safest separation sequence for PC, PS, and PET using selective dissolution at 120\u00b0C.\n2.  **Safety Analyst**: Concurre...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:04:30.740216",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-viz-1/3way-sep-safe-viz-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-sep-safe-viz-2",
+      "query": "Plan a 3-polymer separation cascade for LDPE/PET/EVOH/PC. Check PubChem hazard data and LD50 toxicity for all candidate solvents. Then create a process flow diagram showing the dissolution stages with safety annotations.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 102.5,
+      "total_tokens": 28631,
+      "input_tokens": 25858,
+      "output_tokens": 2773,
+      "n_tool_calls": 4,
+      "n_messages": 7,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9109-f7bb-72b0-93cd-5c5bdae39be4",
+      "answer_preview": "I have received the results from the parallel subagent tasks. Here's a summary of the findings so far:\n\n*   **Separation Sequence:** The `separation-engineer` has identified the optimal 3-polymer separation cascade from the four specified polymers (LDPE, PET, EVOH, PC).\n*   **Solvent Safety Analysis:** The `safety-analyst` has provided a safety and hazard assessment for the candidate solvents, including GSK G-Scores and PubChem GHS data.\n*   **Process Flow Diagram:** The `visualization-specialis...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:06:20.824759",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-viz-2/3way-sep-safe-viz-2_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-sep-safe-viz-3",
+      "query": "Find solvents for separating PVC from PS below their boiling points at atmospheric pressure. Get GSK G-scores for each solvent. Plot solubility vs temperature curves for both polymers in the top 3 solvents from 25 to 130 degrees C.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "separation-engineer",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 84.6,
+      "total_tokens": 56185,
+      "input_tokens": 52390,
+      "output_tokens": 3795,
+      "n_tool_calls": 6,
+      "n_messages": 11,
+      "tool_names": [
+        "write_todos",
+        "rank_solvents_selectivity",
+        "rank_solvents_selectivity",
+        "write_todos",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c910b-acc9-77d1-9737-5f58e5199f05",
+      "answer_preview": "I have completed the analysis for separating PVC from PS. Here is a summary of the findings:\n\n### Solvent Selection for Separation\n\nThe most effective strategy is to selectively dissolve Polystyrene (PS) while leaving Polyvinyl Chloride (PVC) undissolved. At 120\u00b0C, the top-performing solvents that are safe to use at atmospheric pressure are:\n\n1.  **1,4-dimethylbenzene (p-Xylene)**: Selectivity of 26.5\n2.  **1,2-dimethylbenzene (o-Xylene)**: Selectivity of 26.4\n3.  **Diphenylether**: Selectivity ...",
+      "routing_match": false,
+      "timestamp": "2026-02-24T13:07:55.313704",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-sep-safe-viz-3/3way-sep-safe-viz-3_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-bio-safe-viz-1",
+      "query": "Run a BioSTEAM batch comparison of Toluene, Xylene, and Heptane for PE recovery under energy case C1. Get GSK safety G-scores and PubChem hazard data for all three solvents. Visualize the BioSTEAM results as a cost breakdown chart.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "biosteam-analyst",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 74.3,
+      "total_tokens": 27669,
+      "input_tokens": 25728,
+      "output_tokens": 1941,
+      "n_tool_calls": 3,
+      "n_messages": 6,
+      "tool_names": [
+        "task",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c910d-16b9-7280-a581-dc042e23d132",
+      "answer_preview": "Here is the comprehensive analysis of Toluene, Xylene, and Heptane for Polyethylene (PE) recovery.\n\n### Techno-economic & Environmental Analysis\n\nThe BioSTEAM simulation compared the three solvents based on Minimum Selling Price (MSP) to assess economic viability and Global Warming Potential (GWP) for environmental impact.\n\n*   **Most Economical:** **Xylene** is the most cost-effective solvent with the lowest MSP at **$0.98/kg**.\n*   **Best Environmental Performance:** **Heptane** has the lowest...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:09:16.457323",
+      "error": null,
+      "waterfall_png": "/home/aaltamimi2/langchain-STRAP-v8/architecture/query_traces/trace19-3way-parallel/3way-bio-safe-viz-1/3way-bio-safe-viz-1_trace.png",
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-bio-safe-viz-2",
+      "query": "Run BioSTEAM simulations for Tetrahydrofuran and Cyclohexane dissolving PS under C1. Assess both solvents' safety profiles including LD50 toxicity. Plot the MSP and GWP comparison as a scenario bar chart.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "biosteam-analyst",
+        "safety-analyst",
+        "visualization-specialist"
+      ],
+      "actual_subagents": [
+        "biosteam-analyst",
+        "safety-analyst",
+        "visualization-specialist",
+        "visualization-specialist"
+      ],
+      "wall_time_s": 148.4,
+      "total_tokens": 105234,
+      "input_tokens": 101049,
+      "output_tokens": 4185,
+      "n_tool_calls": 11,
+      "n_messages": 19,
+      "tool_names": [
+        "write_todos",
+        "task",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "task",
+        "write_todos",
+        "read_file",
+        "ls",
+        "write_todos"
+      ],
+      "trace_id": "019c910e-53be-7251-80c9-a990ee25b52b",
+      "answer_preview": "I have completed the analysis comparing Tetrahydrofuran (THF) and Cyclohexane for dissolving Polystyrene (PS). Here is a summary of the findings, covering economic, environmental, and safety aspects.\n\n### **Techno-Economic and Environmental Analysis**\n\nThe BioSTEAM process simulations reveal a trade-off between economic and environmental performance for the two solvents:\n\n*   **Tetrahydrofuran (THF)** is the more economical choice with a **Minimum Selling Price (MSP) of $0.95/kg**. However, it h...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:11:51.761589",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-scholar-patent-rag-1",
+      "query": "Search Google Scholar for recent papers on polyolefin dissolution recycling with green solvents. Search patents for solvent-based polyethylene recovery processes. Then query the RAG index to summarize what dissolution temperatures and solvents the indexed literature recommends for PE.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst"
+      ],
+      "wall_time_s": 180.1,
+      "total_tokens": 28260,
+      "input_tokens": 26886,
+      "output_tokens": 1374,
+      "n_tool_calls": 3,
+      "n_messages": 6,
+      "tool_names": [
+        "task",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9110-b397-7702-b2b2-502c44a1d702",
+      "answer_preview": "Here is a summary of the findings from the literature search, patent review, and RAG query on solvent-based polyolefin recycling.\n\n### **Recent Academic Literature on Polyolefin Recycling**\n\nRecent research focuses on enhancing the efficiency and sustainability of polyolefin dissolution recycling. Key themes include:\n\n*   **Fundamental Understanding**: Studies are delving into the kinetics of polyethylene dissolution, examining the roles of decrystallization and disentanglement to optimize recyc...",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:14:58.251632",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    },
+    {
+      "name": "3way-scholar-patent-rag-2",
+      "query": "Find academic publications on EVOH barrier layer dissolution and recovery methods. Search for patents on ethylene vinyl alcohol recycling. Then ask the RAG knowledge base what conditions are needed for selective EVOH dissolution from multilayer packaging.",
+      "pattern": "parallel",
+      "expected_subagents": [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst"
+      ],
+      "actual_subagents": [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst"
+      ],
+      "wall_time_s": 1828.3,
+      "total_tokens": 26220,
+      "input_tokens": 25511,
+      "output_tokens": 709,
+      "n_tool_calls": 3,
+      "n_messages": 6,
+      "tool_names": [
+        "task",
+        "task",
+        "task"
+      ],
+      "trace_id": "019c9113-85e6-7600-8cde-49cbbbfadf38",
+      "answer_preview": "I have initiated the searches across academic, patent, and internal knowledge bases. This may take a moment. I will synthesize the results from all three sources as soon as they are available.",
+      "routing_match": true,
+      "timestamp": "2026-02-24T13:45:31.712205",
+      "error": null,
+      "waterfall_png": null,
+      "swimlane_png": null
+    }
+  ]
+}

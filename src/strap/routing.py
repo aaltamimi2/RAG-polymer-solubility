@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 # Routing rules — loaded from subagents.yaml at import time
 # ------------------------------------------------------------------
 
-def _load_routing_rules() -> tuple[list[dict], set[frozenset], dict[tuple, None]]:
+def _load_routing_rules() -> tuple[list[dict], set[frozenset], set[frozenset], dict[tuple, None]]:
     """Load routing rules from subagents.yaml.
 
     Builds ROUTING_RULES from subagent specs that have a ``routing:`` key,
@@ -80,21 +80,26 @@ def _load_routing_rules() -> tuple[list[dict], set[frozenset], dict[tuple, None]
         for pair in exec_pairs.get("parallel", []):
             parallel_pairs.add(frozenset(pair))
 
+        # Build PARALLEL_3WAY
+        parallel_3way: set[frozenset] = set()
+        for group in exec_pairs.get("parallel_3way", []):
+            parallel_3way.add(frozenset(group))
+
         # Build SEQUENTIAL_PAIRS
         sequential_pairs: dict[tuple, None] = {}
         for pair in exec_pairs.get("sequential", []):
             sequential_pairs[(pair[0], pair[1])] = None
 
-        return routing_rules, parallel_pairs, sequential_pairs
+        return routing_rules, parallel_pairs, parallel_3way, sequential_pairs
 
     except Exception as e:
         logger.warning(
             "Failed to load routing rules from YAML: %s — using empty defaults", e
         )
-        return {}, [], []
+        return {}, [], set(), []
 
 
-ROUTING_RULES, PARALLEL_PAIRS, SEQUENTIAL_PAIRS = _load_routing_rules()
+ROUTING_RULES, PARALLEL_PAIRS, PARALLEL_3WAY, SEQUENTIAL_PAIRS = _load_routing_rules()
 
 
 # ------------------------------------------------------------------
@@ -292,6 +297,20 @@ def _build_hint_from_matches(matched_rules: list[dict]) -> str | None:
             f'Consider delegating via task(subagent_type="{rule["subagent"]}"). '
             f'For simple queries you can also answer directly using your own tools.]'
         )
+
+    # 3-way parallel check
+    if len(matched_rules) == 3:
+        trio_set = frozenset(r["subagent"] for r in matched_rules)
+        if trio_set in PARALLEL_3WAY:
+            agent_descs = ", ".join(
+                f'"{r["subagent"]}" ({r["description"]})'
+                for r in matched_rules
+            )
+            return (
+                f'\n\n[ADVISORY: This query may benefit from three specialists in parallel: '
+                f'{agent_descs}. '
+                f'You may delegate to all three via concurrent task() calls.]'
+            )
 
     # Multi-agent routing
     if len(matched_rules) == 2:

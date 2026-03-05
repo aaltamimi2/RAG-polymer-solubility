@@ -19,12 +19,20 @@ try:
         run_batch_simulations,
         build_batch_configs,
         get_supported_solvents,
+        _get_default_parameter_ranges,
+        _build_monte_carlo_configs,
+        _build_sweep_configs,
+        _build_tornado_configs,
     )
 except ImportError:
     run_single_simulation = None
     run_batch_simulations = None
     build_batch_configs = None
     get_supported_solvents = None
+    _get_default_parameter_ranges = None
+    _build_monte_carlo_configs = None
+    _build_sweep_configs = None
+    _build_tornado_configs = None
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +148,13 @@ from strap.solvent_registry import resolve_to_biosteam as _resolve_biosteam
 
 
 def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
-    """Parse comma-separated solvent string or expand shorthand keywords."""
+    """Parse comma-separated solvent string or expand shorthand keywords.
+
+    Supports **any** solvent name — individual names pass through
+    unrestricted to BioSTEAM (which validates via thermosteam).
+    The ``"all"`` / ``"all_pe"`` keywords still expand to the curated
+    per-polymer lists for convenience.
+    """
     s = solvents_str.strip().lower()
     if s == "all_pe":
         return list(_PE_SOLVENTS)
@@ -152,7 +166,6 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
         return list(_EVOH_SOLVENTS_E2)
     if s == "all_pet":
         return list(_PET_SOLVENTS)
-    # New polymers (PS/PP/PVC use PE-proxy; PC is native)
     if s == "all_ps":
         return list(_PS_SOLVENTS)
     if s == "all_pp":
@@ -169,7 +182,6 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
             return list(_PET_SOLVENTS)
         if tp == "LDPE":
             return list(_LDPE_SOLVENTS)
-        # New polymer dispatch for "all" keyword
         if tp == "PS":
             return list(_PS_SOLVENTS)
         if tp == "PP":
@@ -185,7 +197,7 @@ def _expand_solvents(solvents_str: str, target_plastic: str) -> list[str]:
     if bio:
         return [bio]
 
-    # Split by comma and resolve each token against aliases
+    # Split by comma and pass each through — any name accepted
     parsed = [sv.strip() for sv in solvents_str.split(",") if sv.strip()]
     resolved = []
     for sv in parsed:
@@ -222,8 +234,13 @@ def run_biosteam_simulation(
     Returns TEA metrics (MSP, TCI, AOC), LCA metrics (GWP, HTC, HTNC, ETOX),
     and operational data (energy, water, waste) from a full BioSTEAM flowsheet.
 
+    Accepts ANY thermosteam-resolvable solvent.  Known solvents use validated
+    Branch-TEA data; unknown solvents get estimated defaults (price $1.50/kg,
+    dissolution temp from Solvent_Data.csv, LCA class-average impact factors).
+
     Args:
         solvent: Solvent name (e.g. "Toluene", "Xylene", "Heptane").
+            Accepts any solvent that thermosteam can resolve by name or CAS.
         target_plastic: Target plastic to recover — "PE", "LDPE", "EVOH", "PET",
             "PS", "PP", "PVC", or "PC" (default "PE").
             LDPE uses the same solvents as PE. PET uses the same generic dissolution model
@@ -326,12 +343,17 @@ def run_biosteam_batch(
     Batch mode: runs each (solvent, energy_case) combination and returns a
     ranked comparison table sorted by MSP.
 
+    Accepts ANY thermosteam-resolvable solvent names.  Unknown solvents get
+    estimated defaults (price $1.50/kg, dissolution temp from Solvent_Data.csv,
+    LCA class-average impact factors).
+
     Args:
         solvents: Comma-separated solvent names, or "all_pe" (PE solvents),
             "all_ldpe" (LDPE solvents, same as PE), "all_evoh" (EVOH solvents),
             "all_pet" (PET solvents), "all_ps" (PS solvents, PE-proxy),
             "all_pp" (PP solvents, PE-proxy), "all_pvc" (PVC solvents, PE-proxy),
             "all_pc" (PC solvents, native), or "all" (auto-select by target_plastic).
+            Any other solvent name passes through to BioSTEAM for validation.
         target_plastic: Target plastic "PE", "LDPE", "EVOH", "PET", "PS", "PP",
             "PVC", or "PC" (default "PE"). PS/PP/PVC use the PE-proxy model
             (approximate). PC uses the native thermosteam PColigomer.
@@ -704,10 +726,20 @@ def get_biosteam_solvents() -> str:
     display += f"- `all_pc` -- all {len(_PC_SOLVENTS)} PC solvents (native thermosteam)\n"
     display += "- `all` (energy_cases) -- C1, C2, C3\n"
 
+    display += "\n### Any-Solvent Support\n"
+    display += "The BioSTEAM tools accept **any** thermosteam-resolvable solvent, "
+    display += "not just those in the predefined lists above. For unknown solvents:\n"
+    display += "- **Price:** defaults to $1.50/kg\n"
+    display += "- **Dissolution temp:** min(BP - 10, 130) from Solvent_Data.csv, or 110 C\n"
+    display += "- **LCA factors:** class-average estimates based on chemical class\n"
+    display += "\nThe predefined solvents use validated Branch-TEA data. "
+    display += "Use other solvents for exploratory studies with estimated parameters.\n"
+
     display += "\n### Known Limitations\n"
-    display += "- Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) fail — excluded from expansions\n"
+    display += "- Chlorinated solvents (Tetrachloroethylene, o-Chlorotoluene) may fail — HCl not in property package\n"
     display += "- Simulations run as isolated subprocesses (~10-15s each)\n"
     display += "- LCA characterisation factors use TRACI defaults unless overridden\n"
+    display += "- Unknown solvents use estimated LCA class-averages (order-of-magnitude accuracy)\n"
 
     structured_data = {
         "tool_name": "get_biosteam_solvents",
@@ -1183,6 +1215,459 @@ def run_biosteam_multi_polymer(
 
 
 # ------------------------------------------------------------------
+# Tool 7: Monte Carlo uncertainty analysis
+# ------------------------------------------------------------------
+
+@safe_tool_wrapper
+def run_biosteam_uncertainty(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    n_samples: int = 20,
+    processing_capacity: float = 20000,
+    parameters: str = "all",
+) -> str:
+    """Run Monte Carlo uncertainty analysis on BioSTEAM STRAP process simulation.
+
+    Samples N parameter sets from uniform distributions over physically
+    meaningful ranges, runs each as a subprocess simulation, and reports
+    percentile statistics (P5, P50, P95) for MSP, GWP, and TCI.
+
+    Args:
+        solvent: Solvent name (e.g. "Toluene").
+        target_plastic: Target plastic "PE", "LDPE", "EVOH", "PET", etc. (default "PE").
+        energy_case: Energy configuration "C1", "C2", or "C3" (default "C1").
+        n_samples: Number of Monte Carlo samples (default 20, max 50).
+        processing_capacity: Plant capacity in MT/yr (default 20000).
+        parameters: Comma-separated parameter names to vary, or "all" (default "all").
+            Available: solvent_price, solvent_loss_pct, dissolution_temperature_c,
+            precipitation_temperature_c, feedstock_distance_km.
+
+    WHEN TO USE:
+    - "What is the uncertainty in MSP for toluene?"
+    - "Monte Carlo analysis for PE recovery with xylene"
+    - "Confidence interval for GWP using heptane"
+    - "How confident are we in the BioSTEAM MSP estimate?"
+    """
+    if _build_monte_carlo_configs is None or run_batch_simulations is None:
+        return "ERROR: biosteam_runner module not available. Install BioSTEAM dependencies."
+
+    import numpy as np
+
+    configs = _build_monte_carlo_configs(
+        solvent=solvent,
+        target_plastic=target_plastic,
+        energy_case=energy_case,
+        n_samples=n_samples,
+        parameters=parameters,
+        processing_capacity=processing_capacity,
+    )
+
+    results = run_batch_simulations(configs, max_parallel=3)
+
+    successes = [r for r in results if r.get("success", False)]
+    failures = [r for r in results if not r.get("success", False)]
+
+    if not successes:
+        return json.dumps({
+            "display": f"**Uncertainty analysis failed**: all {len(results)} simulations failed.\n"
+                       f"First error: {failures[0].get('error', 'unknown') if failures else 'unknown'}",
+            "data": {"success": False, "n_total": len(results), "n_failed": len(failures)},
+        }, indent=2)
+
+    # Extract metrics
+    msp_vals = [r["tea"]["msp_usd_per_kg"] for r in successes if r.get("tea", {}).get("msp_usd_per_kg") is not None]
+    gwp_vals = [r["lca"]["gwp_kg_co2e_per_kg"] for r in successes if r.get("lca", {}).get("gwp_kg_co2e_per_kg") is not None]
+    tci_vals = [r["tea"]["tci_usd"] for r in successes if r.get("tea", {}).get("tci_usd") is not None]
+
+    def _percentiles(vals):
+        if not vals:
+            return {"p5": None, "p50": None, "p95": None, "mean": None, "std": None}
+        arr = np.array(vals)
+        p5, p50, p95 = np.percentile(arr, [5, 50, 95])
+        return {
+            "p5": round(float(p5), 4),
+            "p50": round(float(p50), 4),
+            "p95": round(float(p95), 4),
+            "mean": round(float(np.mean(arr)), 4),
+            "std": round(float(np.std(arr)), 4),
+        }
+
+    msp_stats = _percentiles(msp_vals)
+    gwp_stats = _percentiles(gwp_vals)
+    tci_stats = _percentiles(tci_vals)
+
+    # Get parameter ranges used
+    ranges = _get_default_parameter_ranges(solvent, target_plastic)
+    if parameters != "all":
+        param_list = [p.strip() for p in parameters.split(",") if p.strip()]
+        ranges = {k: v for k, v in ranges.items() if k in param_list}
+
+    # Build display
+    display = f"## Monte Carlo Uncertainty: {solvent} ({target_plastic}, {energy_case})\n\n"
+    display += f"**Samples:** {len(successes)}/{len(results)} succeeded | "
+    display += f"**Capacity:** {processing_capacity:,.0f} MT/yr\n\n"
+
+    display += "### Percentile Statistics\n\n"
+    display += "| Metric | P5 | P50 (median) | P95 | Mean | Std Dev |\n"
+    display += "|--------|----|--------------|-----|------|---------|\n"
+
+    if msp_stats["p50"] is not None:
+        display += (f"| MSP ($/kg) | ${msp_stats['p5']:.4f} | ${msp_stats['p50']:.4f} | "
+                    f"${msp_stats['p95']:.4f} | ${msp_stats['mean']:.4f} | {msp_stats['std']:.4f} |\n")
+    if gwp_stats["p50"] is not None:
+        display += (f"| GWP (kg CO2e/kg) | {gwp_stats['p5']:.4f} | {gwp_stats['p50']:.4f} | "
+                    f"{gwp_stats['p95']:.4f} | {gwp_stats['mean']:.4f} | {gwp_stats['std']:.4f} |\n")
+    if tci_stats["p50"] is not None:
+        display += (f"| TCI ($M) | ${tci_stats['p5']/1e6:.2f} | ${tci_stats['p50']/1e6:.2f} | "
+                    f"${tci_stats['p95']/1e6:.2f} | ${tci_stats['mean']/1e6:.2f} | {tci_stats['std']/1e6:.2f} |\n")
+
+    display += "\n### Parameter Ranges Sampled\n\n"
+    display += "| Parameter | Min | Max | Units |\n"
+    display += "|-----------|-----|-----|-------|\n"
+    units = {
+        "solvent_price": "$/kg", "solvent_loss_pct": "%",
+        "dissolution_temperature_c": "C", "precipitation_temperature_c": "C",
+        "feedstock_distance_km": "km",
+    }
+    for p, (lo, hi) in ranges.items():
+        display += f"| {p} | {lo} | {hi} | {units.get(p, '-')} |\n"
+
+    display += "\n### Interpretation\n"
+    if msp_stats["p50"] is not None and msp_stats["p5"] is not None:
+        spread = msp_stats["p95"] - msp_stats["p5"]
+        pct_spread = spread / msp_stats["p50"] * 100 if msp_stats["p50"] else 0
+        display += f"- MSP 90% confidence interval: ${msp_stats['p5']:.4f} – ${msp_stats['p95']:.4f} "
+        display += f"(spread: ${spread:.4f}, {pct_spread:.1f}% of median)\n"
+    if gwp_stats["p50"] is not None and gwp_stats["p5"] is not None:
+        display += f"- GWP 90% confidence interval: {gwp_stats['p5']:.4f} – {gwp_stats['p95']:.4f} kg CO2e/kg\n"
+
+    if failures:
+        display += f"\n*{len(failures)} simulation(s) failed and were excluded.*\n"
+
+    structured_data = {
+        "tool_name": "run_biosteam_uncertainty",
+        "success": True,
+        "solvent": solvent,
+        "target_plastic": target_plastic,
+        "energy_case": energy_case,
+        "n_samples": len(results),
+        "n_succeeded": len(successes),
+        "n_failed": len(failures),
+        "msp_percentiles": msp_stats,
+        "gwp_percentiles": gwp_stats,
+        "tci_percentiles": tci_stats,
+        "parameter_ranges": {k: {"min": v[0], "max": v[1]} for k, v in ranges.items()},
+        "msp_values": msp_vals,
+        "gwp_values": gwp_vals,
+        "tci_values": [t / 1e6 for t in tci_vals],
+    }
+
+    return json.dumps({"display": display, "data": structured_data}, indent=2)
+
+
+# ------------------------------------------------------------------
+# Tool 8: Parameter sweep
+# ------------------------------------------------------------------
+
+@safe_tool_wrapper
+def run_biosteam_parameter_sweep(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    parameter: str = "solvent_price",
+    values: str = "",
+    processing_capacity: float = 20000,
+) -> str:
+    """Sweep a single BioSTEAM parameter across a range and report MSP/GWP/TCI trend.
+
+    Runs one simulation per value (default 5 evenly spaced) and returns a
+    table showing how the chosen metric changes with the swept parameter.
+
+    Args:
+        solvent: Solvent name (e.g. "Toluene").
+        target_plastic: Target plastic (default "PE").
+        energy_case: Energy configuration (default "C1").
+        parameter: Which parameter to sweep. Options: solvent_price,
+            solvent_loss_pct, dissolution_temperature_c,
+            precipitation_temperature_c, feedstock_distance_km.
+        values: Comma-separated numeric values to sweep, or empty for auto 5-point range.
+        processing_capacity: Plant capacity in MT/yr (default 20000).
+
+    WHEN TO USE:
+    - "How does MSP change with solvent price for toluene?"
+    - "Sweep dissolution temperature from 90 to 130 for xylene"
+    - "Parameter sweep of solvent loss for heptane"
+    - "What happens to GWP if feedstock distance increases?"
+    """
+    if _build_sweep_configs is None or run_batch_simulations is None:
+        return "ERROR: biosteam_runner module not available. Install BioSTEAM dependencies."
+
+    # Parse values string to list of floats
+    parsed_values: list[float] | None = None
+    if values and values.strip():
+        try:
+            parsed_values = [float(v.strip()) for v in values.split(",") if v.strip()]
+        except ValueError:
+            return f"ERROR: Could not parse values '{values}' as comma-separated numbers."
+
+    configs = _build_sweep_configs(
+        solvent=solvent,
+        target_plastic=target_plastic,
+        energy_case=energy_case,
+        parameter=parameter,
+        values=parsed_values,
+        processing_capacity=processing_capacity,
+    )
+
+    results = run_batch_simulations(configs, max_parallel=3)
+
+    # Pair configs with results and sort by swept value
+    paired = list(zip(configs, results))
+    paired.sort(key=lambda x: x[0].get("_sweep_value", 0))
+
+    successes = [(c, r) for c, r in paired if r.get("success", False)]
+    failures = [(c, r) for c, r in paired if not r.get("success", False)]
+
+    if not successes:
+        return json.dumps({
+            "display": f"**Parameter sweep failed**: all {len(results)} simulations failed.",
+            "data": {"success": False},
+        }, indent=2)
+
+    units = {
+        "solvent_price": "$/kg", "solvent_loss_pct": "%",
+        "dissolution_temperature_c": "C", "precipitation_temperature_c": "C",
+        "feedstock_distance_km": "km",
+    }
+
+    display = f"## Parameter Sweep: {parameter} for {solvent} ({target_plastic}, {energy_case})\n\n"
+    display += f"**Capacity:** {processing_capacity:,.0f} MT/yr | "
+    display += f"**Completed:** {len(successes)}/{len(paired)}\n\n"
+
+    display += f"| {parameter} ({units.get(parameter, '-')}) | MSP ($/kg) | GWP (kg CO2e/kg) | TCI ($M) |\n"
+    display += "|" + "-" * 30 + "|------------|------------------|----------|\n"
+
+    sweep_data = []
+    for cfg, r in successes:
+        val = cfg.get("_sweep_value", 0)
+        tea = r.get("tea", {})
+        lca = r.get("lca", {})
+        msp = tea.get("msp_usd_per_kg")
+        gwp = lca.get("gwp_kg_co2e_per_kg")
+        tci = tea.get("tci_usd")
+
+        msp_str = f"${msp:.4f}" if msp is not None else "N/A"
+        gwp_str = f"{gwp:.4f}" if gwp is not None else "N/A"
+        tci_str = f"${tci/1e6:.2f}M" if tci is not None else "N/A"
+
+        display += f"| {val:.4g} | {msp_str} | {gwp_str} | {tci_str} |\n"
+        sweep_data.append({
+            "parameter_value": val,
+            "msp_usd_per_kg": msp,
+            "gwp_kg_co2e_per_kg": gwp,
+            "tci_usd": tci,
+        })
+
+    # Trend description
+    if len(successes) >= 2:
+        first_msp = successes[0][1].get("tea", {}).get("msp_usd_per_kg")
+        last_msp = successes[-1][1].get("tea", {}).get("msp_usd_per_kg")
+        if first_msp is not None and last_msp is not None:
+            delta = last_msp - first_msp
+            direction = "increases" if delta > 0 else "decreases"
+            display += f"\n**Trend:** MSP {direction} by ${abs(delta):.4f}/kg "
+            display += f"across the swept range of {parameter}.\n"
+
+    if failures:
+        display += f"\n*{len(failures)} value(s) failed and were excluded.*\n"
+
+    structured_data = {
+        "tool_name": "run_biosteam_parameter_sweep",
+        "success": True,
+        "solvent": solvent,
+        "target_plastic": target_plastic,
+        "energy_case": energy_case,
+        "parameter": parameter,
+        "n_values": len(paired),
+        "n_succeeded": len(successes),
+        "sweep_data": sweep_data,
+    }
+
+    return json.dumps({"display": display, "data": structured_data}, indent=2)
+
+
+# ------------------------------------------------------------------
+# Tool 9: Tornado sensitivity analysis
+# ------------------------------------------------------------------
+
+@safe_tool_wrapper
+def run_biosteam_tornado(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    metric: str = "msp",
+    parameters: str = "all",
+    processing_capacity: float = 20000,
+) -> str:
+    """Run one-at-a-time (OAT) tornado sensitivity analysis for BioSTEAM STRAP process.
+
+    Varies each parameter to its min and max while holding others at baseline,
+    then ranks parameters by their impact on the chosen metric. Identifies
+    which parameters drive economics or environmental impact the most.
+
+    Args:
+        solvent: Solvent name (e.g. "Toluene").
+        target_plastic: Target plastic (default "PE").
+        energy_case: Energy configuration (default "C1").
+        metric: Metric to analyze — "msp", "gwp", or "tci" (default "msp").
+        parameters: Comma-separated parameter names or "all" (default "all").
+            Available: solvent_price, solvent_loss_pct, dissolution_temperature_c,
+            precipitation_temperature_c, feedstock_distance_km.
+        processing_capacity: Plant capacity in MT/yr (default 20000).
+
+    WHEN TO USE:
+    - "Which parameter drives MSP the most for toluene?"
+    - "Tornado analysis for PE recovery with xylene"
+    - "Sensitivity ranking for GWP with heptane"
+    - "What drives the economics of the STRAP process?"
+    """
+    if _build_tornado_configs is None or run_batch_simulations is None:
+        return "ERROR: biosteam_runner module not available. Install BioSTEAM dependencies."
+
+    baseline_cfg, oat_configs = _build_tornado_configs(
+        solvent=solvent,
+        target_plastic=target_plastic,
+        energy_case=energy_case,
+        parameters=parameters,
+        processing_capacity=processing_capacity,
+    )
+
+    # Run baseline + all OAT configs
+    all_configs = [baseline_cfg] + oat_configs
+    results = run_batch_simulations(all_configs, max_parallel=3)
+
+    baseline_result = results[0]
+    oat_results = results[1:]
+
+    if not baseline_result.get("success", False):
+        return json.dumps({
+            "display": f"**Tornado analysis failed**: baseline simulation failed.\n"
+                       f"Error: {baseline_result.get('error', 'unknown')}",
+            "data": {"success": False},
+        }, indent=2)
+
+    # Extract baseline metric value
+    metric_map = {
+        "msp": ("tea", "msp_usd_per_kg", "$/kg"),
+        "gwp": ("lca", "gwp_kg_co2e_per_kg", "kg CO2e/kg"),
+        "tci": ("tea", "tci_usd", "$"),
+    }
+    if metric not in metric_map:
+        metric = "msp"
+
+    section, key, unit = metric_map[metric]
+    baseline_val = baseline_result.get(section, {}).get(key)
+    if baseline_val is None:
+        return json.dumps({
+            "display": f"**Tornado analysis failed**: baseline has no {metric.upper()} value.",
+            "data": {"success": False},
+        }, indent=2)
+
+    # Match OAT min/max pairs by _tornado_param
+    param_impacts: dict[str, dict] = {}
+    for cfg, r in zip(oat_configs, oat_results):
+        param = cfg.get("_tornado_param", "unknown")
+        bound = cfg.get("_tornado_bound", "unknown")
+        if not r.get("success", False):
+            continue
+        val = r.get(section, {}).get(key)
+        if val is None:
+            continue
+        if param not in param_impacts:
+            param_impacts[param] = {}
+        param_impacts[param][bound] = val
+
+    # Compute range and rank
+    rankings = []
+    for param, bounds in param_impacts.items():
+        min_val = bounds.get("min")
+        max_val = bounds.get("max")
+        if min_val is not None and max_val is not None:
+            range_val = abs(max_val - min_val)
+            impact_pct = (range_val / abs(baseline_val)) * 100 if baseline_val != 0 else 0
+            rankings.append({
+                "parameter": param,
+                "min_value": min_val,
+                "max_value": max_val,
+                "range": range_val,
+                "impact_pct": round(impact_pct, 2),
+                "baseline": baseline_val,
+            })
+
+    rankings.sort(key=lambda x: x["range"], reverse=True)
+
+    # Get parameter ranges for display
+    ranges = _get_default_parameter_ranges(solvent, target_plastic)
+
+    # Build display
+    display = f"## Tornado Sensitivity: {metric.upper()} for {solvent} ({target_plastic}, {energy_case})\n\n"
+
+    if metric == "tci":
+        display += f"**Baseline {metric.upper()}:** ${baseline_val/1e6:.2f}M | "
+    else:
+        display += f"**Baseline {metric.upper()}:** {baseline_val:.4f} {unit} | "
+    display += f"**Capacity:** {processing_capacity:,.0f} MT/yr\n\n"
+
+    display += "### Sensitivity Ranking (by impact on " + metric.upper() + ")\n\n"
+    display += "| Rank | Parameter | Min Value | Max Value | Range | Impact (%) |\n"
+    display += "|------|-----------|-----------|-----------|-------|------------|\n"
+
+    for i, r in enumerate(rankings, 1):
+        if metric == "tci":
+            display += (f"| {i} | {r['parameter']} | ${r['min_value']/1e6:.2f}M | "
+                        f"${r['max_value']/1e6:.2f}M | ${r['range']/1e6:.2f}M | "
+                        f"{r['impact_pct']:.1f}% |\n")
+        else:
+            display += (f"| {i} | {r['parameter']} | {r['min_value']:.4f} | "
+                        f"{r['max_value']:.4f} | {r['range']:.4f} | "
+                        f"{r['impact_pct']:.1f}% |\n")
+
+    display += "\n### Parameter Ranges Used\n\n"
+    display += "| Parameter | Min | Max |\n|-----------|-----|-----|\n"
+    for param in [r["parameter"] for r in rankings]:
+        if param in ranges:
+            lo, hi = ranges[param]
+            display += f"| {param} | {lo} | {hi} |\n"
+
+    if rankings:
+        top = rankings[0]
+        display += f"\n**Most influential parameter:** {top['parameter']} "
+        display += f"({top['impact_pct']:.1f}% impact on {metric.upper()})\n"
+
+    n_failed_oat = sum(1 for r in oat_results if not r.get("success", False))
+    if n_failed_oat:
+        display += f"\n*{n_failed_oat} OAT simulation(s) failed and were excluded.*\n"
+
+    structured_data = {
+        "tool_name": "run_biosteam_tornado",
+        "success": True,
+        "solvent": solvent,
+        "target_plastic": target_plastic,
+        "energy_case": energy_case,
+        "metric": metric,
+        "baseline_value": baseline_val,
+        "n_parameters": len(rankings),
+        "n_simulations": len(all_configs),
+        "n_failed": n_failed_oat,
+        "rankings": rankings,
+        "parameter_ranges": {k: {"min": v[0], "max": v[1]} for k, v in ranges.items()},
+    }
+
+    return json.dumps({"display": display, "data": structured_data}, indent=2)
+
+
+# ------------------------------------------------------------------
 # Registration
 # ------------------------------------------------------------------
 
@@ -1195,4 +1680,7 @@ def get_biosteam_tools() -> list:
         get_biosteam_solvents,
         visualize_biosteam_results,
         run_biosteam_multi_polymer,
+        run_biosteam_uncertainty,
+        run_biosteam_parameter_sweep,
+        run_biosteam_tornado,
     ]

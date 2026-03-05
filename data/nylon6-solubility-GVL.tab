@@ -1,0 +1,224 @@
+
+ Property  job 1 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 1 : T= 433.15 K ;
+ Units     job 1 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 1 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.10790737 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -1.49789274         3.15801586        3.01888214       0.1292074732       -0.56152533            960.20          100.1163
+
+ Property  job 2 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 2 : T= 428.15 K ;
+ Units     job 2 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 2 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.26353619 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -1.59769916         2.94537875        2.81187622       0.1048450856       -0.65017530            965.08          100.1163
+
+ Property  job 3 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 3 : T= 423.15 K ;
+ Units     job 3 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 3 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.41916500 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -1.70032097         2.73055183        2.60356485       0.0842275649       -0.74316371            969.97          100.1163
+
+ Property  job 4 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 4 : T= 418.15 K ;
+ Units     job 4 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 4 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.57479381 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -1.80578634         2.51351211        2.39378567       0.0670154644       -0.84032351            974.89          100.1163
+
+ Property  job 5 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 5 : T= 413.15 K ;
+ Units     job 5 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 5 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.73042262 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -1.91413293         2.29423600        2.18239110       0.0528277587       -0.94150494            979.83          100.1163
+
+ Property  job 6 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 6 : T= 408.15 K ;
+ Units     job 6 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 6 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 3.88605143 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.02540816         2.07269915        1.96924764       0.0412709599       -1.04658113            984.79          100.1163
+
+ Property  job 7 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 7 : T= 403.15 K ;
+ Units     job 7 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 7 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.04168025 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.13966961         1.84887646        1.75423538       0.0319612986       -1.15545178            989.77          100.1163
+
+ Property  job 8 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 8 : T= 398.15 K ;
+ Units     job 8 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 8 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.19730906 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.25698533         1.62274191        1.53724731       0.0245400417       -1.26804508            994.77          100.1163
+
+ Property  job 9 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 9 : T= 393.15 K ;
+ Units     job 9 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 9 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.35293787 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.37743439         1.39426848        1.31818904       0.0186827707       -1.38431854            999.79          100.1163
+
+ Property  job 10 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 10 : T= 388.15 K ;
+ Units     job 10 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 10 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.50856668 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.50110682         1.16342804        1.09697725       0.0141038485       -1.50425832           1004.82          100.1163
+
+ Property  job 11 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 11 : T= 383.15 K ;
+ Units     job 11 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 11 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.66419549 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.62810401         0.93019122        0.87353910       0.0105572707       -1.62787829           1009.88          100.1163
+
+ Property  job 12 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 12 : T= 378.15 K ;
+ Units     job 12 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 12 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.81982431 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.75853866         0.69452728        0.64781068       0.0078350969       -1.75521847           1014.96          100.1163
+
+ Property  job 13 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 13 : T= 373.15 K ;
+ Units     job 13 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 13 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 4.97545312 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -2.89253490         0.45640395        0.41973568       0.0057643754       -1.88634324           1020.06          100.1163
+
+ Property  job 14 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 14 : T= 368.15 K ;
+ Units     job 14 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 14 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.13108193 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.03022822         0.21578726        0.18926397       0.0042032867       -2.02133962           1025.18          100.1163
+
+ Property  job 15 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 15 : T= 363.15 K ;
+ Units     job 15 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 15 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.28671074 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.17176564        -0.02735861       -0.04364974       0.0030370166       -2.16031567           1030.32          100.1163
+
+ Property  job 16 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 16 : T= 358.15 K ;
+ Units     job 16 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 16 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.44233955 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.31730587        -0.27307155       -0.27904713       0.0021736997       -2.30339909           1035.47          100.1163
+
+ Property  job 17 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 17 : T= 353.15 K ;
+ Units     job 17 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 17 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.59796837 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.46701953        -0.52139176       -0.51696736       0.0015406370       -2.45073608           1040.65          100.1163
+
+ Property  job 18 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 18 : T= 348.15 K ;
+ Units     job 18 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 18 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.75359718 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.62108961        -0.77236194       -0.75744811       0.0010809009       -2.60249060           1045.84          100.1163
+
+ Property  job 19 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 19 : T= 343.15 K ;
+ Units     job 19 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 19 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 5.90922599 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.77971194        -1.02602756       -1.00052636       0.0007503700       -2.75884377           1051.05          100.1163
+
+ Property  job 20 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 20 : T= 338.15 K ;
+ Units     job 20 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 20 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.06485480 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -3.94309585        -1.28243717       -1.24623922       0.0005151944       -2.91999366           1056.28          100.1163
+
+ Property  job 21 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 21 : T= 333.15 K ;
+ Units     job 21 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 21 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.22048361 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -4.11146492        -1.54164264       -1.49462455       0.0003496697       -3.08615537           1061.53          100.1163
+
+ Property  job 22 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 22 : T= 328.15 K ;
+ Units     job 22 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 22 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.37611243 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -4.28505792        -1.80369955       -1.74572156       0.0002344790       -3.25756130           1066.79          100.1163
+
+ Property  job 23 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 23 : T= 323.15 K ;
+ Units     job 23 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 23 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.53174124 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -4.46412981        -2.06866741       -1.99957133       0.0001552598       -3.43446171           1072.07          100.1163
+
+ Property  job 24 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 24 : T= 318.15 K ;
+ Units     job 24 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 24 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.68737005 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -4.64895290        -2.33661006       -2.25621733       0.0001014505       -3.61712548           1077.37          100.1163
+
+ Property  job 25 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 25 : T= 313.15 K ;
+ Units     job 25 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 25 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.84299886 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -4.83981814        -2.60759596       -2.51570583       0.0000653734       -3.80584113           1082.69          100.1163
+
+ Property  job 26 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 26 : T= 308.15 K ;
+ Units     job 26 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 26 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 6.99862767 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -5.03703662        -2.88169847       -2.77808631       0.0000415136       -4.00091797           1088.02          100.1163
+
+ Property  job 27 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 27 : T= 303.15 K ;
+ Units     job 27 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 27 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 7.15425649 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -5.24094095        -3.15899613       -3.04341194       0.0000259592       -4.20268745           1093.37          100.1163
+
+ Property  job 28 : Solubility Solvent Screening for solute nylon6 ;
+ Settings  job 28 : T= 298.15 K ;
+ Units     job 28 : Energies in kcal/mol ; Volume in A^3 ; Temperature in K ; Molecular weights in a.m.u. ; Density in g/ml ; Concentrations x : mole fraction ;
+ General   job 28 : Solid solute (Tmelt=533.00 K) ; H_fus(solute) = 16.59003135 ; DG_fus(solute) = 7.30988530 ; Mass fraction solubility w_solub is in g/g ; Volume based solubility S is in log10(mol/l) (solution) ; Using given reference solubilities: - REF_SOL_C=0.108000 X_REF_SOL={2=1} T_REF_SOL_K=363.150000 ;
+ 
+  Nr Solvent                                     log10(x_solub)           mu(self)          mu(solv)            w_solub          log10(S)   Solvent_density Solvent_MolWeight
+   1 dihydro-5-methyl-2(3h)-furanone                -5.45188707        -3.43957282       -3.31173992       0.0000159716       -4.41150469           1098.73          100.1163

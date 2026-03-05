@@ -1,0 +1,171 @@
+Paper,Metric_Category,Specific_Metric,Value,Unit,Notes,System_Boundary,Functional_Unit,Impact_Category,Allocation_Method,Energy_Scenario,Reference_Location
+Quantifying environmental benefits (2020),GWP,STRAP Process C1,1.7,kg CO2-eq/kg polymer,Grid average electricity + natural gas heat,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,C1 - Grid avg electricity + NG heat,Figure 3
+Quantifying environmental benefits (2020),GWP,STRAP Process C2,1.2,kg CO2-eq/kg polymer,Natural gas for all energy,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,C2 - All natural gas,Figure 3
+Quantifying environmental benefits (2020),GWP,STRAP Process C3,0.4,kg CO2-eq/kg polymer,Renewable electricity + natural gas heat,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,C3 - Renewable electricity + NG,Figure 3
+Quantifying environmental benefits (2020),GWP,Virgin LDPE production,1.9,kg CO2-eq/kg polymer,Industry average from ecoinvent,Cradle-to-gate,1 kg virgin polymer,Climate Change,N/A,Industry average,Figure 3
+Quantifying environmental benefits (2020),GWP,Virgin PET production,2.5,kg CO2-eq/kg polymer,Industry average from ecoinvent,Cradle-to-gate,1 kg virgin polymer,Climate Change,N/A,Industry average,Figure 3
+Quantifying environmental benefits (2020),GWP,Virgin EVOH production,3.8,kg CO2-eq/kg polymer,Industry average from ecoinvent,Cradle-to-gate,1 kg virgin polymer,Climate Change,N/A,Industry average,Figure 3
+Quantifying environmental benefits (2020),GWP,Mechanical recycling,0.5,kg CO2-eq/kg polymer,Industry average,Cradle-to-gate,1 kg recycled polymer,Climate Change,N/A,Industry average,Figure 3
+Quantifying environmental benefits (2020),GWP,Incineration with energy recovery,2.2,kg CO2-eq/kg polymer,With energy credits,Gate-to-grave,1 kg waste polymer,Climate Change,System expansion,Energy recovery credited,Figure 3
+Quantifying environmental benefits (2020),GWP,Landfill,0.01,kg CO2-eq/kg polymer,Without biogenic carbon accounting,Gate-to-grave,1 kg waste polymer,Climate Change,N/A,N/A,Figure 3
+Quantifying environmental benefits (2020),Energy Breakdown,Heating (dissolution),45,%,Percentage of total STRAP energy,Process-specific,Per process,Energy consumption,N/A,C1 scenario,Section 3.2
+Quantifying environmental benefits (2020),Energy Breakdown,Distillation (solvent recovery),35,%,Percentage of total STRAP energy,Process-specific,Per process,Energy consumption,N/A,C1 scenario,Section 3.2
+Quantifying environmental benefits (2020),Energy Breakdown,Cooling,12,%,Percentage of total STRAP energy,Process-specific,Per process,Energy consumption,N/A,C1 scenario,Section 3.2
+Quantifying environmental benefits (2020),Energy Breakdown,Mechanical (pumps filters),8,%,Percentage of total STRAP energy,Process-specific,Per process,Energy consumption,N/A,C1 scenario,Section 3.2
+Quantifying environmental benefits (2020),Solvent Loss Impact,1% solvent loss additional GWP,0.15,kg CO2-eq/kg polymer,Additional GWP from solvent replacement,Process-specific,1 kg recycled polymer,Climate Change,N/A,C1 scenario,Sensitivity analysis
+Quantifying environmental benefits (2020),Solvent Loss Impact,5% solvent loss additional GWP,0.75,kg CO2-eq/kg polymer,Additional GWP from solvent replacement,Process-specific,1 kg recycled polymer,Climate Change,N/A,C1 scenario,Sensitivity analysis
+Quantifying environmental benefits (2020),Solvent Loss Impact,10% solvent loss additional GWP,1.5,kg CO2-eq/kg polymer,Additional GWP from solvent replacement,Process-specific,1 kg recycled polymer,Climate Change,N/A,C1 scenario,Sensitivity analysis
+Quantifying environmental benefits (2020),Water Consumption,STRAP process,2.5,L/kg polymer,Process water for cooling and washing,Cradle-to-gate,1 kg recycled polymer,Water use,N/A,C1 scenario,Section 3.3
+Quantifying environmental benefits (2020),Water Consumption,Virgin polymer production,5.5,L/kg polymer,Average for PE PET EVOH,Cradle-to-gate,1 kg virgin polymer,Water use,N/A,Industry average,Section 3.3
+Quantifying environmental benefits (2020),Impact Categories,Acidification Potential (AP),0.008,kg SO2-eq/kg polymer,STRAP C1 scenario,Cradle-to-gate,1 kg recycled polymer,Acidification,Economic allocation,C1 scenario,Table 2
+Quantifying environmental benefits (2020),Impact Categories,Eutrophication Potential (EP),0.0015,kg N-eq/kg polymer,STRAP C1 scenario,Cradle-to-gate,1 kg recycled polymer,Eutrophication,Economic allocation,C1 scenario,Table 2
+Quantifying environmental benefits (2020),Impact Categories,Ozone Depletion Potential (ODP),1.2E-08,kg CFC-11-eq/kg polymer,STRAP C1 scenario,Cradle-to-gate,1 kg recycled polymer,Ozone Depletion,Economic allocation,C1 scenario,Table 2
+Quantifying environmental benefits (2020),Impact Categories,Photochemical Oxidation (POCP),0.0005,kg C2H4-eq/kg polymer,STRAP C1 scenario,Cradle-to-gate,1 kg recycled polymer,Photochemical smog,Economic allocation,C1 scenario,Table 2
+Quantifying environmental benefits (2020),Sensitivity Analysis,Electricity grid carbon intensity,-40 to +60,% change in GWP,When grid CI varied ±50%,Process-specific,N/A,Climate Change,N/A,C1 scenario,Figure 5
+Quantifying environmental benefits (2020),Sensitivity Analysis,Natural gas carbon intensity,-25 to +35,% change in GWP,When NG CI varied ±50%,Process-specific,N/A,Climate Change,N/A,C1 scenario,Figure 5
+Quantifying environmental benefits (2020),Sensitivity Analysis,Solvent production GWP,-15 to +20,% change in GWP,When solvent GWP varied ±50%,Process-specific,N/A,Climate Change,N/A,C1 scenario,Figure 5
+Quantifying environmental benefits (2020),Sensitivity Analysis,Transportation distance,-2 to +3,% change in GWP,When transport varied ±50%,Process-specific,N/A,Climate Change,N/A,C1 scenario,Figure 5
+Quantifying environmental benefits (2020),Transportation,Waste collection to facility,50,km,Average truck transport assumed,Gate-to-gate,Per facility,Transportation,N/A,N/A,Section 2.3
+Quantifying environmental benefits (2020),Transportation,Recycled polymer distribution,200,km,Average truck transport assumed,Gate-to-gate,Per shipment,Transportation,N/A,N/A,Section 2.3
+Quantifying environmental benefits (2020),Waste Generation,Solid waste (filters inks),0.05,kg/kg polymer,Sent to landfill,Process-specific,1 kg recycled polymer,Waste,N/A,N/A,Section 2.2
+Quantifying environmental benefits (2020),Waste Generation,Wastewater,1.8,L/kg polymer,After treatment,Process-specific,1 kg recycled polymer,Waste,N/A,N/A,Section 2.2
+Quantifying environmental benefits (2020),Avoided Burdens,Credit for avoided virgin PE,-1.9,kg CO2-eq/kg polymer,Substitution allocation,System expansion,1 kg recycled PE,Climate Change,Substitution,N/A,Section 2.4
+Quantifying environmental benefits (2020),Avoided Burdens,Credit for avoided virgin PET,-2.5,kg CO2-eq/kg polymer,Substitution allocation,System expansion,1 kg recycled PET,Climate Change,Substitution,N/A,Section 2.4
+Quantifying environmental benefits (2020),Avoided Burdens,Credit for avoided virgin EVOH,-3.8,kg CO2-eq/kg polymer,Substitution allocation,System expansion,1 kg recycled EVOH,Climate Change,Substitution,N/A,Section 2.4
+Quantifying environmental benefits (2020),End-of-Life,Polymer recovery rate,95,%,Yield of recycled polymers from film,Process-specific,Per kg input film,Recovery efficiency,N/A,N/A,Section 2.1
+Quantifying environmental benefits (2020),End-of-Life,Residual waste disposal,5,%,Sent to incineration with energy recovery,Gate-to-grave,Per kg input film,Waste treatment,N/A,N/A,Section 2.1
+Quantifying environmental benefits (2020),BioSTEAM Model,Solvent recovery efficiency,99.5,%,Via distillation in base case,Process-specific,Per kg solvent,Recovery efficiency,N/A,Base case,Section 2.1
+Quantifying environmental benefits (2020),BioSTEAM Model,Number of separation stages,3,stages,PE-EVOH-PET sequential separation,Process-specific,Per film type,Process design,N/A,N/A,Figure 1
+Quantifying environmental benefits (2020),BioSTEAM Model,Operating temperature range,25 to 160,°C,From ambient PET to EVOH dissolution,Process-specific,Per stage,Operating conditions,N/A,N/A,Section 2.1
+Quantifying environmental benefits (2020),BioSTEAM Model,Operating pressure,1,atm,Atmospheric pressure operation,Process-specific,Per stage,Operating conditions,N/A,N/A,Section 2.1
+Quantifying environmental benefits (2020),Process Scale,Plant capacity,10000,tonne/year,Design basis for TEA/LCA,Facility-wide,Annual production,Facility size,N/A,N/A,Section 2.1
+Quantifying environmental benefits (2020),Process Scale,Operating hours,8000,hours/year,Annual operating time,Facility-wide,Annual operation,Operating schedule,N/A,N/A,Section 2.1
+Reducing Antisolvent Use (2021),Process Variants,STRAP-A PE yield,92.5,%,From multilayer film A1,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-A process,Table 2
+Reducing Antisolvent Use (2021),Process Variants,STRAP-A EVOH yield,88.3,%,From multilayer film A1,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-A process,Table 2
+Reducing Antisolvent Use (2021),Process Variants,STRAP-A PET yield,90.1,%,From multilayer film A1,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-A process,Table 2
+Reducing Antisolvent Use (2021),Process Variants,STRAP-B PE yield,94.2,%,Temperature-controlled precipitation,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-B process,Table 2
+Reducing Antisolvent Use (2021),Process Variants,STRAP-B EVOH yield,91.5,%,Temperature-controlled precipitation,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-B process,Table 2
+Reducing Antisolvent Use (2021),Process Variants,STRAP-B PET yield,92.8,%,Temperature-controlled precipitation,Process-specific,Per kg film input,Recovery efficiency,N/A,STRAP-B process,Table 2
+Reducing Antisolvent Use (2021),Economics,MSP STRAP-A,1850,USD/tonne,Minimum selling price,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,STRAP-A,Figure 9
+Reducing Antisolvent Use (2021),Economics,MSP STRAP-B,1620,USD/tonne,Reduced antisolvent use saves cost,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,STRAP-B,Figure 9
+Reducing Antisolvent Use (2021),Economics,MSP STRAP-C,1480,USD/tonne,Further optimized process,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,STRAP-C,Figure 9
+Reducing Antisolvent Use (2021),Economics,Revenue from recycled PE,1200,USD/tonne,Sale price assumption,Process-specific,1 tonne PE,Economics,N/A,Market price,Section 3.4
+Reducing Antisolvent Use (2021),Economics,Revenue from recycled PET,900,USD/tonne,Sale price assumption,Process-specific,1 tonne PET,Economics,N/A,Market price,Section 3.4
+Reducing Antisolvent Use (2021),Economics,Revenue from recycled EVOH,2800,USD/tonne,Sale price assumption,Process-specific,1 tonne EVOH,Economics,N/A,Market price,Section 3.4
+Reducing Antisolvent Use (2021),Economics,Total Capital Investment,12.5,million USD,For 10000 tonne/year plant,Facility-wide,10000 tonne/year capacity,Economics,N/A,Base case,Section 3.4
+Reducing Antisolvent Use (2021),Process Optimization,Antisolvent reduction STRAP-B vs A,60,%,Percent reduction in antisolvent use,Process-specific,Per kg polymer,Resource efficiency,N/A,STRAP-B,Section 3.2
+Reducing Antisolvent Use (2021),Process Optimization,Energy reduction STRAP-B vs A,25,%,Percent reduction in total energy,Process-specific,Per kg polymer,Energy efficiency,N/A,STRAP-B,Section 3.2
+MRF LCA (2021),GWP,Single-stream MRF baseline composition,-0.35,kg CO2-eq/kg material,Net GWP including recycling credits,Cradle-to-grave,1 kg sorted material,Climate Change,Substitution,N/A,Figure 4
+MRF LCA (2021),GWP,Single-stream MRF high plastic composition,-0.28,kg CO2-eq/kg material,Net GWP including recycling credits,Cradle-to-grave,1 kg sorted material,Climate Change,Substitution,N/A,Figure 4
+MRF LCA (2021),GWP,Single-stream MRF high paper composition,-0.42,kg CO2-eq/kg material,Net GWP including recycling credits,Cradle-to-grave,1 kg sorted material,Climate Change,Substitution,N/A,Figure 4
+MRF LCA (2021),Economics,MRF operating cost,85,USD/tonne,For single-stream MRF,Facility-wide,1 tonne processed,Economics,N/A,US average,Table 3
+MRF LCA (2021),Recovery Rate,Paper recovery from MRF,85,%,From mixed waste stream,Process-specific,Per tonne input,Recovery efficiency,N/A,N/A,Table 2
+MRF LCA (2021),Recovery Rate,Plastic recovery from MRF,72,%,From mixed waste stream,Process-specific,Per tonne input,Recovery efficiency,N/A,N/A,Table 2
+MRF LCA (2021),Recovery Rate,Metal recovery from MRF,91,%,From mixed waste stream,Process-specific,Per tonne input,Recovery efficiency,N/A,N/A,Table 2
+MRF LCA (2021),Recovery Rate,Glass recovery from MRF,68,%,From mixed waste stream,Process-specific,Per tonne input,Recovery efficiency,N/A,N/A,Table 2
+Green Solvents (2022),Solvent Screening,Total solvents screened,150,count,In initial database,N/A,N/A,Solvent selection,N/A,N/A,Section 2.1
+Green Solvents (2022),Solvent Screening,Green solvents identified,45,count,Meeting toxicity criteria,N/A,N/A,Solvent selection,N/A,N/A,Section 2.1
+Green Solvents (2022),Solvent Screening,DMI toxicity rating,3,LD50 category,Low toxicity green solvent,N/A,N/A,Toxicity,N/A,N/A,Table S2
+Green Solvents (2022),Solvent Screening,DMSO toxicity rating,3,LD50 category,Low toxicity green solvent,N/A,N/A,Toxicity,N/A,N/A,Table S2
+Green Solvents (2022),Solvent Screening,Cyrene toxicity rating,4,LD50 category,Very low toxicity green solvent,N/A,N/A,Toxicity,N/A,N/A,Table S2
+Green Solvents (2022),Energy Requirement,DMI heating for EVOH,0.25,MJ/kg polymer,Energy for dissolution step,Process-specific,1 kg EVOH,Energy consumption,N/A,N/A,Figure 5
+Green Solvents (2022),Energy Requirement,DMSO heating for EVOH,0.28,MJ/kg polymer,Energy for dissolution step,Process-specific,1 kg EVOH,Energy consumption,N/A,N/A,Figure 5
+Green Solvents (2022),Energy Requirement,Xylene heating for PE,0.18,MJ/kg polymer,Energy for dissolution step,Process-specific,1 kg PE,Energy consumption,N/A,N/A,Figure 7
+Green Solvents (2022),Economics,MSP with DMI solvent system,1580,USD/tonne,Using green solvent pair,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Green solvent,Table 3
+Green Solvents (2022),Economics,MSP with DMSO solvent system,1620,USD/tonne,Using green solvent pair,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Green solvent,Table 3
+Green Solvents (2022),GWP,Climate Change Impact DMI system,1.45,kg CO2-eq/kg polymer,Using green solvent,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Green solvent,Figure 11
+Green Solvents (2022),GWP,Climate Change Impact DMSO system,1.52,kg CO2-eq/kg polymer,Using green solvent,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Green solvent,Figure 11
+Green Solvents (2022),Impact Categories,Human Toxicity Cancer DMI,1.2E-05,CTUh/kg polymer,Comparative Toxic Units,Cradle-to-gate,1 kg recycled polymer,Human toxicity cancer,Economic allocation,Green solvent,Figure 11
+Green Solvents (2022),Impact Categories,Human Toxicity Non-Cancer DMI,8.5E-05,CTUh/kg polymer,Comparative Toxic Units,Cradle-to-gate,1 kg recycled polymer,Human toxicity non-cancer,Economic allocation,Green solvent,Figure 11
+Green Solvents (2022),Impact Categories,Freshwater Ecotoxicity DMI,0.18,CTUe/kg polymer,Comparative Toxic Units Eco,Cradle-to-gate,1 kg recycled polymer,Freshwater ecotoxicity,Economic allocation,Green solvent,Figure 11
+Green Solvents (2022),Polymer Yields,PE recovery with xylene,96.5,%,Optimized green solvent system,Process-specific,Per kg film input,Recovery efficiency,N/A,Green solvent,Table 2
+Green Solvents (2022),Polymer Yields,EVOH recovery with DMI,94.2,%,Optimized green solvent system,Process-specific,Per kg film input,Recovery efficiency,N/A,Green solvent,Table 2
+Green Solvents (2022),Polymer Yields,PET recovery final step,93.8,%,Optimized green solvent system,Process-specific,Per kg film input,Recovery efficiency,N/A,Green solvent,Table 2
+Green Solvents (2022),LCA Methodology,Impact assessment method,TRACI 2.1,method,US EPA method,N/A,N/A,LCA methodology,N/A,N/A,Section 2.3
+Green Solvents (2022),LCA Methodology,LCA software,SimaPro 9.1,software,With ecoinvent 3.7.1,N/A,N/A,LCA methodology,N/A,N/A,Section 2.3
+Green Solvents (2022),LCA Methodology,System boundary,Cradle-to-gate,boundary type,Excludes use phase and EOL,Cradle-to-gate,N/A,LCA methodology,N/A,N/A,Section 2.3
+Computational Framework (2022),Economics,MSP Case Study 1 PE/EVOH/PET,1520,USD/tonne,Optimal solvent sequence,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Optimized,Figure 5
+Computational Framework (2022),Economics,MSP Case Study 2 PE/PA/PET,1680,USD/tonne,Optimal solvent sequence,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Optimized,Figure 6
+Computational Framework (2022),Economics,MSP Case Study 3A 5-polymer,1890,USD/tonne,Sequential separation,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Sequential,Figure 7
+Computational Framework (2022),Economics,MSP Case Study 3B 5-polymer,1750,USD/tonne,Optimized sequence,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Optimized,Figure 8
+Computational Framework (2022),GWP,CCI Case Study 1,1.38,kg CO2-eq/kg polymer,Climate Change Impact,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Optimized,Figure 5
+Computational Framework (2022),GWP,CCI Case Study 2,1.52,kg CO2-eq/kg polymer,Climate Change Impact,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Optimized,Figure 6
+Computational Framework (2022),GWP,CCI Case Study 3A,1.71,kg CO2-eq/kg polymer,Climate Change Impact,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Sequential,Figure 7
+Computational Framework (2022),GWP,CCI Case Study 3B,1.58,kg CO2-eq/kg polymer,Climate Change Impact,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Optimized,Figure 8
+Computational Framework (2022),Computational Efficiency,Optimization time 3-polymer,2.5,hours,For complete case study,N/A,Per case study,Computational time,N/A,N/A,Section 3.1
+Computational Framework (2022),Computational Efficiency,Optimization time 5-polymer,8.5,hours,For complex separation,N/A,Per case study,Computational time,N/A,N/A,Section 3.3
+Computational Framework (2022),Framework Steps,Total framework steps,8,steps,From waste characterization to optimization,N/A,Per analysis,Methodology,N/A,N/A,Figure 3
+Computational Framework (2022),Solvent Database,Total solvents in database,150,count,Available for screening,N/A,N/A,Database size,N/A,N/A,Section 2.1
+Computational Framework (2022),Solvent Database,Green solvents in database,45,count,Low toxicity candidates,N/A,N/A,Database size,N/A,N/A,Section 2.1
+Computational Framework (2022),LCA Methodology,Impact assessment method,TRACI 2.1,method,US EPA method,N/A,N/A,LCA methodology,N/A,N/A,Section 2.2
+Food Packaging (2023),GWP,Coffee packaging with STRAP EOL,0.85,kg CO2-eq/kg packaging,Multi-objective optimization result,Cradle-to-grave,1 kg packaging,Climate Change,Economic allocation,With STRAP recycling,Figure 5
+Food Packaging (2023),GWP,Coffee packaging with landfill EOL,1.52,kg CO2-eq/kg packaging,Multi-objective optimization result,Cradle-to-grave,1 kg packaging,Climate Change,Economic allocation,With landfilling,Figure 5
+Food Packaging (2023),GWP,Coffee packaging with incineration EOL,1.28,kg CO2-eq/kg packaging,Multi-objective optimization result,Cradle-to-grave,1 kg packaging,Climate Change,Economic allocation,With incineration,Figure 5
+Food Packaging (2023),Economics,Total packaging cost with STRAP,0.25,USD/kg packaging,Including EOL processing cost,Cradle-to-grave,1 kg packaging,Economics,N/A,With STRAP,Figure 6
+Food Packaging (2023),Economics,Total packaging cost with landfill,0.18,USD/kg packaging,Including EOL disposal cost,Cradle-to-grave,1 kg packaging,Economics,N/A,With landfill,Figure 6
+Food Packaging (2023),Barrier Performance,Oxygen transmission rate target,0.5,cc/m2/day,For coffee freshness preservation,N/A,Per m2 packaging,Performance spec,N/A,N/A,Section 2.1
+Food Packaging (2023),Barrier Performance,Water vapor transmission rate target,2.0,g/m2/day,For coffee freshness preservation,N/A,Per m2 packaging,Performance spec,N/A,N/A,Section 2.1
+Food Packaging (2023),Circular Economy,Material circularity index with STRAP,0.72,dimensionless,High circularity score (0-1 scale),N/A,Per packaging system,Circularity,N/A,With STRAP,Figure 7
+Food Packaging (2023),Circular Economy,Material circularity index with landfill,0.15,dimensionless,Low circularity score (0-1 scale),N/A,Per packaging system,Circularity,N/A,With landfill,Figure 7
+Food Packaging (2023),Optimization,Number of objectives,3,count,Cost GWP and circularity,N/A,Per optimization,Methodology,N/A,N/A,Section 2.2
+Food Packaging (2023),Optimization,Pareto optimal solutions,25,count,Non-dominated solutions identified,N/A,Per optimization,Methodology,N/A,N/A,Figure 4
+Original STRAP Science (2018),Polymer Yields,PE recovery yield,91,%,From multilayer film,Process-specific,Per kg film input,Recovery efficiency,N/A,Original STRAP,Figure 3
+Original STRAP Science (2018),Polymer Yields,EVOH recovery yield,86,%,From multilayer film,Process-specific,Per kg film input,Recovery efficiency,N/A,Original STRAP,Figure 3
+Original STRAP Science (2018),Polymer Yields,PET recovery yield,89,%,From multilayer film,Process-specific,Per kg film input,Recovery efficiency,N/A,Original STRAP,Figure 3
+Original STRAP Science (2018),Economics,Total Capital Investment,15.2,million USD,For 10000 tonne/year plant,Facility-wide,10000 tonne/year capacity,Economics,N/A,Original design,Figure 4
+Original STRAP Science (2018),Economics,MSP baseline,1920,USD/tonne,Minimum selling price,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Original design,Figure 4
+Original STRAP Science (2018),Economics,Operating cost,850,USD/tonne,Annual operating expenses,Process-specific,1 tonne processed,Economics,N/A,Original design,Table S3
+Original STRAP Science (2018),Solvent Properties,DMSO solubility parameter,26.7,MPa^0.5,Hansen solubility parameter,N/A,N/A,Solvent property,N/A,N/A,Table 1
+Original STRAP Science (2018),Solvent Properties,Xylene solubility parameter,18.0,MPa^0.5,Hansen solubility parameter,N/A,N/A,Solvent property,N/A,N/A,Table 1
+Original STRAP Science (2018),Solvent Properties,DMSO boiling point,189,°C,At atmospheric pressure,N/A,N/A,Solvent property,N/A,N/A,Table 1
+Original STRAP Science (2018),Solvent Properties,Xylene boiling point,144,°C,At atmospheric pressure,N/A,N/A,Solvent property,N/A,N/A,Table 1
+Original STRAP Science (2018),Operating Conditions,PE dissolution temperature,130,°C,In xylene solvent,Process-specific,Per separation stage,Operating conditions,N/A,N/A,Section 2
+Original STRAP Science (2018),Operating Conditions,EVOH dissolution temperature,160,°C,In DMSO solvent,Process-specific,Per separation stage,Operating conditions,N/A,N/A,Section 2
+Original STRAP Science (2018),Operating Conditions,PET processing temperature,25,°C,Remains solid throughout,Process-specific,Per separation stage,Operating conditions,N/A,N/A,Section 2
+Original STRAP Science (2018),Material Properties,PE molecular weight,85000,g/mol,Virgin resin specification,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Material Properties,EVOH molecular weight,52000,g/mol,Virgin resin specification,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Material Properties,PET molecular weight,42000,g/mol,Virgin resin specification,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Material Properties,PE melting point,110,°C,DSC measurement,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Material Properties,EVOH melting point,165,°C,DSC measurement,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Material Properties,PET melting point,255,°C,DSC measurement,N/A,N/A,Polymer property,N/A,N/A,Table S5
+Original STRAP Science (2018),Film Composition,PE content in multilayer film,45,%,Weight percentage,N/A,Per film type,Feedstock composition,N/A,N/A,Figure S4
+Original STRAP Science (2018),Film Composition,EVOH content in multilayer film,15,%,Weight percentage,N/A,Per film type,Feedstock composition,N/A,N/A,Figure S4
+Original STRAP Science (2018),Film Composition,PET content in multilayer film,40,%,Weight percentage,N/A,Per film type,Feedstock composition,N/A,N/A,Figure S4
+Pilot Scale Novel Solvent (2020),Pilot Plant,Dissolution tank volume,500,L,Pilot equipment specification,N/A,Per unit,Equipment design,N/A,Pilot scale,Figure 37.9
+Pilot Scale Novel Solvent (2020),Pilot Plant,Filter area,2.5,m2,Hot filter specification,N/A,Per unit,Equipment design,N/A,Pilot scale,Figure 37.12
+Pilot Scale Novel Solvent (2020),Pilot Plant,Processing capacity,100,kg/hour,Pilot plant throughput,N/A,Per facility,Capacity,N/A,Pilot scale,Section 3.2
+Pilot Scale Novel Solvent (2020),Process Performance,Dissolution time for PE,45,minutes,At 130°C in xylene,Process-specific,Per batch,Operating time,N/A,Pilot scale,Figure 37.11
+Pilot Scale Novel Solvent (2020),Process Performance,Dissolution time for EVOH,60,minutes,At 160°C in DMSO,Process-specific,Per batch,Operating time,N/A,Pilot scale,Figure 37.11
+Pilot Scale Novel Solvent (2020),Process Performance,Solvent recovery efficiency,98.5,%,Via distillation,Process-specific,Per kg solvent,Recovery efficiency,N/A,Pilot scale,Section 3.3
+Pilot Scale Novel Solvent (2020),Economics,MSP at pilot scale,2150,USD/tonne,Higher than commercial scale,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Pilot scale,Figure 37.16
+Pilot Scale Novel Solvent (2020),Economics,MSP at commercial scale 50k,1380,USD/tonne,Economy of scale benefit,Process-specific,1 tonne recycled polymer,Economics,Economic allocation,Commercial 50k tonne/year,Figure 37.16
+Pilot Scale Novel Solvent (2020),Economics,Capital Investment pilot,3.8,million USD,For pilot facility,Facility-wide,100 kg/hour capacity,Economics,N/A,Pilot scale,Figure 37.16
+Pilot Scale Novel Solvent (2020),Economics,Capital Investment commercial 50k,45,million USD,For commercial facility,Facility-wide,50000 tonne/year capacity,Economics,N/A,Commercial scale,Figure 37.16
+Pilot Scale Novel Solvent (2020),LCA,GWP at commercial scale,1.25,kg CO2-eq/kg polymer,With optimized energy integration,Cradle-to-gate,1 kg recycled polymer,Climate Change,Economic allocation,Commercial scale,Section 4.1
+Pilot Scale Novel Solvent (2020),Quality,Polymer purity PE,99.2,%,Post-recovery FTIR analysis,N/A,N/A,Quality spec,N/A,Pilot scale,Figure 37.6
+Pilot Scale Novel Solvent (2020),Quality,Polymer purity EVOH,98.8,%,Post-recovery FTIR analysis,N/A,N/A,Quality spec,N/A,Pilot scale,Figure 37.6
+Pilot Scale Novel Solvent (2020),Quality,Polymer purity PET,99.5,%,Post-recovery FTIR analysis,N/A,N/A,Quality spec,N/A,Pilot scale,Figure 37.6
+Pilot Scale Novel Solvent (2020),Scale-Up,Capacity scale-up factor,50,times,From pilot to 50k tonne/year,N/A,N/A,Scale-up,N/A,N/A,Section 3.4
+Pilot Scale Novel Solvent (2020),Scale-Up,Capital cost scale-up factor,11.8,times,Non-linear scaling (0.6 exponent),N/A,N/A,Scale-up,N/A,N/A,Section 3.4
+Review Paper (2023),Comparison,CreaSolv GWP,1.8,kg CO2-eq/kg polymer,Literature reported,Cradle-to-gate,1 kg recycled polymer,Climate Change,N/A,N/A,Table 3
+Review Paper (2023),Comparison,APK Newcycling GWP,2.1,kg CO2-eq/kg polymer,Literature reported,Cradle-to-gate,1 kg recycled polymer,Climate Change,N/A,N/A,Table 3
+Review Paper (2023),Comparison,PolyStyrene Loop GWP,1.5,kg CO2-eq/kg polymer,Literature reported,Cradle-to-gate,1 kg recycled polymer,Climate Change,N/A,N/A,Table 3
+Review Paper (2023),Comparison,STRAP GWP,1.4,kg CO2-eq/kg polymer,Literature reported average,Cradle-to-gate,1 kg recycled polymer,Climate Change,N/A,N/A,Table 3
+Review Paper (2023),Economics,CreaSolv MSP,2200,USD/tonne,Literature reported,Process-specific,1 tonne recycled polymer,Economics,N/A,N/A,Table 3
+Review Paper (2023),Economics,APK Newcycling MSP,1900,USD/tonne,Literature reported,Process-specific,1 tonne recycled polymer,Economics,N/A,N/A,Table 3
+Review Paper (2023),Economics,PolyStyrene Loop MSP,1600,USD/tonne,Literature reported,Process-specific,1 tonne recycled polymer,Economics,N/A,N/A,Table 3
+Review Paper (2023),Process Comparison,CreaSolv solvent recovery,95,%,Literature reported,Process-specific,Per kg solvent,Recovery efficiency,N/A,N/A,Table 2
+Review Paper (2023),Process Comparison,APK Newcycling solvent recovery,97,%,Literature reported,Process-specific,Per kg solvent,Recovery efficiency,N/A,N/A,Table 2
+Review Paper (2023),Process Comparison,PolyStyrene Loop solvent recovery,96,%,Literature reported,Process-specific,Per kg solvent,Recovery efficiency,N/A,N/A,Table 2
+Review Paper (2023),Process Comparison,STRAP solvent recovery,98.5,%,Literature reported,Process-specific,Per kg solvent,Recovery efficiency,N/A,N/A,Table 2
+Review Paper (2023),Market Context,Virgin LDPE price,1100,USD/tonne,2023 market average,N/A,N/A,Market price,N/A,N/A,Section 4.2
+Review Paper (2023),Market Context,Virgin PET price,850,USD/tonne,2023 market average,N/A,N/A,Market price,N/A,N/A,Section 4.2
+Review Paper (2023),Market Context,Virgin EVOH price,2500,USD/tonne,2023 market average,N/A,N/A,Market price,N/A,N/A,Section 4.2
+Review Paper (2023),Market Context,Mechanically recycled PET price,650,USD/tonne,2023 market average,N/A,N/A,Market price,N/A,N/A,Section 4.2
+Review Paper (2023),Global Scale,Multilayer plastic packaging waste,12,million tonnes/year,Global estimate,N/A,Annual global,Waste generation,N/A,N/A,Section 1
+Review Paper (2023),Global Scale,Current mechanical recycling rate,14,%,Of multilayer plastics,N/A,Per waste stream,Recovery rate,N/A,N/A,Section 1
+Review Paper (2023),Global Scale,Potential for solvent-based recycling,65,%,Of multilayer plastics technically recyclable,N/A,Per waste stream,Technical potential,N/A,N/A,Section 5
+Review Paper (2023),Process Technologies,Number of commercial/pilot plants reviewed,7,count,Including CreaSolv APK PolyStyrene STRAP,N/A,N/A,Technology survey,N/A,N/A,Table 2
+Review Paper (2023),Process Technologies,Temperature range all processes,25 to 200,°C,Across all dissolution technologies,N/A,N/A,Operating conditions,N/A,N/A,Table 2
+Review Paper (2023),Environmental Comparison,GWP reduction vs virgin production,25 to 60,%,Range across dissolution technologies,N/A,N/A,Climate benefit,N/A,N/A,Figure 3
+Review Paper (2023),Environmental Comparison,Energy consumption range,2.5 to 8.5,MJ/kg polymer,Across dissolution technologies,N/A,1 kg recycled polymer,Energy consumption,N/A,N/A,Table 3

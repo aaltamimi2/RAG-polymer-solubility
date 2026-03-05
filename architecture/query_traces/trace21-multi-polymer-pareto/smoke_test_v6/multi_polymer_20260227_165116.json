@@ -1,0 +1,452 @@
+{
+  "phase": "multi-polymer",
+  "timestamp": "20260227_165116",
+  "feedstock": {
+    "PE": 0.4,
+    "PET": 0.3,
+    "EVOH": 0.3
+  },
+  "polymers": [
+    "EVOH",
+    "PE",
+    "PET"
+  ],
+  "n_combinations": 8,
+  "n_pareto": 8,
+  "combinations": [
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Propylene Carbonate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0307,
+      "total_gwp": 1.2248,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Propylene Carbonate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.043,
+      "total_gwp": 1.1285,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Propylene Carbonate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.043,
+      "total_gwp": 1.1285,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Ethyl Acetate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0472,
+      "total_gwp": 1.0964,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Propylene Carbonate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0554,
+      "total_gwp": 1.0322,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Ethyl Acetate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0595,
+      "total_gwp": 1.0001,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Ethyl Acetate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0595,
+      "total_gwp": 1.0001,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Ethyl Acetate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0719,
+      "total_gwp": 0.9038,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    }
+  ],
+  "pareto_combinations": [
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Propylene Carbonate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0307,
+      "total_gwp": 1.2248,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Propylene Carbonate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.043,
+      "total_gwp": 1.1285,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Propylene Carbonate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.043,
+      "total_gwp": 1.1285,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Ethyl Acetate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0472,
+      "total_gwp": 1.0964,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Propylene Carbonate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0554,
+      "total_gwp": 1.0322,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Ethyl Acetate",
+        "PET": "Propylene Carbonate"
+      },
+      "total_msp": 1.0595,
+      "total_gwp": 1.0001,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Propylene Carbonate",
+        "PE": "Ethyl Acetate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0595,
+      "total_gwp": 1.0001,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Propylene Carbonate",
+          "msp": 1.0306860272256164,
+          "gwp": 1.2248091341939125
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "EVOH": "Ethyl Acetate",
+        "PE": "Ethyl Acetate",
+        "PET": "Ethyl Acetate"
+      },
+      "total_msp": 1.0719,
+      "total_gwp": 0.9038,
+      "per_polymer": {
+        "EVOH": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814038,
+          "gwp": 0.9037686449132871
+        },
+        "PE": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132875
+        },
+        "PET": {
+          "solvent": "Ethyl Acetate",
+          "msp": 1.0718897511814043,
+          "gwp": 0.9037686449132876
+        }
+      },
+      "is_pareto": true
+    }
+  ]
+}

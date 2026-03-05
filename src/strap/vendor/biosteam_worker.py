@@ -56,8 +56,14 @@ _TARGET_PLASTIC_MAP = {
     "PS":   "PE",   # polystyrene — no native oligomer; PE flowsheet used
     "PP":   "PE",   # polypropylene — no native oligomer; PE flowsheet used
     "PVC":  "PE",   # poly(vinyl chloride) — no native oligomer; PE flowsheet used
-    # ── Native thermosteam support ────────────────────────────────────────
-    "PC":   "PC",   # polycarbonate — PColigomer exists in thermosteam
+    "PC":   "PE",   # polycarbonate — PE flowsheet proxy
+    "EVOH": "PE",   # ethylene vinyl alcohol — PE flowsheet proxy
+    # ── PE-proxy polymers (approximate economics / LCA) ────────────────
+    "NYLON6":  "PE",   # polyamide 6
+    "NYLON66": "PE",   # polyamide 66
+    "PA6":     "PE",   # alias for Nylon6
+    "PA66":    "PE",   # alias for Nylon66
+    "PES":     "PE",   # polyethersulfone
 }
 
 
@@ -138,24 +144,24 @@ def _run(config: dict) -> dict:
     pm.tea.labor_cost = config.get("labor_cost", 120000)
 
     if "solvent_price" in config:
-        pm.set_solvent_price = config["solvent_price"]
+        pm.set_solvent_price(config["solvent_price"])
 
-    pm.set_feedstock_distance = config.get("feedstock_distance_km", 0)
+    pm.set_feedstock_distance(config.get("feedstock_distance_km", 0))
 
     # solvent_loss_pct is given as percent (e.g. 0.01 means 0.01%).
     # BioSTEAM expects a fraction, so divide by 100.
-    pm.set_solvent_loss = config.get("solvent_loss_pct", 0.01) / 100
+    pm.set_solvent_loss(config.get("solvent_loss_pct", 0.01) / 100)
 
     if "dissolution_temperature_c" in config:
-        pm.set_dissolution_temperature = (
+        pm.set_dissolution_temperature(
             config["dissolution_temperature_c"] + 273.15
         )
 
-    pm.set_precipitation_temperature = (
+    pm.set_precipitation_temperature(
         config.get("precipitation_temperature_c", 25) + 273.15
     )
 
-    pm.set_dissolution_capacity = config.get("dissolution_capacity", 3)
+    pm.set_dissolution_capacity(config.get("dissolution_capacity", 3))
 
     # ------------------------------------------------------------------
     # LCA characterisation factors (optional)

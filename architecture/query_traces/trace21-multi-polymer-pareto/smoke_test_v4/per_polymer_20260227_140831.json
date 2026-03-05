@@ -1,0 +1,748 @@
+{
+  "phase": "per-polymer",
+  "timestamp": "20260227_140831",
+  "polymers": [
+    "PE",
+    "PET"
+  ],
+  "energy_cases": [
+    "C1",
+    "C3"
+  ],
+  "n_configs": 76,
+  "n_succeeded": 76,
+  "n_failed": 0,
+  "elapsed_s": 330.4,
+  "results_by_polymer": {
+    "PE": [
+      {
+        "solvent": "Diethanolamine",
+        "msp": 1.119927887822898,
+        "gwp": 1.5765450924356357,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethanolamine",
+        "msp": 1.0078664706634417,
+        "gwp": 1.582204947498073,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethylene glycol",
+        "msp": 1.091622859138028,
+        "gwp": 1.4198600377290962,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethylene glycol",
+        "msp": 0.9766062125960087,
+        "gwp": 1.4253884957562686,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Dodecanol",
+        "msp": 1.2511377664690655,
+        "gwp": 1.5619015473308864,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Dodecanol",
+        "msp": 1.136465112612298,
+        "gwp": 1.5676917718026702,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 1.1333223848933014,
+        "gwp": 0.9702656472457436,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 0.9976749299653318,
+        "gwp": 0.9755267621413316,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 1.0748091827226345,
+        "gwp": 0.9074937567621124,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 0.9354725875268493,
+        "gwp": 0.9126409607323935,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 1.077348879963113,
+        "gwp": 1.2843803433294754,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 0.9585875793591778,
+        "gwp": 1.289814310930605,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Heptane",
+        "msp": 1.2009917705558728,
+        "gwp": 0.9968112739187883,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Heptane",
+        "msp": 1.0652057688437238,
+        "gwp": 1.0021671953706595,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isobutyl Acetate",
+        "msp": 1.1159269640470404,
+        "gwp": 1.002987349721099,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isobutyl Acetate",
+        "msp": 0.9833703353477083,
+        "gwp": 1.0082525574953138,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.14407006302935,
+        "gwp": 1.0044514651554566,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.0106181144603013,
+        "gwp": 1.009752831717822,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Methylcyclohexane",
+        "msp": 1.145670457914787,
+        "gwp": 0.9698351749129812,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Methylcyclohexane",
+        "msp": 1.0096840358064025,
+        "gwp": 0.9751057762483049,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 1.0927510467838364,
+        "gwp": 1.078667850764392,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 0.9654472531885281,
+        "gwp": 1.0839646275755124,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 1.1002828849077835,
+        "gwp": 1.2823484328605785,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 0.9809096648634927,
+        "gwp": 1.2878082556837014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Pyridazine",
+        "msp": 1.1109538192256037,
+        "gwp": 1.1307321243866255,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Pyridazine",
+        "msp": 0.9861583776958522,
+        "gwp": 1.1360685120535343,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 1.1037483558885832,
+        "gwp": 0.972557132751723,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 0.969398875180012,
+        "gwp": 0.9777836047876756,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Xylene",
+        "msp": 1.110350561808059,
+        "gwp": 1.0434639635850966,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Xylene",
+        "msp": 0.9806474207633877,
+        "gwp": 1.0487512486897153,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "butane-1,4-diol",
+        "msp": 1.127552366887206,
+        "gwp": 1.3128633413683741,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "butane-1,4-diol",
+        "msp": 1.00912558735155,
+        "gwp": 1.3183447117709841,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "gamma-butyrolactone",
+        "msp": 1.0570958227530518,
+        "gwp": 1.1447676804668152,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "gamma-butyrolactone",
+        "msp": 0.9341873540474752,
+        "gwp": 1.1500585893903896,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 1.0481012563796304,
+        "gwp": 1.0281580323721984,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 0.9194036189732484,
+        "gwp": 1.0333610910788014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "sec-Butyl Acetate",
+        "msp": 1.1102321546433276,
+        "gwp": 1.0059110269044702,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "sec-Butyl Acetate",
+        "msp": 0.9780296906659083,
+        "gwp": 1.0111731029959576,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "PET": [
+      {
+        "solvent": "Diethanolamine",
+        "msp": 1.1199278878228984,
+        "gwp": 1.5765450924356363,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethanolamine",
+        "msp": 1.0078664706634415,
+        "gwp": 1.582204947498073,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethylene glycol",
+        "msp": 1.091622859138028,
+        "gwp": 1.4198600377290964,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Diethylene glycol",
+        "msp": 0.976606212596008,
+        "gwp": 1.4253884957562684,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Dodecanol",
+        "msp": 1.2511377664690655,
+        "gwp": 1.5619015473308864,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Dodecanol",
+        "msp": 1.1364651126122978,
+        "gwp": 1.5676917718026702,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 1.1333223848933012,
+        "gwp": 0.9702656472457436,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 0.9976749299653318,
+        "gwp": 0.9755267621413316,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 1.074809182722634,
+        "gwp": 0.9074937567621124,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 0.9354725875268495,
+        "gwp": 0.9126409607323936,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 1.077348879963113,
+        "gwp": 1.2843803433294758,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 0.9585875793591778,
+        "gwp": 1.289814310930605,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Heptane",
+        "msp": 1.2009917705558728,
+        "gwp": 0.9968112739187883,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Heptane",
+        "msp": 1.065205768843724,
+        "gwp": 1.0021671953706597,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isobutyl Acetate",
+        "msp": 1.1159269640470406,
+        "gwp": 1.002987349721099,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isobutyl Acetate",
+        "msp": 0.9833703353477088,
+        "gwp": 1.0082525574953136,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.14407006302935,
+        "gwp": 1.0044514651554566,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.0106181144603013,
+        "gwp": 1.009752831717822,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Methylcyclohexane",
+        "msp": 1.1456704579147865,
+        "gwp": 0.9698351749129811,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Methylcyclohexane",
+        "msp": 1.0096840358064025,
+        "gwp": 0.9751057762483047,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 1.0927510467838366,
+        "gwp": 1.078667850764392,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 0.9654472531885281,
+        "gwp": 1.0839646275755122,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 1.1002828849077835,
+        "gwp": 1.2823484328605785,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 0.9809096648634925,
+        "gwp": 1.2878082556837014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Pyridazine",
+        "msp": 1.1109538192256037,
+        "gwp": 1.1307321243866255,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Pyridazine",
+        "msp": 0.9861583776958522,
+        "gwp": 1.136068512053534,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 1.1037483558885832,
+        "gwp": 0.972557132751723,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 0.969398875180012,
+        "gwp": 0.9777836047876757,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Xylene",
+        "msp": 1.1103505618080587,
+        "gwp": 1.0434639635850969,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Xylene",
+        "msp": 0.9806474207633877,
+        "gwp": 1.0487512486897153,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "butane-1,4-diol",
+        "msp": 1.1275523668872063,
+        "gwp": 1.3128633413683741,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "butane-1,4-diol",
+        "msp": 1.00912558735155,
+        "gwp": 1.3183447117709843,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "gamma-butyrolactone",
+        "msp": 1.0570958227530518,
+        "gwp": 1.1447676804668152,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "gamma-butyrolactone",
+        "msp": 0.9341873540474752,
+        "gwp": 1.1500585893903896,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 1.048101256379631,
+        "gwp": 1.0281580323721984,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 0.9194036189732488,
+        "gwp": 1.0333610910788014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "sec-Butyl Acetate",
+        "msp": 1.1102321546433276,
+        "gwp": 1.0059110269044702,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "sec-Butyl Acetate",
+        "msp": 0.9780296906659083,
+        "gwp": 1.0111731029959572,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      }
+    ]
+  },
+  "pareto_by_polymer": {
+    "PE": [
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 1.0748091827226345,
+        "gwp": 0.9074937567621124,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 1.0481012563796304,
+        "gwp": 1.0281580323721984,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "PET": [
+      {
+        "solvent": "Ethyl acetate",
+        "msp": 1.074809182722634,
+        "gwp": 0.9074937567621124,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "o-Chlorotoluene",
+        "msp": 1.048101256379631,
+        "gwp": 1.0281580323721984,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      }
+    ]
+  }
+}

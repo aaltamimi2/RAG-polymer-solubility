@@ -1,0 +1,109 @@
+Name,solvent_SMILES,CAS,G-score prediction,G-score prediction uncertainty,Relative Energy Difference (RED),Source
+"N,N-Dimethyl Formamide (Dmf)",[H]C(N(C)C)=O,68-12-2,4.999,0.7465,0,high-fidelity RED
+Metronidazole,[O-][N+](=O)c1cnc(n1CCO)C,443-48-1,7.229,1.371,0.8558621384311853,low-fidelity RED
+Pentaerythritol Tetranitrate,[O-][N+](OCC(CO[N+]([O-])=O)(CO[N+]([O-])=O)CO[N+]([O-])=O)=O,78-11-5,5.556,1.011,0.7093130479555544,low-fidelity RED
+Fumaronitrile,C(=CC#N)C#N,764-42-1,5.731,0.8949,0.9427353817482402,high-fidelity RED
+"3-Chloro-1,2-Propanediol Dinitrate",C(C(CCl)O[N+](=O)[O-])O[N+](=O)[O-],2612-33-1,6.446,1.227,0.8789197915623475,low-fidelity RED
+Nitroglycerin (Glyceryl Trinitrate),C(C(CO[N+](=O)[O-])O[N+](=O)[O-])O[N+](=O)[O-],55-63-0,7.336,1.191,0.32113081446662817,high-fidelity RED
+Mercaptoacetaldehyde,C(C=O)S,4124-63-4,5.626,0.8378,0.27156951228000537,low-fidelity RED
+3-Chloropropionaldehyde,C(CCl)C=O,19434-65-2,5.092,0.9034,0.806613290245084,high-fidelity RED
+"Propanenitrile, 3,3 -Iminobis-",C(CCNCCC#N)#N,111-94-4,5.78,1.032,0.8624094155330169,low-fidelity RED
+Spermidin,C(CCNCCCN)CN,124-20-9,5.667,1.142,0.737394060187631,high-fidelity RED
+"1,3-Propanediol Dinitrate",C(CO[N+](=O)[O-])CO[N+](=O)[O-],3457-90-7,6.288,0.9732,0.901387818865997,low-fidelity RED
+Propargylaldehyde,C#CC=O,624-67-9,5.017,0.7986,0.9924716620639603,high-fidelity RED
+2-Chloropropenal,C=C(C=O)Cl,683-51-2,5.323,0.9197,0.8381527307120105,high-fidelity RED
+2-Fluoroprop-2-Enamide,C=C(F)C(N)=O,,5.438,0.9785,0.47762432936356886,low-fidelity RED
+Acrylamide,C=CC(N)=O,79-06-1,6.185,0.8039,0.9698582370635402,high-fidelity RED
+Hydroxyethyl Acrylate,C=CC(OCCO)=O,818-61-1,7.184,0.9925,0.8838834764831838,high-fidelity RED
+Simazine,C1(=NC(=NC(=N1)NCC)NCC)Cl,122-34-9,6.277,1.061,0.9804335775563794,low-fidelity RED
+Cyclopropanecarboxamide,C1(CC1)C(=O)N,6228-73-5,6.112,0.9214,0.6841966091702011,low-fidelity RED
+2-Furonitrile,C1=COC(=C1)C#N,617-90-3,6.666,1.086,0.9778803607803976,high-fidelity RED
+Isoxazole,C1=CON=C1,288-14-2,5.307,1.054,0.7044501401802696,high-fidelity RED
+"1,2,3-Benzotriazole",C12=CC=CC=C1NN=N2,95-14-7,5.903,0.9657,0.850734976358678,high-fidelity RED
+"Propionaldehyde - 2,3-Epoxy",C1C(O1)C=O,765-34-4,5.707,0.9926,0.38568121551353785,high-fidelity RED
+2-Oxopyrrolidinacetamid,C1CC(=O)N(C1)CC(=O)N,7491-74-9,6.948,1.048,0.4782781617427249,high-fidelity RED
+Tetramethylene Sulfoxide,C1CCS(=O)C1,1600-44-8,5.458,0.8141,0.9581883948368402,high-fidelity RED
+"1,4-Dioxan-2-On",C1COC(=O)CO1,3041-16-5,6.547,0.9457,0.7335700375560605,low-fidelity RED
+"1,3-Propane Sultone",C1COS(=O)(=O)C1,1120-71-4,5.557,0.9373,0.9545941546018394,high-fidelity RED
+"N,2-Dimethylprop-2-Enamide",CC(=C)C(=O)NC,2/3/87 0:00,5.236,1.019,0.6882949948968103,low-fidelity RED
+1-Mercapto-2-Propanone,CC(=O)CS,24653-75-6,6.279,0.6969,0.9937303457175898,low-fidelity RED
+N-Acetyl Pyrrolidone,CC(=O)N1CCCC1=O,932-17-2,6.342,0.9282,0.7905694150420951,high-fidelity RED
+Methyl Dithioacetate,CC(=S)SC,2168-84-5,5.469,0.8749,0.8314144574157957,low-fidelity RED
+"N,N-Dimethyl Acetamide",CC(N(C)C)=O,127-19-5,5.436,0.7363,0.6841966091702,low-fidelity RED
+N-Methyl Acetamide,CC(NC)=O,79-16-3,6.039,0.8963,0.9611191393370543,high-fidelity RED
+"Acetamide, N-Ethyl-",CC(NCC)=O,625-50-3,6.361,0.8268,0.31721443851123815,low-fidelity RED
+Acetic Anhydride,CC(OC(C)=O)=O,108-24-7,5.998,0.732,0.9031195934094217,high-fidelity RED
+(+)-10-Camphorsulfonic Acid,CC1(C2CCC1(C(=O)C2)CS(=O)(=O)O)C,35963-20-3,7.813,1.346,0.9823441352194255,low-fidelity RED
+α-Angelica Lactone,CC1=CCC(=O)O1,591-12-8,6.88,0.9861,0.9823441352194252,low-fidelity RED
+2-Methyl Pyrazine,CC1=NC=CN=C1,109-08-0,6.204,1.065,0.6041522986797293,high-fidelity RED
+Strawberry Furanone 20% Dpg,CC1C(=O)C(=C(O1)C)O,3658-77-3,7.723,1.019,0.6604922406811452,low-fidelity RED
+Shoyu Furanone,CCC1=C(C(=O)C(O1)C)O,27538-09-6,7.589,1.175,0.7766112283504536,low-fidelity RED
+Ethyl Maltol,CCC1=C(C(=O)C=CO1)O,11/8/40 0:00,7.674,1.093,0.959817691022624,low-fidelity RED
+Ethyl Cyclopentenolone,CCC1=C(C(=O)CC1)O,21835-01-8,7.455,1.042,0.9852030247619014,low-fidelity RED
+Capscaisin,CCCCCCCCC(=O)NCC1=CC(=C(C=C1)O)OC,2444-46-4,8.472,1.31,0.9100137361600649,low-fidelity RED
+N-Ethyl Propanamide,CCNC(CC)=O,5129-72-6,6.34,0.8557,0.7382411530116699,low-fidelity RED
+Dimethyl Carbamoyl Chloride,ClC(=O)N(C)C,79-44-7,5.254,0.7537,0.8054501846793514,low-fidelity RED
+Trichloroacetamid,ClC(Cl)(Cl)C(=O)N,594-65-0,5.531,0.9109,0.790964600977819,low-fidelity RED
+Cyanazine,Clc1nc(nc(n1)NC(C#N)(C)C)NCC,21725-46-2,6.523,1.256,0.8310385069297342,low-fidelity RED
+N-Methyl-2-Chloroacetamide,ClCC(=O)NC,96-30-0,5.369,1.002,0.8902246907382434,low-fidelity RED
+n-(2-Methoxyethyl)Acetamide,COCCNC(C)=O,5417-42-5,5.331,0.9907,0.443001128666734,low-fidelity RED
+Trifluoro-Acetoamide,FC(F)(F)C(=O)N,354-38-1,5.074,0.8497,0.9978101021737547,low-fidelity RED
+"1,3-Difluoro-Propan-2-ol",FCC(CF)O,453-13-4,6.744,0.8465,0.6600189391222041,low-fidelity RED
+Methyl-α-Cyanoacrylate,N#C/C(=C)C(=O)OC,137-05-3,6.004,1.085,0.969858237063541,low-fidelity RED
+Acrolein\Cyanohydrin,N#CC(O)C=C,5809-59-6,6.747,1.018,0.9347459547919956,low-fidelity RED
+4-Cyanobutanoic Acid,N#CCCCC(=O)O,39201-33-7,7.102,1.004,0.7913595895672205,low-fidelity RED
+Aminoacetonitrile,N#CCN,540-61-4,5.856,0.8638,0.8518362518700412,low-fidelity RED
+Propionamide,NC(CC)=O,79-05-0,6.487,0.7725,0.41907636535600495,high-fidelity RED
+2-Chloroacetamide,NC(CCl)=O,79-07-2,5.8,0.8372,0.5062114182829147,high-fidelity RED
+Thiourea From Urea Min Sphere,NC(N)=S,62-56-6,5.688,0.8336,0.4756574397610117,high-fidelity RED
+Methyl Carbamate   ,NC(OC)=O,598-55-0,6.185,0.8281,0.7228416147400477,low-fidelity RED
+6-Aminohexanamide,NCCCCCC(=O)N,373-04-6,7.321,1.049,0.5419870847169698,low-fidelity RED
+Simetone,O(c1nc(nc(n1)NCC)NCC)C,673-04-1,7.16,1.085,0.7558108228915499,low-fidelity RED
+Oxamyl,O=C(C(=N\OC(=O)NC)\SC)N(C)C,23135-22-0,5.51,1.103,0.8750000000000003,low-fidelity RED
+Barbital ,O=C(C(CC)(CC)C(N1)=O)NC1=O,57-44-3,6.37,1.164,0.6427480066091225,low-fidelity RED
+Tebuthiuron,O=C(N(c1nnc(s1)C(C)(C)C)C)NC,34014-18-1,6.026,1.184,0.8591420138719793,low-fidelity RED
+Isobutyramide,O=C(N)C(C)C,563-83-7,6.627,0.7881,0.6289872812704562,low-fidelity RED
+4-Piperidinecarboxamide,O=C(N)C1CCNCC1,1918-79-2,5.928,1.101,0.5836308764964374,low-fidelity RED
+Atenolol,O=C(N)Cc1ccc(OCC(O)CNC(C)C)cc1,29122-68-7,9.162,1.411,0.9082951062292478,low-fidelity RED
+n-Butyramide,O=C(N)CCC,541-35-5,6.777,0.8448,0.3535533905932738,high-fidelity RED
+Pentanamide,O=C(N)CCCC,626-97-1,7.063,0.8125,0.6749999999999996,low-fidelity RED
+1-Ethylurea,O=C(N)NCC,625-52-5,6.672,0.8745,0.9048480535426929,low-fidelity RED
+N-Methyl Propionamide,O=C(NC)CC,1187-58-2,6.165,1.011,0.31721443851123815,low-fidelity RED
+N-Methylpentanamide,O=C(NC)CCCC,10/1/25 0:00,6.684,0.9606,0.9414085191881363,low-fidelity RED
+"1,3-Dimethylurea",O=C(NC)NC,96-31-1,5.89,0.9059,0.7420411039827917,low-fidelity RED
+3-Trifluoromethylphenylurea,O=C(Nc1cc(ccc1)C(F)(F)F)N,13114-87-9,5.984,1.105,0.6768493185340444,low-fidelity RED
+n-Propylacetamide,O=C(NCCC)C,5331-48-6,6.155,0.9528,0.7504165509901815,low-fidelity RED
+Captopril,O=C(O)[C@H]1N(C(=O)[C@H](C)CS)CCC1,62571-86-2,6.209,1.072,0.5279678020485719,low-fidelity RED
+Thiodicarb,O=C(O\N=C(\SC)C)N(SN(C(=O)O\N=C(\SC)C)C)C,59669-26-0,5.839,1.036,0.8724964183307574,low-fidelity RED
+Methyl Cyanoacetate,O=C(OC)CC#N,105-34-0,6.456,1.04,0.524404424085076,high-fidelity RED
+Malaoxon,O=C(OCC)C(SP(=O)(OC)OC)CC(=O)OCC,1634-78-2,5.917,1.113,0.5511351921262151,low-fidelity RED
+Ethyl-N-Methyl Carbamate,O=C(OCC)NC,105-40-8,6.358,0.9491,0.8591420138719787,low-fidelity RED
+2-Ethyl-4-Hydroxy-5-Methyl-3(2H)-Furanone,O=C1C(O)=C(/OC1CC)C,27538-10-9,8.252,1.097,0.7766112283504536,low-fidelity RED
+2-Pyrrolidone,O=C1CCCN1,616-45-5,6.344,0.9969,0.8192984804086971,high-fidelity RED
+"1,3,5-Tris(2,3-Epoxypropyl)Isocyanuricacid",O=C1N(C(=O)N(C(=O)N1CC2OC2)CC3OC3)CC4OC4,2451-62-9,7.37,1.099,0.9490126448051157,low-fidelity RED
+Metharbital,O=C1N(C(=O)NC(=O)C1(CC)CC)C,50-11-3,6.203,1.212,0.9737171047075222,low-fidelity RED
+Ethosuximide,O=C1NC(=O)CC1(C)CC,77-67-8,6.469,1.163,0.962094070244693,low-fidelity RED
+5-Ethyl-5-Isopropylbarbituric Acid {Probarbital},O=C1NC(=O)NC(=O)C1(C(C)C)CC,76-76-6,6.804,1.134,0.9842509842514765,low-fidelity RED
+5-Ethyl-5-Propylbarbituric Acid,O=C1NC(=O)NC(=O)C1(CCC)CC,33376-25-9,6.228,1.175,0.7433034373659259,low-fidelity RED
+5-Butyl-5-Ethylbarbituric Acid {Butobarbital} {Butetal},O=C1NC(=O)NC(=O)C1(CCCC)CC,77-28-1,6.519,1.172,0.7668930825088986,low-fidelity RED
+5-Ethyl-5-Pentylbarbituric Acid,O=C1NC(=O)NC(=O)C1(CCCCC)CC,115-58-2,6.603,1.172,0.9965565713997376,low-fidelity RED
+Thiopental,O=C1NC(=S)NC(=O)C1(C(C)CCC)CC,76-75-5,5.589,1.286,0.9017344398435724,low-fidelity RED
+β-Butyrolactone,O=C1OC(C)C1,3068-88-0,7.38,0.9889,0.9965565713997373,low-fidelity RED
+4-Ethyloxazolidine-2-One,O=C1OCC(N1)CC,16112-60-0,7.036,1.128,0.9620940702446931,low-fidelity RED
+3-Ethyloxazolidine-2-One,O=C1OCCN1CC,5261-18-7,6.299,1.115,0.9778803607803975,low-fidelity RED
+Glutaraldehyde,O=CCCCC=O,111-30-8,6.177,0.837,0.8280247580839598,low-fidelity RED
+Tert-Butylformamide,O=CNC(C)(C)C,2425-74-3,5.363,0.8227,0.9476945710512423,low-fidelity RED
+n-Isopropylformamide,O=CNC(C)C,16741-46-1,5.663,0.9925,0.4373213921133963,low-fidelity RED
+Monocrotophos,O=P(O/C(=C/C(=O)NC)C)(OC)OC,6923-22-4,5.401,1.238,0.5706356105256671,low-fidelity RED
+Mevinphos,O=P(O/C(=C/C(=O)OC)C)(OC)OC,7786-34-7,5.683,1.185,0.9775607398008574,low-fidelity RED
+Trichlorfon,O=P(OC)(OC)C(O)C(Cl)(Cl)Cl,52-68-6,5.228,1.052,0.7232738070744726,low-fidelity RED
+"Tris(2,3-Dibromopropyl) Phosphate",O=P(OCC(Br)CBr)(OCC(CBr)Br)OCC(CBr)Br,126-72-7,5.611,1.132,0.8381527307120108,low-fidelity RED
+Triethylphosphate,O=P(OCC)(OCC)OCC,78-40-0,5.11,0.8847,0.8536685539481935,high-fidelity RED
+"N,N-Dimethyl Methanesulfonamide",O=S(=O)(N(C)C)C,918-05-8,5.195,0.9053,0.9813893213195262,low-fidelity RED
+Probenecid,O=S(=O)(N(CCC)CCC)c1ccc(C(=O)O)cc1,57-66-9,6.534,1.346,0.8591420138719796,low-fidelity RED
+Sotalol,O=S(=O)(Nc1ccc(cc1)C(O)CNC(C)C)C,3930-20-9,7.769,1.256,0.7075485849042457,low-fidelity RED
+(1S)-(+)-10-Camphorsulfonic Acid,O=S(=O)(O)C[C]12C(=O)C[C@@H](CC1)C2(C)C,3144-16-9,7.813,1.346,0.9823441352194255,low-fidelity RED
+Dimethyl Sulfoxide (Dmso),O=S(C)C,67-68-5,5.991,0.7517,0.8838834764831843,high-fidelity RED
+1-Chloro-3-Fluoroisopropanol,OC(CF)CCl,453-11-2,5.657,0.9667,0.7574628703771555,low-fidelity RED
+3-Oxohexanoic Acid Diglyceride,OCC(O)COC(=O)CC(=O)CCC,91052-72-1,7.981,1.235,0.9829801625668747,low-fidelity RED
+Acetonethiosemicarbazone,S=C(N)N/N=C(\C)C,1752-30-3,5.667,0.9622,0.7968688725254625,low-fidelity RED

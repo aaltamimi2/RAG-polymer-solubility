@@ -1,0 +1,186 @@
+{
+  "phase": "multi-polymer",
+  "timestamp": "20260227_140831",
+  "feedstock": {
+    "PE": 0.5,
+    "PET": 0.5
+  },
+  "polymers": [
+    "PE",
+    "PET"
+  ],
+  "n_combinations": 4,
+  "n_pareto": 4,
+  "combinations": [
+    {
+      "solvents": {
+        "PE": "o-Chlorotoluene",
+        "PET": "o-Chlorotoluene"
+      },
+      "total_msp": 1.0481,
+      "total_gwp": 1.0282,
+      "per_polymer": {
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796304,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.048101256379631,
+          "gwp": 1.0281580323721984
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "Ethyl acetate",
+        "PET": "o-Chlorotoluene"
+      },
+      "total_msp": 1.0615,
+      "total_gwp": 0.9678,
+      "per_polymer": {
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.048101256379631,
+          "gwp": 1.0281580323721984
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "o-Chlorotoluene",
+        "PET": "Ethyl acetate"
+      },
+      "total_msp": 1.0615,
+      "total_gwp": 0.9678,
+      "per_polymer": {
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796304,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.074809182722634,
+          "gwp": 0.9074937567621124
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "Ethyl acetate",
+        "PET": "Ethyl acetate"
+      },
+      "total_msp": 1.0748,
+      "total_gwp": 0.9075,
+      "per_polymer": {
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.074809182722634,
+          "gwp": 0.9074937567621124
+        }
+      },
+      "is_pareto": true
+    }
+  ],
+  "pareto_combinations": [
+    {
+      "solvents": {
+        "PE": "o-Chlorotoluene",
+        "PET": "o-Chlorotoluene"
+      },
+      "total_msp": 1.0481,
+      "total_gwp": 1.0282,
+      "per_polymer": {
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796304,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.048101256379631,
+          "gwp": 1.0281580323721984
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "Ethyl acetate",
+        "PET": "o-Chlorotoluene"
+      },
+      "total_msp": 1.0615,
+      "total_gwp": 0.9678,
+      "per_polymer": {
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.048101256379631,
+          "gwp": 1.0281580323721984
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "o-Chlorotoluene",
+        "PET": "Ethyl acetate"
+      },
+      "total_msp": 1.0615,
+      "total_gwp": 0.9678,
+      "per_polymer": {
+        "PE": {
+          "solvent": "o-Chlorotoluene",
+          "msp": 1.0481012563796304,
+          "gwp": 1.0281580323721984
+        },
+        "PET": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.074809182722634,
+          "gwp": 0.9074937567621124
+        }
+      },
+      "is_pareto": true
+    },
+    {
+      "solvents": {
+        "PE": "Ethyl acetate",
+        "PET": "Ethyl acetate"
+      },
+      "total_msp": 1.0748,
+      "total_gwp": 0.9075,
+      "per_polymer": {
+        "PE": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.0748091827226345,
+          "gwp": 0.9074937567621124
+        },
+        "PET": {
+          "solvent": "Ethyl acetate",
+          "msp": 1.074809182722634,
+          "gwp": 0.9074937567621124
+        }
+      },
+      "is_pareto": true
+    }
+  ]
+}

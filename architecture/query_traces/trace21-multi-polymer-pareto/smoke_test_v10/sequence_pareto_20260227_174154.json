@@ -1,0 +1,174 @@
+{
+  "phase": "sequence-pareto",
+  "timestamp": "20260227_174154",
+  "n_sequences": 3,
+  "n_unique_configs": 9,
+  "n_succeeded": 9,
+  "n_failed": 0,
+  "n_pareto": 1,
+  "elapsed_s": 54.1,
+  "sequences": [
+    {
+      "label": "Seq A: EG/DMSO/DMF",
+      "steps": [
+        {
+          "polymer": "PE",
+          "solvent_interp": "glycol",
+          "solvent_bst": "Ethylene Glycol",
+          "temperature_c": 120,
+          "msp": 1.077348879963113,
+          "gwp": 1.2843803433294758,
+          "selectivity": null
+        },
+        {
+          "polymer": "PET",
+          "solvent_interp": "dimethylsulfoxide",
+          "solvent_bst": "Dimethyl sulfoxide",
+          "temperature_c": 135,
+          "msp": 1.0634072166483937,
+          "gwp": 1.1512425426923565,
+          "selectivity": null
+        },
+        {
+          "polymer": "EVOH",
+          "solvent_interp": "dimethylformamide",
+          "solvent_bst": "N,N-Dimethylformamide",
+          "temperature_c": 100,
+          "msp": 1.08683691830151,
+          "gwp": 1.0731133446725643,
+          "selectivity": null
+        }
+      ],
+      "n_steps": 3,
+      "all_succeeded": true,
+      "total_msp": 3.2276,
+      "total_gwp": 3.5087,
+      "avg_msp": 1.0759,
+      "avg_gwp": 1.1696,
+      "min_selectivity": null,
+      "is_pareto": false
+    },
+    {
+      "label": "Seq B: Tol/EtOAc/PC",
+      "steps": [
+        {
+          "polymer": "PE",
+          "solvent_interp": "toluene",
+          "solvent_bst": "Toluene",
+          "temperature_c": 110,
+          "msp": 1.1037483558885832,
+          "gwp": 0.972557132751723,
+          "selectivity": null
+        },
+        {
+          "polymer": "PET",
+          "solvent_interp": "ethylacetate",
+          "solvent_bst": "Ethyl acetate",
+          "temperature_c": 80,
+          "msp": 1.076835279002521,
+          "gwp": 0.9110399152055387,
+          "selectivity": null
+        },
+        {
+          "polymer": "EVOH",
+          "solvent_interp": "propylenecarbonate",
+          "solvent_bst": "Propylene Carbonate",
+          "temperature_c": 120,
+          "msp": 1.0262235711662977,
+          "gwp": 1.2226157447679342,
+          "selectivity": null
+        }
+      ],
+      "n_steps": 3,
+      "all_succeeded": true,
+      "total_msp": 3.2068,
+      "total_gwp": 3.1062,
+      "avg_msp": 1.0689,
+      "avg_gwp": 1.0354,
+      "min_selectivity": null,
+      "is_pareto": true
+    },
+    {
+      "label": "Seq C: Dod/PG/DMSO",
+      "steps": [
+        {
+          "polymer": "PE",
+          "solvent_interp": "dodecane",
+          "solvent_bst": "Dodecane",
+          "temperature_c": 130,
+          "msp": 1.2167149478587458,
+          "gwp": 1.3142914276374258,
+          "selectivity": null
+        },
+        {
+          "polymer": "PET",
+          "solvent_interp": "propyleneglycol",
+          "solvent_bst": "Propylene Glycol",
+          "temperature_c": 160,
+          "msp": 1.1137929838611025,
+          "gwp": 1.296935162035153,
+          "selectivity": null
+        },
+        {
+          "polymer": "EVOH",
+          "solvent_interp": "dimethylsulfoxide",
+          "solvent_bst": "Dimethyl sulfoxide",
+          "temperature_c": 135,
+          "msp": 1.063407216648394,
+          "gwp": 1.1512425426923565,
+          "selectivity": null
+        }
+      ],
+      "n_steps": 3,
+      "all_succeeded": true,
+      "total_msp": 3.3939,
+      "total_gwp": 3.7625,
+      "avg_msp": 1.1313,
+      "avg_gwp": 1.2542,
+      "min_selectivity": null,
+      "is_pareto": false
+    }
+  ],
+  "pareto_sequences": [
+    {
+      "label": "Seq B: Tol/EtOAc/PC",
+      "steps": [
+        {
+          "polymer": "PE",
+          "solvent_interp": "toluene",
+          "solvent_bst": "Toluene",
+          "temperature_c": 110,
+          "msp": 1.1037483558885832,
+          "gwp": 0.972557132751723,
+          "selectivity": null
+        },
+        {
+          "polymer": "PET",
+          "solvent_interp": "ethylacetate",
+          "solvent_bst": "Ethyl acetate",
+          "temperature_c": 80,
+          "msp": 1.076835279002521,
+          "gwp": 0.9110399152055387,
+          "selectivity": null
+        },
+        {
+          "polymer": "EVOH",
+          "solvent_interp": "propylenecarbonate",
+          "solvent_bst": "Propylene Carbonate",
+          "temperature_c": 120,
+          "msp": 1.0262235711662977,
+          "gwp": 1.2226157447679342,
+          "selectivity": null
+        }
+      ],
+      "n_steps": 3,
+      "all_succeeded": true,
+      "total_msp": 3.2068,
+      "total_gwp": 3.1062,
+      "avg_msp": 1.0689,
+      "avg_gwp": 1.0354,
+      "min_selectivity": null,
+      "is_pareto": true
+    }
+  ]
+}

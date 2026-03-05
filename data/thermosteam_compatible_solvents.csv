@@ -1,0 +1,1008 @@
+solvent_name,cas,resolved,resolution_method,thermosteam_id
+"1,1,1,2-Tetrachloroethane",630-20-6,True,CAS,630-20-6
+"1,1,1-Trichloroethane",71-55-6,True,CAS,71-55-6
+"1,1,1-Trifluoroethane",420-46-2,True,CAS,420-46-2
+"1,1,2,2-Tetrabromoethane",79-27-6,True,CAS,79-27-6
+"1,1,2,2-Tetrachloroethane",79-34-5,True,CAS,79-34-5
+"1,1,2-Trichloroethane",79-00-5,True,CAS,79-00-5
+"1,1,2-Trichlorotrifluoroethane (Freon113)",76-13-1,True,CAS,76-13-1
+"1,1,3,3-Tetramethoxypropane",102-52-3,True,CAS,102-52-3
+"1,1-Dibromoethane",557-91-5,True,CAS,557-91-5
+"1,1-Dichloro-1-Nitroethane",594-72-9,True,CAS,594-72-9
+"1,1-Dichloroacetone",513-88-2,True,CAS,513-88-2
+"1,1-Dichloroethane",75-34-3,True,CAS,75-34-3
+"1,1-Dichloroethylene",75-35-4,True,CAS,75-35-4
+"1,1-Dichloropropane",78-99-9,True,CAS,78-99-9
+"1,1-Dichloropropene",563-58-6,True,CAS,563-58-6
+"1,1-Diethoxy Ethane",105-57-7,True,CAS,105-57-7
+"1,1-Difluoroethane",75-37-6,True,CAS,75-37-6
+"1,1-Difluoroethylene",75-38-7,True,CAS,75-38-7
+"1,1-Dimethoxy Ethane",534-15-6,True,CAS,534-15-6
+"1,1-Dimethyl Hydrazine",57-14-7,True,CAS,57-14-7
+"1,2,3,4-Tetramethylbenzene",488-23-3,True,CAS,488-23-3
+"1,2,3,5-Tetramethylbenzene",527-53-7,True,CAS,527-53-7
+"1,2,3-Benzotriazole",95-14-7,True,CAS,95-14-7
+"1,2,3-Triazole",288-36-8,True,CAS,288-36-8
+"1,2,3-Trichloro Propene",96-19-5,True,CAS,96-19-5
+"1,2,3-Trichloropropane",96-18-4,True,CAS,96-18-4
+"1,2,4,5-Tetrachlorobenzene",95-94-3,True,CAS,95-94-3
+"1,2,4-Trichlorobenzene",120-82-1,True,CAS,120-82-1
+"1,2-Butadiene",590-19-2,True,CAS,590-19-2
+"1,2-Chlorobromoethylene",3018-09-5,True,CAS,3018-09-5
+"1,2-Cyclohexanedione",765-87-7,True,CAS,765-87-7
+"1,2-Dibromoethylene",540-49-8,True,CAS,540-49-8
+"1,2-Dichloroethylene (Cis)",156-59-2,True,CAS,156-59-2
+"1,2-Dichloropropane",78-87-5,True,CAS,78-87-5
+"1,2-Dichlorotetrafluoroethane (Freon 114)",76-14-2,True,CAS,76-14-2
+"1,2-Diethyl Benzene",135-01-3,True,CAS,135-01-3
+"1,2-Dihydroxybenzene (Catechol)",120-80-9,True,CAS,120-80-9
+"1,2-Dimethoxybenzene",91-16-7,True,CAS,91-16-7
+"1,2-Dinitrobenzene",528-29-0,True,CAS,528-29-0
+"1,2-Ethane Dithiol",540-63-6,True,CAS,540-63-6
+"1,2-Methylenedioxybenzene (G.C.)",274-09-9,True,CAS,274-09-9
+"1,2-Propadiene (Allene)",463-49-0,True,CAS,463-49-0
+"1,3,5-Trioxane",110-88-3,True,CAS,110-88-3
+"1,3-Benzenediol",108-46-3,True,CAS,108-46-3
+"1,3-Bis(Trifluoromethyl)Benzene",402-31-3,True,CAS,402-31-3
+"1,3-Butadiene",106-99-0,True,CAS,106-99-0
+"1,3-Butadiene-1-Chloro",627-22-5,True,CAS,627-22-5
+"1,3-Butanediol",107-88-0,True,CAS,107-88-0
+"1,3-Dichloro Propane",142-28-9,True,CAS,142-28-9
+"1,3-Dichloro-2-Butene",926-57-8,True,CAS,926-57-8
+"1,3-Dichloro-2-Propanol",96-23-1,True,CAS,96-23-1
+"1,3-Dioxolane",646-06-0,True,CAS,646-06-0
+"1,3-Pentadiene (Trans)",2004-70-8,True,CAS,2004-70-8
+"1,3-Propane Sultone",1120-71-4,True,CAS,1120-71-4
+"1,3-Propanediol (Trimethyleneglycol)",504-63-2,True,CAS,504-63-2
+"1,4-Butanediol",110-63-4,True,CAS,110-63-4
+"1,4-Dichlorobutane",110-56-5,True,CAS,110-56-5
+"1,4-Dihydroxybenzene (1,4-Benzenediol)",123-31-9,True,CAS,123-31-9
+"1,4-Dioxane",123-91-1,True,CAS,123-91-1
+"1,4-Dioxane (High P)",123-91-1,True,CAS,123-91-1
+"1,4-Thioxane",15980-15-1,True,CAS,15980-15-1
+"1,5-Dichloropentane",628-76-2,True,CAS,628-76-2
+"1,8-Cineole (Eucalyptol)",470-82-6,True,CAS,470-82-6
+"1,9-Nonanediol",3937-56-2,True,CAS,3937-56-2
+1-Aminocyclopropane Carboxylic Acid,22059-21-8,True,CAS,22059-21-8
+1-Bromonaphthalene,90-11-9,True,CAS,90-11-9
+1-Bromopropane,106-94-5,True,CAS,106-94-5
+1-Butanethiol,109-79-5,True,CAS,109-79-5
+1-Butanol,71-36-3,True,CAS,71-36-3
+1-Butene,106-98-9,True,CAS,106-98-9
+1-Chloro Pentane,543-59-9,True,CAS,543-59-9
+1-Chloro-1-Nitroethane,598-92-5,True,CAS,598-92-5
+1-Chloro-1-Nitropropane,600-25-9,True,CAS,600-25-9
+1-Chloro-2-Ethoxy Benzene,614-72-2,True,CAS,614-72-2
+1-Chloro-2-Ethyl Benzene,89-96-3,True,CAS,89-96-3
+1-Chloro-2-Methyl Propene,513-37-1,True,CAS,513-37-1
+1-Chloro-4-Ethoxy Benzene,622-61-7,True,CAS,622-61-7
+1-Chlorobutane,109-69-3,True,CAS,109-69-3
+1-Chlorohexane,544-10-5,True,CAS,544-10-5
+1-Chloronaphthalene,90-13-1,True,CAS,90-13-1
+1-Chloropropene,590-21-6,True,CAS,590-21-6
+1-Decanol,112-30-1,True,CAS,112-30-1
+1-Decene,872-05-9,True,CAS,872-05-9
+1-Heptanol,111-70-6,True,CAS,111-70-6
+1-Heptene,592-76-7,True,CAS,592-76-7
+1-Hexanol,111-27-3,True,CAS,111-27-3
+1-Hexene,592-41-6,True,CAS,592-41-6
+"1-Methoxy-1,3-Butadiene",3036-66-6,True,CAS,3036-66-6
+1-Methoxy-2-Nitrobenzene,91-23-6,True,CAS,91-23-6
+1-Methyl Cyclohexanol,590-67-0,True,CAS,590-67-0
+1-Methyl Imidazole,616-47-7,True,CAS,616-47-7
+1-Methyl Naphthalene,90-12-0,True,CAS,90-12-0
+1-Methyl Vinyl Methyl Ether,116-11-0,True,CAS,116-11-0
+1-Naphthol,90-15-3,True,CAS,90-15-3
+1-Nitropropane,108-03-2,True,CAS,108-03-2
+1-Nonanol,143-08-8,True,CAS,143-08-8
+1-Nonene,124-11-8,True,CAS,124-11-8
+1-Octanol,111-87-5,True,CAS,111-87-5
+1-Octene,111-66-0,True,CAS,111-66-0
+1-Pentanol,71-41-0,True,CAS,71-41-0
+1-Pentene,109-67-1,True,CAS,109-67-1
+1-Propanethiol,107-03-9,True,CAS,107-03-9
+1-Propanol,71-23-8,True,CAS,71-23-8
+1-Tetradecene,1120-36-1,True,CAS,1120-36-1
+"2,2',5,5'-Tetrathiafulvalen",31366-25-3,True,CAS,31366-25-3
+"2,2,2-Trifluoro Ethanol",75-89-8,True,CAS,75-89-8
+"2,2,4-Trimethylpentane",540-84-1,True,CAS,540-84-1
+"2,2-Dimethyl-1-Propanol (Neopentyl Alc.)",75-84-3,True,CAS,75-84-3
+"2,3-Benzofuran (Cumaron)",271-89-6,True,CAS,271-89-6
+"2,3-Dichloro-1,3-Butadiene",1653-19-6,True,CAS,1653-19-6
+"2,3-Dichloropropanol",616-23-9,True,CAS,616-23-9
+"2,3-Dichloropropene",78-88-6,True,CAS,78-88-6
+"2,4,6-Tribromo Phenol",118-79-6,True,CAS,118-79-6
+"2,4,6-Trichlorophenol",88-06-2,True,CAS,88-06-2
+"2,4-Dichloroaniline",554-00-7,True,CAS,554-00-7
+"2,4-Dichlorophenol",120-83-2,True,CAS,120-83-2
+"2,4-Difluoronitrobenzene",446-35-5,True,CAS,446-35-5
+"2,4-Dimethylaniline",95-68-1,True,CAS,95-68-1
+"2,4-Dinitrotoluene",121-14-2,True,CAS,121-14-2
+"2,5-Dichlorophenol",583-78-8,True,CAS,583-78-8
+"2,5-Dimethoxytetrahydrofuran",696-59-3,True,CAS,696-59-3
+"2,5-Dimethyl Pyrrole",625-84-3,True,CAS,625-84-3
+"2,6-Dichlorophenol",87-65-0,True,CAS,87-65-0
+"2,6-Difluorobenzonitrile",1897-52-5,True,CAS,1897-52-5
+"2,6-Dimethoxy Phenol",91-10-1,True,CAS,91-10-1
+"2,6-Dimethyl Phenol",576-26-1,True,CAS,576-26-1
+2-(Diethylamino)Ethanol,100-37-8,True,CAS,100-37-8
+2-Acetyl Thiophene,88-15-3,True,CAS,88-15-3
+2-Amino Pyridine,504-29-0,True,CAS,504-29-0
+2-Bromo Propene,557-93-7,True,CAS,557-93-7
+2-Bromobutane,78-76-2,True,CAS,78-76-2
+2-Bromopropane,75-26-3,True,CAS,75-26-3
+2-Bromothiophene,1003-09-4,True,CAS,1003-09-4
+2-Butanol,78-92-2,True,CAS,78-92-2
+2-Butene (Cis),590-18-1,True,CAS,590-18-1
+2-Butene (Trans),624-64-6,True,CAS,624-64-6
+2-Butynedinitrile,1071-98-3,True,CAS,1071-98-3
+2-Chloro Propene (Isopropenyl Chloride),557-98-2,True,CAS,557-98-2
+2-Chloro-2-Methyl Propane,507-20-0,True,CAS,507-20-0
+2-Chloro-4-Methylaniline,615-65-6,True,CAS,615-65-6
+2-Chloro-5-Methyl Phenol,615-74-7,True,CAS,615-74-7
+2-Chloroacetamide,79-07-2,True,CAS,79-07-2
+2-Chlorobutane,78-86-4,True,CAS,78-86-4
+2-Chlorocyclohexanone,822-87-7,True,CAS,822-87-7
+2-Chloroethyl Acetate,542-58-5,True,CAS,542-58-5
+2-Chloroethyl Benzene,622-24-2,True,CAS,622-24-2
+2-Chloroethyl Ethyl Ether,628-34-2,True,CAS,628-34-2
+2-Chloroethyl Ethyl Sulfide,693-07-2,True,CAS,693-07-2
+2-Chlorophenol,95-57-8,True,CAS,95-57-8
+2-Chlorothiophene,96-43-5,True,CAS,96-43-5
+2-Ethyl Hexyl Acetate,103-09-3,True,CAS,103-09-3
+2-Ethyl Hexyl Acrylate,103-11-7,True,CAS,103-11-7
+2-Ethyl-1-Butanol,97-95-0,True,CAS,97-95-0
+2-Ethyl-1-Butene,760-21-4,True,CAS,760-21-4
+2-Ethyl-Hexanol,104-76-7,True,CAS,104-76-7
+2-Furonitrile,617-90-3,True,CAS,617-90-3
+2-Heptanol,543-49-7,True,CAS,543-49-7
+2-Methyl (Cis) Acrylic Acid,503-64-0,True,CAS,503-64-0
+2-Methyl Cyclohexanol (Mix),583-59-5,True,CAS,583-59-5
+2-Methyl Cyclohexanone,583-60-8,True,CAS,583-60-8
+2-Methyl Pyrazine,109-08-0,True,CAS,109-08-0
+2-Methyl Tetrahydrofuran,96-47-9,True,CAS,96-47-9
+"2-Methyl-1,3-Dioxolane",497-26-7,True,CAS,497-26-7
+2-Methyl-1-Butanol,137-32-6,True,CAS,137-32-6
+2-Methyl-1-Butene,563-46-2,True,CAS,563-46-2
+2-Methyl-1-Chloro Acrolein,53175-28-3,True,CAS,53175-28-3
+2-Methyl-1-Pentanol,105-30-6,True,CAS,105-30-6
+2-Methyl-2-Butanol,75-85-4,True,CAS,75-85-4
+2-Methyl-2-Butene,513-35-9,True,CAS,513-35-9
+2-Methylfuran,534-22-5,True,CAS,534-22-5
+2-Nitropropane,79-46-9,True,CAS,79-46-9
+2-Nitrothiophene,609-40-5,True,CAS,609-40-5
+2-Octanol,123-96-6,True,CAS,123-96-6
+2-Oxopyrrolidinacetamid,7491-74-9,True,CAS,7491-74-9
+2-Pentanol,6032-29-7,True,CAS,6032-29-7
+2-Phenoxy Ethanol,122-99-6,True,CAS,122-99-6
+2-Phenyl Ethanol,60-12-8,True,CAS,60-12-8
+2-Propanethiol,75-33-2,True,CAS,75-33-2
+2-Propanol,67-63-0,True,CAS,67-63-0
+2-Propyn-1-ol,107-19-7,True,CAS,107-19-7
+2-Pyrrolidone,616-45-5,True,CAS,616-45-5
+2-t-Butyl-4-Methyl Phenol,2409-55-4,True,CAS,2409-55-4
+2-Thiabutane,624-89-5,True,CAS,624-89-5
+2-Toluidine,95-53-4,True,CAS,95-53-4
+2-Vinyl Toluene,611-15-4,True,CAS,611-15-4
+"3,3,3-Trichloro Propene",2233-00-3,True,CAS,2233-00-3
+"3,4-Dichloronitrobenzene",99-54-7,True,CAS,99-54-7
+"3,4-Dichlorotoluene",95-75-0,True,CAS,95-75-0
+"3,4-Dimethyl Phenol",95-65-8,True,CAS,95-65-8
+"3,4-Dinitrophenol",577-71-9,True,CAS,577-71-9
+"3,4-Epoxy-1-Butene",930-22-3,True,CAS,930-22-3
+"3,5-Dinitrophenol",586-11-8,True,CAS,586-11-8
+3-Bromopropyne,106-96-7,True,CAS,106-96-7
+3-Butenenitrile,109-75-1,True,CAS,109-75-1
+3-Chloro-1-Propanol,627-30-5,True,CAS,627-30-5
+3-Chloro-2-Methyl Propene,563-47-3,True,CAS,563-47-3
+3-Chlorobenzylchloride,620-20-2,True,CAS,620-20-2
+3-Chloropropionitrile,542-76-7,True,CAS,542-76-7
+3-Chloropropyne,624-65-7,True,CAS,624-65-7
+3-Heptanol,589-82-2,True,CAS,589-82-2
+3-Hydroxy Tetrahydrofuran,453-20-3,True,CAS,453-20-3
+3-Methoxy Butanol,2517-43-3,True,CAS,2517-43-3
+3-Methoxy-3-Methyl Butanol,56539-66-3,True,CAS,56539-66-3
+3-Methoxypropionitrile,110-67-8,True,CAS,110-67-8
+3-Methyl Cyclohexanol (Mix),591-23-1,True,CAS,591-23-1
+3-Methyl Cyclohexanone,591-24-2,True,CAS,591-24-2
+"3-Methyl-1,2-Butadiene",598-25-4,True,CAS,598-25-4
+3-Methyl-1-Butene,563-45-1,True,CAS,563-45-1
+3-Methyl-2-Butanol,598-75-4,True,CAS,598-75-4
+3-Nitroaniline,99-09-2,True,CAS,99-09-2
+"4,4'-Methylenebis(Phenylisocyanate)",101-68-8,True,CAS,101-68-8
+4-(Trifluoromethyl) Acetophenone,709-63-7,True,CAS,709-63-7
+4-Aminopyridine,504-24-5,True,CAS,504-24-5
+4-Bromo-1-Butene,5162-44-7,True,CAS,5162-44-7
+"4-Chloro-1,2-Butadiene",25790-55-0,True,CAS,25790-55-0
+4-Chloroanisole,623-12-1,True,CAS,623-12-1
+4-Chlorobenzaldehyde,104-88-1,True,CAS,104-88-1
+4-Chlorobenzonitrile,623-03-0,True,CAS,623-03-0
+4-Chlorobenzyl Alcohol,873-76-7,True,CAS,873-76-7
+4-Chlorothiophenol,106-54-7,True,CAS,106-54-7
+4-Ethyl Morpholine,100-74-3,True,CAS,100-74-3
+4-Ethyl Phenol,123-07-9,True,CAS,123-07-9
+"4-Ethyl-1,3-Dioxolane-2-One",4437-85-8,True,CAS,4437-85-8
+4-Fluoro-3-Nitrobenzofluoride,364-74-9,True,CAS,364-74-9
+4-Hydroxy Benzaldehyde,123-08-0,True,CAS,123-08-0
+4-Methoxy Acetophenone,100-06-1,True,CAS,100-06-1
+4-Methoxy Benzonitrile,874-90-8,True,CAS,874-90-8
+4-Nitrophenol,100-02-7,True,CAS,100-02-7
+4-Pentenal,2100-17-6,True,CAS,2100-17-6
+4-Vinyl Pyridine,100-43-6,True,CAS,100-43-6
+"9,10-Anthraquinone",84-65-1,True,CAS,84-65-1
+"9,10-Phenanthrenequinone",84-11-7,True,CAS,84-11-7
+a-Methyl Styrene,98-83-9,True,CAS,98-83-9
+Acetaldehyde,75-07-0,True,CAS,75-07-0
+Acetaldoxime,107-29-9,True,CAS,107-29-9
+Acetamide,60-35-5,True,CAS,60-35-5
+Acetanilide,103-84-4,True,CAS,103-84-4
+Acetic Acid,64-19-7,True,CAS,64-19-7
+Acetic Anhydride,108-24-7,True,CAS,108-24-7
+Acetone,67-64-1,True,CAS,67-64-1
+Acetonecyanhydrin,75-86-5,True,CAS,75-86-5
+Acetonitrile,75-05-8,True,CAS,75-05-8
+Acetophenone,98-86-2,True,CAS,98-86-2
+Acetoxime,127-06-0,True,CAS,127-06-0
+Acetyl Salicylic Acid,50-78-2,True,CAS,50-78-2
+Acetylacetone,123-54-6,True,CAS,123-54-6
+Acetylbromide,506-96-7,True,CAS,506-96-7
+Acetylchloride,75-36-5,True,CAS,75-36-5
+Acetylene (Ethyne),74-86-2,True,CAS,74-86-2
+Acetylfluoride,557-99-3,True,CAS,557-99-3
+Acridine,260-94-6,True,CAS,260-94-6
+Acrolein,107-02-8,True,CAS,107-02-8
+Acrylamide,79-06-1,True,CAS,79-06-1
+Acrylic Acid,79-10-7,True,CAS,79-10-7
+Acrylonitrile,107-13-1,True,CAS,107-13-1
+Acrylylchloride,814-68-6,True,CAS,814-68-6
+Adenine,73-24-5,True,CAS,73-24-5
+"Adipic Acid (1,6-Hexanedioic)",124-04-9,True,CAS,124-04-9
+Allyl Acetate,591-87-7,True,CAS,591-87-7
+Allyl Acetic Acid,591-80-0,True,CAS,591-80-0
+Allyl Acetoacetate,1118-84-9,True,CAS,1118-84-9
+Allyl Alcohol,107-18-6,True,CAS,107-18-6
+Allyl Amine,107-11-9,True,CAS,107-11-9
+Allyl Bromide (3-Bromoprene),106-95-6,True,CAS,106-95-6
+Allyl Chloride,107-05-1,True,CAS,107-05-1
+Allyl Cyanide,109-75-1,True,CAS,109-75-1
+Allyl Ethylether,557-31-3,True,CAS,557-31-3
+Allyl Fluoride,818-92-8,True,CAS,818-92-8
+Allyl Formate,1838-59-1,True,CAS,1838-59-1
+Allyl Isothiocyanate,57-06-7,True,CAS,57-06-7
+Allyl Mercaptan,870-23-5,True,CAS,870-23-5
+Allyl Methacrylate,96-05-9,True,CAS,96-05-9
+Allyl Methyl Ether,627-40-7,True,CAS,627-40-7
+Allylacetonitrile (4-Pentenenitrile),592-51-8,True,CAS,592-51-8
+"Alpha,Alpha,A-Trifluoro Toluene",98-08-8,True,CAS,98-08-8
+Ammonia,7664-41-7,True,CAS,7664-41-7
+Amyl Acetate,628-63-7,True,CAS,628-63-7
+Anethole (Trans),104-46-1,True,CAS,104-46-1
+Aniline,62-53-3,True,CAS,62-53-3
+Anisaldehyde (2-Methoxy Benzaldehyde),135-02-4,True,CAS,135-02-4
+Anisidine (2-Methoxyaniline),90-04-0,True,CAS,90-04-0
+Anisole,100-66-3,True,CAS,100-66-3
+Ascorbic Acid,50-81-7,True,CAS,50-81-7
+"Benzal Chloride (Alpha,A-Dichlorobenzene)",98-87-3,True,CAS,98-87-3
+Benzaldehyde,100-52-7,True,CAS,100-52-7
+Benzamide,55-21-0,True,CAS,55-21-0
+Benzene,71-43-2,True,CAS,71-43-2
+Benzimidazole,51-17-2,True,CAS,51-17-2
+Benzisoxazole,271-58-9,True,CAS,271-58-9
+Benzoic Acid,65-85-0,True,CAS,65-85-0
+Benzoin,119-53-9,True,CAS,119-53-9
+Benzonitrile,100-47-0,True,CAS,100-47-0
+Benzophenone,119-61-9,True,CAS,119-61-9
+Benzothiazole,95-16-9,True,CAS,95-16-9
+Benzotrichloride,98-07-7,True,CAS,98-07-7
+Benzoyl Chloride,98-88-4,True,CAS,98-88-4
+Benzyl Acetate,140-11-4,True,CAS,140-11-4
+Benzyl Alcohol,100-51-6,True,CAS,100-51-6
+Benzyl Amine,100-46-9,True,CAS,100-46-9
+Benzyl Benzoate,120-51-4,True,CAS,120-51-4
+Benzyl Butyl Phthalate,85-68-7,True,CAS,85-68-7
+Benzyl Chloride,100-44-7,True,CAS,100-44-7
+Benzyl Ethyl Ether,539-30-0,True,CAS,539-30-0
+Bicyclohexyl,92-51-3,True,CAS,92-51-3
+Biphenyl,92-52-4,True,CAS,92-52-4
+Bis(Chloromethyl)Ether,542-88-1,True,CAS,542-88-1
+Bisphenol A,80-05-7,True,CAS,80-05-7
+Biuret,108-19-0,True,CAS,108-19-0
+Boron Trichloride,10294-34-5,True,CAS,10294-34-5
+Bromine,7726-95-6,True,CAS,7726-95-6
+Bromobenzene,108-86-1,True,CAS,108-86-1
+Bromochloromethane,74-97-5,True,CAS,74-97-5
+Bromoethylene,593-60-2,True,CAS,593-60-2
+Bromoform,75-25-2,True,CAS,75-25-2
+Bromomethyl Methyl Ether,13057-17-5,True,CAS,13057-17-5
+Bromotrichloro Methane #1,75-62-7,True,CAS,75-62-7
+Bromotrichloro Methane #2-Gc,75-62-7,True,CAS,75-62-7
+Bromotrichloro Methane #3,75-62-7,True,CAS,75-62-7
+Bromotrifluoromethane (Freon 1381),75-63-8,True,CAS,75-63-8
+Butadiene-4-Cyano,1615-70-9,True,CAS,1615-70-9
+Butadienedioxide,1464-53-5,True,CAS,1464-53-5
+Butadione,431-03-8,True,CAS,431-03-8
+Butane,106-97-8,True,CAS,106-97-8
+Butyl Benzoate,136-60-7,True,CAS,136-60-7
+Butyl Formate,592-84-7,True,CAS,592-84-7
+Butyl Lactate,138-22-7,True,CAS,138-22-7
+Butyl Stearate,123-95-5,True,CAS,123-95-5
+Butyleneoxide,106-88-7,True,CAS,106-88-7
+Butyraldehyde,123-72-8,True,CAS,123-72-8
+Butyric Acid,107-92-6,True,CAS,107-92-6
+Butyric Anhydride,106-31-0,True,CAS,106-31-0
+Butyronitrile,109-74-0,True,CAS,109-74-0
+Butyrylchloride,141-75-3,True,CAS,141-75-3
+Caffeine,58-08-2,True,CAS,58-08-2
+Camphene,79-92-5,True,CAS,79-92-5
+Caprolactone (Epsilon),502-44-3,True,CAS,502-44-3
+Carbazole (Diphenylenimine),86-74-8,True,CAS,86-74-8
+Carbon Dioxide (Fit = 1.0),124-38-9,True,CAS,124-38-9
+Carbon Disulfide (0 Dipole Moment),75-15-0,True,CAS,75-15-0
+Carbon Disulfide (P By Group Cont.),75-15-0,True,CAS,75-15-0
+Carbon Tetrachloride (0 Dipole Moment),56-23-5,True,CAS,56-23-5
+Carbon Tetrachloride (P By Group Cont.),56-23-5,True,CAS,56-23-5
+Carbonyl Sulfide,463-58-1,True,CAS,463-58-1
+Cetyl Alcohol (1-Hexadecanol),36653-82-4,True,CAS,36653-82-4
+Chloral,75-87-6,True,CAS,75-87-6
+Chlorine,7782-50-5,True,CAS,7782-50-5
+Chloro Acetaldehyde,107-20-0,True,CAS,107-20-0
+Chloro Acetic Acid,79-11-8,True,CAS,79-11-8
+Chloro Maleic Anhydride,96-02-6,True,CAS,96-02-6
+Chloroacetone,78-95-5,True,CAS,78-95-5
+Chloroacetonitrile,107-14-2,True,CAS,107-14-2
+Chloroacetylchloride,79-04-9,True,CAS,79-04-9
+Chloroacetylene,593-63-5,True,CAS,593-63-5
+Chlorobenzene,108-90-7,True,CAS,108-90-7
+Chlorodifluoromethane (Freon 22),75-45-6,True,CAS,75-45-6
+Chloroform,67-66-3,True,CAS,67-66-3
+Chloronitromethane,1794-84-9,True,CAS,1794-84-9
+Chloropicrin (Trichloronitromethane),76-06-2,True,CAS,76-06-2
+Chloroprene,126-99-8,True,CAS,126-99-8
+Chlorotrifluoroethylene (Ctfe),79-38-9,True,CAS,79-38-9
+Cis-Decahydronaphthalene,493-01-6,True,CAS,493-01-6
+Citraconic Anhydride,616-02-4,True,CAS,616-02-4
+Coumarin,91-64-5,True,CAS,91-64-5
+Crotonaldehyde,123-73-9,True,CAS,123-73-9
+Crotonic Acid,107-93-7,True,CAS,107-93-7
+Crotonlactone,497-23-4,True,CAS,497-23-4
+Cyanamid (Carbamonitrile),420-04-2,True,CAS,420-04-2
+Cyanogen,460-19-5,True,CAS,460-19-5
+Cyanogen Bromide,506-68-3,True,CAS,506-68-3
+Cyanogen Chloride,506-77-4,True,CAS,506-77-4
+Cyclobutanone,1191-95-3,True,CAS,1191-95-3
+Cyclodecanone,1502-06-3,True,CAS,1502-06-3
+Cyclododecane,294-62-2,True,CAS,294-62-2
+Cycloheptane,291-64-5,True,CAS,291-64-5
+Cycloheptanone,502-42-1,True,CAS,502-42-1
+Cyclohexane,110-82-7,True,CAS,110-82-7
+Cyclohexanol,108-93-0,True,CAS,108-93-0
+Cyclohexanone,108-94-1,True,CAS,108-94-1
+Cyclohexene,110-83-8,True,CAS,110-83-8
+Cyclohexyl Benzene,827-52-1,True,CAS,827-52-1
+Cyclohexylamine,108-91-8,True,CAS,108-91-8
+Cyclohexylchloride,542-18-7,True,CAS,542-18-7
+Cyclooctanone,502-49-8,True,CAS,502-49-8
+Cyclopentadiene,542-92-7,True,CAS,542-92-7
+Cyclopentane,287-92-3,True,CAS,287-92-3
+Cyclopentanone,120-92-3,True,CAS,120-92-3
+Cyclopentene,142-29-0,True,CAS,142-29-0
+Cyclopentyl Methyl Ether (Cpme),5614-37-9,True,CAS,5614-37-9
+Cyclopropane,75-19-4,True,CAS,75-19-4
+Cyclopropylmethylketone,765-43-5,True,CAS,765-43-5
+Cyclopropylnitrile,5500-21-0,True,CAS,5500-21-0
+DDT,50-29-3,True,CAS,50-29-3
+Decamethylcyclopentasiloxane,541-02-6,True,CAS,541-02-6
+Decane,124-18-5,True,CAS,124-18-5
+Di p-Tolyl Sulfoxide,1774-35-2,True,CAS,1774-35-2
+Di-(2-Chloro-Isopropyl) Ether,108-60-1,True,CAS,108-60-1
+Di-(2-Chloroethoxy) Methane,111-91-1,True,CAS,111-91-1
+Di-(2-Chloroethyl) Ether,111-44-4,True,CAS,111-44-4
+Di-(2-Methoxyethyl) Ether,111-96-6,True,CAS,111-96-6
+Di-2-Ethylhexyl Amine,106-20-7,True,CAS,106-20-7
+Di-Isobutyl Carbinol,108-82-7,True,CAS,108-82-7
+Di-Isobutyl Ketone,108-83-8,True,CAS,108-83-8
+Di-Isodecyl Phthalate,26761-40-0,True,CAS,26761-40-0
+Di-Isononyl Phthalate,28553-12-0,True,CAS,28553-12-0
+Di-Isopropyl Sulfoxide,2211-89-4,True,CAS,2211-89-4
+Di-n-Butyl Ether,142-96-1,True,CAS,142-96-1
+Di-n-Butyl Sulfoxide,2168-93-6,True,CAS,2168-93-6
+Di-n-Pentyl Ether,693-65-2,True,CAS,693-65-2
+Di-n-Propyl Ether,111-43-3,True,CAS,111-43-3
+Di-n-Propyl Sulfoxide,4253-91-2,True,CAS,4253-91-2
+Di-sec-Butyl Ether,6863-58-7,True,CAS,6863-58-7
+Diacetone Alcohol,123-42-2,True,CAS,123-42-2
+Diallyl Amine,124-02-7,True,CAS,124-02-7
+Diallyl Ether,557-40-4,True,CAS,557-40-4
+Diazomethane,334-88-3,True,CAS,334-88-3
+Dibenzyl Ether,103-50-4,True,CAS,103-50-4
+Dibromomethane (Methylene Dibromide),74-95-3,True,CAS,74-95-3
+Dibutyl Amine,111-92-2,True,CAS,111-92-2
+Dibutyl Ketone,502-56-7,True,CAS,502-56-7
+Dibutyl Maleate,105-76-0,True,CAS,105-76-0
+Dibutyl Phthalate,84-74-2,True,CAS,84-74-2
+Dibutyl Sebacate,109-43-3,True,CAS,109-43-3
+Dichloroacetaldehyde,79-02-7,True,CAS,79-02-7
+Dichloroacetic Acid,79-43-6,True,CAS,79-43-6
+Dichloroacetonitrile,3018-12-0,True,CAS,3018-12-0
+Dichlorodifluoromethane (Freon 12),75-71-8,True,CAS,75-71-8
+Dichloroethylene (Trans),156-60-5,True,CAS,156-60-5
+Dichloromethyl Methyl Ether,4885-02-3,True,CAS,4885-02-3
+Dichloromonofluoromethane (Freon21),75-43-4,True,CAS,75-43-4
+Diethanolamine,111-42-2,True,CAS,111-42-2
+Diethyl Adipate,141-28-6,True,CAS,141-28-6
+Diethyl Amine,109-89-7,True,CAS,109-89-7
+Diethyl Carbonate,105-58-8,True,CAS,105-58-8
+Diethyl Ether,60-29-7,True,CAS,60-29-7
+Diethyl Ketone,96-22-0,True,CAS,96-22-0
+Diethyl Malonate,105-53-3,True,CAS,105-53-3
+Diethyl Oxalate,95-92-1,True,CAS,95-92-1
+Diethyl Phthalate,84-66-2,True,CAS,84-66-2
+Diethyl Succinate,123-25-1,True,CAS,123-25-1
+Diethyl Sulfate,64-67-5,True,CAS,64-67-5
+Diethyl Sulfide,352-93-2,True,CAS,352-93-2
+Diethyldisulfide,110-81-6,True,CAS,110-81-6
+Diethylene Glycol,111-46-6,True,CAS,111-46-6
+Diethylene Glycol Butyl Ether Acetate,124-17-4,True,CAS,124-17-4
+Diethylene Glycol Dibutyl Ether,112-73-2,True,CAS,112-73-2
+Diethylene Glycol Diethyl Ether,112-36-7,True,CAS,112-36-7
+Diethylene Glycol Hexyl Ether,112-59-4,True,CAS,112-59-4
+Diethylene Glycol Monobutyl Ether,112-34-5,True,CAS,112-34-5
+Diethylene Glycol Monoethyl Ether,111-90-0,True,CAS,111-90-0
+Diethylene Glycol Monoethyl Ether Acetate,112-15-2,True,CAS,112-15-2
+Diethylene Glycol Monomethyl Ether,111-77-3,True,CAS,111-77-3
+Diethylene Glycol Monopropyl Ether,6881-94-3,True,CAS,6881-94-3
+Diethylenetriamine,111-40-0,True,CAS,111-40-0
+Diethylhexyl Phthalate (Dioctyl Phthalate),117-81-7,True,CAS,117-81-7
+Dihexyl Ether,112-58-3,True,CAS,112-58-3
+Dihexyl Phthalate,84-75-3,True,CAS,84-75-3
+Dihydropyran,110-87-2,True,CAS,110-87-2
+Diisobutyl Adipate,141-04-8,True,CAS,141-04-8
+Diisopropylamine,108-18-9,True,CAS,108-18-9
+Diketene,674-82-8,True,CAS,674-82-8
+Dimethoxymethane,109-87-5,True,CAS,109-87-5
+Dimethyl Isosorbide,5306-85-4,True,CAS,5306-85-4
+Dimethyl Acetylene,503-17-3,True,CAS,503-17-3
+Dimethyl Adipate,627-93-0,True,CAS,627-93-0
+Dimethyl Amine,124-40-3,True,CAS,124-40-3
+Dimethyl Carbonate,616-38-6,True,CAS,616-38-6
+Dimethyl Cellosolve,110-71-4,True,CAS,110-71-4
+Dimethyl Disulfide,624-92-0,True,CAS,624-92-0
+Dimethyl Ethanolamine,108-01-0,True,CAS,108-01-0
+Dimethyl Ether,115-10-6,True,CAS,115-10-6
+Dimethyl Formamide (DMF),68-12-2,True,CAS,68-12-2
+Dimethyl Glutarate,1119-40-0,True,CAS,1119-40-0
+Dimethyl Ketene,598-26-5,True,CAS,598-26-5
+Dimethyl Maleate,624-48-6,True,CAS,624-48-6
+Dimethyl Phthalate,131-11-3,True,CAS,131-11-3
+Dimethyl Succinate,106-65-0,True,CAS,106-65-0
+Dimethyl Sulfate,77-78-1,True,CAS,77-78-1
+Dimethyl Sulfide,75-18-3,True,CAS,75-18-3
+Dimethyl Sulfone,67-71-0,True,CAS,67-71-0
+Dimethyl Sulfoxide (DMSO),67-68-5,True,CAS,67-68-5
+Dioctyl Adipate,123-79-5,True,CAS,123-79-5
+Dipentene (Dl-Limonene),138-86-3,True,CAS,138-86-3
+Diphenyl Acetylene (0 Dipole Moment),501-65-5,True,CAS,501-65-5
+Diphenyl Acetylene (P By Group Cont.),501-65-5,True,CAS,501-65-5
+Diphenyl Ether,101-84-8,True,CAS,101-84-8
+Diphenyl Sulfone,127-63-9,True,CAS,127-63-9
+Diphenylamine,122-39-4,True,CAS,122-39-4
+Diphenylmethane,101-81-5,True,CAS,101-81-5
+Dipropyl Amine,142-84-7,True,CAS,142-84-7
+Dipropyl Ketone,123-19-3,True,CAS,123-19-3
+Dipropylene Glycol Mono n-Butyl Ether,29911-28-2,True,CAS,29911-28-2
+Dipropylene Glycol Mono n-Propyl Ether,29911-27-1,True,CAS,29911-27-1
+Dipropylene Glycol Monomethyl Ether Acetate,88917-22-0,True,CAS,88917-22-0
+Divinylsulfide,627-51-0,True,CAS,627-51-0
+Dodecane,112-40-3,True,CAS,112-40-3
+Dodecanol,112-53-8,True,CAS,112-53-8
+Dopamine,51-61-6,True,CAS,51-61-6
+Eicosane,112-95-8,True,CAS,112-95-8
+Epichlorohydrin,106-89-8,True,CAS,106-89-8
+Epsilon-Caprolactam,105-60-2,True,CAS,105-60-2
+Ethane,74-84-0,True,CAS,74-84-0
+Ethane (Liq. B.P.),74-84-0,True,CAS,74-84-0
+Ethanesulfonylchloride,594-44-5,True,CAS,594-44-5
+Ethanethiol (Ethyl Mercaptan),75-08-1,True,CAS,75-08-1
+Ethanol,64-17-5,True,CAS,64-17-5
+Ethanolamine,141-43-5,True,CAS,141-43-5
+Ethyl Acetate,141-78-6,True,CAS,141-78-6
+Ethyl Aceto Acetate (Keto),141-97-9,True,CAS,141-97-9
+Ethyl Acetylene,107-00-6,True,CAS,107-00-6
+Ethyl Acrylate,140-88-5,True,CAS,140-88-5
+Ethyl Amine,75-04-7,True,CAS,75-04-7
+Ethyl Amyl Ketone,106-68-3,True,CAS,106-68-3
+Ethyl Benzene,100-41-4,True,CAS,100-41-4
+Ethyl Benzoate,93-89-0,True,CAS,93-89-0
+Ethyl Bromide,74-96-4,True,CAS,74-96-4
+Ethyl Butyl Ether,628-81-9,True,CAS,628-81-9
+Ethyl Butyl Ketone,106-35-4,True,CAS,106-35-4
+Ethyl Butyrate,105-54-4,True,CAS,105-54-4
+Ethyl Capronate,123-66-0,True,CAS,123-66-0
+Ethyl Carbamate,51-79-6,True,CAS,51-79-6
+Ethyl Chloride,75-00-3,True,CAS,75-00-3
+Ethyl Chloroformate,541-41-3,True,CAS,541-41-3
+Ethyl Cyanoacetate,105-56-6,True,CAS,105-56-6
+Ethyl Ethynylether,927-80-0,True,CAS,927-80-0
+Ethyl Fluoride,353-36-6,True,CAS,353-36-6
+Ethyl Formate,109-94-4,True,CAS,109-94-4
+Ethyl Iodide,75-03-6,True,CAS,75-03-6
+Ethyl Isocyanate,109-90-0,True,CAS,109-90-0
+Ethyl Isothiocyanate,542-85-8,True,CAS,542-85-8
+Ethyl Lactate,97-64-3,True,CAS,97-64-3
+Ethyl Methacrylate,97-63-2,True,CAS,97-63-2
+Ethyl Methyl Sulfide,624-89-5,True,CAS,624-89-5
+Ethyl Oleate,111-62-6,True,CAS,111-62-6
+Ethyl Propionate,105-37-3,True,CAS,105-37-3
+Ethyl Thiocyanate,542-90-5,True,CAS,542-90-5
+Ethyl Vinylether,109-92-2,True,CAS,109-92-2
+Ethyl Vinylketone,1629-58-9,True,CAS,1629-58-9
+Ethylene,74-85-1,True,CAS,74-85-1
+Ethylene Carbonate,96-49-1,True,CAS,96-49-1
+Ethylene Chlorohydrin,107-07-3,True,CAS,107-07-3
+Ethylene Cyanohydrin,109-78-4,True,CAS,109-78-4
+Ethylene Dibromide,106-93-4,True,CAS,106-93-4
+Ethylene Dichloride,107-06-2,True,CAS,107-06-2
+Ethylene Dinitrate,628-96-6,True,CAS,628-96-6
+Ethylene Glycol,107-21-1,True,CAS,107-21-1
+Ethylene Glycol Butyl Ether Acetate,112-07-2,True,CAS,112-07-2
+Ethylene Glycol Diacetate,111-55-7,True,CAS,111-55-7
+Ethylene Glycol Dibutyl Ether,112-48-1,True,CAS,112-48-1
+Ethylene Glycol Diethyl Ether,629-14-1,True,CAS,629-14-1
+Ethylene Glycol Dimethyl Ether,110-71-4,True,CAS,110-71-4
+Ethylene Glycol Mono 2-Ethyl Hexyl Ether,1559-35-9,True,CAS,1559-35-9
+Ethylene Glycol Mono Benzyl Ether,622-08-2,True,CAS,622-08-2
+Ethylene Glycol Mono Ethyl Ether Acrylate,106-74-1,True,CAS,106-74-1
+Ethylene Glycol Mono n-Hexyl Ether,112-25-4,True,CAS,112-25-4
+Ethylene Glycol Mono n-Propyl Ether,2807-30-9,True,CAS,2807-30-9
+Ethylene Glycol Mono t-Butyl Ether,7580-85-0,False,failed,
+Ethylene Glycol Monobutyl Ether,111-76-2,True,CAS,111-76-2
+Ethylene Glycol Monoethyl Ether,110-80-5,True,CAS,110-80-5
+Ethylene Glycol Monoethyl Ether Acetate,111-15-9,True,CAS,111-15-9
+Ethylene Glycol Monoisopropyl Ether,109-59-1,True,CAS,109-59-1
+Ethylene Glycol Monomethyl Ether,109-86-4,True,CAS,109-86-4
+Ethylene Glycol Monomethyl Ether Acetate,110-49-6,True,CAS,110-49-6
+Ethylene Glycol Sulfite,3741-38-6,True,CAS,3741-38-6
+Ethylene Oxide,75-21-8,True,CAS,75-21-8
+Ethylene Sulfide,420-12-2,True,CAS,420-12-2
+Ethylenediamine,107-15-3,True,CAS,107-15-3
+Ethyleneimine,151-56-4,True,CAS,151-56-4
+Eugenol,97-53-0,True,CAS,97-53-0
+Ferulic Acid,1135-24-6,True,CAS,1135-24-6
+Fluorene,86-73-7,True,CAS,86-73-7
+Fluorobenzene,462-06-6,True,CAS,462-06-6
+Fluoroethylene,75-02-5,True,CAS,75-02-5
+Fluoromethane,593-53-3,True,CAS,593-53-3
+Fluoroprene,381-61-3,False,failed,
+Formaldehyde,50-00-0,True,CAS,50-00-0
+Formamide,75-12-7,True,CAS,75-12-7
+Formic Acid,64-18-6,True,CAS,64-18-6
+Formyl Fluoride,1493-02-3,True,CAS,1493-02-3
+Fumaronitrile,764-42-1,True,CAS,764-42-1
+Furan,110-00-9,True,CAS,110-00-9
+Furfural,98-01-1,True,CAS,98-01-1
+Furfuryl Alcohol,98-00-0,True,CAS,98-00-0
+Glycerol,56-81-5,True,CAS,56-81-5
+Glycerol Carbonate,931-40-8,True,CAS,931-40-8
+Glycerol Triacetate,102-76-1,True,CAS,102-76-1
+Glycerol Tributyrate,60-01-5,True,CAS,60-01-5
+Glycerol Trioleate,122-32-7,True,CAS,122-32-7
+Glycidol,556-52-5,True,CAS,556-52-5
+Glycidyl Methacrylate,106-91-2,True,CAS,106-91-2
+Glyoxal (Ethandial),107-22-2,True,CAS,107-22-2
+HCFC 134a,811-97-2,True,CAS,811-97-2
+HCFC 141b,1717-00-6,True,CAS,1717-00-6
+HCFC 225ca,422-56-0,True,CAS,422-56-0
+HCFC 225cb,507-55-1,True,CAS,507-55-1
+HCFC 253eb,460-35-5,True,CAS,460-35-5
+HCFC123,306-83-2,True,CAS,306-83-2
+Heptane,142-82-5,True,CAS,142-82-5
+Hexachlorobenzene,118-74-1,True,CAS,118-74-1
+Hexachloroethane,67-72-1,True,CAS,67-72-1
+Hexadecane,544-76-3,True,CAS,544-76-3
+Hexafluoro Isopropanol,920-66-1,True,CAS,920-66-1
+"Hexafluoro-1,3-Butadiene",685-63-2,True,CAS,685-63-2
+Hexafluorobenzene,392-56-3,True,CAS,392-56-3
+Hexamethyl Benzene,87-85-4,True,CAS,87-85-4
+Hexamethylenetetramine,100-97-0,True,CAS,100-97-0
+Hexamethylphosphoramide,680-31-9,True,CAS,680-31-9
+Hexanal,66-25-1,True,CAS,66-25-1
+Hexane,110-54-3,True,CAS,110-54-3
+"Hexane 1,6 Diol",629-11-8,True,CAS,629-11-8
+Hexanoic Acid,142-62-1,True,CAS,142-62-1
+Hexyl Acetate,142-92-7,True,CAS,142-92-7
+HFC 245fa,460-73-1,True,CAS,460-73-1
+HFC 338pcc,377-36-6,True,CAS,377-36-6
+HFC-365mfc,406-58-6,True,CAS,406-58-6
+HFC-43-10mee,138495-42-8,True,CAS,138495-42-8
+HFE 7000,375-03-1,True,CAS,375-03-1
+HFE 7100,163702-07-6,True,CAS,163702-07-6
+Hydrazine,302-01-2,True,CAS,302-01-2
+Hydrogen Cyanide,74-90-8,True,CAS,74-90-8
+Hydrogen Peroxide,7722-84-1,True,CAS,7722-84-1
+Hydrogen Sulfide,7783-06-4,True,CAS,7783-06-4
+Hydroxyethyl Acrylate,818-61-1,True,CAS,818-61-1
+Indene,95-13-6,True,CAS,95-13-6
+Indole,120-72-9,True,CAS,120-72-9
+Iodobenzene,591-50-4,True,CAS,591-50-4
+Iodoform,75-47-8,True,CAS,75-47-8
+Isoamyl Acetate,123-92-2,True,CAS,123-92-2
+Isoamyl Alcohol (3-Methyl-1-Butanol),123-51-3,True,CAS,123-51-3
+Isoamyl Propionate,105-68-0,True,CAS,105-68-0
+Isobutyl Acetate,110-19-0,True,CAS,110-19-0
+Isobutyl Acrylate,106-63-8,True,CAS,106-63-8
+Isobutyl Alcohol,78-83-1,True,CAS,78-83-1
+Isobutyl Formate,542-55-2,True,CAS,542-55-2
+Isobutyl Isobutyrate,97-85-8,True,CAS,97-85-8
+Isobutylene,115-11-7,True,CAS,115-11-7
+Isobutyleneoxide,558-30-5,True,CAS,558-30-5
+Isobutyric Acid,79-31-2,True,CAS,79-31-2
+Isocyanic Acid,75-13-8,True,CAS,75-13-8
+Isooctyl Alcohol,26952-21-6,True,CAS,26952-21-6
+Isopentane,78-78-4,True,CAS,78-78-4
+Isophorone,78-59-1,True,CAS,78-59-1
+"Isoprene (2-Methyl-1,3-Butadiene)",78-79-5,True,CAS,78-79-5
+Isopropyl Acetate,108-21-4,True,CAS,108-21-4
+Isopropyl Amine (2-Propan Amine),75-31-0,True,CAS,75-31-0
+Isopropyl Benzene (Cumene),98-82-8,True,CAS,98-82-8
+Isopropyl Chloride (2-Chloro Propane),75-29-6,True,CAS,75-29-6
+Isopropyl Ether,108-20-3,True,CAS,108-20-3
+Isopropyl Palmitate,142-91-6,True,CAS,142-91-6
+Isovaleraldehyde,590-86-3,True,CAS,590-86-3
+Isovaleric Acid,503-74-2,True,CAS,503-74-2
+Isoxazole,288-14-2,True,CAS,288-14-2
+Ketene,463-51-4,True,CAS,463-51-4
+l-Tyrosine,60-18-4,True,CAS,60-18-4
+Lactic Acid (dl),50-21-5,True,CAS,50-21-5
+m-Chloroaniline,108-42-9,True,CAS,108-42-9
+m-Cresol,108-39-4,True,CAS,108-39-4
+m-Dichlorobenzene,541-73-1,True,CAS,541-73-1
+Maleic Anhydride,108-31-6,True,CAS,108-31-6
+Malononitrile,109-77-3,True,CAS,109-77-3
+Menthofuran,494-90-6,True,CAS,494-90-6
+Mesityl Oxide,141-79-7,True,CAS,141-79-7
+Mesitylene,108-67-8,True,CAS,108-67-8
+Methacrylaldehyde,78-85-3,True,CAS,78-85-3
+Methacrylamide,79-39-0,True,CAS,79-39-0
+Methacrylic Acid,79-41-4,True,CAS,79-41-4
+Methacrylonitrile,126-98-7,True,CAS,126-98-7
+Methane (Liquid B.P.),74-82-8,True,CAS,74-82-8
+Methanol,67-56-1,True,CAS,67-56-1
+Methanol Cluster,67-56-1,True,CAS,67-56-1
+Methoxyhexanone (Pentoxone),107-70-0,True,CAS,107-70-0
+Methyl Acetate,79-20-9,True,CAS,79-20-9
+Methyl Aceto Acetate,105-45-3,True,CAS,105-45-3
+Methyl Acetylene,74-99-7,True,CAS,74-99-7
+Methyl Acrylate,96-33-3,True,CAS,96-33-3
+Methyl Amine,74-89-5,True,CAS,74-89-5
+Methyl Amyl Acetate,108-84-9,True,CAS,108-84-9
+Methyl Benzoate,93-58-3,True,CAS,93-58-3
+Methyl Bromide,74-83-9,True,CAS,74-83-9
+Methyl Butyl Ketone,591-78-6,True,CAS,591-78-6
+Methyl Chloride,74-87-3,True,CAS,74-87-3
+Methyl Chloroformate,79-22-1,True,CAS,79-22-1
+Methyl Cyanoacetate,105-34-0,True,CAS,105-34-0
+Methyl Cyclohexane,108-87-2,True,CAS,108-87-2
+Methyl Cyclopentane,96-37-7,True,CAS,96-37-7
+Methyl Ethyl Ether,540-67-0,True,CAS,540-67-0
+Methyl Ethyl Ketone (MEK),78-93-3,True,CAS,78-93-3
+Methyl Ethyl Ketoxime,96-29-7,True,CAS,96-29-7
+Methyl Formate,107-31-3,True,CAS,107-31-3
+Methyl Furoate,611-13-2,True,CAS,611-13-2
+Methyl Glyoxal,78-98-8,True,CAS,78-98-8
+Methyl Hydrazine,60-34-4,True,CAS,60-34-4
+Methyl Hydroperoxide,3031-73-0,True,CAS,3031-73-0
+Methyl Iodide,74-88-4,True,CAS,74-88-4
+Methyl Isoamyl Ketone,110-12-3,True,CAS,110-12-3
+Methyl Isobutyl Carbinol,108-11-2,True,CAS,108-11-2
+Methyl Isobutyl Ketone (MIBK),108-10-1,True,CAS,108-10-1
+Methyl Isocyanate,624-83-9,True,CAS,624-83-9
+Methyl Isopropenyl Ketone,814-78-8,True,CAS,814-78-8
+Methyl Isothiocyanate,556-61-6,True,CAS,556-61-6
+Methyl Mercaptan,74-93-1,True,CAS,74-93-1
+Methyl Methacrylate,80-62-6,True,CAS,80-62-6
+Methyl n-Amyl Ketone,110-43-0,True,CAS,110-43-0
+Methyl n-Propyl Ketone,107-87-9,True,CAS,107-87-9
+Methyl Nitrate,598-58-3,True,CAS,598-58-3
+Methyl Oleate,112-62-9,True,CAS,112-62-9
+Methyl Phenyl Sulfide,100-68-5,True,CAS,100-68-5
+Methyl Phenyl Sulfone (Uncertain),3112-85-4,True,CAS,3112-85-4
+Methyl Propionate,554-12-1,True,CAS,554-12-1
+Methyl Salicylate,119-36-8,True,CAS,119-36-8
+Methyl Silane,992-94-9,True,CAS,992-94-9
+Methyl Sulfolane,872-93-5,True,CAS,872-93-5
+Methyl Thiocyanate,556-64-9,True,CAS,556-64-9
+Methyl Vinyl Ether,107-25-5,True,CAS,107-25-5
+Methyl Vinyl Ketone,78-94-4,True,CAS,78-94-4
+Methyl-p-Toluate,99-75-2,True,CAS,99-75-2
+Methyl-t-Butyl Ether,1634-04-4,True,CAS,1634-04-4
+Methylal (Dimethoxy Methane),109-87-5,True,CAS,109-87-5
+Methylene Dichloride (Dichloromethane),75-09-2,True,CAS,75-09-2
+Methylene Diiodide (Diiodomethane),75-11-6,True,CAS,75-11-6
+Morpholine,110-91-8,True,CAS,110-91-8
+"N,N,N,N-Tetramethylthiourea",2782-91-4,True,CAS,2782-91-4
+"N,N-Dibutyl Formamide",761-65-9,True,CAS,761-65-9
+"N,N-Dichloroethyl Amine",334-22-5,True,CAS,334-22-5
+"N,N-Diethyl Acetamide",685-91-6,True,CAS,685-91-6
+"N,N-Diethyl Formamide",617-84-5,True,CAS,617-84-5
+"N,N-Dimethyl Acetamide",127-19-5,True,CAS,127-19-5
+"N,N-Dimethyl Butyramide",760-79-2,True,CAS,760-79-2
+N-(2-Hydroxyethyl)-2-Pyrrolidone,3445-11-2,True,CAS,3445-11-2
+N-Acetyl Piperidine,618-42-8,True,CAS,618-42-8
+N-Acetylmorpholine,1696-20-4,True,CAS,1696-20-4
+n-Butyl Acetate,123-86-4,True,CAS,123-86-4
+n-Butyl Aceto Acetate,591-60-6,True,CAS,591-60-6
+n-Butyl Acrylate,141-32-2,True,CAS,141-32-2
+n-Butyl Amine,109-73-9,True,CAS,109-73-9
+n-Butyl Butyrate,109-21-7,True,CAS,109-21-7
+n-Butyl Cyclohexane,1678-93-9,True,CAS,1678-93-9
+n-Butyl Cyclopentane,2040-95-1,True,CAS,2040-95-1
+n-Butyl Methacrylate,97-88-1,True,CAS,97-88-1
+n-Butyl Propionate,590-01-2,True,CAS,590-01-2
+n-Butylbenzene,104-51-8,True,CAS,104-51-8
+n-Butyramide,541-35-5,True,CAS,541-35-5
+N-Ethyl Formamide,627-45-2,True,CAS,627-45-2
+N-Ethyl-2-Pyrrolidone,2687-91-4,True,CAS,2687-91-4
+N-Formyl Piperidine,2591-86-8,True,CAS,2591-86-8
+n-Heptyl Acetate,112-06-1,True,CAS,112-06-1
+N-Methyl Acetamide,79-16-3,True,CAS,79-16-3
+N-Methyl Formamide,123-39-7,True,CAS,123-39-7
+N-Methyl Pyrrolidine,120-94-5,True,CAS,120-94-5
+N-Methyl-2-Pyrrolidone (NMP),872-50-4,True,CAS,872-50-4
+N-Methylaniline,100-61-8,True,CAS,100-61-8
+N-n-Butyl Pyrrolidone,3470-98-2,True,CAS,3470-98-2
+n-Pentyl Propionate,624-54-4,True,CAS,624-54-4
+n-Propyl Acetate,109-60-4,True,CAS,109-60-4
+n-Propyl Nitrate,627-13-4,True,CAS,627-13-4
+n-Propyl Propanoate,106-36-5,True,CAS,106-36-5
+n-Tetradecane,629-59-4,True,CAS,629-59-4
+Naphthalene,91-20-3,True,CAS,91-20-3
+Nicotine,54-11-5,True,CAS,54-11-5
+Nitric Acid,7697-37-2,True,CAS,7697-37-2
+Nitrobenzene,98-95-3,True,CAS,98-95-3
+Nitroethane,79-24-3,True,CAS,79-24-3
+Nitroethylene,3638-64-0,True,CAS,3638-64-0
+Nitroglycerin (Glyceryl Trinitrate),55-63-0,True,CAS,55-63-0
+Nitromethane,75-52-5,True,CAS,75-52-5
+Nitrosobenzene,586-96-9,True,CAS,586-96-9
+Nonane,111-84-2,True,CAS,111-84-2
+Norephedrin,299-42-3,True,CAS,299-42-3
+o-Chlorofluorobenzene,348-51-6,True,CAS,348-51-6
+o-Chlorostyrene,2039-87-4,True,CAS,2039-87-4
+o-Chlorotoluene,95-49-8,True,CAS,95-49-8
+o-Dichlorobenzene,95-50-1,True,CAS,95-50-1
+o-Difluorobenzene,367-11-3,True,CAS,367-11-3
+o-Methoxyphenol (Guaiacol),90-05-1,True,CAS,90-05-1
+Octadecane,593-45-3,True,CAS,593-45-3
+Octamethylcyclotetrasiloxane,556-67-2,True,CAS,556-67-2
+Octane,111-65-9,True,CAS,111-65-9
+Octanoic Acid,124-07-2,True,CAS,124-07-2
+Octyl Acetate,112-14-1,True,CAS,112-14-1
+Oleic Acid,112-80-1,True,CAS,112-80-1
+Oleyl Alcohol,143-28-2,True,CAS,143-28-2
+OS-10 (Hexamethyldisiloxane),107-46-0,True,CAS,107-46-0
+OS-20 (Octamethyltrisiloxane),107-51-7,True,CAS,107-51-7
+OS-30 (Decamethyltetrasiloxane),141-62-8,True,CAS,141-62-8
+Oxalic Acid,144-62-7,True,CAS,144-62-7
+Oxalylchloride,79-37-8,True,CAS,79-37-8
+Oxetane (Trimethylene Oxide),503-30-0,True,CAS,503-30-0
+Ozone,10028-15-6,True,CAS,10028-15-6
+p-Anisidine (Methoxy Aniline),104-94-9,True,CAS,104-94-9
+p-Bromobenzonitrile,623-00-7,True,CAS,623-00-7
+p-Bromonitrobenzene,586-78-7,True,CAS,586-78-7
+p-Bromotoluene,106-38-7,True,CAS,106-38-7
+p-Chloro Acetophenone,99-91-2,True,CAS,99-91-2
+p-Chloronitrobenzene,100-00-5,True,CAS,100-00-5
+p-Chlorostyrene,1073-67-2,True,CAS,1073-67-2
+p-Chlorotoluene,106-43-4,True,CAS,106-43-4
+p-Dichlorobenzene,106-46-7,True,CAS,106-46-7
+p-Diethyl Benzene,105-05-5,True,CAS,105-05-5
+p-Divinyl Benzene,105-06-6,True,CAS,105-06-6
+p-Fluoroanisole,459-60-9,True,CAS,459-60-9
+p-Nitro Toluene,99-99-0,True,CAS,99-99-0
+Paracetamol,103-90-2,True,CAS,103-90-2
+Paraldehyde,123-63-7,True,CAS,123-63-7
+Pentachloro Ethane,76-01-7,True,CAS,76-01-7
+Pentachlorophenol,87-86-5,True,CAS,87-86-5
+Pentanal (Valeraldehyde),110-62-3,True,CAS,110-62-3
+Pentane,109-66-0,True,CAS,109-66-0
+Pentanoic Acid,109-52-4,True,CAS,109-52-4
+Perfluoro Ethylene (Tetrafluoro Ethylene,116-14-3,True,CAS,116-14-3
+Perfluorobutane,355-25-9,True,CAS,355-25-9
+Perfluoroheptane,335-57-9,True,CAS,335-57-9
+Perfluorohexane (PFC 5060),355-42-0,True,CAS,355-42-0
+Perfluoromethylcyclohexane,355-02-2,True,CAS,355-02-2
+Perfluoropentane (PFC 5050),678-26-2,True,CAS,678-26-2
+Phenetole (Ethyl Phenyl Ether),103-73-1,True,CAS,103-73-1
+Phenol,108-95-2,True,CAS,108-95-2
+Phenyl Acetate,122-79-2,True,CAS,122-79-2
+Phenyl Acetonitrile,140-29-4,True,CAS,140-29-4
+Phenyl Acetylene,536-74-3,True,CAS,536-74-3
+Phenylhydrazine,100-63-0,True,CAS,100-63-0
+Phosgene,75-44-5,True,CAS,75-44-5
+Phosphoric Acid,7664-38-2,True,CAS,7664-38-2
+Phosphorous Oxychloride,10025-87-3,True,CAS,10025-87-3
+Phosphorus Trichloride,7719-12-2,True,CAS,7719-12-2
+Phthalic Anhydride,85-44-9,True,CAS,85-44-9
+"Picric Acid (2,4,6-Trinitrophenol)",88-89-1,True,CAS,88-89-1
+Piperazine,110-85-0,True,CAS,110-85-0
+Piperidine,110-89-4,True,CAS,110-89-4
+Propane,74-98-6,True,CAS,74-98-6
+Propargylaldehyde,624-67-9,True,CAS,624-67-9
+Propionaldehyde,123-38-6,True,CAS,123-38-6
+"Propionaldehyde - 2,3-Epoxy",765-34-4,True,CAS,765-34-4
+Propionamide,79-05-0,True,CAS,79-05-0
+Propionic Acid,79-09-4,True,CAS,79-09-4
+Propionic Anhydride,123-62-6,True,CAS,123-62-6
+Propionitrile,107-12-0,True,CAS,107-12-0
+Propionylchloride,79-03-8,True,CAS,79-03-8
+Propyl Amine,107-10-8,True,CAS,107-10-8
+Propyl Chloride,540-54-5,True,CAS,540-54-5
+Propyl Formate,110-74-7,True,CAS,110-74-7
+Propyl Methacrylate,2210-28-8,True,CAS,2210-28-8
+Propylene,115-07-1,True,CAS,115-07-1
+Propylene Carbonate,108-32-7,True,CAS,108-32-7
+Propylene Chlorohydrin,127-00-4,True,CAS,127-00-4
+Propylene Glycol,57-55-6,True,CAS,57-55-6
+Propylene Glycol Mono-t-Butyl Ether,57018-52-7,True,CAS,57018-52-7
+Propylene Glycol Monobutyl Ether,5131-66-8,True,CAS,5131-66-8
+Propylene Glycol Monoethyl Ether,1569-02-4,True,CAS,1569-02-4
+Propylene Glycol Monoethyl Ether Acetate,54839-24-6,True,CAS,54839-24-6
+Propylene Glycol Monoisopropyl Ether,3944-36-3,True,CAS,3944-36-3
+Propylene Glycol Monomethyl Ether,107-98-2,True,CAS,107-98-2
+Propylene Glycol Monomethyl Ether Acetate,108-65-6,True,CAS,108-65-6
+Propylene Glycol Monophenyl Ether,770-35-4,True,CAS,770-35-4
+Propylene Glycol Monopropyl Ether,1569-01-3,True,CAS,1569-01-3
+Propylene Imine (2-Methyl Aziridine),75-55-8,True,CAS,75-55-8
+Propylene Oxide,75-56-9,True,CAS,75-56-9
+Propynonitrile,1070-71-9,True,CAS,1070-71-9
+Pulegone,89-82-7,True,CAS,89-82-7
+Pyrazole,288-13-1,True,CAS,288-13-1
+Pyridazine,289-80-5,True,CAS,289-80-5
+Pyridine,110-86-1,True,CAS,110-86-1
+Pyrimidine,289-95-2,True,CAS,289-95-2
+"Pyrogallol (1,2,3-Trihydroxybenzene)",87-66-1,True,CAS,87-66-1
+Pyrrole,109-97-7,True,CAS,109-97-7
+Pyrrolidine,123-75-1,True,CAS,123-75-1
+Pyruvonitrile,631-57-2,True,CAS,631-57-2
+Quinine,130-95-0,True,CAS,130-95-0
+Quinoline,91-22-5,True,CAS,91-22-5
+Saccharin,81-07-2,True,CAS,81-07-2
+Salicylaldehyde,90-02-8,True,CAS,90-02-8
+Salicylic Acid,69-72-7,True,CAS,69-72-7
+Sebacic Acid,111-20-6,True,CAS,111-20-6
+sec-Butyl Acetate,105-46-4,True,CAS,105-46-4
+Skatole,83-34-1,True,CAS,83-34-1
+Stearic Acid,57-11-4,True,CAS,57-11-4
+Styrene,100-42-5,True,CAS,100-42-5
+Styrene Oxide (Phenyl Oxirane),96-09-3,True,CAS,96-09-3
+Succinic Anhydride,108-30-5,True,CAS,108-30-5
+Succinonitrile,110-61-2,True,CAS,110-61-2
+Sulfanilamide,63-74-1,True,CAS,63-74-1
+Sulfolane (Tetramethylene Sulfone),126-33-0,True,CAS,126-33-0
+Sulfur Dicyanide,627-52-1,True,CAS,627-52-1
+Sulfur Dioxide,7446-09-5,True,CAS,7446-09-5
+Sulfuryl Chloride,7791-25-5,True,CAS,7791-25-5
+t-Butyl Acetate,540-88-5,True,CAS,540-88-5
+t-Butyl Alcohol,75-65-0,True,CAS,75-65-0
+Terephthalic Acid,100-21-0,True,CAS,100-21-0
+Tetrachloroethylene,127-18-4,True,CAS,127-18-4
+Tetraethylorthosilicate,78-10-4,True,CAS,78-10-4
+Tetrahydrofuran (THF),109-99-9,True,CAS,109-99-9
+Tetrahydrofurfuryl Alcohol,97-99-4,True,CAS,97-99-4
+Tetrahydronaphthalene,119-64-2,True,CAS,119-64-2
+Tetrahydropyran,142-68-7,True,CAS,142-68-7
+Tetrahydrothiapyran,1613-51-0,True,CAS,1613-51-0
+Tetramethylene Sulfide,110-01-0,True,CAS,110-01-0
+Tetramethylene Sulfoxide,1600-44-8,True,CAS,1600-44-8
+Tetramethylurea,632-22-4,True,CAS,632-22-4
+Tetranitromethane,509-14-8,True,CAS,509-14-8
+Thiazole,288-47-1,True,CAS,288-47-1
+Thioacetamide,62-55-5,True,CAS,62-55-5
+Thioacetic Acid,507-09-5,True,CAS,507-09-5
+Thiocyanic Acid,463-56-9,True,CAS,463-56-9
+Thiodiethylenglycol,111-48-8,True,CAS,111-48-8
+Thioglycolic Acid (Mercapto Acetic Acid),68-11-1,True,CAS,68-11-1
+Thionyl Chloride,7719-09-7,True,CAS,7719-09-7
+Thiophene,110-02-1,True,CAS,110-02-1
+Thiophenol,108-98-5,True,CAS,108-98-5
+Thiourea,62-56-6,True,CAS,62-56-6
+Thiourea From Urea Min Sphere,62-56-6,True,CAS,62-56-6
+Thymine,65-71-4,True,CAS,65-71-4
+Thymol,89-83-8,True,CAS,89-83-8
+Tigaldehyde,497-03-0,True,CAS,497-03-0
+Toluene,108-88-3,True,CAS,108-88-3
+Trans-Crotononitrile,627-26-9,True,CAS,627-26-9
+Trans-Decahydronaphthalene,493-02-7,True,CAS,493-02-7
+Tri-n-Butyl Borate,688-74-4,True,CAS,688-74-4
+Tri-n-Butyl Phosphate,126-73-8,True,CAS,126-73-8
+Trichloroacetic Acid,76-03-9,True,CAS,76-03-9
+Trichloroacetonitrile,545-06-2,True,CAS,545-06-2
+Trichloroethylene,79-01-6,True,CAS,79-01-6
+Trichlorofluoromethane (Freon 11),75-69-4,True,CAS,75-69-4
+Trichloromethylsilane,75-79-6,True,CAS,75-79-6
+Trichlorosilane,10025-78-2,True,CAS,10025-78-2
+Tricyclene,508-32-7,True,CAS,508-32-7
+Tridecyl Alcohol,112-70-9,True,CAS,112-70-9
+Triethanolamine,102-71-6,True,CAS,102-71-6
+Triethyl Citrate,77-93-0,True,CAS,77-93-0
+Triethylamine,121-44-8,True,CAS,121-44-8
+Triethylene Glycol,112-27-6,True,CAS,112-27-6
+Triethylene Glycol Monomethyl Ether,112-35-6,True,CAS,112-35-6
+Triethylphosphate,78-40-0,True,CAS,78-40-0
+Trifluoroacetic Acid,76-05-1,True,CAS,76-05-1
+Trifluoromethane (Freon 23),75-46-7,True,CAS,75-46-7
+Trimethyl Amine,75-50-3,True,CAS,75-50-3
+Trimethylbenzene,95-63-6,True,CAS,95-63-6
+Trimethylene Sulfide,287-27-4,True,CAS,287-27-4
+Trimethylphosphate,512-56-1,True,CAS,512-56-1
+Trinitromethane,517-25-9,True,CAS,517-25-9
+Trinitrotoluene (TNT) (DM),118-96-7,True,CAS,118-96-7
+Trinitrotoluene (TNT) (G.C.),118-96-7,True,CAS,118-96-7
+Triphenyl Phosphate,115-86-6,True,CAS,115-86-6
+Undecane,1120-21-4,True,CAS,1120-21-4
+Urea For Ro Equal 19.4,57-13-6,True,CAS,57-13-6
+Urea Min Sphere,57-13-6,True,CAS,57-13-6
+Valeronitrile,110-59-8,True,CAS,110-59-8
+Vanillin (4-Hydroxy-3-Methoxy Benzaldehy,121-33-5,True,CAS,121-33-5
+Vinyl 2-Chloro Ethyl Ether,110-75-8,True,CAS,110-75-8
+Vinyl Acetate,108-05-4,True,CAS,108-05-4
+Vinyl Acetylene,689-97-4,True,CAS,689-97-4
+Vinyl Allyl Ether,3917-15-5,True,CAS,3917-15-5
+Vinyl Butyl Ether,111-34-2,True,CAS,111-34-2
+Vinyl Butyrate,123-20-6,True,CAS,123-20-6
+Vinyl Chloride,75-01-4,True,CAS,75-01-4
+Vinyl Ether,109-93-3,True,CAS,109-93-3
+Vinyl Ethyl Sulfide,627-50-9,True,CAS,627-50-9
+Vinyl Formate,692-45-5,True,CAS,692-45-5
+Vinyl Iodide (Iodoethene),593-66-8,True,CAS,593-66-8
+Vinyl Isobutyl Ether,109-53-5,True,CAS,109-53-5
+Vinyl Isopropyl Ether,926-65-8,True,CAS,926-65-8
+Vinyl Propionate,105-38-4,True,CAS,105-38-4
+Vinyl Propyl Ether,764-47-6,True,CAS,764-47-6
+Vinyl Pyrrolidone,88-12-0,True,CAS,88-12-0
+Vinyl Trimethyl Silane,754-05-2,True,CAS,754-05-2
+Vinylenecarbonate,872-36-6,True,CAS,872-36-6
+Water,7732-18-5,True,CAS,7732-18-5
+Water 1% Soluble In - Ro=18.1,7732-18-5,True,CAS,7732-18-5
+Water Complete Misc. (R=13.0),7732-18-5,True,CAS,7732-18-5
+Xylene,106-42-3,True,CAS,106-42-3
+ß-Propiolactone,57-57-8,True,CAS,57-57-8
+α-Chloro Acetophenone,532-27-4,True,CAS,532-27-4
+α-Chloro Methyl Acrylate,80-63-7,True,CAS,80-63-7
+γ-Butyrolactone (GBL),96-48-0,True,CAS,96-48-0
+γ-Thiobutyrolactone,1003-10-7,True,CAS,1003-10-7
+"1,4-dichloro-2-butyne",821-10-3,True,CAS,821-10-3
+"1,2-dibromoethylene",590-12-5,True,CAS,590-12-5
+o-xylene,95-47-6,True,CAS,95-47-6
+dipropyleneglycolmethylether,34590-94-8,True,CAS,34590-94-8
+butadienedioxide,564-00-1,True,CAS,564-00-1
+propylenechlorohydrin,78-89-7,True,CAS,78-89-7
+dimethylmethylphosphonate,765-79-6,True,name,dimethylmethylphosphonate
+ethylamylketone,541-85-5,True,CAS,541-85-5
+propyleneglycolmonophenylether,4169-04-4,True,CAS,4169-04-4
+dipropyleneglycol,25265-71-8,True,CAS,25265-71-8
+di-n-butylsulfoxide,598-04-9,True,CAS,598-04-9
+vinylaceticacid,625-38-7,True,CAS,625-38-7
+hexyleneglycol,107-41-5,True,CAS,107-41-5
+crotonaldehyde,15798-64-8,True,CAS,15798-64-8
+"2,3-dimethyl-1-butene",563-78-0,True,CAS,563-78-0
+ethylcinnamate,4192-77-2,True,CAS,4192-77-2
+dimethylethanolamine,2854-16-2,True,CAS,2854-16-2
+propyleneglycolmonoethylether,52125-53-8,True,CAS,52125-53-8
+dioctylphthalate,117-84-0,True,CAS,117-84-0
+isopropylpalmitate,nan,False,failed,
+glutaric anhydride,108-55-4,True,CAS,108-55-4
+GVL,108-29-2,True,CAS,108-29-2
+chloromethyl methyl ether,107-30-2,True,CAS,107-30-2
+chloromethyl acetate,625-56-9,True,CAS,625-56-9
+bromodichloromethane,75-27-4,True,CAS,75-27-4
+chlorofluoromethane,593-70-4,True,CAS,593-70-4
+chloroiodomethane,593-71-5,True,CAS,593-71-5
+carbon tetrafluoride,75-73-0,True,CAS,75-73-0
+camphor,76-22-2,True,CAS,76-22-2
+butyl isobutyrate,97-87-0,True,CAS,97-87-0
+bromoacetic acid,79-08-3,True,CAS,79-08-3
+alpha-terpineol,98-55-5,True,CAS,98-55-5
+n-allylmethylamine,627-37-2,True,CAS,627-37-2
+2-aminobutan-1-ol,96-20-8,True,CAS,96-20-8
+benzyl formate,104-57-4,True,CAS,104-57-4

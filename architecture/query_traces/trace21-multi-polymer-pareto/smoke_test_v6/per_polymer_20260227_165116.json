@@ -1,0 +1,627 @@
+{
+  "phase": "per-polymer",
+  "timestamp": "20260227_165116",
+  "polymers": [
+    "PE",
+    "PET",
+    "EVOH"
+  ],
+  "energy_cases": [
+    "C1",
+    "C3"
+  ],
+  "n_configs": 72,
+  "n_succeeded": 60,
+  "n_failed": 12,
+  "elapsed_s": 392.7,
+  "results_by_polymer": {
+    "PE": [
+      {
+        "solvent": "Acetonitrile",
+        "msp": 1.129307567521509,
+        "gwp": 0.9300038841261372,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Acetonitrile",
+        "msp": 0.9901180992365812,
+        "gwp": 0.9352304388763285,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 1.1333223848933012,
+        "gwp": 0.9702656472457436,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 0.9976749299653318,
+        "gwp": 0.9755267621413316,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814043,
+        "gwp": 0.9037686449132875,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 0.9323032211926461,
+        "gwp": 0.9089087776717206,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 1.077348879963113,
+        "gwp": 1.2843803433294754,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 0.9585875793591778,
+        "gwp": 1.289814310930605,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.14407006302935,
+        "gwp": 1.0044514651554564,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.0106181144603015,
+        "gwp": 1.009752831717822,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 1.0927510467838364,
+        "gwp": 1.0786678507643916,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 0.9654472531885281,
+        "gwp": 1.0839646275755122,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.2119104378755983,
+        "gwp": 1.690309174300317,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.1000686495170793,
+        "gwp": 1.6961606764243153,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 0.9116783946420786,
+        "gwp": 1.2301173797336138,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 1.1002828849077837,
+        "gwp": 1.2823484328605785,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 0.9809096648634925,
+        "gwp": 1.2878082556837014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 1.1037483558885832,
+        "gwp": 0.972557132751723,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 0.969398875180012,
+        "gwp": 0.9777836047876756,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "PET": [
+      {
+        "solvent": "Acetonitrile",
+        "msp": 1.129307567521509,
+        "gwp": 0.9300038841261375,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Acetonitrile",
+        "msp": 0.9901180992365812,
+        "gwp": 0.9352304388763285,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 1.1333223848933014,
+        "gwp": 0.9702656472457436,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 0.9976749299653325,
+        "gwp": 0.9755267621413317,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814043,
+        "gwp": 0.9037686449132876,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 0.9323032211926463,
+        "gwp": 0.9089087776717203,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 1.0773488799631128,
+        "gwp": 1.2843803433294758,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 0.9585875793591778,
+        "gwp": 1.289814310930605,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.14407006302935,
+        "gwp": 1.0044514651554564,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.0106181144603015,
+        "gwp": 1.009752831717822,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 1.0927510467838364,
+        "gwp": 1.078667850764392,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 0.9654472531885281,
+        "gwp": 1.0839646275755122,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.2119104378755983,
+        "gwp": 1.690309174300317,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.1000686495170795,
+        "gwp": 1.6961606764243151,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 0.9116783946420786,
+        "gwp": 1.2301173797336138,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 1.1002828849077835,
+        "gwp": 1.2823484328605783,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 0.9809096648634925,
+        "gwp": 1.2878082556837014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 1.1037483558885832,
+        "gwp": 0.972557132751723,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 0.969398875180012,
+        "gwp": 0.9777836047876756,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "EVOH": [
+      {
+        "solvent": "Acetonitrile",
+        "msp": 1.129307567521509,
+        "gwp": 0.9300038841261372,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Acetonitrile",
+        "msp": 0.9901180992365812,
+        "gwp": 0.9352304388763285,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 1.1333223848933012,
+        "gwp": 0.9702656472457436,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethanol",
+        "msp": 0.9976749299653318,
+        "gwp": 0.9755267621413316,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814038,
+        "gwp": 0.9037686449132871,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 0.9323032211926461,
+        "gwp": 0.9089087776717206,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 1.077348879963113,
+        "gwp": 1.2843803433294758,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Ethylene Glycol",
+        "msp": 0.9585875793591778,
+        "gwp": 1.289814310930605,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.14407006302935,
+        "gwp": 1.0044514651554564,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Isopropanol",
+        "msp": 1.0106181144603015,
+        "gwp": 1.009752831717822,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 1.0927510467838366,
+        "gwp": 1.078667850764392,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "N,N-Dimethylformamide",
+        "msp": 0.9654472531885281,
+        "gwp": 1.0839646275755122,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.2119104378755983,
+        "gwp": 1.690309174300317,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Oleyl Alcohol",
+        "msp": 1.1000686495170793,
+        "gwp": 1.6961606764243151,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 0.9116783946420786,
+        "gwp": 1.2301173797336138,
+        "energy_case": "C3",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 1.1002828849077835,
+        "gwp": 1.282348432860579,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Glycol",
+        "msp": 0.9809096648634925,
+        "gwp": 1.2878082556837014,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 1.1037483558885832,
+        "gwp": 0.972557132751723,
+        "energy_case": "C1",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Toluene",
+        "msp": 0.969398875180012,
+        "gwp": 0.9777836047876757,
+        "energy_case": "C3",
+        "tier": "tier1",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      }
+    ]
+  },
+  "pareto_by_polymer": {
+    "PE": [
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814043,
+        "gwp": 0.9037686449132875,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PE",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "PET": [
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814043,
+        "gwp": 0.9037686449132876,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "PET",
+        "source": "biosteam_simulation"
+      }
+    ],
+    "EVOH": [
+      {
+        "solvent": "Ethyl Acetate",
+        "msp": 1.0718897511814038,
+        "gwp": 0.9037686449132871,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      },
+      {
+        "solvent": "Propylene Carbonate",
+        "msp": 1.0306860272256164,
+        "gwp": 1.2248091341939125,
+        "energy_case": "C1",
+        "tier": "tier2",
+        "polymer": "EVOH",
+        "source": "biosteam_simulation"
+      }
+    ]
+  }
+}

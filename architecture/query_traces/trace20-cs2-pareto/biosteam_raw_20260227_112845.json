@@ -1,0 +1,1661 @@
+{
+  "source": "BioSTEAM batch simulation",
+  "timestamp": "20260227_112845",
+  "n_solvents": 27,
+  "energy_cases": [
+    "C1",
+    "C2",
+    "C3"
+  ],
+  "n_configs": 81,
+  "n_succeeded": 44,
+  "n_failed": 37,
+  "elapsed_s": 337.5,
+  "solvents_simulated": [
+    "sec-Butyl Acetate",
+    "Isobutyl Acetate",
+    "Tetrachloroethylene",
+    "o-Chlorotoluene",
+    "Methylcyclohexane",
+    "Dodecanol",
+    "Heptane",
+    "Toluene",
+    "Xylene",
+    "o-Xylene",
+    "p-Xylene",
+    "Cyclohexane",
+    "Dodecane",
+    "Benzene",
+    "2-Butanone",
+    "Ethyl acetate",
+    "1-Propanol",
+    "Ethanol",
+    "Isopropanol",
+    "tert-Butanol",
+    "Cyclohexanol",
+    "N,N-Dimethylformamide",
+    "Diphenyl ether",
+    "Acetylacetone",
+    "2,3-Dihydropyran",
+    "Tetrahydropyran",
+    "Triethylamine"
+  ],
+  "results": [
+    {
+      "success": true,
+      "solvent": "sec-Butyl Acetate",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1102321546433276,
+        "tci_usd": 84177917.93056247,
+        "aoc_usd_per_yr": 2231212.128616253
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0059110269044702,
+        "htc_ctuh_per_kg": 3.790749730566169e-08,
+        "htnc_ctuh_per_kg": 1.830642670892371e-08,
+        "etox_ctue_per_kg": 1.0226724629166333
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2788.759660037961,
+        "water_circulated_m3_yr": 196132.44234557953,
+        "electricity_consumed_mj_per_kg": 35874.50993130693,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6330.79587023064,
+        "total_energy_mj_per_kg": 42205.30580153757,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29638.38296717171,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 14.734
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "sec-Butyl Acetate",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "sec-Butyl Acetate",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9780296906659083,
+        "tci_usd": 68405179.79651012,
+        "aoc_usd_per_yr": 2724714.4692509696
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0111731029959576,
+        "htc_ctuh_per_kg": 1.9980860104308296e-08,
+        "htnc_ctuh_per_kg": 1.0324890144914242e-06,
+        "etox_ctue_per_kg": 22.286819336705054
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1970.480122586621,
+        "water_circulated_m3_yr": 168856.45776386818,
+        "electricity_consumed_mj_per_kg": 35471.36939438383,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 3.0614457230467046e-13,
+        "total_energy_mj_per_kg": 35471.36939438383,
+        "electricity_intensity_mj_per_kg": 35471.36939438383,
+        "waste_generated_kg_yr": 29638.38296717171,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 14.59
+    },
+    {
+      "success": true,
+      "solvent": "Isobutyl Acetate",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1159269640470406,
+        "tci_usd": 84639009.6180093,
+        "aoc_usd_per_yr": 2239219.8461468713
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.002987349721099,
+        "htc_ctuh_per_kg": 3.7797670124584424e-08,
+        "htnc_ctuh_per_kg": 1.8253930729069723e-08,
+        "etox_ctue_per_kg": 1.0197293270156593
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2768.4928120791656,
+        "water_circulated_m3_yr": 194456.65094615458,
+        "electricity_consumed_mj_per_kg": 35895.860360519066,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6334.563593032776,
+        "total_energy_mj_per_kg": 42230.42395355184,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29879.929413866314,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.312
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Isobutyl Acetate",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Isobutyl Acetate",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9833703353477088,
+        "tci_usd": 68832922.2959239,
+        "aoc_usd_per_yr": 2732856.1429845784
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0082525574953138,
+        "htc_ctuh_per_kg": 1.986036402770293e-08,
+        "htnc_ctuh_per_kg": 1.0330401012110994e-06,
+        "etox_ctue_per_kg": 22.29653138866462
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1949.7262820703374,
+        "water_circulated_m3_yr": 167164.43327919365,
+        "electricity_consumed_mj_per_kg": 35492.47989771232,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35492.47989771232,
+        "electricity_intensity_mj_per_kg": 35492.47989771232,
+        "waste_generated_kg_yr": 29879.929413866314,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.288
+    },
+    {
+      "success": true,
+      "solvent": "Tetrachloroethylene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 0.9068260241421184,
+        "tci_usd": 68254021.50743544,
+        "aoc_usd_per_yr": 1880750.5755247893
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.8614749047486796,
+        "htc_ctuh_per_kg": 3.244442383199632e-08,
+        "htnc_ctuh_per_kg": 1.5663196431090337e-08,
+        "etox_ctue_per_kg": 0.8747636198000763
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1706.8060347241114,
+        "water_circulated_m3_yr": 106012.86774623656,
+        "electricity_consumed_mj_per_kg": 33603.871649428766,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 5930.094996958017,
+        "total_energy_mj_per_kg": 39533.96664638678,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 17546.04967208627,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.117
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Tetrachloroethylene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Tetrachloroethylene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.7691122937564558,
+        "tci_usd": 52286824.72051727,
+        "aoc_usd_per_yr": 2335065.372632413
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.8664039234286963,
+        "htc_ctuh_per_kg": 1.5652433731681422e-08,
+        "htnc_ctuh_per_kg": 9.65654194891737e-07,
+        "etox_ctue_per_kg": 20.79301932976334
+      },
+      "operations": {
+        "water_consumed_m3_yr": 940.3186150347238,
+        "water_circulated_m3_yr": 80463.28708992366,
+        "electricity_consumed_mj_per_kg": 33226.24745650221,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -6.997590224106755e-13,
+        "total_energy_mj_per_kg": 33226.24745650221,
+        "electricity_intensity_mj_per_kg": 33226.24745650221,
+        "waste_generated_kg_yr": 17546.04967208627,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.068
+    },
+    {
+      "success": true,
+      "solvent": "o-Chlorotoluene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.048101256379631,
+        "tci_usd": 79163209.88073428,
+        "aoc_usd_per_yr": 2142046.7701574476
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0281580323721982,
+        "htc_ctuh_per_kg": 3.874386853021052e-08,
+        "htnc_ctuh_per_kg": 1.870665749011648e-08,
+        "etox_ctue_per_kg": 1.0451743640908704
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2994.9264878718573,
+        "water_circulated_m3_yr": 213603.40849372256,
+        "electricity_consumed_mj_per_kg": 35472.15547589262,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6259.792142804583,
+        "total_energy_mj_per_kg": 41731.9476186972,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 25236.63339840605,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 10.992
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "o-Chlorotoluene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "o-Chlorotoluene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9194036189732484,
+        "tci_usd": 63743929.88615057,
+        "aoc_usd_per_yr": 2631191.2303548064
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0333610910788018,
+        "htc_ctuh_per_kg": 2.1018289471877677e-08,
+        "htnc_ctuh_per_kg": 1.0215145705082996e-06,
+        "etox_ctue_per_kg": 22.070830893296602
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2185.8244532853187,
+        "water_circulated_m3_yr": 186633.34067417128,
+        "electricity_consumed_mj_per_kg": 35073.53640536727,
+        "heating_duty_mj_per_kg": -6.696912519164667e-14,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35073.53640536727,
+        "electricity_intensity_mj_per_kg": 35073.53640536727,
+        "waste_generated_kg_yr": 25236.63339840605,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 10.814
+    },
+    {
+      "success": true,
+      "solvent": "Methylcyclohexane",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1456704579147867,
+        "tci_usd": 87088627.86721121,
+        "aoc_usd_per_yr": 2276124.4448121106
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.969835174912981,
+        "htc_ctuh_per_kg": 3.653952702359918e-08,
+        "htnc_ctuh_per_kg": 1.763757865003792e-08,
+        "etox_ctue_per_kg": 0.985478328003544
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2507.4439934065886,
+        "water_circulated_m3_yr": 172614.26939729555,
+        "electricity_consumed_mj_per_kg": 35932.63127721032,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6341.052578331236,
+        "total_energy_mj_per_kg": 42273.68385554155,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 32615.25590358988,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 12.768
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Methylcyclohexane",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Methylcyclohexane",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.0096840358064019,
+        "tci_usd": 70980977.68469934,
+        "aoc_usd_per_yr": 2768363.935247427
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9751057762483045,
+        "htc_ctuh_per_kg": 1.858384635144549e-08,
+        "htnc_ctuh_per_kg": 1.033463273393625e-06,
+        "etox_ctue_per_kg": 22.284075869917004
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1687.8387372727384,
+        "water_circulated_m3_yr": 145294.09419283387,
+        "electricity_consumed_mj_per_kg": 35528.837600477396,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 3.4987951120533773e-13,
+        "total_energy_mj_per_kg": 35528.837600477396,
+        "electricity_intensity_mj_per_kg": 35528.837600477396,
+        "waste_generated_kg_yr": 32615.25590358988,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 13.023
+    },
+    {
+      "success": true,
+      "solvent": "Dodecanol",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.2511377664690655,
+        "tci_usd": 94121915.8394547,
+        "aoc_usd_per_yr": 2604500.121856068
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.5619015473308864,
+        "htc_ctuh_per_kg": 5.8881713700648636e-08,
+        "htnc_ctuh_per_kg": 2.8476967798218657e-08,
+        "etox_ctue_per_kg": 1.5901639920608248
+      },
+      "operations": {
+        "water_consumed_m3_yr": 6639.927180007304,
+        "water_circulated_m3_yr": 514514.97883282905,
+        "electricity_consumed_mj_per_kg": 39475.1922446642,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6966.210396117214,
+        "total_energy_mj_per_kg": 46441.40264078141,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 34089.720189902066,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.935
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Dodecanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Dodecanol",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.1364651126122973,
+        "tci_usd": 79423283.68942276,
+        "aoc_usd_per_yr": 3165249.3588051866
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.5676917718026702,
+        "htc_ctuh_per_kg": 3.915580103511514e-08,
+        "htnc_ctuh_per_kg": 1.1444518675408206e-06,
+        "etox_ctue_per_kg": 24.988568245356024
+      },
+      "operations": {
+        "water_consumed_m3_yr": 5739.517889047835,
+        "water_circulated_m3_yr": 484501.3358008467,
+        "electricity_consumed_mj_per_kg": 39031.58896681792,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 39031.58896681792,
+        "electricity_intensity_mj_per_kg": 39031.58896681792,
+        "waste_generated_kg_yr": 34089.720189902066,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 12.021
+    },
+    {
+      "success": true,
+      "solvent": "Heptane",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.2009917705558728,
+        "tci_usd": 91445852.27219525,
+        "aoc_usd_per_yr": 2368339.19795273
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.996811273918788,
+        "htc_ctuh_per_kg": 3.755297509459954e-08,
+        "htnc_ctuh_per_kg": 1.8123882178375364e-08,
+        "etox_ctue_per_kg": 1.0126462123751332
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2658.8929800548362,
+        "water_circulated_m3_yr": 184841.57722543852,
+        "electricity_consumed_mj_per_kg": 36514.30613618539,
+        "heating_duty_mj_per_kg": -3.389457764801709e-13,
+        "cooling_duty_mj_per_kg": 6443.7010828562425,
+        "total_energy_mj_per_kg": 42958.00721904163,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 36144.294599741836,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.849
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Heptane",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Heptane",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.065205768843724,
+        "tci_usd": 75283305.62544553,
+        "aoc_usd_per_yr": 2869919.379449455
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0021671953706595,
+        "htc_ctuh_per_kg": 1.9306629151032787e-08,
+        "htnc_ctuh_per_kg": 1.0503936904402504e-06,
+        "etox_ctue_per_kg": 22.656023924323534
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1826.0200127951587,
+        "water_circulated_m3_yr": 157079.14498344925,
+        "electricity_consumed_mj_per_kg": 36103.97587636295,
+        "heating_duty_mj_per_kg": 3.6081324593050445e-13,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 36103.97587636295,
+        "electricity_intensity_mj_per_kg": 36103.97587636295,
+        "waste_generated_kg_yr": 36144.294599741836,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.538
+    },
+    {
+      "success": true,
+      "solvent": "Toluene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1037483558885832,
+        "tci_usd": 83735820.14972144,
+        "aoc_usd_per_yr": 2212268.797526989
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.972557132751723,
+        "htc_ctuh_per_kg": 3.664019465305948e-08,
+        "htnc_ctuh_per_kg": 1.768351006279496e-08,
+        "etox_ctue_per_kg": 0.988026093312872
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2613.5491429913595,
+        "water_circulated_m3_yr": 182104.02916633882,
+        "electricity_consumed_mj_per_kg": 35631.77721105333,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6287.960684303531,
+        "total_energy_mj_per_kg": 41919.73789535686,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29476.951382614247,
+        "waste_diverted_kg_yr": 11765552.192188786,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.796
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Toluene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Toluene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.969398875180012,
+        "tci_usd": 67807267.17760144,
+        "aoc_usd_per_yr": 2700681.7835475905
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9777836047876756,
+        "htc_ctuh_per_kg": 1.8834851970327134e-08,
+        "htnc_ctuh_per_kg": 1.025003974882845e-06,
+        "etox_ctue_per_kg": 22.108296319742767
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1800.806216859702,
+        "water_circulated_m3_yr": 155012.5982952836,
+        "electricity_consumed_mj_per_kg": 35231.36438802401,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 4.790342526417752e-13,
+        "total_energy_mj_per_kg": 35231.36438802401,
+        "electricity_intensity_mj_per_kg": 35231.36438802401,
+        "waste_generated_kg_yr": 29476.951382614247,
+        "waste_diverted_kg_yr": 11765552.192188786,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.473
+    },
+    {
+      "success": true,
+      "solvent": "Xylene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1103505618080591,
+        "tci_usd": 84102646.17660736,
+        "aoc_usd_per_yr": 2241459.2786276247
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.043463963585097,
+        "htc_ctuh_per_kg": 3.9314493984146345e-08,
+        "htnc_ctuh_per_kg": 1.8974272165209626e-08,
+        "etox_ctue_per_kg": 1.0601649292499242
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3116.8504426628106,
+        "water_circulated_m3_yr": 223812.93083685858,
+        "electricity_consumed_mj_per_kg": 36046.37384513375,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6361.124796200073,
+        "total_energy_mj_per_kg": 42407.49864133382,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29171.060240783514,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.455
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Xylene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Xylene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9806474207633877,
+        "tci_usd": 68525024.00171068,
+        "aoc_usd_per_yr": 2739130.3620134015
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0487512486897153,
+        "htc_ctuh_per_kg": 2.130197569237311e-08,
+        "htnc_ctuh_per_kg": 1.0380155016184967e-06,
+        "etox_ctue_per_kg": 22.426181891658793
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2294.6507757329064,
+        "water_circulated_m3_yr": 196406.2752725284,
+        "electricity_consumed_mj_per_kg": 35641.301983974285,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35641.301983974285,
+        "electricity_intensity_mj_per_kg": 35641.301983974285,
+        "waste_generated_kg_yr": 29171.060240783514,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.107
+    },
+    {
+      "success": false,
+      "error": "thermosteam.exceptions.UndefinedChemicalAlias: 'o-Xylene'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "o-Xylene",
+      "energy_case": "C1"
+    },
+    {
+      "success": false,
+      "error": "thermosteam.exceptions.UndefinedChemicalAlias: 'o-Xylene'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "o-Xylene",
+      "energy_case": "C2"
+    },
+    {
+      "success": false,
+      "error": "thermosteam.exceptions.UndefinedChemicalAlias: 'o-Xylene'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "o-Xylene",
+      "energy_case": "C3"
+    },
+    {
+      "success": true,
+      "solvent": "p-Xylene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.116261829617187,
+        "tci_usd": 84608339.72321805,
+        "aoc_usd_per_yr": 2246546.710262178
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0286588275309652,
+        "htc_ctuh_per_kg": 3.875574842015654e-08,
+        "htnc_ctuh_per_kg": 1.8704545976215168e-08,
+        "etox_ctue_per_kg": 1.0450875671523001
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2986.205107773098,
+        "water_circulated_m3_yr": 212780.7913387505,
+        "electricity_consumed_mj_per_kg": 36023.09602887179,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6357.016946271491,
+        "total_energy_mj_per_kg": 42380.11297514328,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29722.193705854137,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.383
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "p-Xylene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "p-Xylene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9854407679715937,
+        "tci_usd": 68936762.21820821,
+        "aoc_usd_per_yr": 2743202.977491032
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.033942698243564,
+        "htc_ctuh_per_kg": 2.075486214698834e-08,
+        "htnc_ctuh_per_kg": 1.0370877049504998e-06,
+        "etox_ctue_per_kg": 22.397306908218244
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2164.536396130393,
+        "water_circulated_m3_yr": 185391.8342839937,
+        "electricity_consumed_mj_per_kg": 35618.285752647265,
+        "heating_duty_mj_per_kg": 1.2573794933941823e-13,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35618.285752647265,
+        "electricity_intensity_mj_per_kg": 35618.285752647265,
+        "waste_generated_kg_yr": 29722.193705854137,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.094
+    },
+    {
+      "success": true,
+      "solvent": "Cyclohexane",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1282099401246215,
+        "tci_usd": 85808566.76522414,
+        "aoc_usd_per_yr": 2235747.7503343527
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9190099359695161,
+        "htc_ctuh_per_kg": 3.462035992038559e-08,
+        "htnc_ctuh_per_kg": 1.6709035867146415e-08,
+        "etox_ctue_per_kg": 0.9335849782597986
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2168.368606016223,
+        "water_circulated_m3_yr": 144687.83327618457,
+        "electricity_consumed_mj_per_kg": 35535.2881223832,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6275.057557504404,
+        "total_energy_mj_per_kg": 41810.34567988761,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 32223.105578534178,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.157
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Cyclohexane",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Cyclohexane",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9880942386325824,
+        "tci_usd": 69393135.63438441,
+        "aoc_usd_per_yr": 2719304.7255522776
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9242222549779413,
+        "htc_ctuh_per_kg": 1.686323322415147e-08,
+        "htnc_ctuh_per_kg": 1.0213017267377367e-06,
+        "etox_ctue_per_kg": 21.996662558514775
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1357.8265474999555,
+        "water_circulated_m3_yr": 117669.76465897563,
+        "electricity_consumed_mj_per_kg": 35135.95959745546,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 4.12435943677604,
+        "total_energy_mj_per_kg": 35140.08395689224,
+        "electricity_intensity_mj_per_kg": 35135.95959745546,
+        "waste_generated_kg_yr": 32223.105578534178,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 10.97
+    },
+    {
+      "success": true,
+      "solvent": "Dodecane",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.2134352615864161,
+        "tci_usd": 91709062.579719,
+        "aoc_usd_per_yr": 2474647.836120104
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.3118380592218775,
+        "htc_ctuh_per_kg": 4.943725705804783e-08,
+        "htnc_ctuh_per_kg": 2.3860925496865494e-08,
+        "etox_ctue_per_kg": 1.3333088025414297
+      },
+      "operations": {
+        "water_consumed_m3_yr": 4901.395663416703,
+        "water_circulated_m3_yr": 370731.5227212598,
+        "electricity_consumed_mj_per_kg": 38120.550109308875,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6727.155901642743,
+        "total_energy_mj_per_kg": 44847.70601095162,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 33795.63242288605,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.316
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Dodecane",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Dodecane",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.0928261961215422,
+        "tci_usd": 76663692.33052537,
+        "aoc_usd_per_yr": 3010479.968978131
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.3174295846729185,
+        "htc_ctuh_per_kg": 3.038826452730311e-08,
+        "htnc_ctuh_per_kg": 1.1015397072162652e-06,
+        "etox_ctue_per_kg": 23.92876663558518
+      },
+      "operations": {
+        "water_consumed_m3_yr": 4031.885078587385,
+        "water_circulated_m3_yr": 341747.83656028257,
+        "electricity_consumed_mj_per_kg": 37692.16965008317,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -5.138855320828398e-13,
+        "total_energy_mj_per_kg": 37692.16965008317,
+        "electricity_intensity_mj_per_kg": 37692.16965008317,
+        "waste_generated_kg_yr": 33795.63242288605,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.106
+    },
+    {
+      "success": true,
+      "solvent": "Benzene",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.0809602477945017,
+        "tci_usd": 82073169.23502237,
+        "aoc_usd_per_yr": 2158638.6686737873
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9022416877786608,
+        "htc_ctuh_per_kg": 3.398692561615493e-08,
+        "htnc_ctuh_per_kg": 1.6402380897910506e-08,
+        "etox_ctue_per_kg": 0.9164152739445368
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2127.8579989655136,
+        "water_circulated_m3_yr": 141961.83177137922,
+        "electricity_consumed_mj_per_kg": 35096.78516449352,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6197.348247994985,
+        "total_energy_mj_per_kg": 41294.1334124885,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 29052.314006731096,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.235
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Benzene",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Benzene",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9408758832473891,
+        "tci_usd": 65715054.886328846,
+        "aoc_usd_per_yr": 2635260.2615750385
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9073896871368621,
+        "htc_ctuh_per_kg": 1.6448920615321286e-08,
+        "htnc_ctuh_per_kg": 1.0085984685693382e-06,
+        "etox_ctue_per_kg": 21.719575957243677
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1327.3179724836932,
+        "water_circulated_m3_yr": 115277.16422198522,
+        "electricity_consumed_mj_per_kg": 34702.38432549723,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 3.7979248490716246,
+        "total_energy_mj_per_kg": 34706.182250346304,
+        "electricity_intensity_mj_per_kg": 34702.38432549723,
+        "waste_generated_kg_yr": 29052.314006731096,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.071
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2-Butanone",
+      "energy_case": "C1"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2-Butanone",
+      "energy_case": "C2"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2-Butanone",
+      "energy_case": "C3"
+    },
+    {
+      "success": true,
+      "solvent": "Ethyl acetate",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.0748091827226343,
+        "tci_usd": 81570216.69892842,
+        "aoc_usd_per_yr": 2150569.43548441
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9074937567621124,
+        "htc_ctuh_per_kg": 3.41883409962718e-08,
+        "htnc_ctuh_per_kg": 1.6504334711057455e-08,
+        "etox_ctue_per_kg": 0.9220315482937025
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2149.872846111748,
+        "water_circulated_m3_yr": 143664.67297515122,
+        "electricity_consumed_mj_per_kg": 35091.36256107119,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6196.777482553932,
+        "total_energy_mj_per_kg": 41288.14004362512,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 28504.55941448852,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.279
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Ethyl acetate",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Ethyl acetate",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9354725875268495,
+        "tci_usd": 65277480.6021141,
+        "aoc_usd_per_yr": 2627536.3939992804
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9126409607323936,
+        "htc_ctuh_per_kg": 1.665304569222355e-08,
+        "htnc_ctuh_per_kg": 1.0085471238431625e-06,
+        "etox_ctue_per_kg": 21.72197805428891
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1349.4565064880533,
+        "water_circulated_m3_yr": 116984.12832102808,
+        "electricity_consumed_mj_per_kg": 34697.02265869143,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 4.184089423719887,
+        "total_energy_mj_per_kg": 34701.206748115146,
+        "electricity_intensity_mj_per_kg": 34697.02265869143,
+        "waste_generated_kg_yr": 28504.55941448852,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.152
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "1-Propanol",
+      "energy_case": "C1"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "1-Propanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "1-Propanol",
+      "energy_case": "C3"
+    },
+    {
+      "success": true,
+      "solvent": "Ethanol",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1333223848933014,
+        "tci_usd": 86105426.66407396,
+        "aoc_usd_per_yr": 2256764.136296477
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9702656472457436,
+        "htc_ctuh_per_kg": 3.6560597283881146e-08,
+        "htnc_ctuh_per_kg": 1.7646312686954505e-08,
+        "etox_ctue_per_kg": 0.9860091694927257
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3100.762176567339,
+        "water_circulated_m3_yr": 226527.36099636563,
+        "electricity_consumed_mj_per_kg": 35867.95692233735,
+        "heating_duty_mj_per_kg": -1.3120481670200164e-13,
+        "cooling_duty_mj_per_kg": 6329.639456883065,
+        "total_energy_mj_per_kg": 42197.59637922041,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 31856.094398145633,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.391
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Ethanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Ethanol",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9976749299653318,
+        "tci_usd": 70035245.84182741,
+        "aoc_usd_per_yr": 2748174.172696729
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9755267621413316,
+        "htc_ctuh_per_kg": 1.8637234647521115e-08,
+        "htnc_ctuh_per_kg": 1.0316436450441614e-06,
+        "etox_ctue_per_kg": 22.246271832863744
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2282.6321099564043,
+        "water_circulated_m3_yr": 199256.35877600114,
+        "electricity_consumed_mj_per_kg": 35464.89002498618,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35464.89002498618,
+        "electricity_intensity_mj_per_kg": 35464.89002498618,
+        "waste_generated_kg_yr": 31856.094398145633,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.109
+    },
+    {
+      "success": true,
+      "solvent": "Isopropanol",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.14407006302935,
+        "tci_usd": 86886441.26239431,
+        "aoc_usd_per_yr": 2282446.8615821046
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0044514651554564,
+        "htc_ctuh_per_kg": 3.784889748254096e-08,
+        "htnc_ctuh_per_kg": 1.8268429767477432e-08,
+        "etox_ctue_per_kg": 1.020770386314167
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3176.72867793139,
+        "water_circulated_m3_yr": 231482.98489008777,
+        "electricity_consumed_mj_per_kg": 36142.37500266238,
+        "heating_duty_mj_per_kg": 3.4987951120533773e-13,
+        "cooling_duty_mj_per_kg": 6378.066176940422,
+        "total_energy_mj_per_kg": 42520.44117960281,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 32013.14266711087,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.444
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Isopropanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Isopropanol",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.0106181144603015,
+        "tci_usd": 70972276.07433642,
+        "aoc_usd_per_yr": 2779476.338961331
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0097528317178217,
+        "htc_ctuh_per_kg": 1.9788407025427458e-08,
+        "htnc_ctuh_per_kg": 1.0400236392182318e-06,
+        "etox_ctue_per_kg": 22.443690780091202
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2352.339272857947,
+        "water_circulated_m3_yr": 204003.33805430637,
+        "electricity_consumed_mj_per_kg": 35736.2243265375,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35736.2243265375,
+        "electricity_intensity_mj_per_kg": 35736.2243265375,
+        "waste_generated_kg_yr": 32013.14266711087,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.48
+    },
+    {
+      "success": true,
+      "solvent": "tert-Butanol",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1458461547856091,
+        "tci_usd": 86995864.64054175,
+        "aoc_usd_per_yr": 2289023.7785966196
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.018469255322219,
+        "htc_ctuh_per_kg": 3.837690871099063e-08,
+        "htnc_ctuh_per_kg": 1.8523604276389085e-08,
+        "etox_ctue_per_kg": 1.0350258282886104
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3148.861337288615,
+        "water_circulated_m3_yr": 228149.90393402433,
+        "electricity_consumed_mj_per_kg": 36253.20845839253,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6397.625022069274,
+        "total_energy_mj_per_kg": 42650.833480461806,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 31977.5228699435,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.524
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "tert-Butanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "tert-Butanol",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.0132118712879692,
+        "tci_usd": 71138829.93477456,
+        "aoc_usd_per_yr": 2788283.653106389
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0237868789450613,
+        "htc_ctuh_per_kg": 2.0261034329345448e-08,
+        "htnc_ctuh_per_kg": 1.0434121070086554e-06,
+        "etox_ctue_per_kg": 22.523641304331253
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2321.943876805839,
+        "water_circulated_m3_yr": 200585.9885845985,
+        "electricity_consumed_mj_per_kg": 35845.812289048714,
+        "heating_duty_mj_per_kg": 6.997590224106755e-13,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35845.812289048714,
+        "electricity_intensity_mj_per_kg": 35845.812289048714,
+        "waste_generated_kg_yr": 31977.5228699435,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.43
+    },
+    {
+      "success": true,
+      "solvent": "Cyclohexanol",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1109050004447332,
+        "tci_usd": 83835939.15086922,
+        "aoc_usd_per_yr": 2279349.5156621276
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.179058617818803,
+        "htc_ctuh_per_kg": 4.443597767337367e-08,
+        "htnc_ctuh_per_kg": 2.1448772171149028e-08,
+        "etox_ctue_per_kg": 1.198544266249964
+      },
+      "operations": {
+        "water_consumed_m3_yr": 4372.037454157738,
+        "water_circulated_m3_yr": 330185.4555446223,
+        "electricity_consumed_mj_per_kg": 36770.44442653609,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6488.901957624016,
+        "total_energy_mj_per_kg": 43259.346384160104,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 27394.65138441102,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.578
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Cyclohexanol",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Cyclohexanol",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9876840335202826,
+        "tci_usd": 68730993.64707461,
+        "aoc_usd_per_yr": 2792254.665197894
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.1844521096563425,
+        "htc_ctuh_per_kg": 2.6061638393778522e-08,
+        "htnc_ctuh_per_kg": 1.0609596826706705e-06,
+        "etox_ctue_per_kg": 22.993744602018104
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3533.3221012556332,
+        "water_circulated_m3_yr": 302228.27711455215,
+        "electricity_consumed_mj_per_kg": 36357.23580745254,
+        "heating_duty_mj_per_kg": -8.746987780133443e-14,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 36357.23580745254,
+        "electricity_intensity_mj_per_kg": 36357.23580745254,
+        "waste_generated_kg_yr": 27394.65138441102,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.384
+    },
+    {
+      "success": true,
+      "solvent": "N,N-Dimethylformamide",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.0927510467838366,
+        "tci_usd": 82617299.79128948,
+        "aoc_usd_per_yr": 2223902.0521036005
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0786678507643916,
+        "htc_ctuh_per_kg": 4.0653799872241164e-08,
+        "htnc_ctuh_per_kg": 1.9630292401181983e-08,
+        "etox_ctue_per_kg": 1.0967116640305827
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3641.8989657216266,
+        "water_circulated_m3_yr": 269538.3956250695,
+        "electricity_consumed_mj_per_kg": 36111.0841064924,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6372.5442540868935,
+        "total_energy_mj_per_kg": 42483.6283605793,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 27392.591544381892,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.416
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "N,N-Dimethylformamide",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "N,N-Dimethylformamide",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9654472531885281,
+        "tci_usd": 67239718.90973035,
+        "aoc_usd_per_yr": 2723986.5930693154
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0839646275755122,
+        "htc_ctuh_per_kg": 2.260894560205868e-08,
+        "htnc_ctuh_per_kg": 1.0405008993274011e-06,
+        "etox_ctue_per_kg": 22.501084788081986
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2818.223290259917,
+        "water_circulated_m3_yr": 242082.5397763458,
+        "electricity_consumed_mj_per_kg": 35705.28506245132,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6.560240835100082e-13,
+        "total_energy_mj_per_kg": 35705.28506245132,
+        "electricity_intensity_mj_per_kg": 35705.28506245132,
+        "waste_generated_kg_yr": 27392.591544381892,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.188
+    },
+    {
+      "success": true,
+      "solvent": "Diphenyl ether",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.0771099755897222,
+        "tci_usd": 80914433.0296768,
+        "aoc_usd_per_yr": 2254148.936990124
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.2705505835202762,
+        "htc_ctuh_per_kg": 4.78878175933036e-08,
+        "htnc_ctuh_per_kg": 2.3124246218121553e-08,
+        "etox_ctue_per_kg": 1.2919618757728446
+      },
+      "operations": {
+        "water_consumed_m3_yr": 4621.197566925627,
+        "water_circulated_m3_yr": 347617.8840365,
+        "electricity_consumed_mj_per_kg": 36758.88454826694,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6486.8619791059355,
+        "total_energy_mj_per_kg": 43245.746527372874,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 24910.82670522031,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.556
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Diphenyl ether",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Diphenyl ether",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9585605579633631,
+        "tci_usd": 66215841.309311874,
+        "aoc_usd_per_yr": 2769570.2069105133
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.2759423797539127,
+        "htc_ctuh_per_kg": 2.9519254831470483e-08,
+        "htnc_ctuh_per_kg": 1.0623083556747885e-06,
+        "etox_ctue_per_kg": 23.08031024478719
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3782.745889035702,
+        "water_circulated_m3_yr": 319669.4947735025,
+        "electricity_consumed_mj_per_kg": 36345.80583355118,
+        "heating_duty_mj_per_kg": -9.3210088532047e-13,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 36345.80583355118,
+        "electricity_intensity_mj_per_kg": 36345.80583355118,
+        "waste_generated_kg_yr": 24910.82670522031,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.125
+    },
+    {
+      "success": true,
+      "solvent": "Acetylacetone",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.0938186621048178,
+        "tci_usd": 82784381.08752172,
+        "aoc_usd_per_yr": 2215843.0706731267
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.04129569127111,
+        "htc_ctuh_per_kg": 3.923987407781368e-08,
+        "htnc_ctuh_per_kg": 1.8942215753862384e-08,
+        "etox_ctue_per_kg": 1.0584469126767766
+      },
+      "operations": {
+        "water_consumed_m3_yr": 3183.059159717523,
+        "water_circulated_m3_yr": 229957.58934031107,
+        "electricity_consumed_mj_per_kg": 35913.04578709304,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6337.59631536936,
+        "total_energy_mj_per_kg": 42250.6421024624,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 27909.19547500604,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.701
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Acetylacetone",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Acetylacetone",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 0.9644552122684074,
+        "tci_usd": 67252762.57987228,
+        "aoc_usd_per_yr": 2711595.9404758825
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 1.0465634198051192,
+        "htc_ctuh_per_kg": 2.1293980354009e-08,
+        "htnc_ctuh_per_kg": 1.0342142231275547e-06,
+        "etox_ctue_per_kg": 22.345435411310028
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2363.90063876764,
+        "water_circulated_m3_yr": 202652.3053086483,
+        "electricity_consumed_mj_per_kg": 35509.47220270471,
+        "heating_duty_mj_per_kg": -5.248192668080066e-13,
+        "cooling_duty_mj_per_kg": -6.997590224106755e-13,
+        "total_energy_mj_per_kg": 35509.47220270471,
+        "electricity_intensity_mj_per_kg": 35509.47220270471,
+        "waste_generated_kg_yr": 27909.19547500604,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.505
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2,3-Dihydropyran",
+      "energy_case": "C1"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2,3-Dihydropyran",
+      "energy_case": "C2"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: alias must start with a letter",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "2,3-Dihydropyran",
+      "energy_case": "C3"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: \u001b[38;2;229;63;229m<System: PE/Tetrahydropyran>\u001b[0m \u001b[38;2;229;63;229m<HXutility: H2>\u001b[0m Failed to extrapolate vapor pressure method 'LANDOLT' at T=-0.846397071252369 K for component with CASRN '142-68-7'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Tetrahydropyran",
+      "energy_case": "C1"
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Tetrahydropyran",
+      "energy_case": "C2"
+    },
+    {
+      "success": false,
+      "error": "RuntimeError: \u001b[38;2;229;63;229m<System: PE/Tetrahydropyran>\u001b[0m \u001b[38;2;229;63;229m<HXutility: H2>\u001b[0m Failed to extrapolate vapor pressure method 'LANDOLT' at T=-0.846397071252369 K for component with CASRN '142-68-7'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Tetrahydropyran",
+      "energy_case": "C3"
+    },
+    {
+      "success": true,
+      "solvent": "Triethylamine",
+      "target_plastic": "PE",
+      "energy_case": "C1",
+      "tea": {
+        "msp_usd_per_kg": 1.1657326924207323,
+        "tci_usd": 88692018.82817687,
+        "aoc_usd_per_yr": 2306805.708960042
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9693552198958049,
+        "htc_ctuh_per_kg": 3.6525051965198534e-08,
+        "htnc_ctuh_per_kg": 1.763808488531486e-08,
+        "etox_ctue_per_kg": 0.9853467863308318
+      },
+      "operations": {
+        "water_consumed_m3_yr": 2476.0085186166493,
+        "water_circulated_m3_yr": 169785.2725939613,
+        "electricity_consumed_mj_per_kg": 36102.30496933938,
+        "heating_duty_mj_per_kg": 0.0,
+        "cooling_duty_mj_per_kg": 6370.994994589307,
+        "total_energy_mj_per_kg": 42473.299963928686,
+        "electricity_intensity_mj_per_kg": null,
+        "waste_generated_kg_yr": 34160.59067161693,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.677
+    },
+    {
+      "success": false,
+      "error": "AttributeError: 'BaselineSTRAPProcess' object has no attribute 'B'",
+      "error_type": "SubprocessError",
+      "returncode": 1,
+      "solvent": "Triethylamine",
+      "energy_case": "C2"
+    },
+    {
+      "success": true,
+      "solvent": "Triethylamine",
+      "target_plastic": "PE",
+      "energy_case": "C3",
+      "tea": {
+        "msp_usd_per_kg": 1.0289139961637528,
+        "tci_usd": 72491313.24159746,
+        "aoc_usd_per_yr": 2801256.250519785
+      },
+      "lca": {
+        "gwp_kg_co2e_per_kg": 0.9746507089823593,
+        "htc_ctuh_per_kg": 1.8484584665234858e-08,
+        "htnc_ctuh_per_kg": 1.0382605031100466e-06,
+        "etox_ctue_per_kg": 22.384516191580097
+      },
+      "operations": {
+        "water_consumed_m3_yr": 1652.5330908601368,
+        "water_circulated_m3_yr": 142336.09166874422,
+        "electricity_consumed_mj_per_kg": 35696.60458103109,
+        "heating_duty_mj_per_kg": 1.7493975560266886e-13,
+        "cooling_duty_mj_per_kg": -0.0,
+        "total_energy_mj_per_kg": 35696.60458103109,
+        "electricity_intensity_mj_per_kg": 35696.60458103109,
+        "waste_generated_kg_yr": 34160.59067161693,
+        "waste_diverted_kg_yr": 11765552.192075921,
+        "unit_operations": 25
+      },
+      "runtime_seconds": 11.378
+    }
+  ]
+}

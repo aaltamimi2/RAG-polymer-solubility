@@ -4,7 +4,6 @@ Polymer Separation Algorithms
 Provides multiple algorithms for optimizing polymer separation sequences:
 - Greedy: O(n²) fast heuristic
 - Dynamic Programming: O(n² * 2^n) optimal for small n
-- Branch and Bound: Prunes search space for larger problems
 
 Each algorithm finds the best order to separate polymers based on
 selectivity (difference in solubility between target and remaining polymers).
@@ -43,12 +42,6 @@ class SeparationStep:
     notes: str = ""
     safety_score: Optional[float] = None  # GSK G-score (0-10, higher = safer)
 
-    @property
-    def selectivity_ratio(self) -> float:
-        """Ratio of target to max other solubility."""
-        if self.max_other_solubility == 0:
-            return float('inf')
-        return self.target_solubility / self.max_other_solubility
 
 
 @dataclass
@@ -86,30 +79,6 @@ class SeparationSequence:
         else:
             self.status = SeparationStatus.SUCCESS
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary for serialization."""
-        return {
-            "polymers": self.polymers,
-            "sequence": [s.target_polymer for s in self.steps],
-            "steps": [
-                {
-                    "step": s.step_number,
-                    "polymer": s.target_polymer,
-                    "solvent": s.solvent,
-                    "selectivity": s.selectivity,
-                    "target_solubility": s.target_solubility,
-                    "max_other_solubility": s.max_other_solubility,
-                }
-                for s in self.steps
-            ],
-            "metrics": {
-                "total_selectivity": self.total_selectivity,
-                "min_selectivity": self.min_selectivity,
-                "avg_selectivity": self.avg_selectivity,
-                "unique_solvents": list(self.unique_solvents),
-                "status": self.status.value,
-            }
-        }
 
     def __str__(self) -> str:
         seq_str = " -> ".join(s.target_polymer for s in self.steps)
@@ -125,10 +94,6 @@ class SeparationResult:
     computation_time_ms: float = 0.0
     nodes_explored: int = 0
 
-    def top_k(self, k: int = 5) -> List[SeparationSequence]:
-        """Return top k sequences by minimum selectivity."""
-        sorted_seqs = sorted(self.all_sequences, key=lambda s: s.min_selectivity, reverse=True)
-        return sorted_seqs[:k]
 
 
 class SeparatorBase(ABC):
@@ -989,149 +954,6 @@ class DPSeparator(SeparatorBase):
         return steps
 
 
-class BranchAndBoundSeparator(SeparatorBase):
-    """
-    Branch and Bound algorithm for polymer separation.
-
-    Explores the search tree with pruning based on upper bounds.
-    Falls back to best solution found within time limit.
-
-    Complexity: O(n!) worst case, but pruning helps significantly
-    Optimal: Yes (if completed)
-    Best for: Medium-sized problems where DP is too slow
-    """
-
-    async def find_optimal_sequence(
-        self,
-        polymers: List[str],
-        temperature: float = 120.0,
-        time_limit_ms: float = 5000.0,
-    ) -> SeparationResult:
-        """Find optimal sequence using branch and bound."""
-        import time
-        start_time = time.time()
-
-        n = len(polymers)
-        nodes_explored = 0
-
-        # Priority queue: (-min_selectivity, sequence_so_far, remaining_polymers, used_solvents)
-        # Negative because heapq is min-heap
-        initial_remaining = set(range(n))
-        pq: List[Tuple[float, List[int], Set[int], Set[str]]] = [
-            (0.0, [], initial_remaining, set())
-        ]
-
-        best_sequence: Optional[List[SeparationStep]] = None
-        best_min_selectivity = -float('inf')
-        all_complete_sequences: List[SeparationSequence] = []
-
-        while pq:
-            # Check time limit
-            elapsed_ms = (time.time() - start_time) * 1000
-            if elapsed_ms > time_limit_ms:
-                break
-
-            neg_min_sel, seq_so_far, remaining, used_solvents = heapq.heappop(pq)
-            current_min_sel = -neg_min_sel if seq_so_far else float('inf')
-            nodes_explored += 1
-
-            # Pruning: skip if worse than best found
-            if current_min_sel < best_min_selectivity:
-                continue
-
-            # Complete sequence
-            if not remaining:
-                steps = self._build_steps(polymers, seq_so_far, temperature, used_solvents)
-                sequence = SeparationSequence(polymers=polymers, steps=steps)
-                all_complete_sequences.append(sequence)
-
-                if sequence.min_selectivity > best_min_selectivity:
-                    best_min_selectivity = sequence.min_selectivity
-                    best_sequence = steps
-                continue
-
-            # Branch: try removing each remaining polymer
-            for polymer_idx in remaining:
-                others_idx = remaining - {polymer_idx}
-                target = polymers[polymer_idx]
-                others = [polymers[i] for i in others_idx]
-
-                solvent, selectivity, _, _ = await self.get_selectivity(
-                    target, others, temperature, used_solvents
-                )
-
-                new_min_sel = min(current_min_sel, selectivity) if seq_so_far else selectivity
-
-                # Pruning: don't explore if already worse than best
-                if new_min_sel >= best_min_selectivity:
-                    new_seq = seq_so_far + [polymer_idx]
-                    new_used = used_solvents | {solvent}
-                    heapq.heappush(pq, (-new_min_sel, new_seq, others_idx, new_used))
-
-        elapsed_ms = (time.time() - start_time) * 1000
-
-        if best_sequence is None:
-            # Fallback to greedy
-            greedy = GreedySeparator(
-                self.conn, self.table_name, self.polymer_col,
-                self.solvent_col, self.solubility_col, self.temperature_col
-            )
-            result = await greedy.find_optimal_sequence(polymers, temperature)
-            best_sequence = result.best_sequence.steps
-
-        sequence = SeparationSequence(polymers=polymers, steps=best_sequence)
-
-        return SeparationResult(
-            best_sequence=sequence,
-            all_sequences=all_complete_sequences,
-            algorithm="branch_and_bound",
-            computation_time_ms=elapsed_ms,
-            nodes_explored=nodes_explored,
-        )
-
-    def _build_steps(
-        self,
-        polymers: List[str],
-        sequence: List[int],
-        temperature: float,
-        used_solvents: Set[str],
-    ) -> List[SeparationStep]:
-        """Build SeparationStep list from index sequence."""
-        steps = []
-        remaining_set = set(range(len(polymers)))
-
-        for step_num, polymer_idx in enumerate(sequence, 1):
-            remaining_set.discard(polymer_idx)
-            target = polymers[polymer_idx]
-            others = [polymers[i] for i in remaining_set]
-
-            # Would need to look up solvent info - simplified for now
-            steps.append(SeparationStep(
-                step_number=step_num,
-                target_polymer=target,
-                remaining_polymers=others,
-                solvent="computed",
-                selectivity=0.0,  # Would need lookup
-                target_solubility=0.0,
-                max_other_solubility=0.0,
-                temperature=temperature,
-            ))
-
-        # Add last polymer
-        if remaining_set:
-            last_idx = remaining_set.pop()
-            steps.append(SeparationStep(
-                step_number=len(steps) + 1,
-                target_polymer=polymers[last_idx],
-                remaining_polymers=[],
-                solvent="N/A",
-                selectivity=100.0,
-                target_solubility=100.0,
-                max_other_solubility=0.0,
-                temperature=temperature,
-            ))
-
-        return steps
 
 
 # Convenience function for quick access
@@ -1149,7 +971,7 @@ async def find_best_separation(
         polymers: List of polymer names to separate
         db_connection: Database connection (DuckDB)
         temperature: Target temperature in °C
-        algorithm: "greedy", "dp", "branch_and_bound", or "auto"
+        algorithm: "greedy", "dp", or "auto"
         **kwargs: Additional arguments for the algorithm
 
     Returns:
@@ -1158,10 +980,8 @@ async def find_best_separation(
     n = len(polymers)
 
     if algorithm == "auto":
-        if n <= 6:
+        if n <= 10:
             algorithm = "dp"
-        elif n <= 10:
-            algorithm = "branch_and_bound"
         else:
             algorithm = "greedy"
 
@@ -1177,8 +997,6 @@ async def find_best_separation(
         separator = GreedySeparator(db_connection, **kwargs)
     elif algorithm == "dp":
         separator = DPSeparator(db_connection, **kwargs)
-    elif algorithm == "branch_and_bound":
-        separator = BranchAndBoundSeparator(db_connection, **kwargs)
     else:
         raise ValueError(f"Unknown algorithm: {algorithm}")
 

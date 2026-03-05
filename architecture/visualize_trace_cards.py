@@ -468,44 +468,140 @@ def draw_trace_cards(data: dict, output_path: str, title: str | None = None):
 
         y -= box_h + GAP
 
-    # ── SUBAGENT BOXES ──
-    for i, sa in enumerate(data["subagents"], 1):
-        color = AGENT_COLORS.get(sa["name"], "#6B7280")
-        n_sa_tools = len(sa["tools"])
-        dur_s = sa["duration_ms"] / 1000
+    # ── SUBAGENT BOXES (parallel-aware layout) ──
+    # Group subagents into parallel batches by start time (500ms threshold)
+    subagents = data["subagents"]
+    batches: list[list[tuple[int, dict]]] = []  # list of [(idx, sa), ...]
+    for i, sa in enumerate(subagents):
+        placed = False
+        for batch in batches:
+            ref_start = batch[0][1]["start_ms"]
+            if abs(sa["start_ms"] - ref_start) < 500:
+                batch.append((i, sa))
+                placed = True
+                break
+        if not placed:
+            batches.append([(i, sa)])
 
-        # Calculate pill rows needed
-        pill_rows = _count_pill_rows(sa["tools"], cl, cr) if sa["tools"] else 1
-        box_h = HEADER_H + HEADER_GAP + pill_rows * PILL_H + 0.010
-        _box(ax, LEFT, y, WIDTH, box_h, color)
-        cy = y - 0.006
+    global_idx = 0
+    for batch in batches:
+        n_in_batch = len(batch)
 
-        ax.text(cl, cy, f"{i}. {sa['name']}",
-                fontsize=8, fontweight="bold", color=color,
-                transform=ax.transAxes, va="top", zorder=5)
-        ax.text(cr, cy,
-                f"{dur_s:.1f}s  |  {n_sa_tools} tool call{'s' if n_sa_tools != 1 else ''}",
-                fontsize=6, color=C_BODY, ha="right",
-                transform=ax.transAxes, va="top", zorder=5)
-        cy -= HEADER_H + HEADER_GAP
+        if n_in_batch == 1:
+            # ── Single subagent (full width, stacked as before) ──
+            global_idx += 1
+            _, sa = batch[0]
+            color = AGENT_COLORS.get(sa["name"], "#6B7280")
+            n_sa_tools = len(sa["tools"])
+            dur_s = sa["duration_ms"] / 1000
 
-        # Tool pills
-        if sa["tools"]:
-            tool_labels = []
-            for tool in sa["tools"]:
-                t_dur = tool["duration_ms"] / 1000
-                if t_dur >= 1:
-                    label = f"{tool['name']} ({t_dur:.1f}s)"
-                else:
-                    label = f"{tool['name']} ({tool['duration_ms']:.0f}ms)"
-                tool_labels.append(label)
-            _pills_row(ax, cl, cy, tool_labels, cr - cl, C_TOOL_TEXT, C_TOOL_BG, C_TOOL_TEXT)
+            pill_rows = _count_pill_rows(sa["tools"], cl, cr) if sa["tools"] else 1
+            box_h = HEADER_H + HEADER_GAP + pill_rows * PILL_H + 0.010
+            _box(ax, LEFT, y, WIDTH, box_h, color)
+            cy = y - 0.006
+
+            ax.text(cl, cy, f"{global_idx}. {sa['name']}",
+                    fontsize=8, fontweight="bold", color=color,
+                    transform=ax.transAxes, va="top", zorder=5)
+            ax.text(cr, cy,
+                    f"{dur_s:.1f}s  |  {n_sa_tools} tool call{'s' if n_sa_tools != 1 else ''}",
+                    fontsize=6, color=C_BODY, ha="right",
+                    transform=ax.transAxes, va="top", zorder=5)
+            cy -= HEADER_H + HEADER_GAP
+
+            if sa["tools"]:
+                tool_labels = []
+                for tool in sa["tools"]:
+                    t_dur = tool["duration_ms"] / 1000
+                    if t_dur >= 1:
+                        label = f"{tool['name']} ({t_dur:.1f}s)"
+                    else:
+                        label = f"{tool['name']} ({tool['duration_ms']:.0f}ms)"
+                    tool_labels.append(label)
+                _pills_row(ax, cl, cy, tool_labels, cr - cl, C_TOOL_TEXT, C_TOOL_BG, C_TOOL_TEXT)
+            else:
+                ax.text(cl, cy, "(no domain tool calls recorded)",
+                        fontsize=5.5, color="#9CA3AF", transform=ax.transAxes,
+                        va="center", zorder=5)
+
+            y -= box_h + GAP
+
         else:
-            ax.text(cl, cy, "(no domain tool calls recorded)",
-                    fontsize=5.5, color="#9CA3AF", transform=ax.transAxes,
-                    va="center", zorder=5)
+            # ── Parallel batch: side-by-side columns with fork/join arrows ──
+            col_gap_frac = 0.010
+            col_w = (WIDTH - (n_in_batch - 1) * col_gap_frac) / n_in_batch
 
-        y -= box_h + GAP
+            # Extra space above for fork arrows
+            fork_space = GAP * 2
+            fork_origin_y = y + 0.004
+            y -= fork_space
+
+            par_top = y
+
+            # Calculate max height across all columns
+            col_heights = []
+            for _, sa in batch:
+                col_cl = ACCENT_W + 0.008
+                col_cr = col_w - 0.006
+                pill_rows = _count_pill_rows(sa["tools"], col_cl, col_cr) if sa["tools"] else 1
+                box_h = HEADER_H + HEADER_GAP + pill_rows * PILL_H + 0.010
+                col_heights.append(box_h)
+            max_col_h = max(col_heights)
+
+            # Draw each column
+            for j, (_, sa) in enumerate(batch):
+                global_idx += 1
+                col_x = LEFT + j * (col_w + col_gap_frac)
+                color = AGENT_COLORS.get(sa["name"], "#6B7280")
+                n_sa_tools = len(sa["tools"])
+                dur_s = sa["duration_ms"] / 1000
+
+                box_h = col_heights[j]
+                _box(ax, col_x, par_top, col_w, box_h, color, radius=0.004)
+
+                a_cl = col_x + ACCENT_W + 0.008
+                a_cr = col_x + col_w - 0.006
+
+                cy = par_top - 0.006
+                ax.text(a_cl, cy, f"{global_idx}. {sa['name']}",
+                        fontsize=7 if n_in_batch >= 3 else 8,
+                        fontweight="bold", color=color,
+                        transform=ax.transAxes, va="top", zorder=5)
+                ax.text(a_cr, cy,
+                        f"{dur_s:.1f}s  |  {n_sa_tools} tool{'s' if n_sa_tools != 1 else ''}",
+                        fontsize=5.5, color=C_BODY, ha="right",
+                        transform=ax.transAxes, va="top", zorder=5)
+                cy -= HEADER_H + HEADER_GAP
+
+                if sa["tools"]:
+                    tool_labels = []
+                    for tool in sa["tools"]:
+                        t_dur = tool["duration_ms"] / 1000
+                        if t_dur >= 1:
+                            label = f"{tool['name']} ({t_dur:.1f}s)"
+                        else:
+                            label = f"{tool['name']} ({tool['duration_ms']:.0f}ms)"
+                        tool_labels.append(label)
+                    _pills_row(ax, a_cl, cy, tool_labels, a_cr - a_cl,
+                               C_TOOL_TEXT, C_TOOL_BG, C_TOOL_TEXT, fs=4.5 if n_in_batch >= 3 else 5.0)
+                else:
+                    ax.text(a_cl, cy, "(no tools recorded)",
+                            fontsize=5, color="#9CA3AF", transform=ax.transAxes,
+                            va="center", zorder=5)
+
+                # Fork arrow from center above to top of this column
+                col_mid_x = col_x + col_w / 2
+                ax.annotate("",
+                            xy=(col_mid_x, par_top + 0.002),
+                            xytext=(MID, fork_origin_y),
+                            arrowprops=dict(
+                                arrowstyle="-|>,head_length=0.3,head_width=0.2",
+                                color=C_ROUTER, lw=1.5,
+                                connectionstyle="arc3,rad=0"),
+                            xycoords="axes fraction", textcoords="axes fraction",
+                            zorder=6)
+
+            y = par_top - max_col_h - GAP
 
     # ── SYNTHESIS ──
     raw_answer = _sanitize(data["final_answer"][:400])
@@ -656,10 +752,19 @@ def draw_trace_cards(data: dict, output_path: str, title: str | None = None):
     y_top    = 1.005
     content_span = y_top - y_bottom  # axes-fraction units used
 
-    # Physical height: keep same scale as the initial estimate per axes-unit
+    # Cap content_span to prevent pixel-count explosion on very long traces.
+    # At 200 DPI, 50 inches = 10 000 px height — well within matplotlib limits.
+    MAX_H_INCHES = 50
     actual_h = content_span * fig_h
-    actual_h = max(8, min(actual_h, 50))
+    actual_h = max(8, min(actual_h, MAX_H_INCHES))
     fig.set_size_inches(FIG_W, actual_h)
+
+    # Clamp content_span so the axes repositioning stays sane.
+    # Without this, a content_span of 20+ makes ax_height tiny and the
+    # figure renderer can allocate >2^23 pixels in one direction.
+    max_span = MAX_H_INCHES / max(fig_h, 1)
+    if content_span > max_span:
+        content_span = max_span
 
     # Reposition axes so that transAxes y_bottom..y_top fills the figure.
     # In figure-fraction coords the axes box [left, bottom, width, height]:
@@ -667,7 +772,7 @@ def draw_trace_cards(data: dict, output_path: str, title: str | None = None):
     #   height = 1.0 / content_span
     ax_bottom = -y_bottom / content_span
     ax_height = 1.0 / content_span
-    ax.set_position([0, ax_bottom, 1, ax_height])
+    ax.set_position([0, max(ax_bottom, -0.5), 1, min(ax_height, 2.0)])
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
@@ -896,13 +1001,18 @@ def draw_compact_trace(data: dict, output_path: str, title: str | None = None):
     y_top = 1.005
     content_span = y_top - y_bottom
 
+    MAX_H_INCHES = 40
     actual_h = content_span * fig_h
-    actual_h = max(4, min(actual_h, 40))
+    actual_h = max(4, min(actual_h, MAX_H_INCHES))
     fig.set_size_inches(FIG_W, actual_h)
+
+    max_span = MAX_H_INCHES / max(fig_h, 1)
+    if content_span > max_span:
+        content_span = max_span
 
     ax_bottom = -y_bottom / content_span
     ax_height = 1.0 / content_span
-    ax.set_position([0, ax_bottom, 1, ax_height])
+    ax.set_position([0, max(ax_bottom, -0.5), 1, min(ax_height, 2.0)])
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 

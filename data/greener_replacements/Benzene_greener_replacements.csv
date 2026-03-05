@@ -1,0 +1,630 @@
+Name,solvent_SMILES,CAS,G-score prediction,G-score prediction uncertainty,Relative Energy Difference (RED),Source
+Benzene,C1=CC=CC=C1,71-43-2,4.675,0.6816,0,high-fidelity RED
+5Α(H)-Androstane,[C]12(CC[C@H]3[C@H]([C@@H]1CCC2)CC[C@@H]4[C]3(C)CCCC4)C,438-22-2,5.402,1.051,0.690108687092113,low-fidelity RED
+β-Cholesterol,[C@H](C)([C@@H]4[C]1(C)[C@H]([C@H]3[C@H](CC1)[C]2(CC[C@@H](CC2=CC3)O)C)CC4)CCCC(C)C,57-88-5,7.58,1.609,0.928035559663529,low-fidelity RED
+Sitosterol,[C@H](CC[C@@H](CC)C(C)C)(C)[C@@H]3[C]2(CC[C@@H]1[C]4(C(=CC[C@H]1[C@@H]2CC3)C[C@H](CC4)O)C)C,83-46-5,7.763,1.622,0.8276472678623421,low-fidelity RED
+"1H-Indene, Octahydo-, Tans-",[C@H]12CCCC[C@@H]1CCC2,3296-50-2,5.345,0.8216,0.8463155439905372,low-fidelity RED
+Cis-Hexahydroindane,[C@H]12CCCC[C@H]1CCC2,4551-51-3,5.345,0.8216,0.8463155439905372,low-fidelity RED
+Trans-Decahydronaphthalene,[H][C]12[C](CCCC2)([H])CCCC1,493-02-7,5.294,0.7452,0.5385164807134502,high-fidelity RED
+Triphenylboron,B(C2=CC=CC=C2)(C3=CC=CC=C3)C1=CC=CC=C1,960-71-4,6.161,0.7346,0.388104367406501,low-fidelity RED
+Bromodiphenylmethane,BrC(C2=CC=CC=C2)C1=CC=CC=C1,776-74-9,5.983,0.933,0.9154916711800277,low-fidelity RED
+o-Bromocumene,BrC1=C(C=CC=C1)C(C)C,7073-94-1,6.56,1.02,0.8860022573334673,low-fidelity RED
+"Cyclohexane, Bromo-",BrC1CCCCC1,108-85-0,5.295,0.8447,0.8806957476904262,low-fidelity RED
+(2-Bromoethyl)Cyclohexane,BrCCC(CCC1)CC1,1647-26-3,5.146,0.9094,0.9031195934094222,low-fidelity RED
+Trans-1-Propenylbenzene,C(/C1=CC=CC=C1)=C/C,873-66-5,5.791,0.9669,0.7262919523166973,low-fidelity RED
+"3,4-Dimethylstyrene",C(/c1cc(c(cc1)C)C)=C,27831-13-6,6.045,1.09,0.8280247580839593,low-fidelity RED
+"2,4-Diphenyl-4-Methylpentene-1",C(/c1ccccc1)(=C)CC(c2ccccc2)(C)C,6362-80-7,6.691,1.158,0.5590169943749475,low-fidelity RED
+"Benzene, Diethenyl-",C(/c1ccccc1\C=C)=C,1321-74-0,6.504,1.034,0.7454025757937783,low-fidelity RED
+"Benzene, Ethenylethyl-",C(/c1ccccc1CC)=C,28106-30-1,6.994,1.161,0.7284401142166724,low-fidelity RED
+(E)-α-Bisabolene,C(=C(/C1C\C=C(/CC1)C)C)\C\C=C(/C)C,25532-79-0,6.372,1.174,0.7766112283504526,low-fidelity RED
+Squalene,C(=C\CCC(=CCCC(=CCCC=C(C)CCC=C(C)CC\C=C(/C)C)C)C)(\C)C,111-02-4,6.685,1.021,0.7850159234053785,low-fidelity RED
+5-Ethylidene-2-Norbornene,C(=C1/CC2C=C/C1C2)\C,16219-75-3,5.662,1.226,0.868907359849138,low-fidelity RED
+"1,1-Diphenyl-1-Heptene",C(=CCCCCC)(C1=CC=CC=C1)C2=CC=CC=C2,1530-20-7,6.824,0.9598,0.44581386250317523,low-fidelity RED
+"1,2,4-Trimethyl-6-Ethylbenzene",c(c(c(c1)C)C)c(C)c1CC,17851-27-3,6.594,1.077,0.5640257086339239,low-fidelity RED
+"1,2,4,5-Tetraethylbenzene",c(c(c(c1)CC)CC)c(c1CC)CC,635-81-4,6.287,0.9507,0.7318640584152217,low-fidelity RED
+"1,2,3-Trimethyl-5-Ethylbenzene",c(c(c(c1C)C)C)c(c1)CC,31366-00-4,6.241,1.131,0.5640257086339239,low-fidelity RED
+"1-Ethenyl-3,5-Dimethylbenzene",c(c(cc1C=C)C)c(c1)C,5379-20-4,6.325,0.941,0.8280247580839593,low-fidelity RED
+"1,3-Dimethyl-5-Propylbenzene",c(c(cc1CCC)C)c(c1)C,3982-64-7,6.338,0.8959,0.7454025757937782,low-fidelity RED
+Bicyclo[4.1.0]Heptane,C(C1CC2)C1CC2,286-08-8,5.393,0.7512,0.8463155439905372,low-fidelity RED
+Triphenylmethane,C(C2=CC=CC=C2)(C3=CC=CC=C3)C1=CC=CC=C1,519-73-3,6.166,0.9015,0.4394598957811741,low-fidelity RED
+"1,4-Dimethyl-2-Isopropylbenzene",c(cc(C)c1C(C)C)c(c1)C,4132-72-3,5.923,1.104,0.7814249804043885,low-fidelity RED
+"1,3-Dimethyl-2-Isopropylbenzene",c(cc(C)c1C(C)C)cc1C,14411-75-7,5.857,0.9206,0.7814249804043885,low-fidelity RED
+"1,8-Dimethylnaphthalene",c(cc(C)c1c(c2)C)cc1cc2,569-41-5,5.99,0.8982,0.792543374207368,low-fidelity RED
+"2-Ethenyl-1,3-Dimethylbenzene",c(cc(C)c1C=C)cc1C,2039-90-9,5.612,1.051,0.8280247580839593,low-fidelity RED
+2-Ethyl-M-Xylene,c(cc(C)c1CC)cc1C,4/4/70 0:00,6.253,1.029,0.8162413858657248,low-fidelity RED
+"1-Methyl-2,3-Diethylbenzene",c(cc(C)c1CC)cc1CC,13632-93-4,6.472,1.137,0.8143248737451165,low-fidelity RED
+"1,2,3,4-Tetrahydro-5-Methylnaphthalene",c(cc(C)c1CC2)cc1CC2,2809-64-5,5.604,1.075,0.6619101147436863,low-fidelity RED
+"1,4-Dimethyl-2-Propylbenzene",c(cc(C)c1CCC)c(c1)C,3042-50-0,5.666,1.015,0.7454025757937782,low-fidelity RED
+"1,3-Dimethyl-2-Propylbenzene",c(cc(C)c1CCC)cc1C,17059-45-9,5.858,0.9828,0.7454025757937782,low-fidelity RED
+p-Tert-Butylstyrene,c(cc(c1)C(C)(C)C)c(c1)C=C,1746-23-2,6.386,1.084,0.8975661535508112,low-fidelity RED
+p-Isopropenylisopropylbenzene,c(cc(c1)C(C)C)c(c1)C(=C)C,2388-14-9,6.48,1.022,0.7826237921249262,low-fidelity RED
+1-Ethyl-4-Isopropylbenzene,c(cc(c1)C(C)C)c(c1)CC,4218-48-8,6.368,1.044,0.7988272654335227,low-fidelity RED
+1-Methyl-4-sec-Butylbenzene,c(cc(c1)C(C)CC)c(c1)C,1595-16-0,5.987,0.9277,0.7110731326663937,low-fidelity RED
+1-Methyl-3-(1-Methylethenyl)Benzene,c(cc(c1)C)cc1C(=C)C,1124-20-5,6.434,1.09,0.672681202353685,low-fidelity RED
+"Benzenamine, N,N,3-Timethyl-",c(cc(c1)C)cc1N(C)C,121-72-2,6.181,1.017,0.9253377761660874,low-fidelity RED
+m-Ethylstyrene,c(cc(c1)C=C)cc1CC,7525-62-4,6.431,1.212,0.6800735254367717,low-fidelity RED
+1-Methyl-4-Isobutylbenzene,c(cc(c1)CC(C)C)c(c1)C,4/6/61 0:00,6.406,1.07,0.8035079339994097,low-fidelity RED
+p-Ethylstyrene,c(cc(c1)CC)c(c1)C=C,7/7/54 0:00,6.42,1.126,0.8268917704270612,low-fidelity RED
+1-Ethyl-4-Propylbenzene,c(cc(c1)CCC)c(c1)CC,20024-90-2,6.181,0.9727,0.758287544405155,low-fidelity RED
+"1,2-Dimethyl-4-Propylbenzene",c(cc(c1)CCC)c(c1C)C,3982-66-9,6.179,1.029,0.7454025757937782,low-fidelity RED
+"1,3-Dimethyl-4-Isopropylbenzene",c(cc(c1C)C(C)C)c(c1)C,4706-89-2,6.054,1.067,0.7814249804043885,low-fidelity RED
+"1,2-Dimethyl-3-Isopropylbenzene",c(cc(c1C)C)cc1C(C)C,22539-65-7,6.186,1.178,0.7814249804043885,low-fidelity RED
+"1,2,3-Trimethyl-4-Ethylbenzene",c(cc(c1C)CC)c(c1C)C,61827-86-9,6.47,1.14,0.5640257086339239,low-fidelity RED
+"1-Methyl-2,6-Diethyl Benzene",c(cc(c1C)CC)cc1CC,13632-95-6,6.523,1.033,0.8143248737451165,low-fidelity RED
+"1-Methyl-3,4-Diethylbenzene",c(cc(c1CC)CC)c(c1)C,13732-80-4,6.474,0.9631,0.8143248737451165,low-fidelity RED
+"1,2,3,4-Tetrahydro-6-Methylnaphthalene",c(cc(CCC1)c2C1)c(c2)C,1680-51-9,6.22,0.9779,0.6619101147436863,low-fidelity RED
+2-Iodopentane,C(CC)C(I)C,637-97-8,5.31,0.8021,0.9927864825832385,low-fidelity RED
+3-Methyldiphenylmethane,c(ccc1C-c(ccc2)cc2C)cc1,620-47-3,6.477,1.065,0.5135659646043536,low-fidelity RED
+3-Ethyldiphenylmethane,c(ccc1C-c(ccc2)cc2CC)cc1,28122-24-9,6.207,1.127,0.45893899376714536,low-fidelity RED
+"1,1,2-Triphenylethane",c(ccc1C(-c(ccc2)cc2)C-c(ccc3)cc3)cc1,1520-42-9,6.333,1.07,0.43011626335213143,low-fidelity RED
+2-Phenylbutene-1,c(ccc1C(=C)CC)cc1,2039-93-2,6.254,1.046,0.7952986860293431,low-fidelity RED
+Trans-(1-Methyl-1-Propenyl)Benzene,c(ccc1C(=C\C)C)cc1,768-00-3,6.041,1.029,0.680073525436772,low-fidelity RED
+1-Methyl-3-sec-Butylbenzene,c(ccc1C(C)CC)c(c1)C,1772-10-7,6.274,1.097,0.7158910531638174,low-fidelity RED
+1-Methyl-2-sec-Butylbenzene,c(ccc1C(C)CC)cc1C,1595-06-8,6.458,1.004,0.7232738070744713,low-fidelity RED
+"1-Methyl-[1,2,3,4-Tetrahydronaphthalene]",c(ccc1C(C2)C)cc1CC2,1559-81-5,6.784,0.9831,0.6067330549755797,low-fidelity RED
+"1-Butyl-[1,2,3,4-Tetrahydronaphthalene]",c(ccc1C(C2)CCCC)cc1CC2,38857-76-0,6.977,1.134,0.5390964663211956,low-fidelity RED
+1-Hexylnaphthalene,c(ccc1c(c2)CCCCCC)cc1cc2,2876-53-1,6.78,1.098,0.6562202374203343,low-fidelity RED
+1-Nonylnaphthalene,c(ccc1c(c2)CCCCCCCCC)cc1cc2,26438-26-6,6.78,1.098,0.6051859218455097,low-fidelity RED
+"1-Decyl-[1,2,3,4-Tetrahydronaphthalene]",c(ccc1C(C2)CCCCCCCCCC)cc1CC2,55255-57-7,6.938,1.089,0.6841966091701996,low-fidelity RED
+1-Decylnaphthalene,c(ccc1c(c2)CCCCCCCCCC)cc1cc2,26438-27-7,6.78,1.098,0.6314665470157542,low-fidelity RED
+Cis-(1-Butenyl)Benzene,c(ccc1C=C/CC)cc1,1560-09-4,5.878,1.076,0.71632743909472,low-fidelity RED
+Trans-(1-Butenyl)Benzene,c(ccc1C=C\CC)cc1,1005-64-7,5.878,1.076,0.71632743909472,low-fidelity RED
+1-Phenylindene,c(ccc1C2-c(ccc3)cc3)cc1C=C2,1961-96-2,5.958,1.11,0.7619875327064086,low-fidelity RED
+1-Methyl-3-Isobutylbenzene,c(ccc1CC(C)C)c(c1)C,5160-99-6,6.783,1.123,0.7570501964863348,low-fidelity RED
+1-Methyl-2-Isobutylbenzene,c(ccc1CC(C)C)cc1C,36301-29-8,6.195,1.072,0.7766112283504522,low-fidelity RED
+o-Ethylstyrene,c(ccc1CC)cc1C=C,7564-63-8,6.994,1.161,0.7284401142166724,low-fidelity RED
+2-Propylnaphthalene,c(ccc1cc2CCC)cc1cc2,2027-19-2,6.872,1.036,0.755810822891549,low-fidelity RED
+2-Butylnaphthalene,c(ccc1cc2CCCC)cc1cc2,1134-62-9,6.941,1.095,0.6896557112066862,low-fidelity RED
+2-Pentylnaphthalene,c(ccc1cc2CCCCC)cc1cc2,93-22-1,7.166,1.092,0.6123724356957948,low-fidelity RED
+2-Decylnaphthalene,c(ccc1cc2CCCCCCCCCC)cc1cc2,14188-79-5,7.111,1.099,0.6314665470157542,low-fidelity RED
+1-Ethyl-2-Propylbenzene,c(ccc1CCC)cc1CC,16021-20-8,6.641,0.9615,0.7271519786124485,low-fidelity RED
+Heptadecylbenzene,c(ccc1CCCCCCCCCCCCCCCCC)cc1,14752-75-1,6.257,0.8937,0.9791578013783062,low-fidelity RED
+Cyclooctadecane,C(CCCCCCCCC1)CCCCCCCC1,296-18-4,5.364,0.6825,0.8054501846793495,low-fidelity RED
+Cycloeicosane,C(CCCCCCCCCC1)CCCCCCCCC1,296-56-0,5.364,0.6825,0.8463155439905372,low-fidelity RED
+4A-Methyl-Cis-Decahydronaphthalene,C[C]12[C@@H](CCCC1)CCCC2,2547-26-4,5.281,1.002,0.8881159834165805,low-fidelity RED
+β-Sesquiphellandrene,C[C@@H](CCC=C(C)C)C1CCC(=C)C=C1,20307-83-9,7.473,1.342,0.8993052874302474,low-fidelity RED
+Acetyl Cedrene,C[C@@H]1CC[C]2\3C[C@H]1C([C@@H]2CC/C3=C/C(=O)C)(C)C,80449-58-7,6.602,1.402,0.9711462299777511,low-fidelity RED
+Cedrenyl Acetate,C[C@@H]1CC[C@@H]2[C]13CC=C([C@H](C3)C2(C)C)COC(=O)C,1405-92-1,7.738,1.464,0.8721381771256193,low-fidelity RED
+α-Gurjunene,C[C@@H]1CC[C@@H]2[C@@H](C2(C)C)C3=C(CCC13)C,489-40-7,6.299,1.356,0.9045026257562757,low-fidelity RED
+α-Cedrene,C[C@@H]1CC[C@@H]2C13CC=C(C(C3)C2(C)C)C,469-61-4,6.33,1.335,0.8444672877027258,low-fidelity RED
+Cedryl Acetate,C[C@@H]1CC[C@@H]2C13CCC(C(C3)C2(C)C)(C)OC(=O)C,77-54-3,6.206,1.364,0.8902246907382423,low-fidelity RED
+β-Cubebene,C[C@@H]1CC[C@H]([C@H]2[C]13[C@@H]2C(=C)CC3)C(C)C,13744-15-5,6.335,1.29,0.9082951062292471,low-fidelity RED
+γ-Gurjunene,C[C@@H]1CC[C@H](C=C2C1CC[C@H]2C)C(=C)C,22567-17-5,6.939,1.197,0.896521053852055,low-fidelity RED
+Viridiflorene,C[C@@H]1CCC2=C(CC[C@@H]3[C@H]([C@H]12)C3(C)C)C,21747-46-6,6.255,1.4,0.9045026257562757,low-fidelity RED
+Aristolone,C[C@@H]1CCCC2=CC(=O)[C@@H]3[C@H]([C]12C)C3(C)C,6831-17-0,7.191,1.268,0.9788385975225942,low-fidelity RED
+"(R)-N,N,α-Trimethyl Benzyl Amine",C[C@H](C1=CC=CC=C1)N(C)C,19342-01-9,5.836,0.9352,0.9620940702446924,low-fidelity RED
+Cadinene,C[C@H]1CC[C@H]([C@H]2[C@H]1C=C[C@@H](C2)C)C(C)C,29350-73-0,5.678,1.177,0.9978101021737547,low-fidelity RED
+Calamenene,C[C@H]1CC[C@H](C2=C1C=CC(=C2)C)C(C)C,483-77-2,6.393,1.225,0.6955213871621769,low-fidelity RED
+Kaurene,C[C@H]1CC23CC[C@@H]4C(CC=C[C]4([C@@H]2CC[C@H]1C3)C)(C)C,34424-57-2,5.468,1.326,0.7228416147400477,low-fidelity RED
+Cadinadiene,C[C@H]1CCC(C2C1=CCC(=C2)C)C(C)C,29837-12-5,6.155,1.326,0.8444672877027258,low-fidelity RED
+Eremophilene,C[C@H]1CCC=C2C1(C[C@@H](CC2)C(=C)C)C,10219-75-7,5.791,1.413,0.7697402159170315,low-fidelity RED
+α-Bulnesene,C[C@H]1CCC2=C(CC[C@H](C[C@@H]12)C(=C)C)C,3691-11-0,6.106,1.293,0.8638576271585489,low-fidelity RED
+(+)-α-Santalyl Acetate,C/C(=C/CC[C]1(C2C[C@H]3C1([C@H]3C2)C)C)/COC(=O)C,41414-75-9,7.266,1.137,0.8796306042879584,low-fidelity RED
+Ambrein,C/C(=C\CCC1[C]2(CCCC(C2CC[C]1(C)O)(C)C)C)/CC[C@@H]3C(=C)CCCC3(C)C,473-03-0,6.34,1.488,0.9927864825832384,low-fidelity RED
+(E)-α-Bergamotene,C/C(C)=C\CC[C]2(C)[C@@H]1C[C@H]2C(/C)=C\C1,13474-59-4,7.303,1.302,0.8038967595406757,low-fidelity RED
+Caryophyllene Alcohol Acetate,C/C/1=C/CC2C(CC2(C)C)C(=C)CCC1OC(=O)C,32214-91-8,6.438,1.411,0.9940447676035519,low-fidelity RED
+Isocaryophyllene,C/C/1=C/CCC(=C)[C@H]2CC([C@@H]2CC1)(C)C,118-65-0,5.554,1.16,0.8919781387455633,low-fidelity RED
+Germacrene D,C/C/1=C/CCC(=C)\C=C/C(CC1)C(C)C,37839-63-7,6.187,1.234,0.940744386111338,low-fidelity RED
+β-Caryophyllene,C/C/1=C/CCC(=C)C2CC(C2CC1)(C)C,13877-93-5,5.554,1.16,0.8919781387455633,low-fidelity RED
+Germacrene A,C/C/1=C\CC/C(=C/C[C@H](CC1)C(=C)C)/C,28387-44-2,5.495,0.7865,0.897566153550811,low-fidelity RED
+Bicyclogermacrene,C/C/1=C\CC/C(=C/C2C(C2(C)C)CC1)/C,24703-35-3,5.41,1.202,0.7689278249614843,low-fidelity RED
+Germacrene B,C/C/1=C\CC/C(=C/CC(=C(C)C)CC1)/C,15423-57-1,6.363,1.24,0.9236476600955582,low-fidelity RED
+(E)-Germacrene D,C/C/1=C\CCC(=C)\C=C\C(CC1)C(C)C,23986-74-5,6.187,1.234,0.940744386111338,low-fidelity RED
+(1E)-1-Propen-1-Ylbenzene,C/C=C/C1=CC=CC=C1,637-50-3,5.791,0.9669,0.7262919523166973,low-fidelity RED
+Cis-1-Propenylbenzene,C/C=C\C1=CC=CC=C1,766-90-5,5.791,0.9669,0.7262919523166973,low-fidelity RED
+15-Kaurene,C/C4=C/[C]13C[C@@H]4CC[C@@H]3[C]2(C)CCC[C](C)(C)[C@@H]2CC1,511-85-3,5.564,1.382,0.608789783094296,low-fidelity RED
+α-Humulene,C\1=C/C(C)(C)C/C=C(/CC/C=C(/C/1)C)C,6753-98-6,5.631,1.39,0.9357483636106445,low-fidelity RED
+Cyclododecene,C\1=C/CCCCCCCCCC/1,1486-75-5,5.253,0.9285,0.8295330011518522,low-fidelity RED
+Terpinolene,C\C(C)=C1/CCC(C)=CC1,586-62-9,6.456,1.193,0.928035559663529,low-fidelity RED
+"(E,E)-2,6-Allo-Ocimene",C\C=C(/C)\C=C\C=C(C)C,3016-19-1,5.96,1.118,0.9698582370635404,low-fidelity RED
+"2,3-Dihydrofarnesene",C\C=C(/C)\CC\C=C(/C)\CCC=C(C)C,7681-88-1,6.549,1.07,0.9463746615373846,low-fidelity RED
+"1,1-Diphenyl-1-Propene",C\C=C(C2=CC=CC=C2)\C1=CC=CC=C1,778-66-5,6.314,0.83,0.5500000000000003,low-fidelity RED
+Rhubarb Pyran,C\C=C/1\CC2CC1C3C2OCCC3,93939-86-7,6.319,1.265,0.9737171047075222,low-fidelity RED
+Dimethyl Benzyl Carbinyl Crotonate,C\C=C\C(=O)OC(C)(C)CC1=CC=CC=C1,93762-34-6,7.528,1.263,0.988053642268475,low-fidelity RED
+Plum Crotonate,C\C=C\C(=O)OC1CCCC1C2CCCC2,68039-73-6,7.134,1.362,0.959817691022623,low-fidelity RED
+Phenyl Acetylene,C#CC1=CC=CC=C1,536-74-3,5.733,1.019,0.8831760866327849,high-fidelity RED
+"2,3-Dichloro-1,3-Butadiene",C=C(C(=C)Cl)Cl,1653-19-6,5.272,0.8718,0.8905756565278428,high-fidelity RED
+p-Isopropenylstyrene,C=C(C)C1=CC=C(C=C)C=C1,16262-48-9,6.485,1.125,0.8200609733428357,low-fidelity RED
+Acoradiene,C=C(C)C2CC[C@H](C)C12CCC(C)=CC1,24048-44-0,6.354,1.36,0.7697402159170315,low-fidelity RED
+"1,1-Diphenylethene",C=C(C2=CC=CC=C2)C1=CC=CC=C1,530-48-3,6.237,0.9451,0.5255949010407159,low-fidelity RED
+16-Kaurene,C=C3/CC24CCC1C(CCCC1(C2CCC3C4)C)(C)C,562-28-7,5.506,1.442,0.7504165509901806,low-fidelity RED
+m-Methylstyrene,C=CC1=CC(C)=CC=C1,100-80-1,6.243,0.9931,0.6224949798994367,low-fidelity RED
+m-Divinylbenzene,C=CC1=CC(C=C)=CC=C1,108-57-6,6.266,1.027,0.6368869601428493,low-fidelity RED
+m-Chlorostyrene,C=CC1=CC(Cl)=CC=C1,2039-85-2,5.89,1.11,0.796084166404533,low-fidelity RED
+p-Methylstyrene,C=CC1=CC=C(C)C=C1,622-97-9,5.957,0.9261,0.8518362518700409,low-fidelity RED
+Styrene,C=CC1=CC=CC=C1,100-42-5,5.9,0.8996,0.5900211860602975,high-fidelity RED
+2-Propenylbenzene,C=CCC1=CC=CC=C1,300-57-2,6.06,0.9502,0.7945124291035344,low-fidelity RED
+Trans-Stilbene,C1(/C=C/C2=CC=CC=C2)=CC=CC=C1,103-30-0,5.751,0.8501,0.6846531968814576,low-fidelity RED
+Tetraphenylethylene,C1(\C(C3=CC=CC=C3)=C(C4=CC=CC=C4)/C2=CC=CC=C2)=CC=CC=C1,632-51-9,6.318,0.7731,0.4937104414532885,low-fidelity RED
+Triphenylethylene,C1(\C(C3=CC=CC=C3)=C\C2=CC=CC=C2)=CC=CC=C1,58-72-0,6.345,0.9478,0.5706356105256668,low-fidelity RED
+Cis-Stilbene,C1(\C=C/C2=CC=CC=C2)=CC=CC=C1,645-49-8,5.751,0.8501,0.6846531968814576,low-fidelity RED
+"1,4-Diphenyl-1,3-Butadiene",C1(\C=C\C=C\C2=CC=CC=C2)=CC=CC=C1,886-65-7,5.31,1.008,0.7386643351347079,low-fidelity RED
+"Benzene, 2-Ethenyl-1,3,5-Timethyl-",C1(=C(C(=CC(=C1)C)C)C=C)C,769-25-5,6.088,1.019,0.5249999999999989,low-fidelity RED
+"2,5-Dimethylstyrene",C1(=C(C=C)C=C(C)C=C1)C,2039-89-6,5.798,1.106,0.8280247580839593,low-fidelity RED
+"1,2,3,4-Tetraethylbenzene",C1(=C(CC)C=CC(=C1CC)CC)CC,642-32-0,6.727,0.9977,0.7318640584152217,low-fidelity RED
+Methylcyclopentadiene Dimer,C1(=C\C2CC/1C3C=C(/CC23)C)C,26472-00-4,6.345,1.058,0.7356969484781078,low-fidelity RED
+1-Methyl-4-(1-Methylethenyl)Benzene,C1(=CC=C(C=C1)C(=C)C)C,1195-32-0,6.058,0.9678,0.7929375763576851,low-fidelity RED
+1-Methyl-7-Isopropylnaphthalene,C1(=CC=CC2=C1C=C(C=C2)C(C)C)C,490-65-3,6.626,1.206,0.35794552658190876,low-fidelity RED
+1-Tert-Butylnaphthalene,C1(=CC=CC2=C1C=CC=C2)C(C)(C)C,17085-91-5,6.767,0.9055,0.5315072906367322,low-fidelity RED
+1-Isopropylnaphthalene,C1(=CC=CC2=C1C=CC=C2)C(C)C,6158-45-8,7.064,1.085,0.678232998312527,low-fidelity RED
+1-sec-Butylnaphthalene,C1(=CC=CC2=C1C=CC=C2)C(C)CC,1680-58-6,7.118,0.9793,0.5220153254455275,low-fidelity RED
+1-Undecylnaphthalene,C1(=CC=CC2=C1C=CC=C2)CCCCCCCCCCC,7225-71-0,6.78,1.098,0.6344288770224751,low-fidelity RED
+Tetraphenylmethane,C1(C(C3=CC=CC=C3)(C4=CC=CC=C4)C2=CC=CC=C2)=CC=CC=C1,630-76-2,5.569,0.8397,0.3250000000000007,low-fidelity RED
+"1,2,4-Trimethyl-3-Ethylbenzene",c1(C)c(C)c(CC)c(C)cc1,61827-87-0,6.599,1.107,0.5640257086339239,low-fidelity RED
+Diphenyl Acetylene (P By Group Cont.),C1(C#CC2=CC=CC=C2)=CC=CC=C1,501-65-5,5.875,0.916,0.6164414002968974,high-fidelity RED
+"9,10-Dihydroanthracene",C1(C=CC=C2)=C2CC(C=CC=C3)=C3C1,613-31-0,6.564,0.9157,0.9433981132056612,low-fidelity RED
+Indane,C1(C=CC=C2)=C2CCC1,496-11-7,5.895,0.8564,0.8385254915624214,low-fidelity RED
+p-Terphenyl,C1(C2=CC=C(C3=CC=CC=C3)C=C2)=CC=CC=C1,92-94-4,5.797,0.7207,0.8418729120241373,low-fidelity RED
+m-Terphenyl,C1(C2=CC=CC=C2)=CC(C3=CC=CC=C3)=CC=C1,92-06-8,5.885,0.7409,0.623498195666997,low-fidelity RED
+Biphenyl,C1(C2=CC=CC=C2)=CC=CC=C1,92-52-4,5.801,0.6692,0.6964194138592064,high-fidelity RED
+Cyclohexyl Benzene,C1(C2=CC=CC=C2)CCCCC1,827-52-1,6.295,0.7814,0.2915475947422652,high-fidelity RED
+o-Terphenyl,C1(C3=CC=CC=C3)=CC=CC=C1C2=CC=CC=C2,84-15-1,6.076,0.7374,0.7115124735378854,low-fidelity RED
+"2,2,5,7-Tetramethyltetraline",c1(cc(c2c(c1)CC(CC2)(C)C)C)C,23342-25-8,6.292,1.284,0.48347699014534223,low-fidelity RED
+1-Ethyl-2-Isopropylbenzene,c1(CC)c(C(C)C)cccc1,26573-16-0,6.879,1.109,0.7802243267163606,low-fidelity RED
+"2,6-Diethylnaphthalene",c1(CC)ccc(cc(CC)cc2)c2c1,59919-41-4,6.946,1.075,0.42793106921559215,low-fidelity RED
+Dicyclopentadiene,C1(CC=C3)C3C2CC1C=C2,77-73-6,5.547,1.041,0.8845903006477064,low-fidelity RED
+Norbornane,C1(CC2)CC2CC1,279-23-2,5.246,0.7211,0.7656696415556775,low-fidelity RED
+Diphenylmethane,C1(CC2=CC=CC=C2)=CC=CC=C1,101-81-5,6.216,0.9065,0.6538348415311016,high-fidelity RED
+"1,2,3-Trimethyl-4-Ethylbenzene",c1(ccc(c(c1C)C)C)CC,41903-41-7,6.47,1.14,0.5640257086339239,low-fidelity RED
+"1,2,4-Trimethyl-3-Ethylbenzene",c1(ccc(c(c1CC)C)C)C,d2308,6.599,1.107,0.5640257086339239,low-fidelity RED
+1-(4-Ethylphenyl)-2-(4-Ethylphenyl)Ethane,c1(ccc(cc1)CC)CCc2ccc(cc2)CC,51526-06-8,6.324,0.9617,0.6950719387228922,low-fidelity RED
+"1,2-Dihydronaphthalene",C1(CCC=C2)=C2C=CC=C1,447-53-0,6.094,1.042,0.8849435010213932,low-fidelity RED
+"1,2-Diphenylethane",C1(CCC2=CC=CC=C2)=CC=CC=C1,103-29-7,6.244,0.7806,0.5728219618694801,low-fidelity RED
+2-Hexyl Tetralin,c1(ccc2c(c1)CCCC2)CCCCCC,NotAvailble,6.635,1.043,0.6538348415311006,low-fidelity RED
+"1,2-Dimethyl-3-Propylbenzene",c1(cccc(c1C)CCC)C,17059-44-8,5.924,1.057,0.7454025757937782,low-fidelity RED
+"1,2,3-Triethylbenzene",c1(cccc(c1CC)CC)CC,42205-08-3,6.973,1.004,0.8370334521391601,low-fidelity RED
+"1-Ethyl-[1,2,3,4-Tetrahydronaphthalene]",C1(CCCC2=C1C=CC=C2)CC,13556-58-6,6.921,0.9672,0.6108395861435305,low-fidelity RED
+"1,3-Diphenylpropane",C1(CCCC2=CC=CC=C2)=CC=CC=C1,1081-75-0,6.517,0.8141,0.5244044240850757,low-fidelity RED
+1-n-Pentylnaphthalene,c1(CCCCC)cccc(cccc2)c12,86-89-5,6.835,1.09,0.6123724356957948,low-fidelity RED
+1-(4-Ethylphenyl)-2-Phenylethane,c1(ccccc1)CCc2ccc(cc2)CC,7439-15-8,6.243,0.9791,0.6289872812704561,low-fidelity RED
+Dibenzylamine,C1(CNCC2=CC=CC=C2)=CC=CC=C1,103-49-1,6.274,0.9319,0.9320675941153626,low-fidelity RED
+Benzyl Sulfide,C1(CSCC2=CC=CC=C2)=CC=CC=C1,538-74-9,6.175,0.8353,0.9542667341996158,low-fidelity RED
+"3,3',5,5' Tetramethyl Bibenzyl",C1=C(C)C=C(C)C=C1CCC2=CC(=CC(=C2)C)C,63376-64-7,6.596,0.8703,0.7215434844830905,low-fidelity RED
+"Phenol, 2,2 -Methylenebis[6-(1,1-Dimethylethyl)-4-Methyl-",C1=C(C=C(C(C)(C)C)C(=C1CC2=C(O)C(=CC(=C2)C)C(C)(C)C)O)C,119-47-1,6.862,1.195,0.9813893213195258,low-fidelity RED
+2-Tert-Butylnaphthalene,C1=C(C=CC2=C1C=CC=C2)C(C)(C)C,2876-35-9,6.823,1.018,0.5315072906367322,low-fidelity RED
+2-Isopropylnaphthalene,C1=C(C=CC2=C1C=CC=C2)C(C)C,2027-17-0,6.743,1.035,0.678232998312527,low-fidelity RED
+"1,2,3,5-Tetraethylbenzene",C1=C(CC)C(=C(C=C1CC)CC)CC,38842-05-6,6.839,1.198,0.7318640584152217,low-fidelity RED
+Cyclooctene,C1=C/CCCCCC/1,931-88-4,5.253,0.9285,0.9893179468704689,low-fidelity RED
+"1-Ethenyl-2,4-Dimethylbenzene",C1=CC(=CC(=C1C=C)C)C,2234-20-0,5.946,1.024,0.8280247580839593,low-fidelity RED
+p-Tert-Butyl Ethylbenzene,C1=CC(=CC=C1C(C)(C)C)CC,7364-19-4,6.611,1.113,0.9293815147720549,low-fidelity RED
+(2-Methyl-1-Propenyl)Benzene,C1=CC=C(C=C(C)C)C=C1,768-49-0,6.216,0.9737,0.680073525436772,low-fidelity RED
+Diphenyldichlorosilane,C1=CC=C(C=C1)[Si](C2=CC=CC=C2)(Cl)Cl,28036,5.69,0.921,0.75083287088406,low-fidelity RED
+"Benzene, 1,1,1-(Chloromethylidyne)Tris-",C1=CC=C(C=C1)C(C2=CC=CC=C2)(C3=CC=CC=C3)Cl,76-83-5,4.813,0.8816,0.7115124735378855,low-fidelity RED
+"1,1,2,2-Tetraphenylethane",C1=CC=C(C=C1)C(C2=CC=CC=C2)C(C3=CC=CC=C3)C4=CC=CC=C4,632-50-8,6.018,0.8008,0.361420807370024,low-fidelity RED
+Cinnamyl Cinnamate,C1=CC=C(C=C1)C=CCOC(=O)C=CC2=CC=CC=C2,122-69-0,7.351,1.201,0.9320675941153626,low-fidelity RED
+Cinnamyl Phenyl Acetate,C1=CC=C(C=C1)CC(=O)OC\C=C\C2=CC=CC=C2,7492-65-1,7.545,1.304,0.975,low-fidelity RED
+3-Phenyl Propyl Cinnamate,C1=CC=C(C=C1)CCCOC(=O)C=CC2=CC=CC=C2,122-68-9,8.293,1.2,0.8325412902673355,low-fidelity RED
+Phenyl Propyl Phenyl Acetate,C1=CC=C(C=C1)CCCOC(=O)CC2=CC=CC=C2,122-44-1,8.308,1.148,0.8792752697534485,low-fidelity RED
+3-Phenyl Propyl 3-Phenyl Propionate,C1=CC=C(C=C1)CCCOC(=O)CCC2=CC=CC=C2,60045-27-4,8.768,1.05,0.8562271894771853,low-fidelity RED
+Phenethyl Cinnamate,C1=CC=C(C=C1)CCOC(=O)\C=C\C2=CC=CC=C2,103-53-7,7.657,1.156,0.9585144756340407,low-fidelity RED
+1-Methyl-2-(1-Methylethenyl)Benzene,C1=CC=CC(=C1C(=C)C)C,7399-49-7,6.375,1.032,0.7115124735378845,low-fidelity RED
+"2,3-Dimethyl-2,3-Diphenylbutane",C1=CC=CC=C1C(C(C2=CC=CC=C2)(C)C)(C)C,1889-67-4,5.963,0.8821,0.6805328794408086,low-fidelity RED
+"1,1-Diphenylheptane",C1=CC=CC=C1C(C2=CC=CC=C2)CCCCCC,1530-05-8,6.554,1.074,0.505593710403916,low-fidelity RED
+Hexylbenzene,C1=CC=CC=C1CCCCCC,1077-16-3,6.257,0.8937,0.7830229881682901,low-fidelity RED
+Octadecylbenzene,C1=CC=CC=C1CCCCCCCCCCCCCCCCCC,7/2/45 0:00,6.257,0.8937,0.9791578013783062,low-fidelity RED
+Propyl Phenyl Sulfide,C1=CC=CC=C1SCCC,874-79-3,5.7,0.8731,0.9276987657639736,low-fidelity RED
+Cyclopropene,C1=CC1,2781-85-3,5.023,0.8456,0.8485281374238568,high-fidelity RED
+Dehydroabietine,C1=CC2=C(C=C1C(C)C)CCC3C2(CCCC3C)C,5323-56-8,5.937,1.378,0.6289872812704553,low-fidelity RED
+Cyclopentadiene,C1=CCC=C1,542-92-7,5.16,0.9692,0.845946215784431,high-fidelity RED
+Cyclohexene,C1=CCCCC1,110-83-8,5.049,0.912,0.6499999999999997,high-fidelity RED
+Cis-Cyclooctene,C1=CCCCCCC1,931-87-3,5.253,0.9285,0.9893179468704689,low-fidelity RED
+"1,4-Dihydronaphthalene",C12=C(C=CC=C2)CC=CC1,612-17-9,6.335,0.8064,0.9165151389911683,low-fidelity RED
+Acenaphthene,C12=CC=CC(CC3)=C1C3=CC=C2,83-32-9,6.564,0.9161,0.9685685313905267,low-fidelity RED
+Tetrahydronaphthalene,C12=CC=CC=C1CCCC2,119-64-2,6.314,0.8354,0.8127884103504439,high-fidelity RED
+"Naphthalene, Tris(1-Methylethyl)-",c12c(cccc1c(cc(c2)C(C)C)C(C)C)C(C)C,35860-37-8,6.119,1.177,0.6543126164151201,low-fidelity RED
+"2,5-Nobonadiene",C12C=CC(C2)C=C1,121-46-0,5.403,0.9413,0.9953014618697188,low-fidelity RED
+"2,7-Diisopropyl Naphthalene",c12cc(ccc1ccc(c2)C(C)C)C(C)C,40458-98-8,6.45,0.9819,0.3840572873934301,low-fidelity RED
+Methylnorbornene,C12CCC(C1)C=C2C,694-92-8,6.0,1.023,0.8810505093353046,low-fidelity RED
+2-Norbornene,C12CCC(C2)C=C1,498-66-8,5.37,1.012,0.919918474648705,low-fidelity RED
+"1,2,4-Trimethyl-5-Ethylbenzene",c1c(c(cc(c1CC)C)C)C,17851-27-3,6.594,1.077,0.5640257086339239,low-fidelity RED
+"1,3,5-Tributylbenzene",c1c(cc(cc1CCCC)CCCC)CCCC,841-07-6,6.049,0.9535,0.8721381771256204,low-fidelity RED
+"Benzene, 1,4-Dimethyl-2-(1-Phenylethyl)-",c1c(ccc(c1C(c2ccccc2)C)C)C,6165-51-1,5.949,1.221,0.5408326913195983,low-fidelity RED
+"1,3-Dimethyl-4-Propylbenzene",c1c(ccc(c1C)C)CCC,61827-85-8,6.179,1.029,0.7454025757937782,low-fidelity RED
+"Benzene, Methylbis(Phenylmethyl)-",c1c(cccc1)Cc2c(cccc2Cc3ccccc3)C,26898-17-9,6.222,1.169,0.6254998001598405,low-fidelity RED
+Dicyclohexylmethane,C1C(CCCC1)CC2CCCCC2,3178-23-2,5.892,0.877,0.8881159834165805,low-fidelity RED
+"Cyclohexane, 1,1'-(1,2-Ethanediyl)Bis-",C1C(CCCC1)CCC2CCCCC2,3321-50-4,5.433,0.8573,0.8881159834165805,low-fidelity RED
+Spiropentane,C1C2(CC2)C1,157-40-4,5.189,0.8009,0.562361093960099,low-fidelity RED
+Aldrin,C1C2C=CC1C3C2C4(C(=C(C3(C4(Cl)Cl)Cl)Cl)Cl)Cl,309-00-2,5.551,0.9906,0.7673004626611409,low-fidelity RED
+"1,1,3,3,5-Pentamethylindan    (Liquid)",c1cc(cc2c1C(CC2(C)C)(C)C)C,81-03-8,6.005,1.154,0.7314369419163884,low-fidelity RED
+4-Isobutylstyrene,c1cc(ccc1CC(C)C)\C=C,63444-56-4,6.645,1.201,0.8003905296791058,low-fidelity RED
+"1,1'-Biphenyl, 4-Pentyl-",c1cc(ccc1CCCCC)c2ccccc2,7116-96-3,6.357,0.9525,0.5390964663211956,low-fidelity RED
+2-Phenyl Propyl Tetrahydrofuran,C1CC(OC1)CCCC2=CC=CC=C2,3208-40-0,5.723,1.1,0.9905806378079469,low-fidelity RED
+Cyclopropane,C1CC1,75-19-4,5.364,0.6825,0.7433034373659245,high-fidelity RED
+Cyclohexyl Cinnamate,C1CCC(CC1)OC(=O)C=CC2=CC=CC=C2,7779-17-1,7.535,1.302,0.9688911187538048,low-fidelity RED
+Hyacinth Ether,C1CCC(CC1)OCCC2=CC=CC=C2,80858-47-5,6.696,1.147,0.8989577298182595,low-fidelity RED
+1-Ethyl-3-Propylbenzene,c1ccc(cc1CCC)CC,20024-91-3,6.19,1.062,0.7249999999999996,low-fidelity RED
+Dicyclohexyl Sulfide,C1CCC(SC2CCCCC2)CC1,7133-46-2,5.313,0.9417,0.6509608283145767,low-fidelity RED
+"1,2,3,4-Tetrahydro-1,4-Dimethyl Naphthalene",c1ccc2c(c1)C(CCC2C)C,4175-54-6,6.13,0.947,0.5640257086339233,low-fidelity RED
+Diisopropylbenzene (Mixture),c1cccc(c1C(C)C)C(C)C,25321-09-9,6.32,0.9633,0.8810505093353038,low-fidelity RED
+Isopropylnaphthalene,c1cccc2cccc(c12)C(C)C,29253-36-9,7.064,1.085,0.678232998312527,low-fidelity RED
+Nonylnaphthalene,c1cccc2cccc(c12)CCCCCCCCC,27193-93-7,6.78,1.098,0.6051859218455097,low-fidelity RED
+Cyclohexane,C1CCCCC1,110-82-7,5.364,0.6825,0.9178779875342901,high-fidelity RED
+"1,1-Dicyclohexylethane",C1CCCCC1C(C)C2CCCCC2,2319-61-1,5.859,0.8734,0.9307255234493134,low-fidelity RED
+Phencyclidine,c1ccccc1C3(N2CCCCC2)CCCCC3,77-10-1,5.997,1.152,0.5556527692723213,low-fidelity RED
+Cycloheptane,C1CCCCCC1,291-64-5,5.364,0.6825,0.7386643351347066,high-fidelity RED
+Amber Pentadecane,C1CCCCCC2COCC2CCCC1,42824-62-4,6.491,0.9211,0.903119593409421,low-fidelity RED
+Normuscone,C1CCCCCCCC(=O)CCCCCC1,502-72-7,7.224,0.7114,0.9239859306288162,low-fidelity RED
+Cyclohexadecanone,C1CCCCCCCC(=O)CCCCCCC1,2550-52-9,7.224,0.7114,0.9344115795515379,low-fidelity RED
+Cyclononane,C1CCCCCCCC1,293-55-0,5.364,0.6825,0.9740379869389075,low-fidelity RED
+Dihydrocivetone,C1CCCCCCCCC(=O)CCCCCCC1,3661-77-6,7.224,0.7114,0.9559027147152577,low-fidelity RED
+Cyclodecane,C1CCCCCCCCC1,293-96-9,5.364,0.6825,0.9307255234493134,low-fidelity RED
+Cycloundecane,C1CCCCCCCCCC1,294-41-7,5.364,0.6825,0.9307255234493134,low-fidelity RED
+Cyclotridecane,C1CCCCCCCCCCCC1,295-02-3,5.364,0.6825,0.9307255234493134,low-fidelity RED
+Cyclotetradecane,C1CCCCCCCCCCCCC1,295-17-0,5.364,0.6825,0.8881159834165805,low-fidelity RED
+Cyclopentadecane,C1CCCCCCCCCCCCCC1,295-48-7,5.364,0.6825,0.8881159834165805,low-fidelity RED
+Cyclohexadecane,C1CCCCCCCCCCCCCCC1,295-65-8,5.364,0.6825,0.9307255234493134,low-fidelity RED
+Cycloheptadecane,C1CCCCCCCCCCCCCCCC1,295-97-6,5.364,0.6825,0.8881159834165805,low-fidelity RED
+Thiacycloundecane,C1CCCCCCCSCC1,408-32-2,5.315,0.7601,0.8385254915624207,low-fidelity RED
+"3,3',4,4' Tetramethyl 1,1'-Biphenyl",c2(c1cc(c(cc1)C)C)ccc(c(c2)C)C,4920-95-0,5.944,0.9486,0.7582875444051551,low-fidelity RED
+Diethylbiphenyl,c2(c1ccccc1CC)ccccc2CC,28575-17-9,6.641,0.9016,0.5105144464165534,low-fidelity RED
+Bicyclohexyl,C2(CCCCC2)C1CCCCC1,92-51-3,5.497,0.7731,0.8602325267042621,high-fidelity RED
+Dicyclohexylamine,C2(CCCCC2)NC1CCCCC1,101-83-7,5.747,0.9507,0.8663861725581726,low-fidelity RED
+"1,4-Dimethyl-2-Phenyl Benzene",c2c(c1cc(ccc1C)C)cccc2,E14198,5.803,0.9994,0.7115124735378856,low-fidelity RED
+"Benzenamine, Ar-Octyl-n-(Octylphenyl)-",c2c(Nc1ccc(cc1)CCCCCCCC)ccc(c2)CCCCCCCC,26603-23-6,6.503,1.085,0.8143248737451164,low-fidelity RED
+"2-Methyl-[1,2,3,4-Tetrahydronaphthalene]",C2C1=C(C=CC=C1)CCC2C,3877-19-8,6.005,1.009,0.6329494450586081,low-fidelity RED
+"Naphthalene, Bis(1-Methylethyl)-",c2c1ccccc1c(c(c2)C(C)C)C(C)C,38640-62-9,7.037,1.028,0.3840572873934301,low-fidelity RED
+"2,3,6,7-Tetramethylanthracene",c3(c(cc2cc1cc(c(cc1cc2c3)C)C)C)C,15254-25-8,6.262,0.9094,0.6046693311223912,low-fidelity RED
+9-Ethylphenanthrene,C3=CC=C2C1=CC=CC=C1C=C(CC)C2=C3,3674-75-7,7.137,1.19,0.7075485849042461,low-fidelity RED
+Isopropyl Hydrophenanthrene (Fichtelite),C3C[C@@H]([C@@H]2CC[C@@H]1[C@H](CC[C@H](C(C)C)C1)[C]2(C)C3)C,2221-95-6,5.851,1.339,0.8881159834165805,low-fidelity RED
+Stigmasterol,C4(C3(C(C2C(C1(CCC(CC1=CC2)O)C)CC3)CC4)C)C(\C=C/C(CC)C(C)C)C,83-48-7,7.768,1.649,0.7826237921249264,low-fidelity RED
+β-Selinene,CC(=C)[C@H]1CC[C]2(CCCC(=C)[C@H]2C1)C,17066-67-0,5.901,1.324,0.9407443861113386,low-fidelity RED
+γ-Selinene,CC(=C1CCC2(CCCC(=C)C2C1)C)C,515-17-3,6.494,1.297,0.8200609733428357,low-fidelity RED
+Farnesene,CC(=CCC/C(=C/C\C=C(/C)\C=C)/C)C,502-61-4,6.617,1.256,0.9669539802906855,low-fidelity RED
+Lycopene,CC(=CCC/C(=C/C=C/C(=C/C=C/C(=C/C=C/C=C(\C)/C=C/C=C(\C)/C=C/C=C(\C)/CCC=C(C)C)/C)/C)/C)C,502-65-8,7.122,1.28,0.8536685539481934,low-fidelity RED
+Geranyl Farnesol,CC(=CCC/C(=C/CC/C(=C/CC/C(=C/CC/C(=C/CO)/C)/C)/C)/C)C,79577-58-5,6.911,1.061,0.9902651160169175,low-fidelity RED
+Nerolidyl Acetate,CC(=CCC/C(=C/CCC(C)(C=C)OC(=O)C)/C)C,2306-78-7,7.072,1.159,0.9407443861113386,low-fidelity RED
+Phenyl Acetaldehyde Digeranyl Acetal,CC(=CCC/C(=C/COC(CC1=CC=CC=C1)OC\C=C(/C)\CCC=C(C)C)/C)C,67634-02-0,7.836,1.255,0.8835298523536144,low-fidelity RED
+(±)-Nerolidyl Acetate,CC(=CCC/C(=C\CC[C](C)(C=C)OC(=O)C)/C)C,56001-43-5,7.072,1.159,0.9407443861113386,low-fidelity RED
+Squalene,CC(=CCCC(=CCCC(=CCCC=C(C)CCC=C(C)CCC=C(C)C)C)C)C,7683-64-9,6.685,1.021,0.7850159234053785,low-fidelity RED
+Geranyl Phenyl Acetate,CC(=CCCC(=CCOC(=O)CC1=CC=CC=C1)C)C,71648-43-6,8.177,1.274,0.9572094859538323,low-fidelity RED
+Linalyl Cinnamate,CC(=CCCC(C)(C=C)OC(=O)\C=C\C1=CC=CC=C1)C,78-37-5,7.427,1.193,0.6566962768281849,low-fidelity RED
+Linalyl Benzoate,CC(=CCCC(C)(C=C)OC(=O)C1=CC=CC=C1)C,126-64-7,7.126,1.183,0.8933784192602812,low-fidelity RED
+Linalyl Phenyl Acetate,CC(=CCCC(C)(C=C)OC(=O)CC1=CC=CC=C1)C,7143-69-3,7.705,1.262,0.7566372975210776,low-fidelity RED
+(E)-β-Bergamotene,CC(=CCCC1([C@H]2CCC(=C)[C@@H]1C2)C)C,55123-21-2,7.119,1.321,0.8746427842267941,low-fidelity RED
+α-Santalene,CC(=CCCC1(C2CC3C1(C3C2)C)C)C,512-61-8,6.541,1.07,0.8645808232895291,low-fidelity RED
+Bergamotene,CC(=CCCC1(C2CCC(=C)C1C2)C)C,6895-56-3,7.119,1.321,0.8746427842267941,low-fidelity RED
+β-Santalene,CC(=CCCC1(C2CCC(C2)C1=C)C)C,511-59-1,7.362,1.305,0.8746427842267941,low-fidelity RED
+Musk Dimethyl Indane,CC(=O)C1=CC(=CC2=C1CCC2(C)C)C(C)(C)C,13171-00-1,6.461,1.331,0.8573214099741117,low-fidelity RED
+Rose Acetate,CC(=O)OC(C1=CC=CC=C1)C(Cl)(Cl)Cl,90-17-5,6.327,1.128,0.8474225628339146,low-fidelity RED
+β-Caryophyllene Alcohol Acetate,CC(=O)OC12CCCC(C1)(CCC3C2CC3(C)C)C,57082-24-3,6.527,1.27,0.9045026257562769,low-fidelity RED
+Santalyl Acetate,CC(=O)OCC(C)=CCCC2(C)C(=C)C1CC2CC1,1323-00-8,8.076,1.356,0.9513148795220214,low-fidelity RED
+Acetoxymethyl Isolongifolene,CC(=O)OCC1CCC(C23C14C2CC(C3)C4(C)C)(C)C,59056-62-1,6.612,1.29,0.9003471552684553,low-fidelity RED
+"1,2,3,5-Tetramethylbenzene",CC(C(C)=CC(C)=C1)=C1C,527-53-7,6.409,0.9618,0.4077376607575026,high-fidelity RED
+Pentamethylbenzene,CC(C(C)=CC(C)=C1C)=C1C,700-12-9,6.005,0.9821,0.3132491021535407,low-fidelity RED
+"1,2,3-Trimethylbenzene",CC(C(C)=CC=C1)=C1C,526-73-8,5.934,1.016,0.8147085368400162,low-fidelity RED
+"1,2,3,4-Tetramethylbenzene",CC(C(C)=CC=C1C)=C1C,488-23-3,5.98,0.9403,0.44300112866673425,high-fidelity RED
+o-Cymene,CC(C(C=CC=C1)=C1C)C,527-84-4,6.095,1.031,0.7267220926874308,low-fidelity RED
+2-Methyl-3-Ethylnaphthalene,CC(C(CC)=C2)=CC1=C2C=CC=C1,31032-94-7,7.186,1.086,0.5361902647381805,low-fidelity RED
+1-Methyl-2-Tert-Butyl Benzene,CC(C)(C(C=CC=C1)=C1C)C,1074-92-6,5.823,0.9095,0.8692669325356845,low-fidelity RED
+Terfenadine,CC(C)(C)C1=CC=C(C=C1)C(CCCN2CCC(CC2)C(C3=CC=CC=C3)(C4=CC=CC=C4)O)O,50679-08-8,8.035,1.523,0.877852493303972,low-fidelity RED
+"1-Phenyl-2,2-Dimethylpropane",CC(C)(C)CC1=CC=CC=C1,1007-26-7,6.406,0.959,0.9890020222426235,low-fidelity RED
+1-Methyl-3-Tert-Butylbenzene,CC(C)(C1=CC(C)=CC=C1)C,1075-38-3,6.163,0.9795,0.9082951062292471,low-fidelity RED
+1-Methyl-4-Tert-Butylbenzene,CC(C)(C1=CC=C(C)C=C1)C,98-51-1,6.149,0.9084,0.8620469824783334,low-fidelity RED
+Tert-Butylbenzene,CC(C)(C1=CC=CC=C1)C,98-06-6,6.026,0.8824,0.9965565713997367,low-fidelity RED
+2-Phenyl-2-Methylbutane,CC(C)(C1=CC=CC=C1)CC,2049-95-8,6.337,0.987,0.9499999999999986,low-fidelity RED
+α-Cadinene,CC(C)[C@@H]1C\C=C(\C)[C@@H]2CCC(\C)=C/[C@@H]12,24406-05-1,5.697,1.209,0.8444672877027258,low-fidelity RED
+(-)-α-Muurolene,CC(C)[C@@H]1C\C=C(\C)[C@H]2CCC(\C)=C/[C@@H]12,10208-80-7,5.697,1.209,0.8444672877027258,low-fidelity RED
+Sativene,CC(C)[C@@H]1CC[C]2([C@H]3[C@@H]1[C@@H](C2=C)CC3)C,3650-28-0,6.626,1.377,0.9082951062292471,low-fidelity RED
+β-Copaene,CC(C)[C@@H]1CC[C]2(C3C1[C@H]2C(=C)CC3)C,18252-44-3,6.398,1.247,0.9082951062292471,low-fidelity RED
+γ-Amorphene,CC(C)[C@@H]1CCC(=C)[C@@H]2CCC(\C)=C/[C@H]12,6980-46-7,6.044,1.118,0.8849435010213925,low-fidelity RED
+Nerolidyl Isobutyrate,CC(C)C(=O)OC(C)(CC\C=C(/C)\CCC=C(C)C)C=C,2639-68-1,7.631,1.281,0.9836157786452995,low-fidelity RED
+Totarol,CC(C)C1=C(C=CC2=C1CC[C@@H]3[C]2(CCCC3(C)C)C)O,511-15-9,6.539,1.386,0.7386643351347074,low-fidelity RED
+m-Diisopropylbenzene,CC(C)C1=CC(C(C)C)=CC=C1,99-62-7,6.117,0.9431,0.8821139382188666,low-fidelity RED
+"1,2-Dimethyl-4-Isopropylbenzene",CC(C)C1=CC(C)=C(C)C=C1,4132-77-8,6.082,1.082,0.7814249804043885,low-fidelity RED
+"1,3-Dimethyl-5-Isopropylbenzene",CC(C)C1=CC(C)=CC(C)=C1,4706-90-5,6.361,0.854,0.7814249804043885,low-fidelity RED
+p-Chlorocumene,CC(C)C1=CC=C(Cl)C=C1,2621-46-7,5.604,0.9273,0.8143248737451164,low-fidelity RED
+Isopropyl Benzene (Cumene),CC(C)C1=CC=CC=C1,98-82-8,5.888,0.7438,0.39051248379533215,high-fidelity RED
+"1,2-Diisopropylbenzene",CC(C)C1=CC=CC=C1C(C)C,577-55-9,6.32,0.9633,0.8810505093353038,low-fidelity RED
+Abietatriene,CC(C)C1=CC2=C(C=C1)C3(CCCC(C3CC2)(C)C)C,19407-28-4,6.0,1.448,0.6562202374203344,low-fidelity RED
+Abietal,CC(C)C1=CC2=CC[C@H]3[C](CCC[C]3([C@H]2CC1)C)(C)C=O,6704-50-3,5.963,1.376,0.9701803955966122,low-fidelity RED
+Sabinene,CC(C)C12CCC(=C)C1C2,3387-41-5,6.044,1.084,0.9762812094883304,low-fidelity RED
+Woody Carboxylate,CC(C)C12CCC(C=C1)(C(C2)C(=O)OC)C,68966-86-9,6.647,1.286,0.9246621004453458,low-fidelity RED
+β-Bourbonene,CC(C)C1CCC2(C1C3C2CCC3=C)C,5208-59-3,5.811,1.249,0.9082951062292471,low-fidelity RED
+Cyclosativene,CC(C)C1CCC2(C3C1C4C2(C4C3)C)C,22469-52-9,5.271,1.321,0.9740379869389075,low-fidelity RED
+α-Amyl Cinnamyl Isovalerate,CC(C)CC(=O)OCC(=Cc1ccccc1)CCCCC,7493-80-3,7.437,1.158,0.9893179468704689,low-fidelity RED
+Isobutylbenzene,CC(C)CC1=CC=CC=C1,538-93-2,6.326,1.013,0.8097067370350818,low-fidelity RED
+1-Phenyl-3-Methylbutane,CC(C)CCC1=CC=CC=C1,2049-94-7,6.373,0.8461,0.8558621384311845,low-fidelity RED
+"1,2,4,5-Tetramethylbenzene",CC(C=C(C)C(C)=C1)=C1C,95-93-2,5.902,0.8683,0.462331050222673,low-fidelity RED
+"4,4'-Dimethylbiphenyl",CC(C=C2)=CC=C2C1=CC=C(C)C=C1,613-33-2,5.859,0.7046,0.8891709621889375,low-fidelity RED
+4-Methylbiphenyl,CC(C=C2)=CC=C2C1=CC=CC=C1,644-08-6,5.685,0.7423,0.7968688725254621,low-fidelity RED
+"2,7-Dimethylnaphthalene",CC(C=C2)=CC1=C2C=CC(C)=C1,582-16-1,6.211,0.9291,0.792543374207368,low-fidelity RED
+m-Cymene,CC(C1=CC(C)=CC=C1)C,535-77-3,6.265,0.9352,0.7318640584152221,low-fidelity RED
+p-Diisopropylbenzene,CC(C1=CC=C(C(C)C)C=C1)C,100-18-5,6.048,0.797,0.8634958019585272,low-fidelity RED
+p-Cymene,CC(C1=CC=C(C)C=C1)C,99-87-6,5.907,0.7521,0.7685213074469699,low-fidelity RED
+"2,2-Diphenylpropane",CC(C1=CC=CC=C1)(C2=CC=CC=C2)C,778-22-3,5.921,0.8154,0.42499999999999927,low-fidelity RED
+a-Methyl Styrene,CC(C1=CC=CC=C1)=C,98-83-9,6.158,0.9895,0.6103277807866851,high-fidelity RED
+2-Phenyl-3-Methylbutane,CC(C1=CC=CC=C1)C(C)C,4481-30-5,6.09,0.8995,0.8634958019585262,low-fidelity RED
+2-Phenylpentane,CC(C1=CC=CC=C1)CCC,2719-52-0,6.2,0.9094,0.7862092596758187,low-fidelity RED
+2-Methylindene,CC(C2)=CC1=C2C=CC=C1,2177-47-1,6.919,1.005,0.8455767262643884,low-fidelity RED
+"1,1-Diphenylethane",CC(C2=CC=CC=C2)C1=CC=CC=C1,612-00-0,6.078,0.8574,0.4499999999999999,low-fidelity RED
+"1,2-Diphenylpropane",CC(C2=CC=CC=C2)CC1=CC=CC=C1,5814-85-7,6.423,1.0,0.47169905660282974,low-fidelity RED
+sec-Butylbenzene,CC(CC)C1=CC=CC=C1,135-98-8,5.97,0.914,0.7733854149129002,low-fidelity RED
+Citronellyl Cinnamate,CC(CCC=C(C)C)CCOC(=O)\C=C\C1=CC=CC=C1,10482-79-8,8.073,1.287,0.8849435010213929,low-fidelity RED
+Citronellyl Phenyl Acetate,CC(CCC=C(C)C)CCOC(=O)CC1=CC=CC=C1,139-70-8,8.209,1.301,0.9724325169388359,low-fidelity RED
+Santalyl Phenyl Acetate,CC(COC(=O)Cc1ccccc1)=CCCC3(C)C(=C)C2CC3CC2,1323-75-7,8.024,1.525,0.7749999999999996,low-fidelity RED
+2-Iodobutane,CC(I)CC,513-48-4,5.564,0.8697,0.9978101021737548,low-fidelity RED
+2-Iodooctane,CC(I)CCCCCC,557-36-8,5.829,0.8486,0.9633924433998846,low-fidelity RED
+2-Propenyl-Para-Cymene,CC=CC1=C(C=CC(=C1)C(C)C)C,14374-92-6,5.756,1.192,0.7093130479555549,low-fidelity RED
+Isobornyl Phenyl Acetate,CC1(C2CCC1(C(C2)OC(=O)CC3=CC=CC=C3)C)C,94022-06-7,8.059,1.344,0.7945124291035351,low-fidelity RED
+Bornylene,CC1(C2CCC1(C=C2)C)C,464-17-5,6.154,1.119,0.886707392548409,low-fidelity RED
+Sandaracopimaradiene,CC1(CCC[C]2([C@H]1CCC3=C[C](CC[C@@H]32)(C)C=C)C)C,21738-16-9,4.818,1.352,0.7167635593415712,low-fidelity RED
+(-)-Isolongifolene,CC1(CCC=C2C13CCC(C3)C2(C)C)C,1135-66-6,5.803,1.29,0.7846177413237607,low-fidelity RED
+Dehydroabietylamine,CC1(CCC2)C(C=CC(C(C)C)=C3)=C3CCC1C2(C)CN,1446-61-3,6.897,1.449,0.7386643351347074,low-fidelity RED
+Isolongifolene Epoxide,CC1(CCC2C3(C14CCC(C4)C3(C)C)O2)C,67999-56-8,5.195,1.36,0.9813893213195256,low-fidelity RED
+Manool,CC1(CCCC2(C1CCC(=C)C2CCC(C)(C=C)O)C)C,596-85-0,5.799,1.433,0.9503288904374098,low-fidelity RED
+Musk Tibetene,CC1=C(C(=C(C(=C1C)[N+](=O)[O-])C(C)(C)C)[N+](=O)[O-])C,145-39-1,5.838,1.173,0.9633924433998847,low-fidelity RED
+Hexamethyl Benzene,CC1=C(C(=C(C(=C1C)C)C)C)C,87-85-4,5.845,0.8407,0.7549834435270751,high-fidelity RED
+o-Xylene,CC1=C(C)C=CC=C1,95-47-6,5.819,0.8437,0.47762432936356936,high-fidelity RED
+"1,7-Dimethylnaphthalene",CC1=C(C=C2C)C(C=C2)=CC=C1,575-37-1,6.378,1.132,0.792543374207368,low-fidelity RED
+"1,6-Dimethylnaphthalene",CC1=C(C=CC(C)=C2)C2=CC=C1,575-43-9,6.116,1.241,0.792543374207368,low-fidelity RED
+"1,4-Dimethylnaphthalene",CC1=C(C=CC=C2)C2=C(C)C=C1,571-58-4,6.036,0.9397,0.792543374207368,low-fidelity RED
+"1,3-Dimethylnaphthalene",CC1=C(C=CC=C2)C2=CC(C)=C1,575-41-7,6.861,1.155,0.792543374207368,low-fidelity RED
+1-Methyl Naphthalene,CC1=C(C=CC=C2)C2=CC=C1,90-12-0,6.689,1.07,0.9581883948368403,high-fidelity RED
+"1,2-Dimethylnaphthalene",CC1=C(C=CC=C2)C2=CC=C1C,573-98-8,6.803,1.118,0.792543374207368,low-fidelity RED
+"1,5-Dimethylnaphthalene",CC1=C(C=CC=C2C)C2=CC=C1,571-61-9,5.832,0.951,0.792543374207368,low-fidelity RED
+"2,2'-Dimethylbiphenyl",CC1=C(C2=C(C)C=CC=C2)C=CC=C1,605-39-0,5.819,0.8437,0.5937171043518963,low-fidelity RED
+Santene,CC1=C(C2CCC1C2)C,529-16-8,6.173,0.9048,0.8573214099741117,low-fidelity RED
+"2,3-Dimethyl Benzofuran",CC1=C(OC2=CC=CC=C12)C,3782-00-1,6.586,0.9973,0.9902651160169179,low-fidelity RED
+γ-Muurolene,CC1=C[C@H]2[C@@H](CC1)C(=C)CC[C@@H]2C(C)C,30021-74-0,6.044,1.118,0.8849435010213925,low-fidelity RED
+γ-Himachalene,CC1=C[C@H]2[C@@H](CC1)C(=CCCC2(C)C)C,53111-25-4,5.342,1.374,0.7689278249614843,low-fidelity RED
+Delta-2-Carene,CC1=C[C@H]2[C@H](C2(C)C)CC1,4497-92-1,5.652,1.114,0.9766012492312298,low-fidelity RED
+γ-Cadinene,CC1=C[C@H]2[C@H](CC1)C(=C)CC[C@@H]2C(C)C,39029-41-9,6.044,1.118,0.8849435010213925,low-fidelity RED
+Delta-Selinene,CC1=C2C=C(CCC2(CCC1)C)C(C)C,28624-23-9,5.066,1.333,0.7770135133960016,low-fidelity RED
+β-Maaliene,CC1=C2C3C(C3(C)C)CCC2(CCC1)C,489-29-2,5.535,1.261,0.7766112283504534,low-fidelity RED
+Trimethylbenzene,CC1=CC(=C(C=C1)C)C,95-63-6,5.784,0.934,0.40620192023179763,high-fidelity RED
+"8-Tert-Butyl-4,6-Dimethyl Coumarin",CC1=CC(=C2C(=C1)C(=CC(=O)O2)C)C(C)(C)C,17874-34-9,6.956,1.253,0.8325412902673356,low-fidelity RED
+Labdanum Ethanone,CC1=CC(=CC(=C1C(=O)C)C)C(C)(C)C,2040-10-0,6.606,0.9607,0.9804335775563787,low-fidelity RED
+Mesitylene,CC1=CC(C)=CC(C)=C1,108-67-8,6.229,0.7325,0.430116263352131,high-fidelity RED
+"1,3,5-Trimethyl-2-Ethylbenzene",CC1=CC(C)=CC(C)=C1CC,3982-67-0,6.58,0.947,0.5640257086339239,low-fidelity RED
+m-Xylene,CC1=CC(C)=CC=C1,108-38-3,6.164,0.8387,0.6133922073192646,low-fidelity RED
+"2,3-Dimethylnaphthalene",CC1=CC(C=CC=C2)=C2C=C1C,581-40-8,6.806,0.9768,0.792543374207368,low-fidelity RED
+"3,3'-Dimethylbiphenyl",CC1=CC(C2=CC(C)=CC=C2)=CC=C1,612-75-9,6.147,0.811,0.4981214711292823,low-fidelity RED
+3-Methylbiphenyl,CC1=CC(C2=CC=CC=C2)=CC=C1,643-93-6,6.047,0.7897,0.5678908345800273,low-fidelity RED
+m-Chlorotoluene,CC1=CC(Cl)=CC=C1,108-41-8,5.589,0.9612,0.8158584436040363,low-fidelity RED
+m-Fluorotoluene,CC1=CC(F)=CC=C1,352-70-5,5.363,0.9393,0.9414085191881362,low-fidelity RED
+m-Iodotoluene,CC1=CC(I)=CC=C1,625-95-6,6.147,0.811,0.9974968671630005,low-fidelity RED
+α-Chamigrene,CC1=CC[C]2(CC1)C(=CCCC2(C)C)C,19912-83-5,4.915,1.264,0.7075485849042444,low-fidelity RED
+Thujopsene,CC1=CC[C]2(CCCC([C]23[C@H]1C3)(C)C)C,470-40-6,6.283,1.212,0.8019507466172714,low-fidelity RED
+α-Zingiberene,CC1=CC[C@@H](C=C1)[C@@H](C)CCC=C(C)C,495-60-3,7.351,1.389,0.8370334521391601,low-fidelity RED
+β-Bisabolene,CC1=CC[C@@H](CC1)C(=C)CCC=C(C)C,495-61-4,6.626,1.179,0.9013878188659973,low-fidelity RED
+β-Cadinene,CC1=CC[C@@H]2[C@@H](C1)[C@@H](CC=C2C)C(C)C,523-47-7,6.061,1.26,0.9529559276272945,low-fidelity RED
+Bisabolene,CC1=CC/C(=C(/C)\CCC=C(C)C)/CC1,495-62-5,7.366,1.306,0.8295330011518522,low-fidelity RED
+Xylene,CC1=CC=C(C)C=C1,106-42-3,5.859,0.7046,0.5460082416960378,low-fidelity RED
+(+)-Cuparene,CC1=CC=C(C=C1)[C]2(CCCC2(C)C)C,16982-00-6,5.801,1.194,0.6800735254367721,low-fidelity RED
+Ar-Curcumene,CC1=CC=C(C=C1)[C@H](C)CCC=C(C)C,4176-17-4,7.258,1.102,0.7180703308172536,low-fidelity RED
+"4',4'-Dimethyldiphenylmethane",CC1=CC=C(C=C1)CC(C=C2)=CC=C2C,4957-14-6,6.32,0.9781,0.8429857650043683,low-fidelity RED
+Para-Menthatriene,CC1=CC=C(CC1)C(=C)C,18368-95-1,6.305,1.115,0.9848857801796104,low-fidelity RED
+4-Methyldiphenylmethane,CC1=CC=C(CC2=CC=CC=C2)C=C1,620-83-7,6.238,1.042,0.7322909257938407,low-fidelity RED
+p-n-Butyltoluene,CC1=CC=C(CCCC)C=C1,1595-05-7,6.165,0.9475,0.5595757321399848,high-fidelity RED
+Cycloionone,CC1=CC=C2C(CCCC2(O1)C)(C)C,5552-30-7,5.78,1.217,0.9394147114027963,low-fidelity RED
+"2,3-Dimethylstyrene",CC1=CC=CC(=C1C)C=C,40243-75-2,6.117,1.27,0.8280247580839593,low-fidelity RED
+Toluene,CC1=CC=CC=C1,108-88-3,5.959,0.7249,0.4031128874149271,high-fidelity RED
+2-Vinyl Toluene,CC1=CC=CC=C1C=C,611-15-4,6.222,1.083,0.524404424085076,high-fidelity RED
+Dehydro-Ar-Ionene,CC1=CC2=C(C=C1)C(CC=C2)(C)C,30364-38-6,5.884,1.085,0.6878408246098802,low-fidelity RED
+α-Ionene,CC1=CC2=C(C=C1)C(CCC2)(C)C,475-03-6,5.675,1.228,0.6538348415311009,low-fidelity RED
+Cadalene,CC1=CC2=C(C=CC(=C2C=C1)C)C(C)C,483-78-3,6.1,1.283,0.9842509842514764,low-fidelity RED
+β-Himachalene,CC1=CC2C(=C(CCCC2(C)C)C)CC1,1461-03-6,5.755,1.441,0.8234834546000303,low-fidelity RED
+α-Amorphene,CC1=CC2C(CC1)C(=CCC2C(C)C)C,483-75-0,5.697,1.209,0.8444672877027258,low-fidelity RED
+Delta-Cadinene,CC1=CC2C(CCC(=C2CC1)C)C(C)C,483-76-1,6.02,1.343,0.7782191208136684,low-fidelity RED
+α-Calacorene,CC1=CCC(C2=C1C=CC(=C2)C)C(C)C,21391-99-1,6.318,1.201,0.6523994175349935,low-fidelity RED
+(Z)-α-Bisabolene,CC1=CCC(CC1)/C(=C\CC=C(C)C)/C,29837-07-8,6.372,1.174,0.7766112283504526,low-fidelity RED
+d-Limonene,CC1=CCC(CC1)C(=C)C,5989-27-5,5.587,0.712,0.9450529085717897,high-fidelity RED
+α-Bisabolene,CC1=CCC(CC1)C(=CCC=C(C)C)C,17627-44-0,6.372,1.174,0.7766112283504526,low-fidelity RED
+"Selina-3,7(11)-Diene",CC1=CCC[C]2([C@H]1CC(=C(C)C)CC2)C,6813-21-4,6.642,1.28,0.6726812023536851,low-fidelity RED
+α-Thujene,CC1=CCC2(C1C2)C(C)C,5/2/67 0:00,6.585,1.199,0.9394147114027965,low-fidelity RED
+β-Chamigrene,CC1=CCC2(CC1)C(=C)CCCC2(C)C,18431-82-8,4.891,1.286,0.8370334521391603,low-fidelity RED
+Daucene,CC1=CCC2(CCC(=C2CC1)C(C)C)C,16661-00-0,6.162,1.345,0.7284401142166724,low-fidelity RED
+2-Pinene (dl),CC1=CCC2C(C1C2)(C)C,80-56-8,6.024,1.13,0.9168560410446125,high-fidelity RED
+α-Ylangene,CC1=CCC2C3C1[C]2(CCC3C(C)C)C,14912-44-8,6.301,1.325,0.854766049863937,low-fidelity RED
+α-Copaene,CC1=CCC2C3C1C2(CCC3C(C)C)C,3856-25-5,6.301,1.325,0.854766049863937,low-fidelity RED
+α-Longipinene,CC1=CCC2C3C1C2(CCCC3(C)C)C,8/2/89 0:00,6.014,1.322,0.907606743033567,low-fidelity RED
+α-Bergamotene,CC1=CCC2CC1C2(C)CCC=C(C)C,17699-05-7,7.303,1.302,0.8038967595406757,low-fidelity RED
+Caryophyllene,CC1=CCCC(=C)[C@H]2CC([C@@H]2CC1)(C)C,87-44-5,5.554,1.16,0.8919781387455633,low-fidelity RED
+Methyl Ionyl Acetate,CC1=CCCC(C1\C=C(/C)\C(C)OC(=O)C)(C)C,68555-61-3,7.346,1.427,0.9604686356149265,low-fidelity RED
+α-Selinene,CC1=CCCC2(C1CC(CC2)C(=C)C)C,473-13-2,6.725,1.276,0.7697402159170315,low-fidelity RED
+1-Methylcyclohexene,CC1=CCCCC1,591-49-1,5.615,1.077,0.9698582370635404,low-fidelity RED
+"1-Methylbicyclo(3,1,0)Hexane",CC12CC2CCC1,4625-24-5,4.751,1.062,0.8054501846793495,low-fidelity RED
+4A-Methyl-Trans-Decahydronaphthalene,CC12CCCCC1CCCC2,2547-27-5,5.281,1.002,0.8881159834165805,low-fidelity RED
+1-Methylindene,CC1C(C=CC=C2)=C2C=C1,767-59-9,6.419,1.037,0.7652613932506986,low-fidelity RED
+Musk Methyl Ketone,CC1C(C2=C(C1(C)C)C=C(C(=C2)C(=O)C)C)C(C)C,68140-48-7,7.356,1.306,0.8514693182963199,low-fidelity RED
+Musk Indane,CC1C(C2=C(C1(C)C)C=C(C(=C2)C)C(=O)C)(C)C,15323-35-0,6.791,1.177,0.8444672877027266,low-fidelity RED
+Magnolia Indene,CC1C2CC3=CC=CC=C3C2OC(O1)C,27606-09-3,6.61,1.017,0.9737171047075224,low-fidelity RED
+Geranium Pyran,CC1CC(=C)CC(O1)C2=CC=CC=C2,30310-41-9,6.045,1.124,0.9303897032964191,low-fidelity RED
+Vetiveryl Acetate,CC1CC(C=C(C2C1CC(=C(C)C)C2)C)OC(=O)C,62563-80-8,7.78,1.337,0.9581883948368395,low-fidelity RED
+Musk Tetralin,CC1CC(C2=C(C1(C)C)C=C(C(=C2)C(=O)C)C)(C)C,21145-77-7,6.892,1.271,0.8204419540710963,low-fidelity RED
+Cascarilladiene,CC1CC(C2=CC(=CCC12C)C)C(C)C,59742-39-1,6.334,1.435,0.8492643875731505,low-fidelity RED
+Rhubarb Furan,CC1CC(CO1)(C)C2=CC=CC=C2,82461-14-1,6.357,1.035,0.9144670579085936,low-fidelity RED
+γ-Calacorene,CC1CC=C(C2=C1C=CC(=C2)C)C(C)C,24048-45-1,6.595,1.099,0.6523994175349935,low-fidelity RED
+2-Ethyl-7-Methylnapthalene,Cc1cc2cc(ccc2cc1)CC,a7716,6.53,1.142,0.5361902647381805,low-fidelity RED
+Isoterpinolene,CC1CCC(=C(C)C)C=C1,586-63-0,6.293,1.225,0.8989577298182592,low-fidelity RED
+Guaiene,CC1CCC(=C(C)C)CC2=C1CCC2C,88-84-6,7.082,1.235,0.7794228634059936,low-fidelity RED
+Laevo-Menthyl Phenyl Acetate,CC1CCC(C(C1)OC(=O)CC2=CC=CC=C2)C(C)C,26171-78-8,8.528,1.513,0.8753570700005796,low-fidelity RED
+Bicyclosesquiphellandrene,CC1CCC(C2=CC(=C)CCC12)C(C)C,54324-03-7,6.13,1.371,0.8849435010213925,low-fidelity RED
+(-)-α-Cubebene,CC1CCC(C2C13C2C(=CC3)C)C(C)C,17699-14-8,6.529,1.362,0.854766049863937,low-fidelity RED
+α-Guaiene,CC1CCC(CC2=C1CCC2C)C(=C)C,12/1/91 0:00,6.135,1.29,0.8638576271585489,low-fidelity RED
+Guaiyl Acetate,CC1CCC(CC2=C1CCC2C)C(C)(C)OC(=O)C,134-28-1,6.985,1.257,0.9915266007525962,low-fidelity RED
+Valencene,CC1CCC=C2C1(CC(CC2)C(=C)C)C,7/3/30 0:00,5.791,1.413,0.7697402159170315,low-fidelity RED
+Seychellene,CC1CCC2(C(=C)C3CCC2(C1C3)C)C,20085-93-2,5.644,1.105,0.8411301920630361,low-fidelity RED
+Theaspirane,CC1CCC2(O1)C(=CCCC2(C)C)C,36431-72-8,6.036,1.315,0.946374661537385,low-fidelity RED
+β-Patchoulene,CC1CCC2=C1CC3CCC2(C3(C)C)C,514-51-2,6.127,1.2,0.7280109889280512,low-fidelity RED
+α-Patchoulene,CC1CCC23[C@H]1CC(C2(C)C)CC=C3C,560-32-7,5.523,1.213,0.8444672877027258,low-fidelity RED
+β-Cedrene,CC1CCC2C13CCC(=C)C(C3)C2(C)C,546-28-1,6.405,1.295,0.8958236433584456,low-fidelity RED
+Grapefruit Menthane,CC1CCC2CC1SC2(C)C,68398-18-5,5.49,1.078,0.9711462299777507,low-fidelity RED
+2-Methyl-Trans-Decahydronaphthalene,CC1CCCC2C1CCCC2,4683-94-7,5.623,0.9983,0.9740379869389075,low-fidelity RED
+Rose Pyran,CC1CCOC(C1)C2=CC=CC=C2,94201-73-7,5.878,0.9482,0.9594920531197739,low-fidelity RED
+Woody Dioxolane,CC1COC(O1)(C)C2=CC3=C(C=C2)C(CCC3(C)C)(C)C,131812-51-6,6.789,1.227,0.8139410298049845,low-fidelity RED
+Galaxolide,CC1COCC2=CC3=C(C=C12)C(C(C3(C)C)C)(C)C,1222-05-5,6.072,1.286,0.7369701486491831,low-fidelity RED
+β-Carotene,CC2(C)CCCC(\C)=C2\C=C\C(\C)=C\C=C\C(\C)=C\C=C\C=C(/C)\C=C\C=C(/C)  \C=C\C1=C(/C)CCCC1(C)C,7235-40-7,6.264,1.632,0.4038873605350875,low-fidelity RED
+2-Methyldiphenylmethane,CC2=C(C=CC=C2)CC1=CC=CC=C1,713-36-0,5.952,1.092,0.5905505905508859,low-fidelity RED
+"2,6-Dimethylnaphthalene",CC2=CC1=CC=C(C)C=C1C=C2,581-42-0,6.492,0.9284,0.792543374207368,low-fidelity RED
+"1,2,3-Trimethylindene",CC2C(C)=C(C)C1=CC=CC=C12,4773-83-5,6.415,1.047,0.52021630116712,low-fidelity RED
+Tricyclene,CC3(C)C1CC2C(C23C)C1,508-32-7,5.301,0.9006,0.9013878188659973,high-fidelity RED
+Nerolidyl Propionate,CCC(=O)OC(C)(CCC=C(C)CCC=C(C)C)C=C,7149-34-0,6.556,1.171,0.9685685313905245,low-fidelity RED
+Estriol,CCC(=O)OC1CC2C3CCC4=C(C3CCC2(C1OC(=O)CC)C)C=CC(=C4)OC(=O)CC,2236-31-9,7.902,1.561,0.9572094859538322,low-fidelity RED
+Pentaethylbenzene,CCC(C(CC)=C1CC)=C(C(CC)=C1)CC,605-01-6,6.494,1.098,0.8792752697534485,low-fidelity RED
+Tea Acetate,CCC(C)(CCC1=CC=CC=C1)OC(=O)C,72007-81-9,7.513,1.198,0.9486832980505133,low-fidelity RED
+Butyl Quinoline,CCC(C)C1=CC=CC2=C1N=CC=C2,67634-06-4,7.261,1.18,0.9290452088031023,low-fidelity RED
+Isobutyl Quinoline,CCC(C)C1=CC2=C(C=C1)N=CC=C2,65442-31-1,6.612,1.317,0.9290452088031023,low-fidelity RED
+1-Phenyl-2-Methylbutane,CCC(C)CC1=CC=CC=C1,3968-85-2,6.408,0.9418,0.7733854149129002,low-fidelity RED
+sec-Butyl-3-Methyl But-2-Ene Thioate,CCC(C)SC(=O)C=C(C)C,34322-09-3,6.294,1.17,0.9182183836103479,low-fidelity RED
+2-Ethyl-p-Xylene,CCC(C=C1C)=C(C=C1)C,1758-88-9,6.166,1.046,0.8162413858657248,low-fidelity RED
+4-Ethylbiphenyl,CCC(C=C2)=CC=C2C1=CC=CC=C1,5707-44-8,6.147,0.9841,0.6670832032063168,low-fidelity RED
+4-Ethyl-M-Xylene,CCC(C=CC(C)=C1)=C1C,874-41-9,6.37,1.011,0.8162413858657248,low-fidelity RED
+o-Ethyltoluene,CCC(C=CC=C1)=C1C,611-14-3,6.346,1.023,0.7106335201775945,low-fidelity RED
+3-Phenylpentane,CCC(C1=CC=CC=C1)CC,1196-58-3,6.295,0.9304,0.8533024082938007,low-fidelity RED
+"1,1-Diphenylpropane",CCC(C2=CC=CC=C2)C1=CC=CC=C1,1530-03-6,6.376,0.9811,0.45069390943299836,low-fidelity RED
+3-Ethyl-O-Xylene,CCC1=C(C)C(C)=CC=C1,933-98-2,6.381,1.176,0.8162413858657248,low-fidelity RED
+2-Ethyl-M-Xylene,CCC1=C(C)C=CC=C1C,4/4/70 0:00,6.253,1.029,0.8162413858657248,low-fidelity RED
+1-Ethylnaphthalene,CCC1=C(C=CC=C2)C2=CC=C1,1127-76-0,7.047,1.056,0.9045026257562774,low-fidelity RED
+2-Ethylbiphenyl,CCC1=C(C2=CC=CC=C2)C=CC=C1,1812-51-7,6.685,0.9066,0.5550900827793632,low-fidelity RED
+"1,2,4-Triethylbenzene",CCC1=C(CC)C=C(CC)C=C1,877-44-1,6.704,1.122,0.8370334521391601,low-fidelity RED
+4-Ethyl-O-Xylene,CCC1=CC(C)=C(C)C=C1,934-80-5,6.27,1.097,0.8162413858657248,low-fidelity RED
+5-Ethyl-M-Xylene,CCC1=CC(C)=CC(C)=C1,934-74-7,6.428,0.9966,0.8162413858657248,low-fidelity RED
+m-Ethyltoluene,CCC1=CC(C)=CC=C1,620-14-4,6.439,1.091,0.6604922406811444,low-fidelity RED
+2-Ethylnaphthalene,CCC1=CC(C=CC=C2)=C2C=C1,939-27-5,6.961,1.126,0.9045026257562774,low-fidelity RED
+"1-Methyl-3,5-Diethylbenzene",CCC1=CC(CC)=CC(C)=C1,2050-24-0,6.462,1.049,0.8143248737451165,low-fidelity RED
+"1,3,5-Triethylbenzene",CCC1=CC(CC)=CC(CC)=C1,102-25-0,6.066,0.9997,0.8370334521391601,low-fidelity RED
+1-Ethyl-3-Isopropylbenzene,CCC1=CC=C(C(C)C)C=C1,4920-99-4,6.368,1.044,0.7988272654335227,low-fidelity RED
+"1-Methyl-2,4-Diethylbenzene",CCC1=CC=C(C)C(CC)=C1,1758-85-6,6.424,1.179,0.8143248737451165,low-fidelity RED
+p-Ethyltoluene,CCC1=CC=C(C)C=C1,622-96-8,6.183,0.9784,0.809706737035082,low-fidelity RED
+p-Diethyl Benzene,CCC1=CC=C(C=C1)CC,105-05-5,6.324,0.9617,0.4031128874149271,high-fidelity RED
+"1-Methyl-2,5-Diethylbenzene",CCC1=CC=C(CC)C=C1C,13632-94-5,6.685,1.115,0.8143248737451165,low-fidelity RED
+4-Ethyldiphenylmethane,CCC1=CC=C(CC2=CC=CC=C2)C=C1,620-85-9,6.214,1.083,0.6393355926272211,low-fidelity RED
+1-Chloro-4-Ethylbenzene,CCC1=CC=C(Cl)C=C1,622-98-0,5.82,1.062,0.9486832980505139,low-fidelity RED
+3-Ethylbiphenyl,CCC1=CC=CC(C2=CC=CC=C2)=C1,5668-93-9,6.185,0.9778,0.455521678957215,low-fidelity RED
+m-Diethylbenzene,CCC1=CC=CC(CC)=C1,141-93-5,6.333,1.052,0.690108687092113,low-fidelity RED
+Ethyl Benzene,CCC1=CC=CC=C1,100-41-4,6.102,0.9223,0.36742346141747584,high-fidelity RED
+"1,2-Diethyl Benzene",CCC1=CC=CC=C1CC,135-01-3,6.641,0.9016,0.4308421984903519,high-fidelity RED
+Versalide,CCC1=CC2=C(C=C1C(=O)C)C(CCC2(C)C)(C)C,88-29-9,7.089,1.226,0.8605957239029246,low-fidelity RED
+"3-Ethyl-2,5-Dimethylthiophene",CCc1cc(C)sc1C,55735-23-4,6.138,1.078,0.9698582370635411,low-fidelity RED
+2-Ethyldiphenylmethane,CCC2=C(C=CC=C2)CC1=CC=CC=C1,28122-25-0,6.262,1.108,0.5297405025104273,low-fidelity RED
+2-Methyl-6-Ethylnaphthalene,CCC2=CC1=C(C=C2)C=C(C)C=C1,7372-86-3,6.81,1.14,0.5361902647381805,low-fidelity RED
+Guaiyl Butyrate,CCCC(=O)OC(C)(C)[C@@H]1CC[C@@H](C2=C(C1)[C@H](CC2)C)C,73003-91-5,7.256,1.304,0.9688911187538047,low-fidelity RED
+Santalyl Butyrate,CCCC(=O)OC/C(=C/CCC1(C2CC3C1(C3C2)C)C)/C,67633-99-2,7.218,1.209,0.8692669325356844,low-fidelity RED
+"1,1-Diphenylbutane",CCCC(C2=CC=CC=C2)C1=CC=CC=C1,719-79-9,6.007,0.9922,0.40311288741492746,low-fidelity RED
+1-Methyl-3-Propylbenzene,CCCC1=CC(C)=CC=C1,1074-43-7,6.349,1.0,0.6194755846681929,low-fidelity RED
+1-Methyl-4-Propylbenzene,CCCC1=CC=C(C)C=C1,1074-55-1,6.092,0.8798,0.7483314773547876,low-fidelity RED
+Propylbenzene,CCCC1=CC=CC=C1,103-65-1,6.011,0.812,0.7115124735378854,low-fidelity RED
+1-Methyl-2-Propylbenzene,CCCC1=CC=CC=C1C,1074-17-5,5.804,0.9853,0.6768493185340437,low-fidelity RED
+1-Propylnaphthalene,CCCC2=CC=CC1=CC=CC=C12,2765-18-6,6.538,1.009,0.755810822891549,low-fidelity RED
+"1,1-Diphenylpentane",CCCCC(C2=CC=CC=C2)C1=CC=CC=C1,1726-12-1,6.553,1.067,0.4308421984903514,low-fidelity RED
+"1,1,1-Trichloropentane",CCCCC(Cl)(Cl)Cl,3922-27-8,4.714,0.8461,0.8477912478906585,low-fidelity RED
+Trans-1-Iodo-1-Heptene,CCCCC\C=C\I,60595-37-1,5.494,0.9011,0.8937281465859735,low-fidelity RED
+2-Butyl-5-Ethyl Thiophene,CCCCC1=CC=C(S1)CC,54411-06-2,6.196,1.085,0.9113863066779085,low-fidelity RED
+3-n-Butyl Toluene,CCCCC1=CC=CC(=C1)C,1595-04-6,6.42,1.065,0.5595757321399848,high-fidelity RED
+n-Butylbenzene,CCCCC1=CC=CC=C1,104-51-8,6.084,0.8839,0.5488624600025037,high-fidelity RED
+o-n-Butyltoluene,CCCCC1=CC=CC=C1C,1595-11-5,6.096,0.9957,0.4723610906922784,high-fidelity RED
+2-Butyl Thiophene,CCCCC1=CC=CS1,1455-20-5,5.899,1.171,0.9836157786452999,low-fidelity RED
+3-Butyl Thiophene,CCCCC1=CSC=C1,34722-01-5,6.358,1.03,0.9836157786452999,low-fidelity RED
+1-Butylnaphthalene,CCCCC2=CC=CC1=CC=CC=C12,1634-09-9,6.609,1.085,0.6896557112066862,low-fidelity RED
+"1,1-Diphenylhexane",CCCCCC(C2=CC=CC=C2)C1=CC=CC=C1,1530-04-7,6.609,1.066,0.4670385423067348,low-fidelity RED
+"1,1,1-Trichlorohexane",CCCCCC(Cl)(Cl)Cl,17760-40-6,4.901,0.9067,0.8370334521391603,low-fidelity RED
+Pentylbenzene,CCCCCC1=CC=CC=C1,538-68-1,6.311,0.8883,0.7603453162872772,low-fidelity RED
+2-Pentyl Thiophene,CCCCCC1=CC=CS1,4861-58-9,6.125,1.176,0.9864709828474423,low-fidelity RED
+1-Pentylnaphthalene,CCCCCC2=CC=CC1=CC=CC=C12,1320-27-0,6.835,1.09,0.6123724356957948,low-fidelity RED
+2-Hexyl Thiophene,CCCCCCC1=CC=CS1,18794-77-9,6.071,1.181,0.9762812094883315,low-fidelity RED
+Heptylbenzene,CCCCCCCC1=CC=CC=C1,1078-71-3,6.257,0.8937,0.8355387483534196,low-fidelity RED
+3-Heptyl Thiophene,CCCCCCCC1=CSC=C1,65016-61-7,6.531,1.037,0.9711462299777516,low-fidelity RED
+Octylbenzene,CCCCCCCCC1=CC=CC=C1,2189-60-8,6.257,0.8937,0.8280247580839597,low-fidelity RED
+2-Octyl Thiophene,CCCCCCCCC1=CC=CS1,880-36-4,6.071,1.181,0.8965210538520547,low-fidelity RED
+Nonylbenzene,CCCCCCCCCC1=CC=CC=C1,1081-77-2,6.257,0.8937,0.8280247580839597,low-fidelity RED
+Decylbenzene,CCCCCCCCCCC1=CC=CC=C1,104-72-3,6.257,0.8937,0.8735702604828064,low-fidelity RED
+"1,1-Diphenyldodecane",CCCCCCCCCCCC(C2=CC=CC=C2)C1=CC=CC=C1,1603-53-8,6.554,1.074,0.6408002808988145,low-fidelity RED
+Undecylbenzene,CCCCCCCCCCCC1=CC=CC=C1,6742-54-7,6.257,0.8937,0.9192388155425114,low-fidelity RED
+Dodecylbenzene,CCCCCCCCCCCCC1=CC=CC=C1,123-01-3,6.257,0.8937,0.8947765084086636,low-fidelity RED
+Tridecylbenzene,CCCCCCCCCCCCCC1=CC=CC=C1,123-02-4,6.257,0.8937,0.8937281465859735,low-fidelity RED
+1-Phenyltetradecane,CCCCCCCCCCCCCCC1=CC=CC=C1,1459-10-5,6.257,0.8937,0.9414085191881352,low-fidelity RED
+Pentadecylbenzene,CCCCCCCCCCCCCCCC1=CC=CC=C1,2131-18-2,6.257,0.8937,0.9424038412485368,low-fidelity RED
+Hexadecylbenzene,CCCCCCCCCCCCCCCCC1=CC=CC=C1,1459-09-2,6.257,0.8937,0.9791578013783062,low-fidelity RED
+1-Iodononadecane,CCCCCCCCCCCCCCCCCCCI,62127-51-9,5.42,0.6577,0.9981232388838551,low-fidelity RED
+1-Iodooctadecane,CCCCCCCCCCCCCCCCCCI,629-93-6,5.42,0.6577,0.9877373132569193,low-fidelity RED
+1-Iodoheptadecane,CCCCCCCCCCCCCCCCCI,26825-83-2,5.42,0.6577,0.9407443861113386,low-fidelity RED
+1-Iodohexadecane,CCCCCCCCCCCCCCCCI,544-77-4,5.42,0.6577,0.9424038412485379,low-fidelity RED
+1-Iodododecane,CCCCCCCCCCCCI,4292-19-7,5.42,0.6577,0.9437293044088428,low-fidelity RED
+1-Iododecane,CCCCCCCCCCI,2050-77-3,5.42,0.6577,0.948024261292927,low-fidelity RED
+1-Iodononane,CCCCCCCCCI,4282-42-2,5.42,0.6577,0.9656603957913983,low-fidelity RED
+1-Iodooctane,CCCCCCCCI,629-27-6,5.42,0.6577,0.979157801378307,low-fidelity RED
+Octyl Cinnamate,CCCCCCCCOC(=O)\C=C\C1=CC=CC=C1,69038-78-4,7.655,1.143,0.988053642268475,low-fidelity RED
+"N,N-Diphenylethylamine",CCN(C2=CC=CC=C2)C1=CC=CC=C1,606-99-5,5.824,0.9904,0.8459462157844316,low-fidelity RED
+Trichlorophenylsilane,Cl[Si](Cl)(C1=CC=CC=C1)Cl,98-13-5,5.409,0.9159,0.857685839920422,low-fidelity RED
+Permethrin,Cl/C(Cl)=C/C3C(C(=O)OCc2cccc(Oc1ccccc1)c2)C3(C)C,52645-53-1,7.67,1.396,0.7717674520216561,low-fidelity RED
+"2,2,4,5,6,7,8,8-Octachloro-2,3,3A,4,7,7A-Hexahydro-4,7-Metha",Cl/C1=C(\Cl)C2(Cl)C(Cl)(Cl)C1(Cl)C3C2CC(Cl)(Cl)C3,5566-34-7,5.383,0.9881,0.8724964183307574,low-fidelity RED
+Bifenthrin,Cl\C(=C/C3C(C(=O)OCc2cccc(c1ccccc1)c2C)C3(C)C)C(F)(F)F,82657-04-3,6.324,1.386,0.7369701486491835,low-fidelity RED
+"1,6,7,8,9,14,15,16,17,17,18,18-Dodecachloropentacyclo[12.2.1.16,9.02,13.05,10]Octadeca-7,15-Diene",Cl\C2=C(/Cl)C3(Cl)C1CCC4C(CCC1C2(Cl)C3(Cl)Cl)C5(Cl)C(\Cl)=C(\Cl)C4(Cl)C5(Cl)Cl,13560-89-9,5.573,0.9387,0.9182183836103479,low-fidelity RED
+Chlorodiphenylmethane,ClC(C2=CC=CC=C2)C1=CC=CC=C1,90-99-3,5.427,0.9098,0.8154753215150046,low-fidelity RED
+Benzotrichloride,ClC(Cl)(C1=CC=CC=C1)Cl,98-07-7,4.831,0.9235,0.9899494936611667,high-fidelity RED
+"1,1-Dichlorocyclohexane",ClC(Cl)(CCC1)CC1,2108-92-1,4.893,0.9145,0.6538348415311002,low-fidelity RED
+"1,1,1-Trichloroheptane",ClC(Cl)(Cl)CCCCCC,3922-26-7,4.848,0.9071,0.7925433742073672,low-fidelity RED
+"1,1,1-Trichlorooctane",ClC(Cl)(Cl)CCCCCCC,4905-79-7,4.848,0.9071,0.8200609733428357,low-fidelity RED
+"1,1,1-Trichlorodecane",ClC(Cl)(Cl)CCCCCCCCC,62108-56-9,4.848,0.9071,0.7721722605740244,low-fidelity RED
+Hexachlorocyclopentadiene,ClC1(C(Cl)=C(Cl)C(Cl)=C1Cl)Cl,77-47-4,5.207,0.86,0.4716990566028301,low-fidelity RED
+"2,3,4,5,6-Pentachlorotoluene",ClC1=C(C)C(=C(C(=C1Cl)Cl)Cl)Cl,877-11-2,5.479,0.9102,0.9737171047075235,low-fidelity RED
+"1,2,4,5-Tetrachloro-3,6-Dimethylbenzene",ClC1=C(C)C(=C(Cl)C(=C1Cl)C)Cl,877-10-1,5.479,0.9102,0.6828250141873844,low-fidelity RED
+o-Chlorocumene,ClC1=CC=CC=C1C(C)C,2077-13-6,5.672,0.9609,0.7390872749547237,low-fidelity RED
+Toxaphene (Chlorinated Camphene),ClC2(Cl)C1(Cl)C(/C(=C)C(Cl)(C1(Cl)Cl)C2(Cl)Cl)(C)C,8001-35-2,4.876,1.115,0.6368869601428502,low-fidelity RED
+2-Chlorobiphenyl,Clc2ccccc2c1ccccc1,27323-18-8,5.419,0.8704,0.9374166629626342,low-fidelity RED
+N-Methyldiphenylamine,CN(C2=CC=CC=C2)C1=CC=CC=C1,552-82-9,5.629,0.9538,0.971146229977752,low-fidelity RED
+Cyclopentyl Methyl Sulfide,CSC1CCCC1,7133-36-0,5.438,0.8572,0.8066132902450838,low-fidelity RED
+"b-Chloro-A,B-Difluoro 4-Methyl Styrene",F/C(Cl)=C(c1ccc(C)cc1)/F,,5.5,1.078,0.8154753215150038,low-fidelity RED
+a-Chloro-B-Difluoro Styrene,F/C(F)=C(c1ccccc1)/Cl,,5.618,0.9495,0.8200609733428351,low-fidelity RED
+Fluridone,FC(F)(F)C1=CC=CC(C2=CN(C)C=C(C3=CC=CC=C3)C2=O)=C1,59756-60-4,5.458,1.208,0.917877987534291,low-fidelity RED
+"A,B-Difluorostyrene",FC=C(F)c1ccccc1,366-37-0,5.98,1.023,0.9100137361600648,low-fidelity RED
+Trans-1-Iodo-1-Hexene,I/C=C/CCCC,16644-98-7,5.303,0.9485,0.9089829481348914,low-fidelity RED
+Trans-1-Iodo-1-Decene,I/C=C/CCCCCCCC,66291-52-9,5.441,0.8873,0.8381527307120104,low-fidelity RED
+Trans-1-Iodo-1-Dodecene,I/C=C/CCCCCCCCCC,66553-46-6,5.441,0.8873,0.8591420138719781,low-fidelity RED
+Cis-1-Iodo-1-Hexene,I\C=C/CCCC,16538-47-9,5.303,0.9485,0.9089829481348914,low-fidelity RED
+Cis-1-Iodo-1-Nonene,I\C=C/CCCCCCC,27370-94-1,5.441,0.8873,0.9317322576792105,low-fidelity RED
+2-Iodohexane,IC(C)CCCC,59654-13-6,5.827,0.8499,0.981389321319526,low-fidelity RED
+3-Iodoheptane,IC(CC)CCCC,31294-92-5,5.774,0.9635,0.9864709828474421,low-fidelity RED
+"1,3-Diiodo-2,2-Dimethylpropane",ICC(CI)(C)C,66688-49-1,5.354,0.7064,0.9058835465996716,low-fidelity RED
+1-Iodotridecane,ICCCCCCCCCCCCC,35599-77-0,5.42,0.6577,0.9303897032964189,low-fidelity RED
+1-Iodotetradecane,ICCCCCCCCCCCCCC,19218-94-1,5.42,0.6577,0.9740379869389075,low-fidelity RED
+1-Iodopentadecane,ICCCCCCCCCCCCCCC,35599-78-1,5.42,0.6577,0.9864709828474426,low-fidelity RED
+"N,N-Dimethylbenzyl Amine",N(C)(Cc1ccccc1)C,103-83-3,5.818,1.132,0.9940447676035516,low-fidelity RED
+Triphenylamine,N(C2=CC=CC=C2)(C3=CC=CC=C3)C1=CC=CC=C1,603-34-9,5.583,0.851,0.9113863066779097,low-fidelity RED
+Tribenzylamine,N(CC2=CC=CC=C2)(CC3=CC=CC=C3)CC1=CC=CC=C1,620-40-6,5.393,0.9864,0.6538348415311012,low-fidelity RED
+(-)-Sparteine,N12CC3C4N(CC(C1CCCC2)C3)CCCC4,90-39-1,5.654,1.08,0.6964194138592058,low-fidelity RED
+Geranyl Phenylacetate,O(C(=O)CC1=CC=CC=C1)CC=C(C)CCC=C(C)C,102-22-7,8.177,1.274,0.9572094859538323,low-fidelity RED
+Benztropine,O(C2C[C@@H]1N(C)[C@H](CC1)C2)C(c3ccccc3)c4ccccc4,86-13-5,5.73,1.388,0.722841614740048,low-fidelity RED
+Cinmethylin,O(C2CC1(OC2(C)CC1)C(C)C)Cc3ccccc3C,87818-31-3,7.336,1.38,0.9045026257562768,low-fidelity RED
+Vitamin D2,O[C@@H]1CC(\C(=C)CC1)=C\C=C2/CCC[C]3([C@H]2CC[C@@H]3[C@@H](/C=C/[C@H](C)C(C)C)C)C,50-14-6,7.627,1.591,0.8280247580839597,low-fidelity RED
+Ergosterol,O[C@@H]4C/C3=C/C=C1\[C@H](CC[C]2([C@H]1CC[C@@H]2[C@@H](/C=C/[C@H](C)C(C)C)C)C)[C]3(C)CC4,57-87-4,7.544,1.563,0.8448372624357896,low-fidelity RED
+Lutein,O[C@H]2\C=C(/[C@H](\C=C\C(=C\C=C\C(=C\C=C\C=C(\C=C\C=C(\C=C\C1=C(/C)C[C@@H](O)CC1(C)C)C)C)C)C)C(C)(C)C2)C,127-40-2,7.041,1.735,0.680073525436772,low-fidelity RED
+Hexachloroacetone,O=C(C(Cl)(Cl)Cl)C(Cl)(Cl)Cl,116-16-5,4.979,0.7582,0.7921489758877429,high-fidelity RED
+Lovastatin,O=C(O[C@@H]1[C@H]3C(=C/[C@H](C)C1)\C=C/[C@@H]([C@@H]3CC[C@H]2OC(=O)C[C@H](O)C2)C)[C@@H](C)CC,75330-75-5,8.51,1.682,0.9467048114380738,low-fidelity RED
+Cholesterol Acetate,O=C(O[C@@H]4C/C3=C/C[C@@H]1[C@H](CC[C]2([C@H]1CC[C@@H]2[C@H](C)CCCC(C)C)C)[C]3(C)CC4)C,604-35-3,7.747,1.661,0.7079901129253146,low-fidelity RED
+Cholesterol Benzoate,O=C(O[C@@H]4C/C3=C/C[C@@H]1[C@H](CC[C]2([C@H]1CC[C@@H]2[C@H](C)CCCC(C)C)C)[C]3(C)CC4)c5ccccc5,604-32-0,7.635,1.669,0.7516648189186449,low-fidelity RED
+Terpinyl Cinnamate,O=C(OC(C)(C)C1C/C=C(\CC1)C)\C=C\c2ccccc2,10024-56-3,6.191,1.36,0.7972609359550981,low-fidelity RED
+Vitamin A Palmitate,O=C(OC/C=C(/C=C/C=C(/C=C/C1=C(/CCCC1(C)C)C)C)C)CCCCCCCCCCCCCCC,79-81-2,7.857,1.679,0.8381527307120096,low-fidelity RED
+"2,4-Di-Tert-Butylphenyl 3,5-Di-Tert-Butyl-4-Hydroxybenzoate",O=C(Oc1ccc(cc1C(C)(C)C)C(C)(C)C)c2cc(c(O)c(c2)C(C)(C)C)C(C)(C)C,4221-80-1,7.533,1.264,0.8674675786448727,low-fidelity RED
+"Hexanoic_Acid,_2-Ethyl-,_2,2-Bis__(2-Ethyl-1-Oxohexyl)Oxy_Methyl_-1,3-Propanediyl_Ester",O=C(OCC(COC(=O)C(CC)CCCC)(COC(=O)C(CC)CCCC)COC(=O)C(CC)CCCC)C(CC)\CCCC,7299-99-2,6.528,1.115,0.8975661535508112,low-fidelity RED
+"3-{[3-(3,5-Di-Tert-Butyl-4-Hydroxyphenyl)Propanoyl]Oxy}-2,2-Bis({  [3-(3,5-Di-Tert-Butyl-4-Hydroxyphenyl)Propanoyl]Oxy}Methyl)Propyl  3-(3,5-Di-Tert-Butyl-4-Hydroxyphenyl)Propanoate",O=C(OCC(COC(=O)CCc1cc(c(O)c(c1)C(C)(C)C)C(C)(C)C)(COC(=O)CCc2cc(c(O)c(c2)C(C)(C)C)C(C)(C)C)COC(=O)CCc3cc(c(O)c(c3)C(C)(C)C)C(C)(C)C)CCc4cc(c(O)c(c4)C(C)(C)C)C(C)(C)C,98584-37-3,8.104,1.197,0.4987484335815002,low-fidelity RED
+"Propanoic Acid, 3(Dodecylthio)-, 2,2-Bis[[3(Dodecylthio)-1-Oxopropoxy]Methyl",O=C(OCC(COC(=O)CCSCCCCCCCCCCCC)(COC(=O)CCSCCCCCCCCCCCC)COC(=O)CCSCCCCCCCCCCCC)CCSCCCCCCCCCCCC,29598-76-3,6.872,1.112,0.9249999999999998,low-fidelity RED
+"Abietic Acid, Ethyl Ester",O=C(OCC)[C]3([C@@H]2C/C=C1/C=C(\CC[C@@H]1[C]2(C)CCC3)C(C)C)C,631-71-0,6.972,1.517,0.7284401142166733,low-fidelity RED
+Docosahexaenoic Acid Ethyl Ester,O=C(OCC)\C=C\C=C\C=C\C=C\C=C\C=C\CCCCCCCCC,73310-11-9,6.945,1.219,0.8173891362135904,low-fidelity RED
+Eicosapentaenoic Acid Ethyl Ester,O=C(OCC)\C=C\C=C\C=C\C=C\C=C\CCCCCCCCC,73310-10-8,6.945,1.219,0.9287087810503349,low-fidelity RED
+"Benzyl (5')-Abieta-8,13-Dien-18-Oate Abietic Acid Benzyl Ester",O=C(OCc1ccccc1)C4(CCC[C]3(/C2=C(/C=C(/C(C)C)CC2)CCC34)C)C,22323,7.956,1.614,0.6896557112066857,low-fidelity RED
+Coenzyme Q10,O=C1/C(=C(\C(=O)C(\OC)=C1\OC)C)C\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)CC\C=C(/C)\C,303-98-0,8.179,1.473,0.8066132902450832,low-fidelity RED
+Muscone,O=C1CC(CCCCCCCCCCCC1)C,541-91-3,7.028,1.059,0.9154916711800272,low-fidelity RED
+"n-(2-Ethylhexyl)-1-Isopropyl-4-Methylbicyclo[2,2",O=C1N(C(=O)C3C1C2(/C=C\C3(CC2)C(C)C)C)CC(CC)CCCC,13358-11-7,7.345,1.449,0.7533259586659681,low-fidelity RED
+"1,3,5-Tris(3,5-Di-Tert-Butyl-4-Hydroxybenzyl)-1,3,5-Triazinane-2,  4,6-Trione",O=C1N(C(=O)N(C(=O)N1Cc2cc(c(O)c(c2)C(C)(C)C)C(C)(C)C)Cc3cc(c(O)c(c3)C(C)(C)C)C(C)(C)C)Cc4cc(c(O)c(c4)C(C)(C)C)C(C)(C)C,27676-62-6,7.695,1.258,0.32977264895682307,low-fidelity RED
+4-Methyl-Benzylidene Camphor (4-Mbc),O=C2\C(=C\c1ccc(cc1)C)C3CCC2(C)C3(C)C,36861-47-9,6.682,1.13,0.8605957239029252,low-fidelity RED
+3-Benzylidene Camphor,O=C2\C(=C\c1ccccc1)[C@H]3CC[C]2(C)C3(C)C,15087-24-8,6.646,1.105,0.820060973342836,low-fidelity RED
+"N(2-Ethylhexyl)-8,9,10-Trinorborn-5-Ene-2,3-Dicarboximide",O=C2N(C(=O)C3C1/C=C\C(C1)C23)CC(CC)CCCC,113-48-4,8.436,1.167,0.9303897032964195,low-fidelity RED
+Fluasterone,O=C3[C]2(CC[C@@H]1[C]4(C(=C/C[C@H]1[C@@H]2C[C@H]3F)\CCCC4)C)C,112859-71-9,5.727,1.416,0.9178779875342907,low-fidelity RED
+Erythromycin,O=C3O[C@H](CC)[C](O)(C)[C@H](O)[C@H](C(=O)[C@H](C)C[C](O)(C)[C@H](O[C@@H]1O[C@H](C)C[C@H](N(C)C)[C@H]1O)[C@H]([C@H](O[C@@H]2O[C@H]([C@H](O)[C](OC)(C2)C)C)[C@H]3C)C)C,114-07-8,6.827,1.744,0.8370334521391603,low-fidelity RED
+α-Tocopherol,O1C(C)(CCC2=C1C(=C(C)C(=C2C)O)C)CCCC(C)CCCC(C)CCCC(C)C,59-02-9,7.224,1.322,0.9290452088031024,low-fidelity RED
+"2,2'-Thiene-2,5-Diylbis(5-Tert-Butyl-1,3-Benzoxazole)",o1c5c(nc1c2sc(cc2)c3nc4cc(ccc4o3)C(C)(C)C)cc(cc5)C(C)(C)C,7128-64-5,6.824,1.168,0.7850159234053794,low-fidelity RED
+Retinol,OC/C=C(/C=C/C=C(/C=C/C1=C(/CCCC1(C)C)C)C)C,68-26-8,6.77,1.565,0.9874208829065749,low-fidelity RED
+Dinonylphenol,OC1=CC(CCCCCCCCC)=C(CCCCCCCCC)C=C1,1323-65-5,6.955,1.044,0.9949874371066194,low-fidelity RED
+"[1,1 -Biphenyl]-4-ol, 3,5-Bis(1,1-Dimethylethyl)-",Oc1c(cc(cc1C(C)(C)C)c2ccccc2)C(C)(C)C,2668-47-5,6.706,1.009,0.9978101021737548,low-fidelity RED
+"2,2'-Methanediylbis(6-Tert-Butyl-4-Ethylphenol)",Oc1c(cc(cc1C(C)(C)C)CC)Cc2cc(cc(c2O)C(C)(C)C)CC,88-24-4,6.467,1.359,0.9130991183874833,low-fidelity RED
+"4,4',4''-[(2,4,6-Trimethylbenzene-1,3,5-Triyl)Trimethanediyl]Tris  (2,6-Di-Tert-Butylphenol)",Oc1c(cc(cc1C(C)(C)C)Cc2c(c(c(c(c2C)Cc3cc(c(O)c(c3)C(C)(C)C)C(C)(C)C)C)Cc4cc(c(O)c(c4)C(C)(C)C)C(C)(C)C)C)C(C)(C)C,1709-70-2,7.242,1.243,0.3724916106437835,low-fidelity RED
+"4,4'-Methanediylbis(2,6-Di-Tert-Butylphenol)",Oc1c(cc(cc1C(C)(C)C)Cc2cc(c(O)c(c2)C(C)(C)C)C(C)(C)C)C(C)(C)C,118-82-1,7.216,1.134,0.875,low-fidelity RED
+"4,4',4''-Butane-1,1,3-Triyltris(2-Tert-Butyl-5-Methylphenol)",Oc1cc(c(cc1C(C)(C)C)C(C)CC(c2cc(c(O)cc2C)C(C)(C)C)c3cc(c(O)cc3C)C(C)(C)C)C,1843-03-4,6.803,1.21,0.4046603514059656,low-fidelity RED
+o-Ethylthiophenol,S-c(ccc1)c(c1)CC,4500-58-7,6.909,0.9996,0.9124143795447331,low-fidelity RED
+m-Ethylthiophenol,S-c(ccc1)cc1CC,62154-77-2,6.286,1.112,0.7945124291035353,low-fidelity RED
+Isopropyl Phenyl Sulfide,S(C(C)C)-c(ccc1)cc1,3019-20-3,6.15,0.713,0.8620469824783334,low-fidelity RED
+3-Methyl-(1-Thiapropyl)-Benzene,S(CC)-c(ccc1)cc1C,34786-24-8,6.181,1.004,0.9927864825832392,low-fidelity RED
+"2,3,4-Trimethylthiophene",s1c(c(c(c1)C)C)C,1795-04-6,6.144,1.005,0.9836157786452999,low-fidelity RED
+"2,3,5-Trimethylthiophene",s1c(cc(c1C)C)C,1795-05-7,5.673,0.9859,0.9836157786452999,low-fidelity RED

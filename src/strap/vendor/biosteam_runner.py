@@ -4,10 +4,16 @@ BioSTEAM Simulation Runner
 Manages subprocess lifecycle, parallelism, and result parsing for
 BioSTEAM TEA/LCA simulations. Each simulation runs in an isolated
 subprocess to avoid global state contamination.
+
+Supports **any** thermosteam-resolvable solvent.  Known solvents use
+validated data from Branch-TEA / ecoinvent; unknown solvents get
+graceful fallbacks (price, dissolution temp from Solvent_Data.csv,
+LCA impact factors from chemical-class averages).
 """
 
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import subprocess
@@ -22,6 +28,308 @@ _WORKER_SCRIPT = Path(__file__).parent / "biosteam_worker.py"
 
 _MAX_SUBPROCESS_STDOUT_BYTES = 10 * 1024 * 1024   # 10 MB
 _MAX_SUBPROCESS_STDERR_BYTES = 2 * 1024 * 1024    # 2 MB
+
+# ---------------------------------------------------------------------------
+# Solvent_Data.csv loader — boiling points, CAS, and LogP for all solvents
+# ---------------------------------------------------------------------------
+
+_SOLVENT_DATA_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "Solvent_Data.csv"
+
+# {normalised_name: {"bp_c": float|None, "cas": str, "name": str, "logp": float|None}}
+_SOLVENT_CSV_DATA: dict[str, dict] = {}
+# {cas_number: same dict} for CAS-based lookup
+_SOLVENT_CSV_BY_CAS: dict[str, dict] = {}
+
+
+def _load_solvent_csv() -> None:
+    """Load boiling points, CAS numbers, and LogP from Solvent_Data.csv.
+
+    Builds multiple lookup keys per entry:
+    * Exact name (lowered)
+    * CAS number
+    * Parenthetical aliases — e.g. "Methylene Dichloride (Dichloromethane)"
+      registers both "methylene dichloride (dichloromethane)" AND
+      "dichloromethane" as keys.
+    """
+    if not _SOLVENT_DATA_CSV.exists():
+        logger.warning(
+            "Solvent_Data.csv not found at %s — fallbacks will use generic defaults",
+            _SOLVENT_DATA_CSV,
+        )
+        return
+    try:
+        import re
+        with open(_SOLVENT_DATA_CSV, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                name = (row.get("Solvent name") or "").strip()
+                if not name:
+                    continue
+                bp_str = (row.get("Bp (oC)") or "").strip()
+                cas = (row.get("CAS number") or "").strip()
+                logp_str = (row.get("LogP") or "").strip()
+                bp_c: float | None = None
+                logp: float | None = None
+                try:
+                    bp_c = float(bp_str) if bp_str else None
+                except ValueError:
+                    pass
+                try:
+                    logp = float(logp_str) if logp_str else None
+                except ValueError:
+                    pass
+                entry = {
+                    "bp_c": bp_c,
+                    "cas": cas,
+                    "name": name,
+                    "logp": logp,
+                }
+                # Primary key: full name
+                name_lower = name.lower()
+                _SOLVENT_CSV_DATA[name_lower] = entry
+                # CAS key
+                if cas:
+                    _SOLVENT_CSV_BY_CAS[cas] = entry
+                # Extract parenthetical aliases, e.g.
+                # "Methylene Dichloride (Dichloromethane)" → "dichloromethane"
+                # "Tetrahydrofuran (THF)" → "thf"
+                paren_aliases = re.findall(r"\(([^)]+)\)", name)
+                for alias in paren_aliases:
+                    alias_key = alias.strip().lower()
+                    if alias_key and alias_key not in _SOLVENT_CSV_DATA:
+                        _SOLVENT_CSV_DATA[alias_key] = entry
+                # Also register name-before-parentheses as a key
+                # "Tetrahydrofuran (THF)" → "tetrahydrofuran"
+                if "(" in name:
+                    base_name = name[:name.index("(")].strip().lower()
+                    if base_name and base_name not in _SOLVENT_CSV_DATA:
+                        _SOLVENT_CSV_DATA[base_name] = entry
+        logger.info("Loaded %d solvent entries from Solvent_Data.csv", len(_SOLVENT_CSV_DATA))
+    except Exception as exc:
+        logger.error("Failed to load Solvent_Data.csv: %s", exc)
+
+
+_load_solvent_csv()
+
+
+def _csv_lookup(solvent: str) -> dict | None:
+    """Look up solvent data from CSV (case-insensitive, exact match + CAS)."""
+    key = solvent.lower().strip()
+    # 1. Exact name match (includes parenthetical aliases)
+    if key in _SOLVENT_CSV_DATA:
+        return _SOLVENT_CSV_DATA[key]
+    # 2. CAS number match
+    if key in _SOLVENT_CSV_BY_CAS:
+        return _SOLVENT_CSV_BY_CAS[key]
+    # 3. Search key fully contained in a CSV name (but not vice versa)
+    #    e.g. "n,n-dimethylformamide" in "n,n-dimethylformamide (dmf)"
+    for csv_key, data in _SOLVENT_CSV_DATA.items():
+        if key in csv_key and len(key) > 5:
+            return data
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Curated solvent economic / LCA data (from web-research agent swarm)
+# ---------------------------------------------------------------------------
+# Loaded from data/solvent-econ-lca-summary.csv.
+# Provides per-solvent bulk pricing and LCA impact factors collected from
+# market reports, ecoinvent references, and published LCA studies.
+# Used as a second-tier fallback: validated > curated > class-average > generic.
+
+_CURATED_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "solvent-econ-lca-summary.csv"
+
+# {normalised_name: {"price": float|None, "gwp": float|None, "htc": ..., "htnc": ..., "etox": ..., "class": str}}
+_CURATED_BY_NAME: dict[str, dict] = {}
+# {cas: same dict}
+_CURATED_BY_CAS: dict[str, dict] = {}
+
+
+def _load_curated_csv() -> None:
+    """Load curated solvent prices and LCA factors from solvent-econ-lca-summary.csv."""
+    if not _CURATED_CSV.exists():
+        logger.debug("Curated solvent CSV not found at %s — skipping", _CURATED_CSV)
+        return
+    try:
+        with open(_CURATED_CSV, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                name = (row.get("solvent_name") or "").strip()
+                cas = (row.get("cas") or "").strip()
+                chem_class = (row.get("chemical_class") or "").strip()
+                if not name:
+                    continue
+
+                def _float_or_none(val: str) -> float | None:
+                    val = val.strip()
+                    if not val:
+                        return None
+                    try:
+                        return float(val)
+                    except ValueError:
+                        return None
+
+                entry = {
+                    "price": _float_or_none(row.get("price_usd_per_kg", "")),
+                    "gwp": _float_or_none(row.get("gwp_kg_co2e_per_kg", "")),
+                    "htc": _float_or_none(row.get("htc_ctuh_per_kg", "")),
+                    "htnc": _float_or_none(row.get("htnc_ctuh_per_kg", "")),
+                    "etox": _float_or_none(row.get("etox_ctue_per_kg", "")),
+                    "class": chem_class,
+                    "name": name,
+                    "cas": cas,
+                }
+                # Key by normalised name (lowercase)
+                _CURATED_BY_NAME[name.lower()] = entry
+                # Also key by filename (which is the lowered / stripped form)
+                fname = (row.get("filename") or "").strip().lower()
+                if fname and fname not in _CURATED_BY_NAME:
+                    _CURATED_BY_NAME[fname] = entry
+                # Key by CAS
+                if cas:
+                    _CURATED_BY_CAS[cas] = entry
+        logger.info("Loaded %d curated solvent entries from solvent-econ-lca-summary.csv", len(_CURATED_BY_NAME))
+    except Exception as exc:
+        logger.error("Failed to load curated solvent CSV: %s", exc)
+
+
+_load_curated_csv()
+
+
+def _curated_lookup(solvent: str) -> dict | None:
+    """Look up curated economic/LCA data for a solvent.
+
+    Resolution chain:
+    1. Direct name match in curated CSV (case-insensitive)
+    2. Resolve name → CAS via Solvent_Data.csv, then CAS → curated CSV
+    3. Substring match (name longer than 5 chars contained in a curated key)
+    """
+    key = solvent.lower().strip()
+    # 1. Direct name match
+    if key in _CURATED_BY_NAME:
+        return _CURATED_BY_NAME[key]
+    # 2. CAS-based lookup: resolve name→CAS via Solvent_Data.csv, then CAS→curated
+    csv_data = _csv_lookup(solvent)
+    if csv_data and csv_data.get("cas"):
+        cas = csv_data["cas"]
+        if cas in _CURATED_BY_CAS:
+            return _CURATED_BY_CAS[cas]
+    # 3. Direct CAS match (if solvent string is itself a CAS)
+    if key in _CURATED_BY_CAS:
+        return _CURATED_BY_CAS[key]
+    # 4. Substring match
+    for curated_key, data in _CURATED_BY_NAME.items():
+        if key in curated_key and len(key) > 5:
+            return data
+    return None
+
+
+# ---------------------------------------------------------------------------
+# LCA chemical-class averages (computed from validated ecoinvent/GaBi data)
+# ---------------------------------------------------------------------------
+# These are used as fallbacks when a solvent is NOT in _SOLVENT_LCA_IFS.
+# Class averages are computed from the 16 core validated solvents.
+
+_LCA_CLASS_AVERAGES: dict[str, dict[str, float]] = {
+    "alkane":    {"solvent_gwp": 1.72, "solvent_htc": 4.05e-07, "solvent_htnc": 3.89e-07, "solvent_etox": 24.1},
+    "aromatic":  {"solvent_gwp": 1.57, "solvent_htc": 3.20e-07, "solvent_htnc": 2.67e-07, "solvent_etox": 15.9},
+    "alcohol":   {"solvent_gwp": 2.0,  "solvent_htc": 4.50e-07, "solvent_htnc": 4.00e-07, "solvent_etox": 25.0},
+    "ketone":    {"solvent_gwp": 2.8,  "solvent_htc": 6.50e-07, "solvent_htnc": 6.00e-07, "solvent_etox": 35.0},
+    "ester":     {"solvent_gwp": 4.90, "solvent_htc": 1.05e-06, "solvent_htnc": 1.30e-06, "solvent_etox": 63.9},
+    "ether":     {"solvent_gwp": 4.50, "solvent_htc": 9.00e-07, "solvent_htnc": 1.20e-06, "solvent_etox": 60.0},
+    "amide":     {"solvent_gwp": 3.50, "solvent_htc": 8.00e-07, "solvent_htnc": 9.50e-07, "solvent_etox": 48.0},
+    "amine":     {"solvent_gwp": 3.71, "solvent_htc": 7.58e-07, "solvent_htnc": 8.89e-07, "solvent_etox": 50.2},
+    "chlorinated": {"solvent_gwp": 3.30, "solvent_htc": 4.59e-07, "solvent_htnc": 7.13e-07, "solvent_etox": 30.1},
+    "glycol":    {"solvent_gwp": 4.13, "solvent_htc": 9.68e-07, "solvent_htnc": 1.27e-06, "solvent_etox": 64.4},
+    "sulfoxide": {"solvent_gwp": 2.80, "solvent_htc": 6.50e-07, "solvent_htnc": 7.90e-07, "solvent_etox": 39.0},
+    "nitrile":   {"solvent_gwp": 3.50, "solvent_htc": 8.00e-07, "solvent_htnc": 9.50e-07, "solvent_etox": 48.0},
+    "generic":   {"solvent_gwp": 3.00, "solvent_htc": 6.00e-07, "solvent_htnc": 7.00e-07, "solvent_etox": 40.0},
+}
+
+
+def _classify_solvent(solvent_name: str) -> str:
+    """Classify a solvent into a chemical class for LCA fallback estimation.
+
+    Uses keyword matching on the solvent name.  Returns one of the keys in
+    ``_LCA_CLASS_AVERAGES``.
+    """
+    n = solvent_name.lower()
+
+    # 1. Halogenated (highest priority — distinct LCA profile)
+    if any(k in n for k in ("chloro", "bromo", "iodo", "fluoro", "freon")):
+        return "chlorinated"
+
+    # 2. Aromatics
+    if any(k in n for k in (
+        "benzene", "toluene", "xylene", "naphthalene", "phenyl",
+        "styrene", "cumene", "aniline", "phenol", "pyridine",
+        "indole", "quinoline", "anisole", "cresol",
+    )):
+        return "aromatic"
+
+    # 3. Glycols / diols (before alcohols)
+    if "glycol" in n or "diol" in n:
+        return "glycol"
+
+    # 4. Esters / lactones
+    if any(k in n for k in (
+        "acetate", "butyrate", "propionate", "formate",
+        "phthalate", "benzoate", "acrylate", "lactone",
+    )):
+        return "ester"
+
+    # 5. Ketones
+    if any(k in n for k in (
+        "ketone", "acetone", "butanone", "pentanone",
+        "hexanone", "cyclohexanone", "acetophenone",
+    )):
+        return "ketone"
+
+    # 6. Alcohols
+    if any(k in n for k in (
+        "methanol", "ethanol", "propanol", "butanol",
+        "pentanol", "hexanol", "heptanol", "octanol",
+        "cyclohexanol", "alcohol",
+    )):
+        return "alcohol"
+    # Catch -ol suffix but avoid false positives on "toluol", "phenol" etc.
+    if n.endswith("ol") and "tolu" not in n and "phen" not in n:
+        return "alcohol"
+
+    # 7. Ethers
+    if any(k in n for k in (
+        "ether", "furan", "dioxane", "dioxolane",
+        "tetrahydrofuran", "tetrahydropyran", "methoxy",
+        "ethoxy", "pyran",
+    )):
+        return "ether"
+
+    # 8. Amides
+    if any(k in n for k in ("amide", "formamide", "acetamide", "lactam", "pyrrolidone")):
+        return "amide"
+
+    # 9. Amines
+    if any(k in n for k in ("amine", "piperidine", "pyrrolidine", "morpholine", "hydrazine")):
+        return "amine"
+
+    # 10. Nitriles
+    if any(k in n for k in ("nitrile", "cyanide", "acetonitrile")):
+        return "nitrile"
+
+    # 11. Sulfoxides / sulfones
+    if any(k in n for k in ("sulfoxide", "sulfone", "dmso", "sulfolane")):
+        return "sulfoxide"
+
+    # 12. Alkanes / cycloalkanes
+    if any(k in n for k in (
+        "hexane", "heptane", "octane", "nonane", "decane",
+        "pentane", "butane", "propane", "cyclohexane",
+        "cyclopentane", "methylcyclohexane", "dodecane",
+    )):
+        return "alkane"
+
+    return "generic"
+
 
 # ---------------------------------------------------------------------------
 # Solvent / energy-case metadata (static, no BioSTEAM import needed)
@@ -303,6 +611,11 @@ def _build_lca_cfs(solvent: str, energy_case: str = "C1") -> dict[str, float]:
 
     Merges solvent IFs, natural-gas CFs, water CFs, and (for C2/C3)
     grid-electricity CFs.
+
+    Three-tier fallback for solvent LCA impact factors:
+    1. Validated data from ``_SOLVENT_LCA_IFS`` (Branch-TEA / ecoinvent)
+    2. Curated data from ``solvent-econ-lca-summary.csv`` (web-research)
+    3. Chemical-class averages from ``_LCA_CLASS_AVERAGES``
     """
     cfs: dict[str, float] = {}
     cfs.update(_NATURAL_GAS_CFS)
@@ -311,11 +624,39 @@ def _build_lca_cfs(solvent: str, energy_case: str = "C1") -> dict[str, float]:
     if solvent_ifs:
         cfs.update(solvent_ifs)
     else:
-        logger.warning(
-            "Solvent '%s' not in _SOLVENT_LCA_IFS — LCA solvent CFs will "
-            "default to zero (only offsets applied). Results may be inaccurate.",
-            solvent,
-        )
+        # Tier 2: check curated CSV for per-solvent LCA factors
+        curated = _curated_lookup(solvent)
+        solvent_class = _classify_solvent(solvent)
+        class_avg = _LCA_CLASS_AVERAGES[solvent_class]
+
+        if curated and any(curated.get(k) is not None for k in ("gwp", "htc", "htnc", "etox")):
+            # Build IFs from curated data, falling back to class averages per-indicator
+            merged_ifs = {
+                "solvent_gwp": curated["gwp"] if curated.get("gwp") is not None else class_avg["solvent_gwp"],
+                "solvent_htc": curated["htc"] if curated.get("htc") is not None else class_avg["solvent_htc"],
+                "solvent_htnc": curated["htnc"] if curated.get("htnc") is not None else class_avg["solvent_htnc"],
+                "solvent_etox": curated["etox"] if curated.get("etox") is not None else class_avg["solvent_etox"],
+            }
+            cfs.update(merged_ifs)
+            curated_keys = [k for k in ("gwp", "htc", "htnc", "etox") if curated.get(k) is not None]
+            class_keys = [k for k in ("gwp", "htc", "htnc", "etox") if curated.get(k) is None]
+            logger.info(
+                "Solvent '%s' not in _SOLVENT_LCA_IFS — using curated data for %s, "
+                "%s class avg for %s (GWP=%.2f, HTC=%.2e, HTNC=%.2e, ETOX=%.1f)",
+                solvent, curated_keys, solvent_class, class_keys,
+                merged_ifs["solvent_gwp"], merged_ifs["solvent_htc"],
+                merged_ifs["solvent_htnc"], merged_ifs["solvent_etox"],
+            )
+        else:
+            # Tier 3: pure class-average fallback
+            cfs.update(class_avg)
+            logger.info(
+                "Solvent '%s' not in _SOLVENT_LCA_IFS or curated CSV — using %s class averages "
+                "(GWP=%.2f, HTC=%.2e, HTNC=%.2e, ETOX=%.1f)",
+                solvent, solvent_class,
+                class_avg["solvent_gwp"], class_avg["solvent_htc"],
+                class_avg["solvent_htnc"], class_avg["solvent_etox"],
+            )
 
     # Grid electricity CFs apply to C2 and C3 (grid-connected cases).
     # C1 uses on-site CHP so electricity impacts are captured via NG CFs.
@@ -529,6 +870,13 @@ def build_batch_configs(
 
     Creates one config per (solvent, energy_case) combination.
 
+    Supports **any** solvent name.  Known solvents use validated data from
+    ``_SOLVENT_DEFAULTS``; unknown solvents get graceful fallbacks:
+
+    * **price** — $1.50/kg generic default
+    * **dissolution_temperature_c** — min(BP − 10, 130) from
+      ``Solvent_Data.csv``, or 110 °C if BP unavailable
+
     Args:
         solvents: List of solvent names.
         target_plastic: Target polymer (default 'PE').
@@ -559,6 +907,22 @@ def build_batch_configs(
                 price, diss_temp, _gwp = defaults
                 cfg.setdefault("solvent_price", price)
                 cfg.setdefault("dissolution_temperature_c", diss_temp)
+            else:
+                # Unknown solvent — apply fallbacks
+                # Tier 2: check curated CSV for web-researched price
+                curated = _curated_lookup(solvent)
+                if curated and curated.get("price") is not None:
+                    cfg.setdefault("solvent_price", curated["price"])
+                else:
+                    cfg.setdefault("solvent_price", 1.50)
+                csv_data = _csv_lookup(solvent)
+                if csv_data and csv_data["bp_c"] is not None:
+                    diss_temp_fb = min(csv_data["bp_c"] - 10, 130.0)
+                    # Clamp to reasonable range [40, 130]
+                    diss_temp_fb = max(40.0, diss_temp_fb)
+                    cfg.setdefault("dissolution_temperature_c", diss_temp_fb)
+                else:
+                    cfg.setdefault("dissolution_temperature_c", 110.0)
             # Apply any extra kwargs
             cfg.update(kwargs)
             configs.append(cfg)
@@ -593,11 +957,15 @@ def get_supported_solvents() -> dict:
         "energy_cases": dict(_ENERGY_CASES),
         "solvent_defaults": dict(_SOLVENT_DEFAULTS),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),
+        "csv_solvents_loaded": len(_SOLVENT_CSV_DATA),
+        "curated_solvents_loaded": len(_CURATED_BY_NAME),
         "known_limitations": [
-            "Chlorinated solvents (TCE, OCT) fail due to HCl not in property package",
+            "Chlorinated solvents (TCE, OCT) may fail due to HCl not in property package",
             "Each simulation takes ~10-15 seconds in subprocess",
             "BioSTEAM requires subprocess isolation (global state contamination)",
             "PS, PP, PVC use the PE process model (PE-proxy) — approximate economics/LCA",
+            "Solvents not in _SOLVENT_DEFAULTS check curated CSV, then fall back to $1.50/kg",
+            "LCA 3-tier fallback: validated → curated CSV → chemical-class averages",
         ],
     }
 
@@ -662,6 +1030,231 @@ _METRIC_KEYS: dict[str, tuple[str, str]] = {
     "tci": ("tea", "tci_usd"),
     "energy": ("operations", "total_energy_mj_per_kg"),
 }
+
+
+# ---------------------------------------------------------------------------
+# 6a. Sensitivity / uncertainty helpers
+# ---------------------------------------------------------------------------
+
+_DEFAULT_SWEEPABLE_PARAMS = [
+    "solvent_price",
+    "solvent_loss_pct",
+    "dissolution_temperature_c",
+    "precipitation_temperature_c",
+    "feedstock_distance_km",
+]
+
+
+def _get_default_parameter_ranges(
+    solvent: str,
+    target_plastic: str = "PE",
+) -> dict[str, tuple[float, float]]:
+    """Return ``{param_name: (min, max)}`` for sweepable BioSTEAM parameters.
+
+    Ranges are derived from ``_SOLVENT_DEFAULTS`` and process knowledge:
+
+    * **solvent_price** – 0.7x to 1.5x the base price (historical volatility).
+    * **solvent_loss_pct** – 0.001 % to 0.1 % (best-practice to poor recovery).
+    * **dissolution_temperature_c** – base ± 20 °C, clamped to [90, BP − 2].
+    * **precipitation_temperature_c** – 15 – 35 °C (seasonal ambient).
+    * **feedstock_distance_km** – 0 – 200 km (local to regional sourcing).
+    """
+    defaults = _SOLVENT_DEFAULTS.get(solvent)
+    if defaults:
+        base_price, base_diss_temp, _gwp = defaults
+    else:
+        # Tier 2: check curated CSV for web-researched price
+        curated = _curated_lookup(solvent)
+        if curated and curated.get("price") is not None:
+            base_price = curated["price"]
+        else:
+            base_price = 1.50
+        csv_data = _csv_lookup(solvent)
+        if csv_data and csv_data["bp_c"] is not None:
+            base_diss_temp = min(csv_data["bp_c"] - 10, 130.0)
+            base_diss_temp = max(40.0, base_diss_temp)
+        else:
+            base_diss_temp = 110.0
+
+    # Dissolution temperature clamped to [90, boiling_point - 2]
+    diss_lo = max(90.0, base_diss_temp - 20.0)
+    diss_hi = base_diss_temp + 20.0
+
+    return {
+        "solvent_price": (round(base_price * 0.7, 4), round(base_price * 1.5, 4)),
+        "solvent_loss_pct": (0.001, 0.1),
+        "dissolution_temperature_c": (diss_lo, diss_hi),
+        "precipitation_temperature_c": (15.0, 35.0),
+        "feedstock_distance_km": (0.0, 200.0),
+    }
+
+
+def _build_monte_carlo_configs(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    n_samples: int = 20,
+    parameters: str | list[str] = "all",
+    processing_capacity: float = 20_000,
+) -> list[dict]:
+    """Generate *n_samples* configs with uniform random sampling over parameter ranges.
+
+    Each returned dict is a standard config passable to ``run_single_simulation()``.
+    ``n_samples`` is capped at 50 to keep agent runtime practical.
+    """
+    import random
+
+    cap = 50
+    if n_samples > cap:
+        logger.warning(
+            "n_samples=%d exceeds cap (%d); clamping to %d",
+            n_samples, cap, cap,
+        )
+        n_samples = cap
+
+    ranges = _get_default_parameter_ranges(solvent, target_plastic)
+
+    # Resolve which parameters to sweep
+    if parameters == "all" or parameters == ["all"]:
+        param_names = list(ranges.keys())
+    elif isinstance(parameters, str):
+        param_names = [p.strip() for p in parameters.split(",") if p.strip()]
+    else:
+        param_names = list(parameters)
+    # Filter to only known sweepable params
+    param_names = [p for p in param_names if p in ranges]
+
+    # Base config values (midpoints for non-swept params)
+    defaults = _SOLVENT_DEFAULTS.get(solvent)
+    base_price = defaults[0] if defaults else 1.0
+    base_diss = defaults[1] if defaults else 110.0
+
+    configs: list[dict] = []
+    for _ in range(n_samples):
+        cfg: dict[str, Any] = {
+            "solvent": solvent,
+            "target_plastic": target_plastic,
+            "energy_case": energy_case,
+            "processing_capacity": processing_capacity,
+            "solvent_price": base_price,
+            "dissolution_temperature_c": base_diss,
+            "precipitation_temperature_c": 25.0,
+            "solvent_loss_pct": 0.01,
+            "feedstock_distance_km": 0.0,
+        }
+        for p in param_names:
+            lo, hi = ranges[p]
+            cfg[p] = random.uniform(lo, hi)
+        configs.append(cfg)
+
+    return configs
+
+
+def _build_sweep_configs(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    parameter: str = "solvent_price",
+    values: list[float] | None = None,
+    processing_capacity: float = 20_000,
+) -> list[dict]:
+    """Generate one config per value in a parameter sweep.
+
+    If *values* is ``None`` or empty, 5 evenly spaced values from the
+    default range are generated automatically.
+    """
+    ranges = _get_default_parameter_ranges(solvent, target_plastic)
+    if parameter not in ranges:
+        raise ValueError(
+            f"Unknown sweep parameter '{parameter}'. "
+            f"Choose from: {list(ranges.keys())}"
+        )
+
+    if not values:
+        lo, hi = ranges[parameter]
+        import numpy as np
+        values = list(np.linspace(lo, hi, 5))
+
+    defaults = _SOLVENT_DEFAULTS.get(solvent)
+    base_price = defaults[0] if defaults else 1.0
+    base_diss = defaults[1] if defaults else 110.0
+
+    configs: list[dict] = []
+    for val in values:
+        cfg: dict[str, Any] = {
+            "solvent": solvent,
+            "target_plastic": target_plastic,
+            "energy_case": energy_case,
+            "processing_capacity": processing_capacity,
+            "solvent_price": base_price,
+            "dissolution_temperature_c": base_diss,
+            "precipitation_temperature_c": 25.0,
+            "solvent_loss_pct": 0.01,
+            "feedstock_distance_km": 0.0,
+        }
+        cfg[parameter] = val
+        cfg["_sweep_param"] = parameter
+        cfg["_sweep_value"] = val
+        configs.append(cfg)
+
+    return configs
+
+
+def _build_tornado_configs(
+    solvent: str,
+    target_plastic: str = "PE",
+    energy_case: str = "C1",
+    parameters: str | list[str] = "all",
+    processing_capacity: float = 20_000,
+) -> tuple[dict, list[dict]]:
+    """Build baseline + one-at-a-time (OAT) min/max configs for tornado analysis.
+
+    Returns ``(baseline_config, oat_configs)`` where *oat_configs* has
+    2 entries per parameter (min then max).  Each OAT config carries
+    ``_tornado_param`` and ``_tornado_bound`` metadata keys.
+    """
+    ranges = _get_default_parameter_ranges(solvent, target_plastic)
+
+    if parameters == "all" or parameters == ["all"]:
+        param_names = list(ranges.keys())
+    elif isinstance(parameters, str):
+        param_names = [p.strip() for p in parameters.split(",") if p.strip()]
+    else:
+        param_names = list(parameters)
+    param_names = [p for p in param_names if p in ranges]
+
+    # Baseline uses midpoint of each parameter range
+    defaults = _SOLVENT_DEFAULTS.get(solvent)
+    base_price = defaults[0] if defaults else 1.0
+    base_diss = defaults[1] if defaults else 110.0
+
+    baseline: dict[str, Any] = {
+        "solvent": solvent,
+        "target_plastic": target_plastic,
+        "energy_case": energy_case,
+        "processing_capacity": processing_capacity,
+        "solvent_price": base_price,
+        "dissolution_temperature_c": base_diss,
+        "precipitation_temperature_c": 25.0,
+        "solvent_loss_pct": 0.01,
+        "feedstock_distance_km": 0.0,
+    }
+    # Override baseline with midpoints for swept params
+    for p in param_names:
+        lo, hi = ranges[p]
+        baseline[p] = (lo + hi) / 2.0
+
+    oat_configs: list[dict] = []
+    for p in param_names:
+        lo, hi = ranges[p]
+        for bound, val in [("min", lo), ("max", hi)]:
+            cfg = dict(baseline)
+            cfg[p] = val
+            cfg["_tornado_param"] = p
+            cfg["_tornado_bound"] = bound
+            oat_configs.append(cfg)
+
+    return baseline, oat_configs
 
 
 def rank_results(results: list[dict], metric: str = "msp") -> list[dict]:

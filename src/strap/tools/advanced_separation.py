@@ -41,14 +41,12 @@ try:
     from strap.engines.separation import (
         GreedySeparator,
         DPSeparator,
-        BranchAndBoundSeparator,
         find_best_separation,
     )
 except Exception as e:  # noqa: BLE001
     logger.warning("strap.engines.separation unavailable: %s", e)
     GreedySeparator = None
     DPSeparator = None
-    BranchAndBoundSeparator = None
     find_best_separation = None
 
 try:
@@ -335,12 +333,12 @@ def find_optimal_separation_sequence(
     objective: str = "max_min",
     min_selectivity: float = 5.0,
 ) -> str:
-    """Find the optimal order to separate multiple polymers using greedy, DP, or branch-and-bound.
+    """Find the optimal order to separate multiple polymers using greedy or dynamic programming.
 
     Args:
         polymers: Comma-separated list of polymers (e.g., "LDPE,HDPE,PET,PP")
         temperature: Target separation temperature in Celsius (default: 120)
-        algorithm: "greedy", "dp", "branch_and_bound", "auto", or "compare" (default: "auto").
+        algorithm: "greedy", "dp", "auto", or "compare" (default: "auto").
             Use "compare" to run greedy vs DP side-by-side.
         top_k: Number of top sequences to return ranked by min selectivity (default: 1).
             Requires DP algorithm (n <= 12). Use top_k=10 for ranked comparison.

@@ -5647,9 +5647,10 @@ class RAGSystem:
         for kb_name in kb_names:
             try:
                 self.switch_kb(kb_name)
+                # Over-fetch to compensate for parent-level dedup downstream
                 results = self.search(
                     query=query,
-                    top_k=top_k,
+                    top_k=top_k * 3,
                     source_filter=source_filter,
                     return_parent_context=return_parent_context,
                 )
@@ -5676,7 +5677,18 @@ class RAGSystem:
             key=lambda x: x.rerank_score if x.rerank_score is not None else x.score,
             reverse=True,
         )
-        return all_results[:top_k]
+        # Parent-level dedup: keep only the best-scoring child per parent chunk.
+        # Results without a parent_id (e.g. section-level chunks) are always kept.
+        seen_parents: set = set()
+        deduped: List[SearchResult] = []
+        for r in all_results:
+            parent_id = (r.metadata or {}).get("parent_id")
+            if parent_id is None:
+                deduped.append(r)
+            elif parent_id not in seen_parents:
+                seen_parents.add(parent_id)
+                deduped.append(r)
+        return deduped[:top_k]
 
     def agentic_search(
         self,
