@@ -820,6 +820,169 @@ This benchmark tests whether the STRAP dissolve agent can **reason** about solve
 
 ---
 
+## Category 5: Process Safety
+
+### 5.1 — Solvent Hazard Identification
+
+**Q5.1.1** (Difficulty: Basic)
+> I'm considering toluene, DMSO, and THF as solvents for a STRAP recycling process. Look up their GSK safety scores and GHS hazard classifications. Which is the safest option? Which should I avoid if possible?
+
+**Expected reasoning:**
+- Agent should call `get_solvent_gscore()` for each solvent and `compare_pubchem_safety()` for the set:
+  - **Toluene**: G-score ≈ 5.7 (Problematic). GHS: Flammable (H225), Skin/eye irritant, Reproductive toxicity (H361d), STOT-RE (H372). Signal word: Danger.
+  - **DMSO**: G-score ≈ 6.6 (Good). GHS: minimal hazard — Irritant only (H315, H319). Signal word: Warning. Non-flammable (BP 189°C), low toxicity.
+  - **THF**: G-score ≈ 5.3 (Problematic). GHS: Flammable (H225), May form explosive peroxides, Eye/respiratory irritant, Suspected carcinogen (H351). Signal word: Danger.
+- **Safest:** DMSO — highest G-score, fewest GHS hazards, non-flammable, no reproductive or carcinogenic concerns
+- **Avoid if possible:** THF — peroxide formation hazard requires stabilizer (BHT) and regular testing; suspected carcinogen; highly flammable (flash point −14°C)
+- Toluene is intermediate — flammable and has chronic toxicity but well-understood industrially with established handling protocols
+- **Key checkpoint:** Agent must retrieve actual G-scores (not fabricate them), correctly classify each solvent's safety tier, and identify THF peroxide formation as a unique process hazard
+
+---
+
+**Q5.1.2** (Difficulty: Intermediate)
+> For a PE/EVOH/PET multilayer film recycling sequence, the candidate solvents are: toluene (PE dissolution, 110°C), DMSO (EVOH dissolution, 135°C), ethyl acetate (PET dissolution, 80°C), DMF (EVOH alternative), and propylene carbonate (EVOH alternative). Compare their safety profiles including G-scores, GHS hazards, and toxicity. Rank them from safest to most hazardous and explain the key differentiators.
+
+**Expected reasoning:**
+- Agent should call `get_solvent_gscore()` for all 5 solvents and `get_pubchem_toxicity()` for detailed data:
+  - **Propylene carbonate**: G-score ≈ 7.0+ (Good/Excellent). Non-toxic, non-flammable (BP 242°C), biodegradable. Minimal GHS hazards.
+  - **DMSO**: G-score ≈ 6.6 (Good). Very low toxicity (LD50 >14,500 mg/kg oral rat), non-flammable, but skin penetration enhancer — can carry dissolved contaminants through skin.
+  - **Ethyl acetate**: G-score ≈ 6.0 (Good). Flammable (flash point −4°C) but low chronic toxicity. Common industrial solvent with good handling protocols.
+  - **Toluene**: G-score ≈ 5.7 (Problematic). Reproductive toxin (Category 2), STOT-RE. Flammable. OEL: 20 ppm TWA (EU).
+  - **DMF**: G-score ≈ 4.5 (Problematic). Reproductive toxin (Category 1B — H360D), liver toxicity, skin absorption. REACH Substance of Very High Concern (SVHC) candidate. OEL: 5 ppm TWA.
+- **Ranking (safest → most hazardous):** Propylene carbonate > DMSO > Ethyl acetate > Toluene > DMF
+- **Key differentiators:**
+  1. Reproductive toxicity: DMF (Cat 1B) and toluene (Cat 2) vs none for DMSO/PC/EtOAc
+  2. Flammability: THF/EtOAc (flash point < 0°C) vs PC/DMSO (non-flammable)
+  3. Regulatory pressure: DMF is SVHC candidate under REACH → possible phase-out
+  4. Skin absorption: DMSO enhances dermal penetration (requires glove protocol)
+- **Process implication:** Replacing DMF with propylene carbonate for EVOH dissolution would eliminate the most hazardous solvent in the sequence, but requires verifying dissolution performance
+- **Key checkpoint:** Agent must rank all 5, identify DMF as the most hazardous (reproductive toxin + SVHC), and note that propylene carbonate is the safest alternative for EVOH dissolution
+
+---
+
+### 5.2 — Safer Alternatives & Substitution
+
+**Q5.2.1** (Difficulty: Intermediate)
+> Toluene is the standard solvent for PE dissolution in STRAP, but its reproductive toxicity (GHS H361d) is a concern. Find safer alternatives from the same chemical family (aromatic hydrocarbons) and from other families. For each alternative, assess whether it can still dissolve PE effectively by checking HSP compatibility.
+
+**Expected reasoning:**
+- Agent should call `get_family_alternatives("toluene", min_gscore=6.0)` for aromatic alternatives and check HSP compatibility with `predict_solubility_ml()`:
+- **Aromatic alternatives:**
+  - p-Cymene: G-score ≈ 6.5, BP 177°C, lower acute toxicity. RED for PE: should be < 1.0 (similar δD to toluene). Viable candidate.
+  - Anisole: G-score ≈ 6.2, BP 154°C, lower reproductive concern. Slightly higher δP than toluene — check RED.
+  - Mesitylene (1,3,5-trimethylbenzene): G-score ~5.5, BP 165°C. Similar HSP profile to toluene but higher BP means more distillation energy.
+- **Non-aromatic alternatives:**
+  - d-Limonene: G-score ≈ 6.8, BP 176°C, terpene (renewable). Known PE solvent. RED should be near toluene range.
+  - Cyclopentyl methyl ether (CPME): G-score ≈ 6.5, BP 106°C, ether class. Low peroxide formation tendency vs THF.
+  - 2-MeTHF: G-score ≈ 6.0, BP 80°C, renewable (from furfural). Good dissolving power but lower BP limits operating temperature.
+- **Trade-off matrix:**
+  - Safety improvement: DMF replacement gives biggest safety gain
+  - Performance: d-limonene and p-cymene closest to toluene's PE dissolution ability
+  - Economics: Higher BP alternatives cost more to recover (distillation energy)
+  - Availability: Toluene is commodity-scale ($800/ton); alternatives are typically 2-5× more expensive
+- **Key checkpoint:** Agent must use both `get_family_alternatives()` and `predict_solubility_ml()` to jointly evaluate safety AND selectivity. Must not recommend an alternative without checking HSP compatibility.
+
+---
+
+**Q5.2.2** (Difficulty: Advanced)
+> Design the safest possible 3-step STRAP sequence for PE/EVOH/PET separation. For each step, choose a solvent that: (1) has a G-score ≥ 6.0, (2) achieves RED < 1.0 for the target polymer, and (3) achieves RED > 1.0 for the non-target polymers (selectivity). If no solvent meets all three criteria for a given step, identify the trade-off and recommend whether to relax the safety or selectivity constraint.
+
+**Expected reasoning:**
+- This requires cross-referencing safety and selectivity tools for each step:
+- **Step 1 — PE dissolution:**
+  - Need: dissolves PE (RED < 1) but NOT PET or EVOH (RED > 1)
+  - Safe options (G-score ≥ 6): d-limonene, p-cymene, anisole, cyclohexane
+  - d-Limonene (G ≈ 6.8): should dissolve PE at elevated temperature, non-polar enough to reject PET/EVOH
+  - Cyclohexane (G ≈ 5.8): just below threshold — may need to relax to G ≥ 5.5
+  - **Likely choice:** d-limonene or accept toluene with engineering controls
+- **Step 2 — EVOH dissolution:**
+  - Need: dissolves EVOH (RED < 1) but NOT PET (RED > 1)
+  - Safe options: DMSO (G ≈ 6.6), propylene carbonate (G ≈ 7.0+), glycerol (G ≈ 7.5+)
+  - DMSO: known EVOH solvent, excellent safety profile
+  - Propylene carbonate: safest option — check if RED < 1.0 for EVOH
+  - **Likely choice:** DMSO or propylene carbonate
+- **Step 3 — PET dissolution:**
+  - Need: dissolves PET (RED < 1)
+  - Safe options: GVL/γ-valerolactone (G ≈ 7.0+), ethyl acetate (G ≈ 6.0)
+  - PET is hard to dissolve — may need aggressive solvents (phenol, cresols — low G-scores)
+  - Ethyl acetate at 80°C may work per STRAP data
+  - **Trade-off:** PET dissolution may require relaxing G-score threshold to ≥ 5.0 or accepting a narrow solvent set
+- **Overall assessment:**
+  - Fully safe sequence (all G ≥ 6.0) is achievable for PE and EVOH steps
+  - PET step is the bottleneck — limited safe solvent options with sufficient dissolving power
+  - If G ≥ 5.5 is acceptable: toluene/DMSO/ethyl acetate sequence works (current STRAP standard)
+  - If G ≥ 6.0 is hard requirement: d-limonene/DMSO/ethyl acetate but PE step needs temperature optimization
+- **Key checkpoint:** Agent must attempt all three steps, identify where the safety-selectivity trade-off is binding (PET), and make an explicit recommendation about which constraint to relax
+
+---
+
+### 5.3 — Process Hazard Assessment
+
+**Q5.3.1** (Difficulty: Advanced)
+> A STRAP pilot plant uses toluene at 110°C for PE dissolution, DMSO at 135°C for EVOH dissolution, and ethyl acetate at 80°C for PET. For each step, evaluate: (a) proximity to the solvent boiling point and vapor pressure hazard, (b) flammability risk at the operating temperature, (c) worker exposure pathway (inhalation vs dermal), and (d) what engineering controls are needed. Which step poses the greatest process safety risk?
+
+**Expected reasoning:**
+- Agent should call `get_solvent_properties()` and `get_pubchem_safety_info()` for context:
+- **Step 1 — Toluene at 110°C:**
+  - BP = 111°C → operating at 99% of BP → **high vapor pressure, near-boiling operation**
+  - Flash point = 4°C → well above flash point → flammable vapors present at all operating temperatures
+  - At 110°C: vapor pressure near 1 atm → significant toluene vapor generation
+  - Exposure: inhalation is primary route (OEL 20 ppm EU TWA); dermal secondary
+  - Controls needed: closed system with inert gas blanket (N₂), explosion-proof electrical, LEL monitoring, scrubbed ventilation, SCBA for maintenance
+  - **Risk rating: HIGH** — flammable solvent at near-BP temperature
+- **Step 2 — DMSO at 135°C:**
+  - BP = 189°C → operating at 71% of BP → moderate vapor pressure
+  - Flash point = 95°C → operating above flash point → but DMSO is difficult to ignite (auto-ignition 270°C)
+  - Non-flammable in normal conditions; exothermic decomposition above 200°C is the real hazard
+  - Exposure: dermal is primary route — DMSO enhances skin absorption of dissolved contaminants
+  - Controls needed: impervious gloves (butyl rubber, not latex), skin monitoring protocol, temperature alarm at 180°C (decomposition onset)
+  - **Risk rating: LOW-MEDIUM** — thermal decomposition and skin penetration are main concerns
+- **Step 3 — Ethyl acetate at 80°C:**
+  - BP = 77°C → **operating above BP** → must be under pressure or reflux!
+  - Flash point = −4°C → extremely flammable at all temperatures
+  - At 80°C: would be boiling at atmospheric pressure → pressurized system or reflux condenser required
+  - Exposure: inhalation (sweet odor, poor warning properties at chronic exposure levels)
+  - Controls needed: pressure-rated vessels, rupture discs, reflux condensers, grounding/bonding for static, explosion-proof zone classification
+  - **Risk rating: HIGH** — operation above BP with flammable liquid requires pressure containment
+- **Greatest risk:** Step 3 (ethyl acetate) — operating above boiling point with an extremely flammable solvent creates the most severe hazard scenario (pressurized flammable liquid). Step 1 (toluene near-BP) is second.
+- **Key checkpoint:** Agent must recognize that ethyl acetate at 80°C is above its BP (77°C) — this is the critical insight. Must also identify toluene near-BP operation as high risk. DMSO should be correctly identified as the lowest risk step despite the highest temperature.
+
+---
+
+**Q5.3.2** (Difficulty: Expert)
+> A regulatory review requires a comprehensive safety dossier for a STRAP plant processing 3,000 ton/yr of PE/EVOH/PET film. The plant uses toluene, DMSO, and DMF. For each solvent, assess: (1) REACH registration status and any SVHC listing, (2) EPA Toxics Release Inventory (TRI) reporting obligations, (3) workplace exposure limits (OEL/PEL) and biological exposure indices, (4) environmental fate if released (aquatic toxicity, biodegradability, bioaccumulation), and (5) transport and storage classification. Then provide an overall risk ranking and identify which solvent substitution would most improve the plant's regulatory profile.
+
+**Expected reasoning:**
+- Agent should use `get_pubchem_safety_info()`, `get_pubchem_toxicity()`, `get_solvent_gscore()`, and knowledge of regulatory frameworks:
+- **Toluene:**
+  1. REACH: Registered (>1000 ton/yr). Not SVHC but on Community Rolling Action Plan (CoRAP) for evaluation. Restriction under REACH Annex XVII (concentration limits in consumer products)
+  2. TRI: Listed (CAS 108-88-3). Threshold: 25,000 lb/yr manufacture/process, 10,000 lb/yr otherwise → 3,000 ton/yr plant will exceed threshold → **mandatory TRI reporting**
+  3. OEL: EU 20 ppm TWA (Directive 2017/164); OSHA PEL 200 ppm; ACGIH TLV 20 ppm. BEI: o-cresol in urine <0.5 mg/L, toluene in blood <0.02 mg/L
+  4. Environmental: LogP 2.7, moderate bioaccumulation potential. Readily biodegradable (aerobic). LC50 fish 5.8 mg/L (acute). Volatile — primarily atmospheric fate.
+  5. Transport: UN 1294, Class 3 (Flammable liquid), Packing Group II
+- **DMSO:**
+  1. REACH: Registered. Not SVHC, not on CoRAP. No restrictions.
+  2. TRI: Not listed — no reporting obligation
+  3. OEL: No established EU OEL. ACGIH proposal discussed but not finalized. Generally handled as nuisance dust/mist.
+  4. Environmental: LogP −1.35, no bioaccumulation. Readily biodegradable. Low aquatic toxicity (LC50 >40,000 mg/L fish). Miscible in water — would disperse.
+  5. Transport: Not classified as dangerous goods for transport
+- **DMF (N,N-Dimethylformamide):**
+  1. REACH: Registered. **SVHC candidate** (Reproductive toxin Cat 1B). Included in REACH Annex XIV Authorization List candidate → may require authorization for continued use. Under restriction proposal in EU.
+  2. TRI: Listed (CAS 68-12-2). Threshold applies → **mandatory TRI reporting**
+  3. OEL: EU 5 ppm TWA (SCOEL); OSHA PEL 10 ppm; ACGIH TLV 10 ppm. BEI: N-methylformamide in urine <15 mg/L. **Skin notation** — significant dermal absorption.
+  4. Environmental: LogP −1.01, no bioaccumulation. Biodegradable but slower than DMSO. Moderate aquatic toxicity.
+  5. Transport: UN 2265, Class 6.1 (Toxic), Packing Group II — **toxic substance classification**
+- **Overall risk ranking:** DMF >> Toluene >> DMSO
+- **Priority substitution:** Replace DMF with a non-SVHC alternative:
+  - DMSO (already in sequence) — but check if it dissolves EVOH as well as DMF
+  - Propylene carbonate — G-score ~7.0, no regulatory flags
+  - NMP (N-methyl-2-pyrrolidone) — caution: also SVHC candidate (reproductive toxin)
+  - Cyrene (dihydrolevoglucosenone) — bio-based, G-score high, but limited availability
+- Replacing DMF eliminates: SVHC authorization burden, Class 6.1 transport, skin absorption risk, reproductive toxicity liability
+- **Key checkpoint:** Agent must (1) correctly identify DMF as SVHC candidate, (2) note both toluene and DMF trigger TRI reporting, (3) highlight DMF skin absorption and reproductive toxicity as the most actionable regulatory risk, (4) recommend specific safer alternatives with evidence
+
+---
+
 ## Answer Key Format
 
 Each question should be scored on:
@@ -833,52 +996,59 @@ Each question should be scored on:
 **Category 2 total: 130 points (13 questions)**
 **Category 3 total: 50 points (5 questions)**
 **Category 4 total: 50 points (5 questions)**
-**Benchmark total: 370 points**
+**Category 5 total: 60 points (6 questions)**
+**Benchmark total: 430 points**
 
 ---
 
 ## Tool Capabilities Tested
 
-| Question | Solubility Lookup | HSP Calc | COSMO-RS | BioSTEAM TEA | Sequence Design | Pareto |
-|----------|:-:|:-:|:-:|:-:|:-:|:-:|
-| Q1.1.1 | | X | | | | |
-| Q1.1.2 | | X | X | | | |
-| Q1.1.3 | | X | | | | |
-| Q1.1.4 | X | X | | | X | |
-| Q1.2.1 | X | | X | | | |
-| Q1.2.2 | X | | X | | | |
-| Q1.2.3 | | | X | | | |
-| Q1.2.4 | X | | X | | | |
-| Q1.3.1 | | | | | | |
-| Q1.3.2 | X | | | X | | |
-| Q1.3.3 | X | | | | | |
-| Q1.4.1 | | | X | | | |
-| Q1.4.2 | | | X | | | |
-| Q2.1.1 | X | | | | X | |
-| Q2.1.2 | | | | X | X | |
-| Q2.1.3 | X | | X | X | X | |
-| Q2.1.4 | X | | | | X | |
-| Q2.2.1 | X | | | | | |
-| Q2.2.2 | X | | | X | | |
-| Q2.2.3 | X | | X | | | |
-| Q2.3.1 | | | | | | |
-| Q2.3.2 | | | | | | |
-| Q2.3.3 | | | | | | |
-| Q2.4.1 | X | | | | X | |
-| Q2.4.2 | | | | | | |
-| Q2.4.3 | X | | | | X | |
-| Q2.4.4 | X | | X | | | |
-| Q2.5.1 | | | | X | | |
-| Q2.5.2 | | | | X | | |
-| Q2.5.3 | | | | X | | |
-| Q3.1.1 | | | | X | | |
-| Q3.1.2 | | | | X | | |
-| Q3.1.3 | | | | X | | |
-| Q3.2.1 | | | | X | | |
-| Q3.2.2 | | | | X | | |
-| Q3.3.1 | | | | X | X | X |
-| Q4.1.1 | | | | X | | |
-| Q4.1.2 | | | | X | | |
-| Q4.2.1 | | | | X | | |
-| Q4.3.1 | | | | X | | |
-| Q4.4.1 | X | | | X | | X |
+| Question | Solubility Lookup | HSP Calc | COSMO-RS | BioSTEAM TEA | Sequence Design | Pareto | GSK Safety | PubChem Safety |
+|----------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Q1.1.1 | | X | | | | | | |
+| Q1.1.2 | | X | X | | | | | |
+| Q1.1.3 | | X | | | | | | |
+| Q1.1.4 | X | X | | | X | | | |
+| Q1.2.1 | X | | X | | | | | |
+| Q1.2.2 | X | | X | | | | | |
+| Q1.2.3 | | | X | | | | | |
+| Q1.2.4 | X | | X | | | | | |
+| Q1.3.1 | | | | | | | | |
+| Q1.3.2 | X | | | X | | | | |
+| Q1.3.3 | X | | | | | | | |
+| Q1.4.1 | | | X | | | | | |
+| Q1.4.2 | | | X | | | | | |
+| Q2.1.1 | X | | | | X | | | |
+| Q2.1.2 | | | | X | X | | | |
+| Q2.1.3 | X | | X | X | X | | | |
+| Q2.1.4 | X | | | | X | | | |
+| Q2.2.1 | X | | | | | | | |
+| Q2.2.2 | X | | | X | | | | |
+| Q2.2.3 | X | | X | | | | | |
+| Q2.3.1 | | | | | | | | |
+| Q2.3.2 | | | | | | | | |
+| Q2.3.3 | | | | | | | | |
+| Q2.4.1 | X | | | | X | | | |
+| Q2.4.2 | | | | | | | | |
+| Q2.4.3 | X | | | | X | | | |
+| Q2.4.4 | X | | X | | | | | |
+| Q2.5.1 | | | | X | | | | |
+| Q2.5.2 | | | | X | | | | |
+| Q2.5.3 | | | | X | | | | |
+| Q3.1.1 | | | | X | | | | |
+| Q3.1.2 | | | | X | | | | |
+| Q3.1.3 | | | | X | | | | |
+| Q3.2.1 | | | | X | | | | |
+| Q3.2.2 | | | | X | | | | |
+| Q3.3.1 | | | | X | X | X | | |
+| Q4.1.1 | | | | X | | | | |
+| Q4.1.2 | | | | X | | | | |
+| Q4.2.1 | | | | X | | | | |
+| Q4.3.1 | | | | X | | | | |
+| Q4.4.1 | X | | | X | | X | | |
+| Q5.1.1 | | | | | | | X | X |
+| Q5.1.2 | | | | | | | X | X |
+| Q5.2.1 | | X | | | | | X | |
+| Q5.2.2 | | X | | | X | | X | |
+| Q5.3.1 | | | | | | | | X |
+| Q5.3.2 | | | | | | | X | X |

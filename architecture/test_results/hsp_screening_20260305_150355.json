@@ -1,0 +1,117 @@
+[
+  {
+    "query_id": "1.1.1",
+    "query": "Which of toluene, DMSO, and hexane would you expect to dissolve PE based on Hansen solubility parameters? Show your work.",
+    "ml_calls": 0,
+    "total_tool_calls": 1,
+    "elapsed_s": 66.8691668510437,
+    "passed": 3,
+    "total": 5,
+    "score_pct": 60.0,
+    "checks": [
+      {
+        "name": "Used predict_solubility_ml tool",
+        "passed": false,
+        "detail": "Made 0 ML prediction calls"
+      },
+      {
+        "name": "Tested all 3 solvents with PE",
+        "passed": false,
+        "detail": "PE tested: False, solvents: []"
+      },
+      {
+        "name": "Interprets RED < 1 as dissolution criterion",
+        "passed": true,
+        "detail": "Mentioned: ['RED value']"
+      },
+      {
+        "name": "Identifies DMSO as non-solvent for PE",
+        "passed": true,
+        "detail": "DMSO discussed: True, identified as poor: True"
+      },
+      {
+        "name": "Compares RED values to rank solvent quality",
+        "passed": true,
+        "detail": "Found comparative ranking in answer"
+      }
+    ],
+    "answer_length": 1832,
+    "answer_preview": "Based on the Hansen Solubility Parameter (HSP) model, none of the three solvents\u2014toluene, DMSO, or hexane\u2014are expected to be good solvents for Polyethylene (PE) at room temperature.\n\nHere is a summary of the analysis:\n\nThe HSP model uses three parameters (dispersion, polarity, and hydrogen bonding) to characterize both the polymer and the solvent. The distance between these points in \"Hansen space\" is calculated as the Hansen Distance (Ra). A smaller distance implies a higher affinity (\"like dissolves like\"). This distance is then normalized by the polymer's interaction radius to get a RED value.\n\n*   A **RED value < 1.0** suggests solubility.\n*   A **RED value > 1.0** suggests insolubility.\n\nHere are the results for each solvent with PE:\n\n1.  **Toluene**:\n    *   **Prediction**: NON-SOLUBLE\n    *   **Hansen Distance (Ra)**: 4.123\n    *   **RED Value**: 1.288\n    *   **Reasoning**: The RED value is significantly greater than 1.0, indicating a poor match between the solubility parameters of PE and toluene.\n\n2.  **DMSO (Dimethyl sulfoxide)**:\n    *   **Prediction**: NON-SOLUBLE\n    *   **Hansen Distance (Ra)**: 17.921\n    *   **RED Value**: 5.600\n    *   **Reasoning**: This pair has a very large Hansen distance and a correspondingly high RED value, making it the least likely solvent for PE. DMSO is a highly polar aprotic solvent, which is a very poor match for the nonpolar nature of polyethylene.\n\n3.  **Hexane**:\n    *   **Prediction**: NON-SOLUBLE\n    *   **Hansen Distance (Ra)**: 3.650\n    *   **RED Value**: 1.141\n    *   **Reasoning**: While hexane is a nonpolar solvent and thus the \"closest\" match of the three, its RED value is still above the solubility threshold of 1.0.\n\nIn conclusion, the HSP model predicts that polyethylene will not dissolve in toluene, DMSO, or hexane under standard conditions.",
+    "error": null
+  },
+  {
+    "query_id": "1.1.2",
+    "query": "I want to find a solvent that dissolves EVOH but NOT PE. Would DMSO work as a selective solvent? Evaluate using Hansen solubility parameters.",
+    "ml_calls": 3,
+    "total_tool_calls": 4,
+    "elapsed_s": 54.014873027801514,
+    "passed": 2,
+    "total": 4,
+    "score_pct": 50.0,
+    "checks": [
+      {
+        "name": "Called ML for both EVOH+DMSO and PE+DMSO",
+        "passed": false,
+        "detail": "EVOH+DMSO: False, PE+DMSO: False"
+      },
+      {
+        "name": "Interprets RED gap as selectivity evidence",
+        "passed": true,
+        "detail": "Selectivity discussed"
+      },
+      {
+        "name": "Notes EVOH+DMSO borderline prediction (RED \u2248 1)",
+        "passed": true,
+        "detail": "Borderline noted"
+      },
+      {
+        "name": "Flags HSP limitations / suggests COSMO-RS or experimental validation",
+        "passed": false,
+        "detail": "No limitation discussion"
+      }
+    ],
+    "answer_length": 816,
+    "answer_preview": "Based on the analysis using Hansen Solubility Parameters (HSPs), Dimethyl Sulfoxide (DMSO) is predicted to be a **selective solvent for Ethylene Vinyl Alcohol (EVOH) over Polyethylene (PE)**.\n\nHere's a breakdown of the analysis:\n\n*   **EVOH in DMSO:** The Relative Energy Difference (RED) number is **1.033**. This is very close to the solubility threshold (RED < 1.0), indicating a strong affinity between EVOH and DMSO.\n*   **LDPE in DMSO:** The RED number is **2.636**, which is significantly higher, suggesting poor solubility.\n*   **HDPE in DMSO:** The RED number is **9.177**, indicating extremely poor solubility.\n\nThe large difference between the RED number for EVOH and those for LDPE and HDPE shows that DMSO interacts much more favorably with EVOH. Therefore, DMSO is a selective solvent for EVOH over PE.",
+    "error": null
+  },
+  {
+    "query_id": "1.1.3",
+    "query": "I have a 3-polymer waste stream: PE, PS, and PVC. Which of THF, cyclohexanone, or acetone could selectively dissolve PS while leaving PE and PVC undissolved at room temperature? Look up the relevant H",
+    "ml_calls": 0,
+    "total_tool_calls": 3,
+    "elapsed_s": 84.68926239013672,
+    "passed": 4,
+    "total": 5,
+    "score_pct": 80.0,
+    "checks": [
+      {
+        "name": "Ran all 9 polymer-solvent predictions",
+        "passed": false,
+        "detail": "Found 0/9 combos: set()"
+      },
+      {
+        "name": "Presents RED comparison (matrix or table)",
+        "passed": true,
+        "detail": "Matrix/table found"
+      },
+      {
+        "name": "Recommends cyclohexanone as PS-selective",
+        "passed": true,
+        "detail": "Cyclohexanone recommendation found"
+      },
+      {
+        "name": "Notes THF dissolves PVC (not PS-selective)",
+        "passed": true,
+        "detail": "THF+PVC noted"
+      },
+      {
+        "name": "Flags HSP limitations or recommends cross-check",
+        "passed": true,
+        "detail": "Limitations discussed"
+      }
+    ],
+    "answer_length": 1653,
+    "answer_preview": "Based on the Hansen Solubility Parameter (HSP) analysis, none of your suggested solvents (THF, cyclohexanone, or acetone) can effectively separate polystyrene (PS) from polyethylene (PE) and polyvinyl chloride (PVC) at room temperature.\n\nHere\u2019s a summary of why:\n*   **Cyclohexanone** is predicted to dissolve both PS and PVC, so it cannot separate them.\n*   **THF** and **Acetone** are predicted to dissolve PVC but not PS, which is the opposite of the desired separation.\n*   **Polyethylene (PE)** is insoluble in all three solvents.\n\nHowever, I have found several alternative solvents that should be able to selectively dissolve PS while leaving PE and PVC undissolved.\n\n### Alternative Solvents for Selective PS Dissolution\n\nI performed a broader search for solvents that are highly selective for PS over both PE and PVC at 25\u00b0C. The results are summarized below. The \"Selectivity\" column indicates how many times more soluble PS is than the next most soluble polymer (either PE or PVC) in that solvent. A higher number is better.\n\n| Solvent | PS Solubility (%) | Max Other Sol. (%) | Selectivity | Boiling Point (\u00b0C) |\n| :--- | :--- | :--- | :--- | :--- |\n| **Butanone** | 7.06 | 0.00 | 7.1 | 79.5 |\n| **Ethyl Acetate** | 5.47 | 0.00 | 5.5 | 77.1 |\n\nFrom this analysis, **Butanone** (also known as methyl ethyl ketone or MEK) appears to be the most promising candidate. It shows good selectivity for PS, meaning it will dissolve the PS while leaving the other two polymers in solid form. Ethyl Acetate is another viable option.\n\nBoth solvents have boiling points well above room temperature, making them safe for processing at atmospheric pressure.",
+    "error": null
+  }
+]

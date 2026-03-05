@@ -1,0 +1,42 @@
+[
+  {
+    "query_id": "1.1.3",
+    "query": "I have a 3-polymer waste stream: PE, PS, and PVC. Which of THF, cyclohexanone, or acetone could selectively dissolve PS while leaving PE and PVC undissolved at room temperature? Look up the relevant H",
+    "ml_calls": 0,
+    "total_tool_calls": 2,
+    "elapsed_s": 87.51210689544678,
+    "passed": 4,
+    "total": 5,
+    "score_pct": 80.0,
+    "checks": [
+      {
+        "name": "Ran all 9 polymer-solvent predictions",
+        "passed": false,
+        "detail": "Found 0/9 combos: set()"
+      },
+      {
+        "name": "Presents RED comparison (matrix or table)",
+        "passed": true,
+        "detail": "Matrix/table found"
+      },
+      {
+        "name": "Recommends cyclohexanone as PS-selective",
+        "passed": true,
+        "detail": "Cyclohexanone recommendation found"
+      },
+      {
+        "name": "Notes THF dissolves PVC (not PS-selective)",
+        "passed": true,
+        "detail": "THF+PVC noted"
+      },
+      {
+        "name": "Flags HSP limitations or recommends cross-check",
+        "passed": true,
+        "detail": "Limitations discussed"
+      }
+    ],
+    "answer_length": 1662,
+    "answer_preview": "Based on the analysis, none of the initial three solvents you suggested (THF, cyclohexanone, or acetone) would work for this separation. Here\u2019s a breakdown of why, along with a better alternative.\n\n### Analysis of THF, Cyclohexanone, and Acetone\n\nI first ran a Hansen Solubility Parameter (HSP) analysis to predict the solubility of each polymer in your suggested solvents. A good solvent should have a low HSP distance and a RED value less than 1.\n\nThe analysis revealed a key problem:\n*   **Cyclohexanone** is predicted to dissolve **both PS and PVC**.\n*   **THF** and **Acetone** are predicted to dissolve **PVC but not PS**.\n\nTherefore, none of these three solvents can selectively dissolve PS while leaving the other two polymers solid.\n\n### A Better Alternative: THF\n\nTo find a more suitable option, I performed a broader search to find the best solvent for selectively dissolving PS while leaving PE and PVC undissolved at room temperature (25\u00b0C).\n\nThe search identified one promising candidate: **Tetrahydrofuran (THF)**.\n\n| Solvent | PS Solubility (%) | Max Other Polymer Solubility (%) | Selectivity | Boiling Point (\u00b0C) |\n| :--- | :--- | :--- | :--- | :--- |\n| **THF** | 14.09% | 8.85% | **5.2** | 65.0\u00b0C |\n\nWhile the initial HSP prediction was that THF would not dissolve PS, our more detailed database shows that it dissolves PS to a moderate extent (about 14%), while having a much lower affinity for PE and PVC. This gives it a selectivity of 5.2, which is sufficient for a viable separation process.\n\n**Conclusion:**\n\nBased on the data, **THF is your best option**. It can selectively dissolve PS from a mixture of PE and PVC at room temperature.",
+    "error": null
+  }
+]

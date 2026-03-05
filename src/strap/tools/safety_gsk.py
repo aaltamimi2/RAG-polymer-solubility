@@ -7,10 +7,12 @@ polymer solubility data.
 
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
@@ -26,6 +28,85 @@ from strap.tools._helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# GreenSolventDB 10k — ML-predicted G-scores (lazy-loaded fallback)
+# ---------------------------------------------------------------------------
+
+_GREEN_SOLVENT_DB: dict[str, dict] | None = None  # keyed by lowercase name
+_GREEN_SOLVENT_DB_CAS: dict[str, dict] | None = None  # keyed by CAS
+
+
+def _load_green_solvent_db() -> tuple[dict[str, dict], dict[str, dict]]:
+    """Lazy-load GreenSolventDB_10k.csv into name and CAS lookup dicts."""
+    global _GREEN_SOLVENT_DB, _GREEN_SOLVENT_DB_CAS
+    if _GREEN_SOLVENT_DB is not None:
+        return _GREEN_SOLVENT_DB, _GREEN_SOLVENT_DB_CAS
+
+    by_name: dict[str, dict] = {}
+    by_cas: dict[str, dict] = {}
+    csv_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "GreenSolventDB_10k.csv"
+
+    if csv_path.exists():
+        with open(csv_path, "r") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                entry = {
+                    "name": row.get("Solvents", ""),
+                    "cas": row.get("CAS", ""),
+                    "smiles": row.get("smiles1", ""),
+                    "g_score": float(row.get("G-score prediction", 0)),
+                    "uncertainty": float(row.get("G-score uncertainty", 0)),
+                    "source": row.get("Source", ""),
+                }
+                name_key = entry["name"].strip().lower()
+                if name_key:
+                    by_name[name_key] = entry
+                cas_key = entry["cas"].strip()
+                if cas_key:
+                    by_cas[cas_key] = entry
+        logger.info(f"GreenSolventDB loaded: {len(by_name)} names, {len(by_cas)} CAS entries")
+    else:
+        logger.warning(f"GreenSolventDB not found at {csv_path}")
+
+    _GREEN_SOLVENT_DB = by_name
+    _GREEN_SOLVENT_DB_CAS = by_cas
+    return by_name, by_cas
+
+
+def _lookup_green_solvent_db(solvent_name: str) -> dict | None:
+    """Look up a solvent in GreenSolventDB by name or CAS."""
+    by_name, by_cas = _load_green_solvent_db()
+    key = solvent_name.strip().lower()
+
+    # Direct name match
+    if key in by_name:
+        return by_name[key]
+
+    # CAS match
+    if key in by_cas:
+        return by_cas[key]
+
+    # Try solvent registry for CAS → GreenSolventDB lookup
+    try:
+        from strap.solvent_registry import SOLVENT_REGISTRY
+        for entry in SOLVENT_REGISTRY.values():
+            aliases = [entry["interp_key"]] + entry.get("aliases", [])
+            if key in [a.lower() for a in aliases]:
+                cas = entry.get("cas")
+                if cas and cas in by_cas:
+                    return by_cas[cas]
+    except Exception:
+        pass
+
+    # Substring match (for longer names)
+    if len(key) > 4:
+        for name, entry in by_name.items():
+            if key in name or name in key:
+                return entry
+
+    return None
 
 
 def _interpret_logp(logp: float) -> str:
@@ -131,6 +212,49 @@ def _fuzzy_match_solvent_name(
 # ============================================================
 
 
+def _format_green_solvent_result(solvent_name: str, entry: dict) -> str:
+    """Format a GreenSolventDB result as JSON response."""
+    score = entry["g_score"]
+    if score >= 8.0:
+        rating = "Excellent (Preferred)"
+    elif score >= 6.0:
+        rating = "Good (Usable)"
+    elif score >= 4.0:
+        rating = "Problematic (Use with caution)"
+    else:
+        rating = "Hazardous (Avoid if possible)"
+
+    output = ["**GSK G-Score Analysis** _(from GreenSolventDB — ML-predicted)_\n"]
+    output.append(f"**Solvent:** {entry['name']}")
+    output.append(f"**CAS:** {entry['cas']}")
+    output.append(f"**G-Score:** {score:.2f} / 10.00 (±{entry['uncertainty']:.2f})")
+    output.append(f"**Safety Rating:** {rating}")
+    output.append(f"**Data Source:** {entry['source']}")
+    output.append("")
+    output.append("**Note:** This G-score is an ML prediction from the GreenSolventDB "
+                   "(10k solvents), not from the curated GSK guide (272 solvents). "
+                   "Uncertainty reflects model confidence.")
+
+    # LogP from local Solvent_Data
+    logp_val = get_logp(entry['name'])
+    if logp_val is not None:
+        output.append(f"\n**LogP:** {logp_val:.2f} — {_interpret_logp(logp_val)}")
+
+    display_str = "\n".join(output)
+    data_dict = {
+        "found": True,
+        "solvent_name": entry["name"],
+        "g_score": score,
+        "g_score_uncertainty": entry["uncertainty"],
+        "safety_rating": rating,
+        "cas_number": entry["cas"],
+        "source": "GreenSolventDB_10k",
+        "data_quality": entry["source"],
+        "ml_predicted": True,
+    }
+    return json.dumps({"display": display_str, "data": data_dict}, indent=2)
+
+
 @safe_tool_wrapper
 async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True) -> str:
     """Look up the GSK G-score composite safety rating (0-10) for a solvent.
@@ -177,21 +301,33 @@ async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True)
                     output = [f"**GSK G-Score Analysis**\n"]
                     output.append(f"Fuzzy matched '{solvent_name}' -> '{matched_name}' (confidence: {match_result['score']}%)\n")
             else:
+                # Tier 2: Try GreenSolventDB 10k (ML-predicted G-scores)
+                green_entry = _lookup_green_solvent_db(solvent_name)
+                if green_entry:
+                    return _format_green_solvent_result(solvent_name, green_entry)
+
                 not_found_msg = (
                     f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
-                    f"(154 solvents). Do NOT estimate or fabricate a G-score. "
-                    f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
-                    f"retrieve GHS hazard classification from PubChem as a fallback. "
+                    f"(272 solvents) or GreenSolventDB (10k solvents). Do NOT estimate "
+                    f"or fabricate a G-score. Instead, call "
+                    f"get_pubchem_safety_info('{solvent_name}') to retrieve GHS hazard "
+                    f"classification from PubChem as a fallback. "
                     f"Report this solvent as 'Not in GSK database' in your assessment."
                 )
                 return json.dumps({"display": not_found_msg, "data": {"found": False, "solvent_name": solvent_name}}, indent=2)
 
         if len(result) == 0:
+            # Tier 2: Try GreenSolventDB 10k (ML-predicted G-scores)
+            green_entry = _lookup_green_solvent_db(solvent_name)
+            if green_entry:
+                return _format_green_solvent_result(solvent_name, green_entry)
+
             not_found_msg = (
                 f"**NOT FOUND**: '{solvent_name}' is not in the GSK dataset "
-                f"(154 solvents). Do NOT estimate or fabricate a G-score. "
-                f"Instead, call get_pubchem_safety_info('{solvent_name}') to "
-                f"retrieve GHS hazard classification from PubChem as a fallback. "
+                f"(272 solvents) or GreenSolventDB (10k solvents). Do NOT estimate "
+                f"or fabricate a G-score. Instead, call "
+                f"get_pubchem_safety_info('{solvent_name}') to retrieve GHS hazard "
+                f"classification from PubChem as a fallback. "
                 f"Report this solvent as 'Not in GSK database' in your assessment."
             )
             return json.dumps({"display": not_found_msg, "data": {"found": False, "solvent_name": solvent_name}}, indent=2)

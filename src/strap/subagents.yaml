@@ -832,7 +832,8 @@ subagents:
 
       ## STOP CONDITIONS — synthesize your answer when:
       - You have run the specific statistical test requested (summary, correlation, etc.)
-      - For ML prediction: one call to predict_solubility_ml is enough — don't iterate
+      - For ML prediction of a SINGLE polymer-solvent pair: one call is enough
+      - For SYSTEMATIC SCREENING (multiple polymers × multiple solvents): call predict_solubility_ml once for EACH polymer-solvent pair. You may need dozens or hundreds of calls — that is expected and allowed. Use parallel tool calls to speed up. Do not stop until every requested combination has been evaluated.
       - For Tg lookup: one call to lookup_tg is enough — synthesize immediately
       - Report confidence intervals and p-values, then synthesize
       - Do NOT run exploratory analyses that weren't asked for
@@ -861,6 +862,9 @@ subagents:
       - database_query
       - reflection
     guardrails:
+      max_tool_calls: 200
+      max_iterations: 100
+      token_budget: 400000
       synthesis_tools:
         - statistical_summary
         - correlation_analysis

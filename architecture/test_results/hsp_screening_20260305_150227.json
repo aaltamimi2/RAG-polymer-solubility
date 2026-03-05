@@ -1,0 +1,16 @@
+[
+  {
+    "query_id": "1.1.4",
+    "query": "I operate a mixed-plastics recycling facility and receive waste containing up to 16 different polymers from 8 families:\n\nPolyolefins: PE, PP, HDPE\nStyrenics: PS, ABS\nVinyls: PVC, PVDF\nPolyesters: PET,",
+    "ml_calls": 0,
+    "total_tool_calls": 0,
+    "elapsed_s": 0,
+    "passed": 0,
+    "total": 0,
+    "score_pct": 0,
+    "checks": [],
+    "answer_length": 0,
+    "answer_preview": "",
+    "error": "GraphRecursionError: Recursion limit of 500 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT\nTraceback (most recent call last):\n  File \"/home/aaltamimi2/langchain-STRAP-v8/tests/test_hsp_screening.py\", line 477, in run_single_test\n    if hasattr(msg, \"content\") and getattr(msg, \"type\", \"\") == \"ai\" and msg.content:\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/aaltamimi2/anaconda3/envs/group-meeting/lib/python3.11/site-packages/langgraph/pregel/main.py\", line 3071, in invoke\n    for chunk in self.stream(\n  File \"/home/aaltamimi2/anaconda3/envs/group-meeting/lib/python3.11/site-packages/langgraph/pregel/main.py\", line 2674, in stream\n    raise GraphRecursionError(msg)\nlanggraph.errors.GraphRecursionError: Recursion limit of 500 reached without hitting a stop condition. You can increase the limit by setting the `recursion_limit` config key.\nFor troubleshooting, visit: https://docs.langchain.com/oss/python/langgraph/errors/GRAPH_RECURSION_LIMIT\n"
+  }
+]

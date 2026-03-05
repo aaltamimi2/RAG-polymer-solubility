@@ -269,11 +269,16 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
         try:
             inv_id = _invocation_id.get()
         except LookupError:
+            # Fallback: create a new invocation ID so the result is not lost
+            inv_id = uuid.uuid4().hex
+            _invocation_id.set(inv_id)
+            with _registry_lock:
+                _registry[inv_id] = _RegistryState()
             logger.warning(
-                "result_extractor: no invocation ID in context for '%s' — dropping result",
+                "result_extractor: created fallback invocation ID '%s' for '%s'",
+                inv_id,
                 subagent_type,
             )
-            return
 
         with _registry_lock:
             reg_state = _registry.get(inv_id)

@@ -1,0 +1,52 @@
+[
+  {
+    "query_id": "1.1.4",
+    "query": "I operate a mixed-plastics recycling facility and receive waste containing up to 16 different polymers from 8 families:\n\nPolyolefins: PE, PP, HDPE\nStyrenics: PS, ABS\nVinyls: PVC, PVDF\nPolyesters: PET,",
+    "ml_calls": 0,
+    "total_tool_calls": 3,
+    "elapsed_s": 62.95633840560913,
+    "passed": 1,
+    "total": 7,
+    "score_pct": 14.285714285714285,
+    "checks": [
+      {
+        "name": "Uses ML/HSP screening methodology",
+        "passed": false,
+        "detail": "No ML evidence"
+      },
+      {
+        "name": "Analyzes \u22658 polymers",
+        "passed": false,
+        "detail": "Found 2/16: ['PE', 'PS']"
+      },
+      {
+        "name": "Covers \u22656 solvents spanning chemical classes",
+        "passed": false,
+        "detail": "Found 0 solvents: []"
+      },
+      {
+        "name": "Identifies crystallinity false positive (PE/PP/HDPE)",
+        "passed": false,
+        "detail": "Not discussed"
+      },
+      {
+        "name": "Groups polymers by RT separability",
+        "passed": false,
+        "detail": "No grouping discussion"
+      },
+      {
+        "name": "Proposes RT separation sequence",
+        "passed": true,
+        "detail": "Sequence proposed"
+      },
+      {
+        "name": "Recommends COSMO-RS / experimental follow-up",
+        "passed": false,
+        "detail": "No follow-up recommendation"
+      }
+    ],
+    "answer_length": 307,
+    "answer_preview": "I have delegated the initial HSP analysis to the `statistics-ml` specialist. This is a complex calculation, and I need to wait for it to complete before proceeding to the next steps of designing the separation sequence and creating visualizations. Once the results are in, I will move forward with the plan.",
+    "error": null
+  }
+]
