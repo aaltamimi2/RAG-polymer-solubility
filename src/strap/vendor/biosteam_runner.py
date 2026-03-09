@@ -22,6 +22,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from strap.solvent_registry import resolve_to_biosteam
+
 logger = logging.getLogger(__name__)
 
 _WORKER_SCRIPT = Path(__file__).parent / "biosteam_worker.py"
@@ -138,6 +140,7 @@ def _csv_lookup(solvent: str) -> dict | None:
 # Used as a second-tier fallback: validated > curated > class-average > generic.
 
 _CURATED_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "solvent-econ-lca-summary.csv"
+_TEA_LCA_SOLVENT_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "60_common_solvents-TEA-LCA.csv"
 
 # {normalised_name: {"price": float|None, "gwp": float|None, "htc": ..., "htnc": ..., "etox": ..., "class": str}}
 _CURATED_BY_NAME: dict[str, dict] = {}
@@ -588,6 +591,55 @@ _SOLVENT_LCA_IFS: dict[str, dict[str, float]] = {
     "Chloroform":              {"solvent_gwp": 3.0,  "solvent_htc": 1.23e-07, "solvent_htnc": 3.81e-07, "solvent_etox": 6.8},
 }
 
+
+def _load_tea_lca_process_defaults() -> dict[str, tuple[float, float, float]]:
+    """Load price + default hot-process temperature defaults from the TEA/LCA CSV.
+
+    Assumptions:
+    - ``price`` is recorded in USD / metric ton and converted here to USD / kg.
+    - ``th`` is the preferred heated-process temperature in degC.
+    - ``th`` is clamped to remain below the normal-boiling-point ``bp`` at 1 atm.
+    """
+    if not _TEA_LCA_SOLVENT_CSV.exists():
+        return {}
+
+    loaded: dict[str, tuple[float, float, float]] = {}
+    try:
+        with open(_TEA_LCA_SOLVENT_CSV, encoding="utf-8") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                raw_name = (row.get("name_biosteam") or row.get("name_cosmobase") or "").strip()
+                if not raw_name:
+                    continue
+                solvent_name = resolve_to_biosteam(raw_name) or raw_name
+                try:
+                    raw_price = float((row.get("price") or "").strip())
+                    price_usd_per_kg = raw_price / 1000.0
+                except ValueError:
+                    continue
+                try:
+                    th_c = float((row.get("th") or "").strip())
+                except ValueError:
+                    th_c = 0.0
+                try:
+                    bp_c = float((row.get("bp") or "").strip())
+                except ValueError:
+                    bp_c = 0.0
+                if th_c <= 0:
+                    continue
+                if bp_c > 1.0:
+                    th_c = min(th_c, bp_c - 1.0)
+                th_c = max(25.0, th_c)
+                old_gwp = _SOLVENT_DEFAULTS.get(solvent_name, (0.0, 0.0, 0.0))[2]
+                loaded[solvent_name] = (price_usd_per_kg, th_c, old_gwp)
+    except Exception as exc:
+        logger.error("Failed to load TEA/LCA solvent defaults CSV: %s", exc)
+        return {}
+    return loaded
+
+
+_SOLVENT_DEFAULTS.update(_load_tea_lca_process_defaults())
+
 # Natural gas CFs for C1/C3 (produced + combustion).
 # From Branch-TEA.ipynb: 0.383 + 3.45805 = 3.84105, etc.
 _NATURAL_GAS_CFS = {
@@ -943,22 +995,35 @@ def get_supported_solvents() -> dict:
 
     Static metadata -- no BioSTEAM import required.
     """
+    from strap.services.biosteam_service import (
+        EVOH_SOLVENTS,
+        EVOH_SOLVENTS_E2,
+        LDPE_SOLVENTS,
+        PC_SOLVENTS,
+        PE_SOLVENTS,
+        PET_SOLVENTS,
+        PP_SOLVENTS,
+        PS_SOLVENTS,
+        PVC_SOLVENTS,
+    )
+
     return {
-        "pe_solvents": list(_PE_SOLVENTS),
-        "ldpe_solvents": list(_LDPE_SOLVENTS),
-        "evoh_solvents_e1": list(_EVOH_SOLVENTS_E1),
-        "evoh_solvents_e2": list(_EVOH_SOLVENTS_E2),
-        "pet_solvents": list(_PET_SOLVENTS),
+        "pe_solvents": list(PE_SOLVENTS),
+        "ldpe_solvents": list(LDPE_SOLVENTS),
+        "evoh_solvents_e1": list(EVOH_SOLVENTS),
+        "evoh_solvents_e2": list(EVOH_SOLVENTS_E2),
+        "pet_solvents": list(PET_SOLVENTS),
         # New polymers (PS/PP/PVC use PE-proxy; PC is native)
-        "ps_solvents": list(_PS_SOLVENTS),
-        "pp_solvents": list(_PP_SOLVENTS),
-        "pvc_solvents": list(_PVC_SOLVENTS),
-        "pc_solvents": list(_PC_SOLVENTS),
+        "ps_solvents": list(PS_SOLVENTS),
+        "pp_solvents": list(PP_SOLVENTS),
+        "pvc_solvents": list(PVC_SOLVENTS),
+        "pc_solvents": list(PC_SOLVENTS),
         "energy_cases": dict(_ENERGY_CASES),
         "solvent_defaults": dict(_SOLVENT_DEFAULTS),
         "chlorinated_blocklist": list(_CHLORINATED_BLOCKLIST),
         "csv_solvents_loaded": len(_SOLVENT_CSV_DATA),
         "curated_solvents_loaded": len(_CURATED_BY_NAME),
+        "catalog_source": "strap.services.biosteam_service",
         "known_limitations": [
             "Chlorinated solvents (TCE, OCT) may fail due to HCl not in property package",
             "Each simulation takes ~10-15 seconds in subprocess",

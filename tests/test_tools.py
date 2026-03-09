@@ -1,5 +1,7 @@
 """Smoke tests for STRAP/DISSOLVE tool loading and core tools."""
 
+import json
+
 from strap.tools import get_core_tools, get_all_tools
 
 
@@ -23,7 +25,9 @@ def test_database_query_tool(conn):
     from strap.tools.database_query import list_tables
     result = list_tables()
     assert isinstance(result, str)
-    assert "common_solvents_database" in result.lower() or "table" in result.lower()
+    parsed = json.loads(result)
+    assert parsed["data"]["tool_name"] == "list_tables"
+    assert "common_solvents_database" in parsed["display"].lower() or "table" in parsed["display"].lower()
 
 
 def test_solvent_properties_tool(conn):
@@ -31,7 +35,10 @@ def test_solvent_properties_tool(conn):
     from strap.tools.solvent_properties import get_solvent_properties
     result = get_solvent_properties("toluene")
     assert isinstance(result, str)
-    assert len(result) > 50
+    parsed = json.loads(result)
+    assert parsed["data"]["tool_name"] == "get_solvent_properties"
+    assert parsed["data"]["success"] is True
+    assert len(parsed["display"]) > 50
 
 
 def test_adaptive_separation_tool(conn):
@@ -39,3 +46,81 @@ def test_adaptive_separation_tool(conn):
     from strap.tools.adaptive_separation import find_optimal_separation_conditions
     result = find_optimal_separation_conditions("LDPE", "HDPE,PP")
     assert isinstance(result, str)
+    parsed = json.loads(result)
+    assert parsed["data"]["tool_name"] == "find_optimal_separation_conditions"
+
+
+def test_run_biosteam_batch_returns_partial_results_for_large_screen(monkeypatch):
+    import time
+    from strap.tools import biosteam_tea_lca as mod
+
+    monkeypatch.setattr(mod, "run_single_simulation", object())
+    monkeypatch.setattr(
+        mod,
+        "_expand_solvents",
+        lambda solvents, target_plastic: [
+            "sec-Butyl Acetate",
+            "Isobutyl Acetate",
+            "Heptane",
+            "Toluene",
+            "Xylene",
+            "Cyclohexane",
+            "Hexane",
+            "Dodecane",
+            "o-Xylene",
+            "p-Xylene",
+            "Methylcyclohexane",
+            "Acetone",
+            "Ethanol",
+        ],
+    )
+    monkeypatch.setattr(mod, "_expand_energy_cases", lambda raw: ["C1"])
+
+    call_solvents = []
+
+    def fake_build_batch_configs(**kwargs):
+        return [
+            {"solvent": solvent, "energy_case": "C1"}
+            for solvent in kwargs["solvents"]
+        ]
+
+    def fake_run_batch_simulations(configs, max_parallel=3, timeout_per_sim=120):
+        call_solvents.append([cfg["solvent"] for cfg in configs])
+        results = []
+        for cfg in configs:
+            if cfg["solvent"] in {"Heptane", "Toluene", "Xylene", "Cyclohexane", "Hexane"}:
+                results.append(
+                    {
+                        "success": True,
+                        "solvent": cfg["solvent"],
+                        "energy_case": "C1",
+                        "tea": {"msp_usd_per_kg": float(len(results) + 1), "tci_usd": 1_000_000.0},
+                        "lca": {"gwp_kg_co2e_per_kg": 2.0},
+                    }
+                )
+            else:
+                results.append(
+                    {
+                        "success": False,
+                        "solvent": cfg["solvent"],
+                        "energy_case": "C1",
+                        "error": "Simulation timed out after 45s",
+                    }
+                )
+        return results
+
+    monkeypatch.setattr(mod, "build_batch_configs", fake_build_batch_configs)
+    monkeypatch.setattr(mod, "run_batch_simulations", fake_run_batch_simulations)
+    monotonic_values = iter([0.0, 0.0, 35.0, 70.0, 98.0])
+    monkeypatch.setattr(time, "monotonic", lambda: next(monotonic_values))
+
+    raw = mod.run_biosteam_batch("all_pe", target_plastic="PE", energy_cases="C1")
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["tool_name"] == "run_biosteam_batch"
+    assert parsed["data"]["success"] is True
+    assert parsed["data"]["partial"] is True
+    assert parsed["data"]["attempted"] < parsed["data"]["total_configs"]
+    assert len(parsed["data"]["results"]) >= 5
+    assert call_solvents[0][:2] == ["Heptane", "Toluene"]
+    assert "Xylene" in call_solvents[0][2]

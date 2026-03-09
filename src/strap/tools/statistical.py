@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import asyncio
 import gc
-import json
 import logging
 from typing import Optional
 
@@ -21,6 +20,7 @@ import seaborn as sns
 from scipy import stats
 
 from strap.database import get_connection
+from strap.services.tool_response_service import json_tool_error, json_tool_response
 from strap.tools._helpers import safe_tool_wrapper, truncate_output, save_plot, get_plots_dir
 
 logger = logging.getLogger(__name__)
@@ -108,11 +108,19 @@ def _get_plot_url(filepath: str) -> str:
     return f"Plot saved: `{filepath}`"
 
 
+def _tool_error(tool_name: str, message: str, *, error_code: str = "invalid_input") -> str:
+    return json_tool_error(message, tool_name=tool_name, error_code=error_code)
+
+
+def _tool_success(tool_name: str, display: str, **data) -> str:
+    return json_tool_response(display, data, tool_name=tool_name, success=True)
+
+
 # ------------------------------------------------------------------
 # Tools
 # ------------------------------------------------------------------
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def statistical_summary(
     table_name: str,
     value_column: str,
@@ -131,20 +139,21 @@ def statistical_summary(
     - "Give me summary statistics for solubility"
     - "What is the average solubility grouped by polymer?"
     """
+    tool_name = "statistical_summary"
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, value_column)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     if group_by_column is not None:
         err = _sanitize_identifier(conn, table_name, group_by_column)
         if err:
             err_msg = f"Input validation failed: {err}"
-            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+            return _tool_error(tool_name, err_msg)
     filter_err = _check_filters(filters)
     if filter_err:
         err_msg = f"Input validation failed: {filter_err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -181,7 +190,7 @@ def statistical_summary(
     result = _execute_query(query, limit=1000)
     if not result["success"]:
         err_msg = f"Query failed: {result.get('error')}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="query_failed")
 
     df = result["dataframe"]
 
@@ -230,10 +239,10 @@ def statistical_summary(
         }
 
     del df
-    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
+    return _tool_success(tool_name, "\n".join(output), **data_dict)
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def correlation_analysis(
     table_name: str,
     columns: str,
@@ -252,24 +261,25 @@ def correlation_analysis(
     - "Is there a correlation between temperature and solubility?"
     - "Show the correlation matrix for these columns"
     """
+    tool_name = "correlation_analysis"
     if method not in ("pearson", "spearman", "kendall"):
         err_msg = f"Error: method must be 'pearson', 'spearman', or 'kendall' (got '{method}')."
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     conn = get_connection()
     col_list = [c.strip() for c in columns.split(',')]
     err = _sanitize_identifier(conn, table_name)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     for col in col_list:
         err = _sanitize_identifier(conn, table_name, col)
         if err:
             err_msg = f"Input validation failed: {err}"
-            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+            return _tool_error(tool_name, err_msg)
     filter_err = _check_filters(filters)
     if filter_err:
         err_msg = f"Input validation failed: {filter_err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -278,13 +288,13 @@ def correlation_analysis(
 
     if not result["success"]:
         err_msg = f"Query failed: {result.get('error')}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="query_failed")
 
     df = result["dataframe"].dropna()
 
     if len(df) < 3:
         err_msg = f"Insufficient data for correlation analysis (n={len(df)})"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="insufficient_data")
 
     corr_matrix = df.corr(method=method)
 
@@ -332,10 +342,10 @@ def correlation_analysis(
     }
 
     del df
-    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
+    return _tool_success(tool_name, "\n".join(output), **data_dict)
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 async def compare_groups_statistically(
     table_name: str,
     value_column: str,
@@ -358,19 +368,20 @@ async def compare_groups_statistically(
     - "Is solubility significantly different between PET and PS?"
     - "Compare solubility distributions of two polymers"
     """
+    tool_name = "compare_groups_statistically"
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, value_column)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     err = _sanitize_identifier(conn, table_name, group_column)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     filter_err = _check_filters(filters)
     if filter_err:
         err_msg = f"Input validation failed: {filter_err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
 
     where_clause = f"WHERE {filters} AND" if filters else "WHERE"
 
@@ -389,18 +400,18 @@ async def compare_groups_statistically(
         )
     except Exception as e:
         err_msg = f"Query failed: {str(e)[:300]}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="query_failed")
 
     if len(df1) == 0 or len(df2) == 0:
         err_msg = f"No data returned for groups: {group1} ({len(df1)} rows), {group2} ({len(df2)} rows)"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="no_data")
 
     data1 = df1[value_column].dropna()
     data2 = df2[value_column].dropna()
 
     if len(data1) < 3 or len(data2) < 3:
         err_msg = f"Insufficient data: {group1} has {len(data1)}, {group2} has {len(data2)} samples"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="insufficient_data")
 
     output = [f"**Statistical Comparison: {group1} vs {group2}**\n"]
 
@@ -467,10 +478,10 @@ async def compare_groups_statistically(
         "cohens_d": float(cohens_d), "effect_size": effect_size,
         "plot_filepath": filepath,
     }
-    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
+    return _tool_success(tool_name, "\n".join(output), **data_dict)
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def regression_analysis(
     table_name: str,
     x_column: str,
@@ -493,27 +504,28 @@ def regression_analysis(
     - "Fit a regression of solubility vs temperature"
     - "Is there a linear relationship between temperature and solubility?"
     """
+    tool_name = "regression_analysis"
     if degree < 1 or degree > 5:
         err_msg = f"Error: degree must be between 1 and 5 (got {degree}). High-degree polynomials overfit on small datasets."
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     conn = get_connection()
     err = _sanitize_identifier(conn, table_name, x_column)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     err = _sanitize_identifier(conn, table_name, y_column)
     if err:
         err_msg = f"Input validation failed: {err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
     if group_by is not None:
         err = _sanitize_identifier(conn, table_name, group_by)
         if err:
             err_msg = f"Input validation failed: {err}"
-            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+            return _tool_error(tool_name, err_msg)
     filter_err = _check_filters(filters)
     if filter_err:
         err_msg = f"Input validation failed: {filter_err}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg)
 
     where_clause = f"WHERE {filters}" if filters else ""
 
@@ -525,7 +537,7 @@ def regression_analysis(
     result = _execute_query(query, limit=100000)
     if not result["success"]:
         err_msg = f"Query failed: {result.get('error')}"
-        return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+        return _tool_error(tool_name, err_msg, error_code="query_failed")
 
     df = result["dataframe"].dropna()
 
@@ -576,7 +588,7 @@ def regression_analysis(
 
         if np.any(np.isnan(x)) or np.any(np.isnan(y)) or np.any(np.isinf(x)) or np.any(np.isinf(y)):
             err_msg = "Error: data contains NaN or infinite values. Clean the data before running regression."
-            return json.dumps({"display": err_msg, "data": {"success": False, "error": err_msg}})
+            return _tool_error(tool_name, err_msg, error_code="invalid_data")
 
         coeffs = np.polyfit(x, y, degree)
         poly = np.poly1d(coeffs)
@@ -640,4 +652,4 @@ def regression_analysis(
         }
 
     del df
-    return json.dumps({"display": "\n".join(output), "data": data_dict}, indent=2)
+    return _tool_success(tool_name, "\n".join(output), **data_dict)

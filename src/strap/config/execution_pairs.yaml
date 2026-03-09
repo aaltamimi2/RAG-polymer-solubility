@@ -1,0 +1,35 @@
+parallel:
+- - separation-engineer
+  - safety-analyst
+- - biosteam-analyst
+  - safety-analyst
+- - scholar-researcher
+  - patent-researcher
+parallel_3way:
+- - separation-engineer
+  - safety-analyst
+  - biosteam-analyst
+- - separation-engineer
+  - safety-analyst
+  - visualization-specialist
+- - biosteam-analyst
+  - safety-analyst
+  - visualization-specialist
+- - scholar-researcher
+  - patent-researcher
+  - rag-analyst
+sequential:
+- - separation-engineer
+  - biosteam-analyst
+- - separation-engineer
+  - visualization-specialist
+- - statistics-ml
+  - visualization-specialist
+- - scholar-researcher
+  - rag-analyst
+- - statistics-ml
+  - rag-analyst
+- - separation-engineer
+  - contaminant-removal-analyst
+- - contaminant-removal-analyst
+  - separation-engineer

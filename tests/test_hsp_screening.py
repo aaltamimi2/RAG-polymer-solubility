@@ -20,8 +20,10 @@ import re
 import sys
 import time
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -81,7 +83,7 @@ class CheckResult:
 
 
 @dataclass
-class TestResult:
+class HspTestResult:
     query_id: str
     query: str
     answer: str
@@ -89,6 +91,11 @@ class TestResult:
     elapsed_s: float
     checks: list[CheckResult] = field(default_factory=list)
     error: str | None = None
+    thread_id: str | None = None
+    langsmith_run_id: str | None = None
+    langsmith_trace_id: str | None = None
+    langsmith_project: str | None = None
+    trace_summary: dict[str, Any] | None = None
 
     @property
     def passed(self) -> int:
@@ -156,7 +163,7 @@ def _has_solvent_evidence(answer: str, tool_calls: list[dict], solvents: list[st
     return found
 
 
-def validate_q111(result: TestResult) -> list[CheckResult]:
+def validate_q111(result: HspTestResult) -> list[CheckResult]:
     """Q1.1.1: PE + {toluene, DMSO, hexane}."""
     checks = []
     answer_lower = result.answer.lower()
@@ -217,7 +224,7 @@ def validate_q111(result: TestResult) -> list[CheckResult]:
     return checks
 
 
-def validate_q112(result: TestResult) -> list[CheckResult]:
+def validate_q112(result: HspTestResult) -> list[CheckResult]:
     """Q1.1.2: EVOH + DMSO selectivity over PE."""
     checks = []
     answer_lower = result.answer.lower()
@@ -269,7 +276,7 @@ def validate_q112(result: TestResult) -> list[CheckResult]:
     return checks
 
 
-def validate_q113(result: TestResult) -> list[CheckResult]:
+def validate_q113(result: HspTestResult) -> list[CheckResult]:
     """Q1.1.3: PS selectivity from PE+PVC with THF/cyclohexanone/acetone."""
     checks = []
     pairs = _extract_ml_pairs(result.tool_calls)
@@ -332,7 +339,7 @@ def validate_q113(result: TestResult) -> list[CheckResult]:
     return checks
 
 
-def validate_q114(result: TestResult) -> list[CheckResult]:
+def validate_q114(result: HspTestResult) -> list[CheckResult]:
     """Q1.1.4: 16-polymer × 10+ solvent systematic screening."""
     checks = []
     answer_lower = result.answer.lower()
@@ -516,7 +523,85 @@ def _extract_answer(messages: list) -> str:
     return ""
 
 
-def run_single_test(query_id: str, recursion_limit: int = 250) -> TestResult:
+def _fetch_langsmith_trace(
+    *,
+    query: str,
+    started_at: datetime,
+    project_name: str,
+) -> dict[str, Any] | None:
+    """Fetch the most likely LangSmith root trace for this query run."""
+    try:
+        from langsmith import Client as LangSmithClient
+    except Exception:
+        return None
+
+    try:
+        client = LangSmithClient()
+        roots = list(client.list_runs(
+            project_name=project_name,
+            start_time=started_at - timedelta(seconds=5),
+            is_root=True,
+            limit=20,
+        ))
+    except Exception as exc:
+        return {"fetch_error": str(exc)}
+
+    if not roots:
+        return None
+
+    query_head = query.strip().splitlines()[0][:80]
+    selected = None
+    for run in sorted(roots, key=lambda r: getattr(r, "start_time", started_at), reverse=True):
+        inputs = json.dumps(getattr(run, "inputs", {}) or {}, default=str)
+        if query_head and query_head in inputs:
+            selected = run
+            break
+    if selected is None:
+        selected = sorted(
+            roots,
+            key=lambda r: getattr(r, "start_time", started_at),
+            reverse=True,
+        )[0]
+
+    try:
+        trace_runs = list(client.list_runs(
+            trace_id=selected.trace_id,
+            project_name=project_name,
+        ))
+    except Exception as exc:
+        trace_runs = []
+        trace_error = str(exc)
+    else:
+        trace_error = None
+
+    tool_runs = [run for run in trace_runs if getattr(run, "run_type", "") == "tool"]
+    llm_runs = [run for run in trace_runs if getattr(run, "run_type", "") == "llm"]
+    child_errors = [
+        {
+            "id": str(run.id),
+            "name": getattr(run, "name", ""),
+            "run_type": getattr(run, "run_type", ""),
+            "error": getattr(run, "error", ""),
+        }
+        for run in trace_runs
+        if getattr(run, "error", None)
+    ]
+
+    return {
+        "run_id": str(selected.id),
+        "trace_id": str(selected.trace_id),
+        "project_name": project_name,
+        "root_name": getattr(selected, "name", ""),
+        "run_count": len(trace_runs),
+        "tool_run_count": len(tool_runs),
+        "llm_run_count": len(llm_runs),
+        "tool_names": [getattr(run, "name", "") for run in tool_runs],
+        "child_errors": child_errors,
+        "fetch_error": trace_error,
+    }
+
+
+def run_single_test(query_id: str, recursion_limit: int = 250) -> HspTestResult:
     """Run a single test query through the DISSOLVE agent."""
     from strap.agent import create_dissolve_agent
 
@@ -533,13 +618,21 @@ def run_single_test(query_id: str, recursion_limit: int = 250) -> TestResult:
         }
         recursion_limit = 500
 
+    project_name = os.getenv("LANGSMITH_PROJECT", "strap-agent")
+    thread_id = f"hsp-{query_id.replace('.', '-')}-{uuid.uuid4().hex[:8]}"
+    trace_started_at = datetime.now(timezone.utc)
+    test_result: HspTestResult
+
     try:
         agent = create_dissolve_agent(subagent_overrides=overrides)
 
         t0 = time.time()
         result = agent.invoke(
             {"messages": [{"role": "user", "content": query}]},
-            {"recursion_limit": recursion_limit},
+            {
+                "recursion_limit": recursion_limit,
+                "configurable": {"thread_id": thread_id},
+            },
         )
         elapsed = time.time() - t0
 
@@ -547,12 +640,13 @@ def run_single_test(query_id: str, recursion_limit: int = 250) -> TestResult:
         tool_calls = _extract_tool_calls(messages)
         answer = _extract_answer(messages)
 
-        test_result = TestResult(
+        test_result = HspTestResult(
             query_id=query_id,
             query=query,
             answer=answer,
             tool_calls=tool_calls,
             elapsed_s=elapsed,
+            thread_id=thread_id,
         )
 
         # Run validation
@@ -560,21 +654,33 @@ def run_single_test(query_id: str, recursion_limit: int = 250) -> TestResult:
         test_result.checks = validator(test_result)
 
     except Exception as e:
-        test_result = TestResult(
+        test_result = HspTestResult(
             query_id=query_id,
             query=query,
             answer="",
             tool_calls=[],
             elapsed_s=0,
             error=f"{type(e).__name__}: {e}\n{traceback.format_exc()}",
+            thread_id=thread_id,
         )
+
+    trace_info = _fetch_langsmith_trace(
+        query=query,
+        started_at=trace_started_at,
+        project_name=project_name,
+    )
+    if trace_info:
+        test_result.langsmith_run_id = trace_info.get("run_id")
+        test_result.langsmith_trace_id = trace_info.get("trace_id")
+        test_result.langsmith_project = trace_info.get("project_name")
+        test_result.trace_summary = trace_info
 
     return test_result
 
 
 # ── Reporting ────────────────────────────────────────────────────────────
 
-def print_report(results: list[TestResult]):
+def print_report(results: list[HspTestResult]):
     """Print a formatted test report."""
     print(f"\n{'='*70}")
     print("  HSP SCREENING TEST REPORT")
@@ -594,6 +700,18 @@ def print_report(results: list[TestResult]):
         ml_calls = _count_ml_calls(r.tool_calls)
         print(f"Q{r.query_id}: {status} ({r.passed}/{r.total} checks, "
               f"{r.score_pct:.0f}%) | {ml_calls} ML calls | {r.elapsed_s:.1f}s")
+        if r.langsmith_run_id:
+            print(f"  LangSmith run_id: {r.langsmith_run_id}")
+            print(f"  LangSmith trace_id: {r.langsmith_trace_id}")
+            if r.trace_summary:
+                print(
+                    f"  Trace summary: {r.trace_summary.get('run_count', 0)} runs, "
+                    f"{r.trace_summary.get('tool_run_count', 0)} tool runs, "
+                    f"{r.trace_summary.get('llm_run_count', 0)} llm runs"
+                )
+                child_errors = r.trace_summary.get("child_errors") or []
+                if child_errors:
+                    print(f"  Trace child errors: {len(child_errors)}")
 
         for c in r.checks:
             mark = "PASS" if c.passed else "FAIL"
@@ -624,6 +742,11 @@ def print_report(results: list[TestResult]):
             "ml_calls": _count_ml_calls(r.tool_calls),
             "total_tool_calls": len(r.tool_calls),
             "elapsed_s": r.elapsed_s,
+            "thread_id": r.thread_id,
+            "langsmith_run_id": r.langsmith_run_id,
+            "langsmith_trace_id": r.langsmith_trace_id,
+            "langsmith_project": r.langsmith_project,
+            "trace_summary": r.trace_summary,
             "passed": r.passed,
             "total": r.total,
             "score_pct": r.score_pct,
@@ -665,7 +788,7 @@ def main():
                 try:
                     results.append(future.result())
                 except Exception as e:
-                    results.append(TestResult(
+                    results.append(HspTestResult(
                         query_id=qid, query=QUERIES[qid], answer="",
                         tool_calls=[], elapsed_s=0,
                         error=f"Thread error: {e}",

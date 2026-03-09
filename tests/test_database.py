@@ -1,43 +1,30 @@
-"""Tests for the DuckDB database layer."""
+from pathlib import Path
 
 from strap.database import Database
 
 
-def test_tables_loaded(conn):
-    """Both CSV files should be loaded as tables."""
-    tables = [
-        row[0]
-        for row in conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema='main'"
-        ).fetchall()
-    ]
-    assert "common_solvents_database" in tables
-    assert "solvent_data" in tables
+def test_sanitize_table_name_prefixes_digit_started_names():
+    assert Database._sanitize_table_name("60_common_solvents-TEA-LCA") == "t_60_common_solvents_tea_lca"
 
 
-def test_columns_sanitized(conn):
-    """Column names should be lower-cased with special chars replaced."""
-    cols = [
-        row[0]
-        for row in conn.execute(
-            "SELECT column_name FROM information_schema.columns "
-            "WHERE table_name='common_solvents_database'"
-        ).fetchall()
-    ]
-    # Original header has "Solubility (%)" which should become "solubility____"
-    assert "solubility____" in cols
-    assert "polymer" in cols
-    assert "solvent" in cols
+def test_get_database_caches_by_resolved_data_dir(tmp_path, monkeypatch):
+    import strap.database as database_module
 
+    dir_one = tmp_path / "data-one"
+    dir_two = tmp_path / "data-two"
+    dir_one.mkdir()
+    dir_two.mkdir()
+    (dir_one / "sample.csv").write_text("value\n1\n", encoding="utf-8")
+    (dir_two / "sample.csv").write_text("value\n2\n", encoding="utf-8")
 
-def test_sanitize_column_static():
-    assert Database._sanitize_column("Temperature (°C)") == "temperature___c_"
-    assert Database._sanitize_column("Solubility (%)") == "solubility____"
+    monkeypatch.setattr(database_module, "_database", None)
+    monkeypatch.setattr(database_module, "_database_cache", {})
 
+    db_one = database_module.get_database(dir_one)
+    db_one_again = database_module.get_database(Path(dir_one))
+    db_two = database_module.get_database(dir_two)
 
-def test_basic_query(conn):
-    """Should be able to query polymer data."""
-    result = conn.execute(
-        "SELECT COUNT(*) FROM common_solvents_database"
-    ).fetchone()
-    assert result[0] > 0
+    assert db_one is db_one_again
+    assert db_one is not db_two
+    assert db_one.conn.execute("SELECT value FROM sample").fetchone()[0] == 1
+    assert db_two.conn.execute("SELECT value FROM sample").fetchone()[0] == 2

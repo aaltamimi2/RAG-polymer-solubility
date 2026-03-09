@@ -160,6 +160,15 @@ class TestGetSupportedSolvents:
         assert "chlorinated_blocklist" in result
         assert isinstance(result["chlorinated_blocklist"], list)
 
+    def test_supported_solvent_catalog_now_comes_from_service_layer(self):
+        from strap.services.biosteam_service import PE_SOLVENTS
+        from strap.vendor.biosteam_runner import get_supported_solvents
+
+        result = get_supported_solvents()
+
+        assert result["catalog_source"] == "strap.services.biosteam_service"
+        assert result["pe_solvents"] == list(PE_SOLVENTS)
+
 
 class TestBuildBatchConfigs:
     def test_generates_one_config_per_solvent_energy_pair(self):
@@ -186,6 +195,14 @@ class TestBuildBatchConfigs:
         cfg = configs[0]
         assert "solvent_price" in cfg
         assert "dissolution_temperature_c" in cfg
+
+    def test_solvent_defaults_now_come_from_tea_lca_csv(self):
+        from strap.vendor.biosteam_runner import build_batch_configs
+
+        cfg = build_batch_configs(solvents=["Toluene"])[0]
+
+        assert cfg["solvent_price"] == pytest.approx(1.312, abs=1e-3)
+        assert cfg["dissolution_temperature_c"] == pytest.approx(109.6, abs=1e-3)
 
     def test_empty_solvents_returns_empty_list(self):
         from strap.vendor.biosteam_runner import build_batch_configs

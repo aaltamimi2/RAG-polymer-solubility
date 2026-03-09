@@ -12,542 +12,79 @@ _build_subagent_list()).
 
 from __future__ import annotations
 
-import json
 import logging
-import re
-from pathlib import Path
 from typing import TYPE_CHECKING
-
-import yaml
 
 logger = logging.getLogger(__name__)
 
 from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware.types import AgentMiddleware
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import ToolMessage
+
+from .routing_classifier import (
+    _build_hint_from_matches,
+    _normalize_matched_rules,
+    classify_query_keywords,
+    classify_query_llm,
+    generate_routing_table,
+)
+
+from .routing_progress import (
+    _build_progress_directive,
+    _build_write_todos_guard_messages,
+    _extract_all_task_subagents,
+    _extract_completed_subagent_calls,
+    _extract_completed_subagents,
+    _extract_failed_subagent_calls,
+    _extract_returned_subagent_calls,
+    _get_active_remaining_steps,
+    _get_allowed_subagent_names,
+    _get_effective_completed_task_ids,
+    _get_effective_failed_task_ids,
+    _get_last_human_message,
+    _get_latest_dispatch_for_subagent,
+    _get_ordered_plan,
+    _get_pending_required_handoff,
+    _get_ready_downstream_consumer,
+    _get_ready_downstream_handoff,
+    _get_task_handoff_statuses,
+    _get_tool_message_registry,
+    _has_active_progress,
+    _has_built_handoff_since,
+    _is_router_guard_message,
+    _is_retry_of_failed_dispatch,
+    _normalize_task_description,
+    _parse_tool_json_content,
+    _should_block_write_todos,
+    _task_descriptions_match,
+    _validate_write_todos_call,
+    _workflow_is_active,
+)
+
+from .routing_guards import (
+    _build_filesystem_guard_messages,
+    _build_initial_route_task_response,
+    _build_incomplete_route_retry_hint,
+    _build_multi_specialist_completion_response,
+    _build_pending_handoff_response,
+    _build_ready_handoff_response,
+    _build_single_specialist_completion_response,
+    _build_workflow_guard_messages,
+    _response_matches_pending_handoff,
+    _response_matches_ready_handoff,
+)
 
 if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest, ModelResponse
     from langchain_core.language_models import BaseChatModel
     from collections.abc import Callable
-
-# ------------------------------------------------------------------
-# Routing rules — loaded from subagents.yaml at import time
-# ------------------------------------------------------------------
-
-def _load_routing_rules() -> tuple[list[dict], set[frozenset], set[frozenset], dict[tuple, None]]:
-    """Load routing rules from subagents.yaml.
-
-    Builds ROUTING_RULES from subagent specs that have a ``routing:`` key,
-    and PARALLEL_PAIRS / SEQUENTIAL_PAIRS from the ``execution_pairs:`` section.
-    """
-    try:
-        yaml_path = Path(__file__).parent / "subagents.yaml"
-        with open(yaml_path) as f:
-            data = yaml.safe_load(f)
-
-        # Support both flat-list format and new mapping format
-        if isinstance(data, dict):
-            specs = data.get("subagents", [])
-            exec_pairs = data.get("execution_pairs", {})
-        else:
-            specs = data
-            exec_pairs = {}
-
-        # Build ROUTING_RULES from subagent specs that have a routing: section.
-        # The description field comes from the subagent's top-level description.
-        routing_rules: list[dict] = []
-        for spec in specs:
-            routing = spec.get("routing")
-            if not routing:
-                continue
-            rule = {
-                "subagent": spec["name"],
-                "priority": routing.get("priority", 999),
-                "description": spec.get("description", "").strip(),
-                "phrases": list(routing.get("phrases", [])),
-                "high_stems": list(routing.get("high_stems", [])),
-                "low_stems": list(routing.get("low_stems", [])),
-                "negatives": list(routing.get("negatives", [])),
-            }
-            routing_rules.append(rule)
-
-        # Sort by priority so order matches the original hardcoded list
-        routing_rules.sort(key=lambda r: r["priority"])
-
-        # Build PARALLEL_PAIRS
-        parallel_pairs: set[frozenset] = set()
-        for pair in exec_pairs.get("parallel", []):
-            parallel_pairs.add(frozenset(pair))
-
-        # Build PARALLEL_3WAY
-        parallel_3way: set[frozenset] = set()
-        for group in exec_pairs.get("parallel_3way", []):
-            parallel_3way.add(frozenset(group))
-
-        # Build SEQUENTIAL_PAIRS
-        sequential_pairs: dict[tuple, None] = {}
-        for pair in exec_pairs.get("sequential", []):
-            sequential_pairs[(pair[0], pair[1])] = None
-
-        return routing_rules, parallel_pairs, parallel_3way, sequential_pairs
-
-    except Exception as e:
-        logger.warning(
-            "Failed to load routing rules from YAML: %s — using empty defaults", e
-        )
-        return {}, [], set(), []
-
-
-ROUTING_RULES, PARALLEL_PAIRS, PARALLEL_3WAY, SEQUENTIAL_PAIRS = _load_routing_rules()
-
-
-# ------------------------------------------------------------------
-# LLM-based semantic classifier
-# ------------------------------------------------------------------
-
-def _build_subagent_list() -> str:
-    """Build the specialist list for the classifier prompt from ROUTING_RULES."""
-    lines = []
-    for rule in ROUTING_RULES:
-        lines.append(f'- {rule["subagent"]}: {rule["description"]}')
-    return "\n".join(lines)
-
-
-_CLASSIFIER_SYSTEM_PROMPT = """\
-You are a query router for a polymer dissolution analysis system.
-Given a user query, identify which specialist(s) should handle it.
-
-Available specialists:
-{subagent_list}
-
-Respond with JSON only:
-{{"subagents": ["name1"], "confidence": "HIGH"|"MEDIUM"|"LOW"}}
-
-Rules:
-- Return 1-3 subagent names ordered by relevance
-- Return {{"subagents": []}} if the orchestrator can handle it directly \
-(e.g. listing polymers, simple lookups)
-- HIGH = clear specialist match, LOW = ambiguous
-- "separation-engineer" handles dissolution, purification, separation \
-sequences, selective solvents, mixed-stream processing
-- "safety-analyst" handles safety, toxicity, GSK scores, hazard data
-- When a query involves BOTH separation AND safety (e.g. "safest sequence"), \
-return both specialists""".format(subagent_list=_build_subagent_list())
-
-
-def classify_query_llm(
-    query: str,
-    classifier_model: BaseChatModel,
-) -> list[dict] | None:
-    """Classify a query using an LLM and return matched routing rules.
-
-    Returns a list of matched ROUTING_RULES dicts ordered by relevance,
-    or None on failure (caller should fall back to keywords).
-    """
-    try:
-        result = classifier_model.invoke([
-            SystemMessage(content=_CLASSIFIER_SYSTEM_PROMPT),
-            HumanMessage(content=query),
-        ])
-    except Exception:
-        logger.warning("classify_query_llm: model call failed", exc_info=True)
-        return None
-
-    # Parse JSON response — handle Gemini's list-of-dicts content format
-    content = result.content
-    if isinstance(content, str):
-        text = content.strip()
-    elif isinstance(content, list):
-        # Gemini returns [{"type": "text", "text": "...", ...}]
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                parts.append(item["text"])
-            elif isinstance(item, str):
-                parts.append(item)
-        text = "\n".join(parts).strip()
-    else:
-        text = str(content).strip()
-
-    parsed = None
-    try:
-        parsed = json.loads(text)
-    except (json.JSONDecodeError, TypeError):
-        # Try extracting from markdown code block
-        m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if m:
-            try:
-                parsed = json.loads(m.group(1))
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-    if not parsed or not isinstance(parsed.get("subagents"), list):
-        logger.warning("classify_query_llm: could not parse response: %s", text[:200])
-        return None
-
-    subagent_names = parsed["subagents"]
-    if not subagent_names:
-        return []  # Orchestrator handles directly
-
-    # Map names back to ROUTING_RULES entries
-    rules_by_name = {r["subagent"]: r for r in ROUTING_RULES}
-    matched = []
-    for name in subagent_names:
-        rule = rules_by_name.get(name)
-        if rule:
-            matched.append(rule)
-        else:
-            logger.warning("classify_query_llm: unknown subagent name: %s", name)
-
-    confidence = parsed.get("confidence", "MEDIUM")
-    logger.info(
-        "classify_query_llm: subagents=%s confidence=%s",
-        [r["subagent"] for r in matched],
-        confidence,
-    )
-    return matched if matched else None
-
-
-# ------------------------------------------------------------------
-# Keyword classifier
-# ------------------------------------------------------------------
-
-def _match_rule(rule: dict, query_lower: str) -> int:
-    """Score a single routing rule against a query.
-
-    Returns:
-        Score: 3 (phrase match), 2 (high-stem), 1 (2+ low-stems), 0 (no match).
-        Returns -1 if a negative keyword cancels the match.
-    """
-    # Check negatives first
-    for neg in rule["negatives"]:
-        if neg in query_lower:
-            return -1
-
-    # Phrase match (any phrase → strong match)
-    for phrase in rule["phrases"]:
-        if re.search(phrase, query_lower):
-            return 3
-
-    # High-stem match (any hit → strong match)
-    for stem in rule["high_stems"]:
-        if re.search(stem, query_lower):
-            return 2
-
-    # Low-stem match (2+ hits → moderate match)
-    low_hits = sum(1 for stem in rule["low_stems"] if re.search(stem, query_lower))
-    if low_hits >= 2:
-        return 1
-
-    return 0
-
-
-def classify_query_keywords(messages: list) -> list[dict]:
-    """Classify the latest human message using keyword matching.
-
-    Returns a list of matched ROUTING_RULES dicts sorted by
-    (score desc, priority asc), or an empty list if no match.
-    """
-    # Extract last human message
-    query = ""
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            query = msg.content if isinstance(msg.content, str) else str(msg.content)
-            break
-
-    if not query:
-        return []
-
-    query_lower = query.lower()
-
-    # Score all rules
-    matches: list[tuple[int, int, dict]] = []  # (score, priority, rule)
-    for rule in ROUTING_RULES:
-        score = _match_rule(rule, query_lower)
-        if score > 0:
-            matches.append((score, rule["priority"], rule))
-
-    if not matches:
-        return []
-
-    # Sort by score descending, then priority ascending (lower = higher priority)
-    matches.sort(key=lambda x: (-x[0], x[1]))
-    return [m[2] for m in matches]
-
-
-# ------------------------------------------------------------------
-# Shared hint builder
-# ------------------------------------------------------------------
-
-def _build_hint_from_matches(matched_rules: list[dict]) -> str | None:
-    """Build an advisory routing hint string from matched routing rules.
-
-    Used by both the LLM classifier and keyword fallback paths.
-    Returns None if no rules matched.
-    """
-    if not matched_rules:
-        return None
-
-    if len(matched_rules) == 1:
-        rule = matched_rules[0]
-        return (
-            f'\n\n[ADVISORY: This query is well-suited for the "{rule["subagent"]}" '
-            f'specialist ({rule["description"]}). '
-            f'Consider delegating via task(subagent_type="{rule["subagent"]}"). '
-            f'For simple queries you can also answer directly using your own tools.]'
-        )
-
-    # 3-way parallel check
-    if len(matched_rules) == 3:
-        trio_set = frozenset(r["subagent"] for r in matched_rules)
-        if trio_set in PARALLEL_3WAY:
-            agent_descs = ", ".join(
-                f'"{r["subagent"]}" ({r["description"]})'
-                for r in matched_rules
-            )
-            return (
-                f'\n\n[ADVISORY: This query may benefit from three specialists in parallel: '
-                f'{agent_descs}. '
-                f'You may delegate to all three via concurrent task() calls.]'
-            )
-
-    # Multi-agent routing
-    if len(matched_rules) == 2:
-        primary = matched_rules[0]
-        secondary = matched_rules[1]
-        pair_set = frozenset({primary["subagent"], secondary["subagent"]})
-        pair_tuple = (primary["subagent"], secondary["subagent"])
-        pair_tuple_rev = (secondary["subagent"], primary["subagent"])
-
-        # Check if parallel
-        if pair_set in PARALLEL_PAIRS:
-            return (
-                f'\n\n[ADVISORY: This query may benefit from multiple specialists: '
-                f'"{primary["subagent"]}" ({primary["description"]}) and '
-                f'"{secondary["subagent"]}" ({secondary["description"]}). '
-                f'You may delegate to them in parallel or sequentially as appropriate. '
-                f'For simple selectivity queries, you can answer directly using '
-                f'rank_solvents_selectivity.]'
-            )
-
-        # Check if sequential (order matters — check both directions)
-        if pair_tuple in SEQUENTIAL_PAIRS:
-            first, second = primary, secondary
-        elif pair_tuple_rev in SEQUENTIAL_PAIRS:
-            first, second = secondary, primary
-        else:
-            first, second = primary, secondary
-
-        return (
-            f'\n\n[ADVISORY: This query may benefit from two specialists in sequence: '
-            f'first "{first["subagent"]}" ({first["description"]}), '
-            f'then "{second["subagent"]}" ({second["description"]}). '
-            f'You may delegate to them sequentially, or handle simpler aspects '
-            f'directly with your own tools.]'
-        )
-
-    # 3+ agents: advisory list
-    agent_list = ", ".join(
-        f'"{r["subagent"]}" ({r["description"]})'
-        for r in matched_rules
-    )
-    return (
-        f'\n\n[ADVISORY: This query may benefit from multiple specialists: '
-        f'{agent_list}. '
-        f'You may delegate to them sequentially or in parallel as appropriate. '
-        f'For simpler aspects, you can answer directly using your own tools.]'
-    )
-
-
-def classify_query(messages: list) -> str | None:
-    """Classify the latest human message and return an advisory routing hint.
-
-    Backward-compatible wrapper: keyword-only classification.
-    Returns None if no routing hint should be injected.
-    """
-    matched = classify_query_keywords(messages)
-    return _build_hint_from_matches(matched)
-
-
-# ------------------------------------------------------------------
-# Prompt table generator (used in SYSTEM_PROMPT)
-# ------------------------------------------------------------------
-
-def generate_routing_table() -> str:
-    """Generate the routing rules section for the system prompt.
-
-    Built from ROUTING_RULES so the prompt and middleware stay in sync.
-    """
-    lines = [
-        "## Routing rules",
-        "Your core tools handle: listing polymers/solvents, solvent properties "
-        "(BP, LogP), SQL queries, and data exploration. You also clarify ambiguous "
-        "requests, summarize subagent results, and format final responses.",
-        "",
-        "For specialist work, delegate to the appropriate subagent:",
-        "",
-        "| Query involves... | Delegate to |",
-        "|---|---|",
-    ]
-
-    for rule in ROUTING_RULES:
-        lines.append(f'| {rule["description"]} | {rule["subagent"]} |')
-
-    lines.extend([
-        "",
-        "Subagent contracts:",
-        "- separation-engineer owns feasibility/sequence/selectivity",
-        "- safety-analyst owns hazard/safety scores",
-        "- biosteam-analyst owns all TEA/LCA: process simulation, MSP, CAPEX, OPEX, GWP, cost, emissions",
-        "- For cross-domain queries, delegate to the primary domain first, "
-        "then pass results to the secondary specialist.",
-        "",
-        "When in doubt, delegate rather than attempting specialist work yourself.",
-    ])
-
-    return "\n".join(lines)
-
-
 # ------------------------------------------------------------------
 # Middleware helpers
 # ------------------------------------------------------------------
 
-def _extract_completed_subagents(messages: list) -> list[str]:
-    """Extract subagent names from completed task() calls in message history.
-
-    A task() call is "completed" only when its corresponding ToolMessage
-    exists in the history.  This prevents counting in-flight parallel task()
-    dispatches as completed before the subagent has actually returned.
-    """
-    # Collect all task() dispatches: tool_call_id -> subagent_type
-    pending: dict[str, str] = {}
-    for msg in messages:
-        if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.get("name") == "task":
-                    sa = tc.get("args", {}).get("subagent_type", "")
-                    tc_id = tc.get("id", "")
-                    if sa and tc_id:
-                        pending[tc_id] = sa
-
-    if not pending:
-        return []
-
-    # Find tool_call_ids that have a matching ToolMessage (actually completed)
-    completed_ids: set[str] = set()
-    for msg in messages:
-        if isinstance(msg, ToolMessage):
-            tc_id = getattr(msg, "tool_call_id", None)
-            if tc_id and tc_id in pending:
-                completed_ids.add(tc_id)
-
-    # Return completed subagent names in ToolMessage order, deduplicated
-    completed: list[str] = []
-    seen: set[str] = set()
-    for msg in messages:
-        if isinstance(msg, ToolMessage):
-            tc_id = getattr(msg, "tool_call_id", None)
-            if tc_id and tc_id in completed_ids:
-                sa = pending[tc_id]
-                if sa not in seen:
-                    seen.add(sa)
-                    completed.append(sa)
-
-    return completed
-
-
-def _extract_all_task_subagents(messages: list) -> list[str]:
-    """Extract all subagent names dispatched via task(), completed or in-flight.
-
-    Returns deduplicated names in the order they were first dispatched.
-    Used to reconstruct the actual execution plan the orchestrator chose.
-    """
-    seen: set[str] = set()
-    dispatched: list[str] = []
-    for msg in messages:
-        if isinstance(msg, AIMessage) and hasattr(msg, "tool_calls") and msg.tool_calls:
-            for tc in msg.tool_calls:
-                if tc.get("name") == "task":
-                    sa = tc.get("args", {}).get("subagent_type", "")
-                    if sa and sa not in seen:
-                        seen.add(sa)
-                        dispatched.append(sa)
-    return dispatched
-
-
-def _build_progress_directive(
-    completed: list[str], ordered_plan: list[dict]
-) -> str | None:
-    """Build a progress-tracking directive for multi-agent sequential plans.
-
-    Returns a system prompt injection telling the orchestrator which steps
-    are done and what to do next, or None if the plan is complete.
-    """
-    done_set = set(completed)
-    remaining = [r for r in ordered_plan if r["subagent"] not in done_set]
-
-    done_names = ", ".join(dict.fromkeys(completed)) if completed else "(none)"
-
-    if not remaining:
-        return (
-            "\n\n[PROGRESS: All subagent steps are complete. "
-            "Consider synthesizing findings from all subagents into a final answer. "
-            "Prefer not to call additional task() functions unless needed.]"
-        )
-
-    next_agent = remaining[0]
-    return (
-        f"\n\n[PROGRESS: Completed subagents: {done_names}. "
-        f'Suggested next: task(subagent_type="{next_agent["subagent"]}") '
-        f"for {next_agent['description']}. "
-        f"Prefer not to re-delegate to an already-completed subagent. "
-        f"Remaining steps: {', '.join(r['subagent'] for r in remaining)}.]"
-    )
-
-
-def _get_ordered_plan(messages: list) -> list[dict]:
-    """Build the ordered execution plan from actual orchestrator history.
-
-    Instead of re-classifying the original query with keyword matching (which
-    may disagree with the LLM's routing decision), the plan is derived from
-    the actual task() dispatches in the message history.
-
-    1. Start with subagents actually dispatched (in dispatch order) — ground truth.
-    2. Append keyword-recommended agents not yet dispatched — advisory hints.
-    """
-    rules_by_name = {r["subagent"]: r for r in ROUTING_RULES}
-
-    # Ground truth: what the orchestrator actually dispatched
-    dispatched_names = _extract_all_task_subagents(messages)
-
-    plan: list[dict] = []
-    seen: set[str] = set()
-    for name in dispatched_names:
-        rule = rules_by_name.get(name)
-        if rule and name not in seen:
-            plan.append(rule)
-            seen.add(name)
-
-    # Advisory supplement: keyword-recommended agents not yet dispatched
-    keyword_matches = classify_query_keywords(messages)
-    for rule in keyword_matches:
-        name = rule["subagent"]
-        if name not in seen:
-            plan.append(rule)
-            seen.add(name)
-
-    return plan
-
-
-def _get_last_human_message(messages: list) -> str | None:
-    """Extract text from the last HumanMessage."""
-    for msg in reversed(messages):
-        if isinstance(msg, HumanMessage):
-            return msg.content if isinstance(msg.content, str) else str(msg.content)
-    return None
-
-
+# ------------------------------------------------------------------
+# Middleware (class-based)
+# ------------------------------------------------------------------
 # ------------------------------------------------------------------
 # Middleware (class-based)
 # ------------------------------------------------------------------
@@ -562,6 +99,7 @@ class RoutingMiddleware(AgentMiddleware):
 
     def __init__(self, classifier_model: BaseChatModel | None = None) -> None:
         self._classifier_model = classifier_model
+        self._route_cache: dict[str, list[dict]] = {}
 
     def wrap_model_call(
         self,
@@ -569,7 +107,31 @@ class RoutingMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
         request = self._inject_hint(request)
+        allowed_rules = self._get_allowed_rules(request.messages)
+        short_circuit = _build_single_specialist_completion_response(request.messages, allowed_rules)
+        if short_circuit is not None:
+            ai_msg = short_circuit.result[0] if getattr(short_circuit, "result", None) else None
+            logger.info(
+                "routing_middleware: short-circuiting final synthesis from completed single-specialist result origin=%s subagent=%s",
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_origin"),
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_subagent"),
+            )
+            return short_circuit
+        multi_specialist_short_circuit = _build_multi_specialist_completion_response(
+            request.messages,
+            allowed_rules,
+        )
+        if multi_specialist_short_circuit is not None:
+            ai_msg = multi_specialist_short_circuit.result[0] if getattr(multi_specialist_short_circuit, "result", None) else None
+            logger.info(
+                "routing_middleware: short-circuiting final synthesis from completed multi-specialist result origin=%s",
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_origin"),
+            )
+            return multi_specialist_short_circuit
         response = handler(request)
+        response = self._autobuild_pending_handoff(request, response, allowed_rules)
+        response = self._autodispatch_ready_handoff(request, response, allowed_rules)
+        response = self._retry_incomplete_route_once(request, response, handler, allowed_rules)
         self._log_decision(response)
         return response
 
@@ -579,26 +141,98 @@ class RoutingMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
         request = self._inject_hint(request)
+        allowed_rules = self._get_allowed_rules(request.messages)
+        short_circuit = _build_single_specialist_completion_response(request.messages, allowed_rules)
+        if short_circuit is not None:
+            ai_msg = short_circuit.result[0] if getattr(short_circuit, "result", None) else None
+            logger.info(
+                "routing_middleware: short-circuiting final synthesis from completed single-specialist result (async) origin=%s subagent=%s",
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_origin"),
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_subagent"),
+            )
+            return short_circuit
+        multi_specialist_short_circuit = _build_multi_specialist_completion_response(
+            request.messages,
+            allowed_rules,
+        )
+        if multi_specialist_short_circuit is not None:
+            ai_msg = multi_specialist_short_circuit.result[0] if getattr(multi_specialist_short_circuit, "result", None) else None
+            logger.info(
+                "routing_middleware: short-circuiting final synthesis from completed multi-specialist result (async) origin=%s",
+                getattr(ai_msg, "additional_kwargs", {}).get("strap_origin"),
+            )
+            return multi_specialist_short_circuit
         response = await handler(request)
+        response = self._autobuild_pending_handoff(request, response, allowed_rules)
+        response = self._autodispatch_ready_handoff(request, response, allowed_rules)
+        response = await self._aretry_incomplete_route_once(request, response, handler, allowed_rules)
         self._log_decision(response)
         return response
 
+    def after_model(self, state, runtime) -> dict[str, list[ToolMessage]] | None:
+        allowed_rules = self._get_allowed_rules(state["messages"])
+        guard_messages = _build_write_todos_guard_messages(state["messages"], allowed_rules)
+        guard_messages.extend(_build_workflow_guard_messages(state["messages"], allowed_rules))
+        guard_messages.extend(_build_filesystem_guard_messages(state["messages"]))
+        if guard_messages:
+            logger.info(
+                "routing_middleware: blocked guarded tool calls=%s",
+                [msg.tool_call_id for msg in guard_messages],
+            )
+            return {"messages": guard_messages}
+        return None
+
+    async def aafter_model(self, state, runtime) -> dict[str, list[ToolMessage]] | None:
+        return self.after_model(state, runtime)
+
+    def wrap_tool_call(self, request, handler):
+        tool_call = request.tool_call
+        if tool_call.get("name") == "write_todos":
+            state_messages = (request.state or {}).get("messages", [])
+            allowed_rules = self._get_allowed_rules(state_messages)
+            if _should_block_write_todos(state_messages, allowed_rules):
+                allowed_names = sorted(_get_allowed_subagent_names(allowed_rules))
+                if allowed_names:
+                    specialists = ", ".join(allowed_names)
+                    message = (
+                        "Router guard: `write_todos` is disabled before the first specialist dispatch "
+                        f"for this routed workflow. Dispatch `task(...)` for: {specialists}."
+                    )
+                else:
+                    message = (
+                        "Router guard: `write_todos` is disabled before the first specialist dispatch "
+                        "for this routed workflow."
+                    )
+                return ToolMessage(
+                    content=message,
+                    tool_call_id=tool_call["id"],
+                    status="error",
+                )
+            validation_error = _validate_write_todos_call(tool_call)
+            if validation_error is not None:
+                return ToolMessage(
+                    content=f"Router guard: {validation_error}",
+                    tool_call_id=tool_call["id"],
+                    status="error",
+                )
+        return handler(request)
+
+    async def awrap_tool_call(self, request, handler):
+        result = self.wrap_tool_call(request, lambda req: None)
+        if isinstance(result, ToolMessage):
+            return result
+        return await handler(request)
+
     def _inject_hint(self, request: ModelRequest) -> ModelRequest:
         """Inject routing or progress hint into the system message."""
-        completed = _extract_completed_subagents(request.messages)
+        returned_calls = _extract_returned_subagent_calls(request.messages)
+        completed_calls = _extract_completed_subagent_calls(request.messages)
+        failed_calls = _extract_failed_subagent_calls(request.messages)
         query_text = _get_last_human_message(request.messages)
+        allowed_rules = self._get_allowed_rules(request.messages)
 
-        if not completed:
-            # First call — try LLM, fall back to keywords
-            matched = None
-            if self._classifier_model and query_text:
-                matched = classify_query_llm(query_text, self._classifier_model)
-
-            if matched is None:
-                # LLM unavailable or failed — keyword fallback
-                matched = classify_query_keywords(request.messages)
-
-            hint = _build_hint_from_matches(matched)
+        if not returned_calls:
+            hint = _build_hint_from_matches(allowed_rules)
 
             if hint:
                 logger.info(
@@ -620,20 +254,28 @@ class RoutingMiddleware(AgentMiddleware):
         # After task() calls: inject progress directive based on actual history.
         # _get_ordered_plan derives the plan from what the orchestrator actually
         # dispatched, not from re-predicting the original query.
-        ordered_plan = _get_ordered_plan(request.messages)
+        ordered_plan = _get_ordered_plan(request.messages, allowed_rules=allowed_rules)
 
-        if len(ordered_plan) > 1:
-            progress = _build_progress_directive(completed, ordered_plan)
+        if ordered_plan:
+            completed_ids = _get_effective_completed_task_ids(request.messages)
+            failed_ids = _get_effective_failed_task_ids(request.messages)
+            remaining = _get_active_remaining_steps(request.messages, ordered_plan)
+            progress = _build_progress_directive(
+                request.messages,
+                completed_ids,
+                ordered_plan,
+                failed_ids=failed_ids,
+            )
             if progress and request.system_message is not None:
                 new_system = append_to_system_message(
                     request.system_message, progress
                 )
                 logger.info(
                     "routing_middleware: progress directive injected, "
-                    "completed=%s remaining=%s",
-                    completed,
-                    [r["subagent"] for r in ordered_plan
-                     if r["subagent"] not in set(completed)],
+                    "completed=%s failed=%s remaining=%s",
+                    [r["subagent"] for r in ordered_plan if r["step_id"] in completed_ids],
+                    [r["subagent"] for r in ordered_plan if r["step_id"] in failed_ids],
+                    [r["subagent"] for r in remaining],
                 )
                 return request.override(system_message=new_system)
 
@@ -650,6 +292,128 @@ class RoutingMiddleware(AgentMiddleware):
                 logger.info(
                     "routing_middleware: LLM decided tool_calls=%s", tool_names,
                 )
+
+    def _get_allowed_rules(self, messages: list) -> list[dict]:
+        """Return the classifier-selected specialist set for the active query."""
+        query_text = _get_last_human_message(messages) or ""
+        cache_key = query_text.strip()
+        if cache_key in self._route_cache:
+            return self._route_cache[cache_key]
+
+        matched = None
+        keyword_matched = classify_query_keywords(messages)
+        if self._classifier_model and cache_key:
+            matched = classify_query_llm(cache_key, self._classifier_model)
+
+        matched = _normalize_matched_rules(cache_key, matched) if matched is not None else None
+        keyword_matched = _normalize_matched_rules(cache_key, keyword_matched)
+
+        if not matched:
+            matched = keyword_matched
+        elif keyword_matched:
+            matched_names = {rule["subagent"] for rule in matched}
+            keyword_names = {rule["subagent"] for rule in keyword_matched}
+            if (
+                {"separation-engineer", "contaminant-removal-analyst"}.issubset(keyword_names)
+                and not {"separation-engineer", "contaminant-removal-analyst"}.issubset(matched_names)
+            ):
+                matched = keyword_matched
+
+        self._route_cache[cache_key] = matched or []
+        return self._route_cache[cache_key]
+
+    def _autodispatch_ready_handoff(self, request: ModelRequest, response, allowed_rules):
+        """Synthesize the downstream task() once the next handoff is already validated."""
+        ready_handoff = _get_ready_downstream_handoff(request.messages, allowed_rules)
+        if ready_handoff is None:
+            return response
+
+        if _response_matches_ready_handoff(response, ready_handoff):
+            return response
+
+        logger.info(
+            "routing_middleware: auto-dispatching ready handoff consumer=%s handoff_id=%s",
+            ready_handoff.get("consumer"),
+            ready_handoff.get("handoff_id"),
+        )
+        return _build_ready_handoff_response(ready_handoff, response=response)
+
+    def _autobuild_pending_handoff(self, request: ModelRequest, response, allowed_rules):
+        """Synthesize build_handoff() once the next sequential edge is known."""
+        pending_handoff = _get_pending_required_handoff(request.messages, allowed_rules)
+        if pending_handoff is None:
+            return response
+
+        if _response_matches_pending_handoff(response, pending_handoff):
+            return response
+
+        producer, consumer = pending_handoff
+        logger.info(
+            "routing_middleware: auto-building pending handoff producer=%s consumer=%s",
+            producer,
+            consumer,
+        )
+        return _build_pending_handoff_response(pending_handoff, response=response)
+
+    def _retry_incomplete_route_once(self, request: ModelRequest, response, handler, allowed_rules=None):
+        """Retry once when the model stops before the routed workflow is complete."""
+        result = getattr(response, "result", None)
+        if not result:
+            return response
+
+        ai_msg = result[0]
+        if getattr(ai_msg, "tool_calls", None):
+            return response
+
+        if allowed_rules is None:
+            allowed_rules = self._get_allowed_rules(request.messages)
+        start_response = _build_initial_route_task_response(request.messages, allowed_rules)
+        if start_response is not None:
+            logger.info("routing_middleware: synthesizing initial task dispatch for routed workflow")
+            return start_response
+        retry_hint = _build_incomplete_route_retry_hint(request.messages, allowed_rules)
+        if retry_hint is None or request.system_message is None:
+            return response
+
+        system_text = str(getattr(request.system_message, "content", request.system_message))
+        if "ROUTER_RETRY:" in system_text:
+            return response
+
+        retry_request = request.override(
+            system_message=append_to_system_message(request.system_message, retry_hint)
+        )
+        logger.info("routing_middleware: retrying incomplete route with hard directive")
+        return handler(retry_request)
+
+    async def _aretry_incomplete_route_once(self, request: ModelRequest, response, handler, allowed_rules=None):
+        """Async variant of the incomplete-route retry."""
+        result = getattr(response, "result", None)
+        if not result:
+            return response
+
+        ai_msg = result[0]
+        if getattr(ai_msg, "tool_calls", None):
+            return response
+
+        if allowed_rules is None:
+            allowed_rules = self._get_allowed_rules(request.messages)
+        start_response = _build_initial_route_task_response(request.messages, allowed_rules)
+        if start_response is not None:
+            logger.info("routing_middleware: synthesizing initial task dispatch for routed workflow (async)")
+            return start_response
+        retry_hint = _build_incomplete_route_retry_hint(request.messages, allowed_rules)
+        if retry_hint is None or request.system_message is None:
+            return response
+
+        system_text = str(getattr(request.system_message, "content", request.system_message))
+        if "ROUTER_RETRY:" in system_text:
+            return response
+
+        retry_request = request.override(
+            system_message=append_to_system_message(request.system_message, retry_hint)
+        )
+        logger.info("routing_middleware: retrying incomplete route with hard directive (async)")
+        return await handler(retry_request)
 
 
 # Module-level instance for backward compat (keyword-only, no LLM)

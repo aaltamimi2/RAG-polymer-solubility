@@ -34,6 +34,13 @@ class TestGetDefaultParameterRanges:
         assert lo == pytest.approx(base_price * 0.7, abs=0.01)
         assert hi == pytest.approx(base_price * 1.5, abs=0.01)
 
+    def test_toluene_base_defaults_match_tea_lca_csv(self):
+        from strap.vendor.biosteam_runner import _SOLVENT_DEFAULTS
+
+        price, diss_temp, _ = _SOLVENT_DEFAULTS["Toluene"]
+        assert price == pytest.approx(1.312, abs=1e-3)
+        assert diss_temp == pytest.approx(109.6, abs=1e-3)
+
     def test_dissolution_temp_lower_bound_at_least_90(self):
         from strap.vendor.biosteam_runner import _get_default_parameter_ranges
         # Hexane has base dissolution temp 66 °C → 66-20 = 46, should clamp to 90
@@ -251,6 +258,17 @@ class TestRunBiosteamParameterSweepTool:
         parsed = json.loads(raw)
         assert parsed["data"]["n_values"] == 3
 
+    def test_invalid_values_return_structured_error(self):
+        from strap.tools.biosteam_tea_lca import run_biosteam_parameter_sweep
+
+        raw = run_biosteam_parameter_sweep(
+            "Toluene", parameter="feedstock_distance_km", values="a,b,c",
+        )
+
+        parsed = json.loads(raw)
+        assert parsed["data"]["success"] is False
+        assert "parse values" in parsed["data"]["error"].lower()
+
 
 class TestRunBiosteamTornadoTool:
 
@@ -301,3 +319,23 @@ class TestRunBiosteamTornadoTool:
         rankings = parsed["data"]["rankings"]
         if len(rankings) >= 2:
             assert rankings[0]["range"] >= rankings[1]["range"]
+
+
+class TestBioSteamToolErrorContracts:
+    def test_visualize_invalid_json_returns_envelope(self):
+        from strap.tools.biosteam_tea_lca import visualize_biosteam_results
+
+        raw = visualize_biosteam_results("{bad json")
+        parsed = json.loads(raw)
+
+        assert parsed["data"]["success"] is False
+        assert parsed["data"]["tool_name"] == "visualize_biosteam_results"
+
+    def test_multi_polymer_invalid_json_returns_envelope(self):
+        from strap.tools.biosteam_tea_lca import run_biosteam_multi_polymer
+
+        raw = run_biosteam_multi_polymer("{bad json")
+        parsed = json.loads(raw)
+
+        assert parsed["data"]["success"] is False
+        assert parsed["data"]["tool_name"] == "run_biosteam_multi_polymer"

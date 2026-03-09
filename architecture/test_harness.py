@@ -26,10 +26,12 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import matplotlib
@@ -44,6 +46,7 @@ from dotenv import load_dotenv
 load_dotenv(str(_ROOT_DIR / ".env"))
 
 from langsmith import Client as LangSmithClient
+from strap.routing_guards import build_single_specialist_separation_ai_message
 
 
 # ── Test query definitions ────────────────────────────────────────────
@@ -208,6 +211,25 @@ MULTI_AGENT_QUERIES: list[TestQuery] = [
 
 # ── Metric extraction (mirrors scaling_benchmark.py) ──────────────────
 
+def _extract_tool_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    return str(content)
+
+
+def _get_router_guarded_tool_call_ids(messages: list) -> set[str]:
+    guarded_ids: set[str] = set()
+    for msg in messages:
+        if getattr(msg, "type", "") != "tool":
+            continue
+        if not _extract_tool_text(getattr(msg, "content", "")).startswith("Router guard:"):
+            continue
+        tool_call_id = getattr(msg, "tool_call_id", None)
+        if tool_call_id:
+            guarded_ids.add(tool_call_id)
+    return guarded_ids
+
+
 def extract_metrics(messages: list) -> dict:
     """Extract token counts, tool calls, and subagent info from messages."""
     total_input = 0
@@ -215,6 +237,7 @@ def extract_metrics(messages: list) -> dict:
     n_tool_calls = 0
     tool_names: list[str] = []
     subagents_invoked: list[str] = []
+    guarded_tool_call_ids = _get_router_guarded_tool_call_ids(messages)
 
     for msg in messages:
         if msg.type == "ai":
@@ -224,6 +247,8 @@ def extract_metrics(messages: list) -> dict:
                 total_output += usage.get("output_tokens", 0)
 
             for tc in getattr(msg, "tool_calls", None) or []:
+                if tc.get("id") in guarded_tool_call_ids:
+                    continue
                 name = tc.get("name", "")
                 tool_names.append(name)
                 n_tool_calls += 1
@@ -258,18 +283,81 @@ def _extract_text(content) -> str:
     return str(content)
 
 
+def _extract_final_answer_diagnostics(messages: list, answer: str) -> dict:
+    """Summarize the final answer boundary for debugging propagation issues."""
+    ai_messages = [msg for msg in messages if getattr(msg, "type", "") == "ai"]
+    last_ai = ai_messages[-1] if ai_messages else None
+    last_ai_text = _extract_text(getattr(last_ai, "content", "")) if last_ai else ""
+    last_ai_tool_calls = list(getattr(last_ai, "tool_calls", None) or []) if last_ai else []
+    additional_kwargs = dict(getattr(last_ai, "additional_kwargs", {}) or {}) if last_ai else {}
+
+    origins = [
+        dict(getattr(msg, "additional_kwargs", {}) or {}).get("strap_origin")
+        for msg in ai_messages
+        if dict(getattr(msg, "additional_kwargs", {}) or {}).get("strap_origin")
+    ]
+
+    return {
+        "message_count": len(messages),
+        "ai_message_count": len(ai_messages),
+        "last_message_type": getattr(messages[-1], "type", None) if messages else None,
+        "last_ai_has_tool_calls": bool(last_ai_tool_calls),
+        "last_ai_tool_call_names": [tool_call.get("name") for tool_call in last_ai_tool_calls],
+        "last_ai_origin": additional_kwargs.get("strap_origin"),
+        "last_ai_subagent": additional_kwargs.get("strap_subagent"),
+        "last_ai_tool_call_id": additional_kwargs.get("strap_tool_call_id"),
+        "last_ai_handoff_status": additional_kwargs.get("strap_handoff_status"),
+        "origin_history": origins,
+        "last_ai_excerpt": last_ai_text[:280],
+        "final_answer_length": len(answer or ""),
+    }
+
+
+_TIMEOUT_SNAPSHOT_DIR = _ARCH_DIR / "test_results" / "_timeout_snapshots"
+
+
+def _get_timeout_snapshot_path(thread_id: str) -> Path:
+    _TIMEOUT_SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    safe_thread_id = "".join(ch if ch.isalnum() or ch in {"-", "_"} else "_" for ch in thread_id)
+    return _TIMEOUT_SNAPSHOT_DIR / f"{safe_thread_id}.json"
+
+
+def clear_timeout_snapshot(thread_id: str) -> None:
+    path = _get_timeout_snapshot_path(thread_id)
+    path.unlink(missing_ok=True)
+
+
+def write_timeout_snapshot(result: "QueryResult") -> None:
+    path = _get_timeout_snapshot_path(result.thread_id or "threadless")
+    tmp_path = path.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(asdict(result), indent=2))
+    shutil.move(str(tmp_path), path)
+
+
+def load_timeout_snapshot(thread_id: str) -> "QueryResult | None":
+    path = _get_timeout_snapshot_path(thread_id)
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+    try:
+        return QueryResult(**payload)
+    except TypeError:
+        return None
+
+
 # ── LangSmith trace capture ──────────────────────────────────────────
 
-def get_latest_trace_id(
+def fetch_langsmith_trace(
     client: LangSmithClient,
+    *,
+    query: str,
     project: str = "strap-agent",
-    after_time: datetime | None = None,
-) -> str | None:
-    """Get the trace ID of the most recent root run.
-
-    If after_time is provided, only considers traces started after that time.
-    Polls up to 15 seconds for the trace to appear (LangSmith has ingestion lag).
-    """
+    started_at: datetime,
+) -> dict | None:
+    """Fetch the most likely LangSmith root trace for a harness query run."""
     import time as _time
 
     for attempt in range(6):
@@ -277,7 +365,8 @@ def get_latest_trace_id(
             runs = list(client.list_runs(
                 project_name=project,
                 is_root=True,
-                limit=10,
+                start_time=started_at - timedelta(seconds=5),
+                limit=20,
             ))
         except Exception as e:
             print(f"  LangSmith query failed (attempt {attempt + 1}): {e}")
@@ -285,31 +374,60 @@ def get_latest_trace_id(
             continue
 
         if runs:
-            # Only consider dissolve-agent chain runs (not individual LLM calls)
-            agent_runs = [
-                r for r in runs
-                if r.name == "dissolve-agent" and r.run_type == "chain"
-            ]
+            agent_runs = [r for r in runs if r.name == "dissolve-agent" and r.run_type == "chain"]
             pool = agent_runs if agent_runs else runs
 
-            if after_time:
-                candidates = []
-                for r in pool:
-                    if not r.start_time:
-                        continue
-                    r_time = r.start_time
-                    a_time = after_time
-                    if r_time.tzinfo is None and a_time.tzinfo is not None:
-                        a_time = a_time.replace(tzinfo=None)
-                    elif r_time.tzinfo is not None and a_time.tzinfo is None:
-                        r_time = r_time.replace(tzinfo=None)
-                    if r_time > a_time:
-                        candidates.append(r)
-                if candidates:
-                    candidates.sort(key=lambda r: r.start_time, reverse=True)
-                    return str(candidates[0].trace_id)
+            query_head = query.strip().splitlines()[0][:80]
+            selected = None
+            for run in sorted(pool, key=lambda r: getattr(r, "start_time", started_at), reverse=True):
+                inputs = json.dumps(getattr(run, "inputs", {}) or {}, default=str)
+                if query_head and query_head in inputs:
+                    selected = run
+                    break
+
+            if selected is None:
+                selected = sorted(
+                    pool,
+                    key=lambda r: getattr(r, "start_time", started_at),
+                    reverse=True,
+                )[0]
+
+            try:
+                trace_runs = list(client.list_runs(
+                    trace_id=selected.trace_id,
+                    project_name=project,
+                ))
+            except Exception as exc:
+                trace_runs = []
+                trace_error = str(exc)
             else:
-                return str(pool[0].trace_id)
+                trace_error = None
+
+            tool_runs = [run for run in trace_runs if getattr(run, "run_type", "") == "tool"]
+            llm_runs = [run for run in trace_runs if getattr(run, "run_type", "") == "llm"]
+            child_errors = [
+                {
+                    "id": str(run.id),
+                    "name": getattr(run, "name", ""),
+                    "run_type": getattr(run, "run_type", ""),
+                    "error": getattr(run, "error", ""),
+                }
+                for run in trace_runs
+                if getattr(run, "error", None)
+            ]
+
+            return {
+                "run_id": str(selected.id),
+                "trace_id": str(selected.trace_id),
+                "project_name": project,
+                "root_name": getattr(selected, "name", ""),
+                "run_count": len(trace_runs),
+                "tool_run_count": len(tool_runs),
+                "llm_run_count": len(llm_runs),
+                "tool_names": [getattr(run, "name", "") for run in tool_runs],
+                "child_errors": child_errors,
+                "fetch_error": trace_error,
+            }
 
         if attempt < 5:
             _time.sleep(3)
@@ -334,19 +452,31 @@ class QueryResult:
     n_tool_calls: int
     n_messages: int
     tool_names: list[str]
+    thread_id: str | None
+    run_id: str | None
     trace_id: str | None
+    full_answer: str
     answer_preview: str
     routing_match: bool        # did actual subagents match expected?
     timestamp: str
     error: str | None = None
+    trace_summary: dict | None = None
+    final_answer_diagnostics: dict | None = None
     waterfall_png: str | None = None
     swimlane_png: str | None = None
 
 
-def run_query(agent, tq: TestQuery, ls_client: LangSmithClient) -> QueryResult:
+def run_query(
+    agent,
+    tq: TestQuery,
+    ls_client: LangSmithClient | None,
+    *,
+    project_name: str,
+    thread_id: str | None = None,
+    fetch_trace: bool = True,
+    persist_timeout_snapshot: bool = False,
+) -> QueryResult:
     """Run a single test query and capture all metrics + trace ID."""
-    from datetime import timezone
-
     print(f"\n{'='*70}")
     print(f"Running: {tq.name}")
     print(f"Pattern: {tq.pattern} | Expected: {', '.join(tq.expected_subagents)}")
@@ -354,15 +484,22 @@ def run_query(agent, tq: TestQuery, ls_client: LangSmithClient) -> QueryResult:
     print(f"{'='*70}")
 
     before_time = datetime.now(tz=timezone.utc)
+    thread_id = thread_id or f"harness-{tq.name}-{uuid.uuid4().hex[:8]}"
+    if persist_timeout_snapshot:
+        clear_timeout_snapshot(thread_id)
     error = None
     answer = ""
     messages = []
+    final_answer_diagnostics = None
 
     t0 = time.time()
     try:
         result = agent.invoke(
             {"messages": [{"role": "user", "content": tq.query}]},
-            {"recursion_limit": tq.recursion_limit},
+            {
+                "recursion_limit": tq.recursion_limit,
+                "configurable": {"thread_id": thread_id},
+            },
         )
         messages = result.get("messages", [])
 
@@ -371,6 +508,14 @@ def run_query(agent, tq: TestQuery, ls_client: LangSmithClient) -> QueryResult:
             if hasattr(msg, "content") and msg.type == "ai" and msg.content:
                 answer = _extract_text(msg.content)
                 break
+
+        if not answer.strip() and messages:
+            fallback_message = build_single_specialist_separation_ai_message(messages)
+            if fallback_message is not None:
+                answer = _extract_text(fallback_message.content)
+                messages = [*messages, fallback_message]
+
+        final_answer_diagnostics = _extract_final_answer_diagnostics(messages, answer)
     except Exception as e:
         error = str(e)
         print(f"  ERROR: {e}")
@@ -383,33 +528,15 @@ def run_query(agent, tq: TestQuery, ls_client: LangSmithClient) -> QueryResult:
         "subagents_invoked": [],
     }
 
-    # Capture trace ID from LangSmith
-    print("  Fetching LangSmith trace ID...")
-    trace_id = get_latest_trace_id(ls_client, after_time=before_time)
-    if trace_id:
-        print(f"  Trace ID: {trace_id}")
-    else:
-        print("  WARNING: Could not capture trace ID")
-
     # Check routing match
     actual_set = set(metrics["subagents_invoked"])
     expected_set = set(tq.expected_subagents)
-    routing_match = expected_set.issubset(actual_set)
+    routing_match = actual_set == expected_set
 
     # Truncate answer for preview
     answer_preview = answer[:500] + "..." if len(answer) > 500 else answer
 
-    # Print summary
-    print(f"\n  Duration:    {wall_time:.1f}s")
-    print(f"  Tokens:      {metrics['total_tokens']:,} ({metrics['input_tokens']:,} in, {metrics['output_tokens']:,} out)")
-    print(f"  Messages:    {metrics['n_messages']}")
-    print(f"  Tool calls:  {metrics['n_tool_calls']}")
-    print(f"  Subagents:   {metrics['subagents_invoked']}")
-    print(f"  Routing OK:  {'YES' if routing_match else 'NO — expected ' + str(tq.expected_subagents)}")
-    if error:
-        print(f"  Error:       {error}")
-
-    return QueryResult(
+    result = QueryResult(
         name=tq.name,
         query=tq.query,
         pattern=tq.pattern,
@@ -422,12 +549,57 @@ def run_query(agent, tq: TestQuery, ls_client: LangSmithClient) -> QueryResult:
         n_tool_calls=metrics["n_tool_calls"],
         n_messages=metrics["n_messages"],
         tool_names=metrics["tool_names"],
-        trace_id=trace_id,
+        thread_id=thread_id,
+        run_id=None,
+        trace_id=None,
+        full_answer=answer,
         answer_preview=answer_preview,
+        final_answer_diagnostics=final_answer_diagnostics,
         routing_match=routing_match,
         timestamp=datetime.now().isoformat(),
         error=error,
+        trace_summary=None,
     )
+    if persist_timeout_snapshot:
+        write_timeout_snapshot(result)
+
+    trace_info = None
+    run_id = None
+    trace_id = None
+    if fetch_trace:
+        if ls_client is None:
+            raise RuntimeError("run_query(fetch_trace=True) requires a LangSmith client")
+        print("  Fetching LangSmith trace ID...")
+        trace_info = fetch_langsmith_trace(
+            ls_client,
+            query=tq.query,
+            project=project_name,
+            started_at=before_time,
+        )
+        trace_id = trace_info.get("trace_id") if trace_info else None
+        run_id = trace_info.get("run_id") if trace_info else None
+        if trace_id:
+            print(f"  Run ID:   {run_id}")
+            print(f"  Trace ID: {trace_id}")
+        else:
+            print("  WARNING: Could not capture trace ID")
+
+    # Print summary
+    print(f"\n  Duration:    {wall_time:.1f}s")
+    print(f"  Tokens:      {metrics['total_tokens']:,} ({metrics['input_tokens']:,} in, {metrics['output_tokens']:,} out)")
+    print(f"  Messages:    {metrics['n_messages']}")
+    print(f"  Tool calls:  {metrics['n_tool_calls']}")
+    print(f"  Subagents:   {metrics['subagents_invoked']}")
+    print(f"  Routing OK:  {'YES' if routing_match else 'NO — expected ' + str(tq.expected_subagents)}")
+    if error:
+        print(f"  Error:       {error}")
+
+    result.run_id = run_id
+    result.trace_id = trace_id
+    result.trace_summary = trace_info
+    if persist_timeout_snapshot:
+        write_timeout_snapshot(result)
+    return result
 
 
 # ── Trace visualization ──────────────────────────────────────────────
@@ -624,7 +796,7 @@ def main():
     # ── Run queries ──
     results: list[QueryResult] = []
     for tq in queries:
-        result = run_query(agent, tq, ls_client)
+        result = run_query(agent, tq, ls_client, project_name=args.project)
 
         if not args.no_viz:
             result = generate_trace_visuals(result, ls_client, output_dir)

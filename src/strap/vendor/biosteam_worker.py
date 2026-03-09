@@ -20,6 +20,7 @@ import json
 import time
 import warnings
 import traceback
+from types import SimpleNamespace
 
 # Suppress all warnings (BioSTEAM / thermosteam emit many RuntimeWarnings)
 warnings.filterwarnings('ignore')
@@ -67,6 +68,48 @@ _TARGET_PLASTIC_MAP = {
 }
 
 
+class _NullBoiler:
+    """Placeholder for facility-free cases where STRAP expects a boiler alias."""
+
+    def __init__(self):
+        self.ins = [None]
+        self.natural_gas_price = 0.0
+        self.design_results = {}
+        self.blowdown_water = SimpleNamespace(imass={"Water": 0.0})
+
+
+def _patch_baseline_process_compat(process_cls):
+    """Patch older STRAP process models that assume ``self.B`` always exists.
+
+    In current STRAP reference code, ``create_model()`` unconditionally aliases
+    ``self.BT = self.B`` whenever ``turbogenerator=False``. That breaks C2-style
+    scenarios where ``facilities=False`` and no boiler object is created at all.
+    Some versions also expose the non-turbogenerator unit as ``BT`` rather than
+    ``B``. This wrapper normalizes both cases without changing the scenario.
+    """
+
+    if getattr(process_cls, "_strap_worker_compat_patched", False):
+        return process_cls
+
+    original_create_model = process_cls.create_model
+
+    def create_model_with_boiler_compat(self, *args, **kwargs):
+        scenario = self.scenario
+        if not scenario.turbogenerator and not hasattr(self, "B"):
+            if hasattr(self, "BT"):
+                self.B = self.BT
+            else:
+                self.B = _NullBoiler()
+        result = original_create_model(self, *args, **kwargs)
+        if not hasattr(self, "BT") and hasattr(self, "B"):
+            self.BT = self.B
+        return result
+
+    process_cls.create_model = create_model_with_boiler_compat
+    process_cls._strap_worker_compat_patched = True
+    return process_cls
+
+
 def _safe_call(fn, default=None):
     """Call *fn*(); return *default* on any exception."""
     try:
@@ -102,6 +145,7 @@ def _run(config: dict) -> dict:
     # ------------------------------------------------------------------
     from plastics.strap import BaselineSTRAPProcess  # noqa: E402
     from plastics import strap as _strap_pkg  # noqa: E402
+    BaselineSTRAPProcess = _patch_baseline_process_compat(BaselineSTRAPProcess)
 
     # Add HCl to chemical property package (required for chlorinated solvents,
     # harmless for others). Matches reference notebook convention.

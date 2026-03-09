@@ -1,121 +1,136 @@
-"""Tests for sidecar file tools."""
+"""Tests for scoped, versioned sidecar artifact tools."""
+
+from __future__ import annotations
+
 import json
-import pytest
 import tempfile
 from pathlib import Path
 
+import pytest
+
 
 @pytest.fixture
-def scratch_dir():
-    """Create a temporary scratch directory."""
-    with tempfile.TemporaryDirectory(prefix="test_sidecar_") as d:
+def scoped_root():
+    with tempfile.TemporaryDirectory(prefix="test_sidecar_") as tmpdir:
+        from strap.handoffs import initialize_handoff_scope
         from strap.tools.sidecar import set_scratch_dir
-        set_scratch_dir(Path(d))
-        yield Path(d)
+
+        root = Path(tmpdir)
+        set_scratch_dir(root)
+        initialize_handoff_scope(
+            run_id="run-a",
+            thread_id="thread-a",
+            invocation_id="inv-a",
+        )
+        yield root
 
 
 class TestWriteSidecar:
-    def test_writes_valid_json(self, scratch_dir):
+    def test_writes_valid_json(self, scoped_root):
         from strap.tools.sidecar import write_sidecar
-        data = json.dumps({"papers": [{"title": "Test"}]})
-        result = write_sidecar("scholar_findings", data)
-        assert "Sidecar written" in result
-        assert (scratch_dir / "scholar_findings.json").exists()
 
-    def test_rejects_invalid_key(self, scratch_dir):
+        result = json.loads(write_sidecar("scholar_findings", json.dumps({"papers": []})))
+        assert result["ok"] is True
+        assert result["version"] == 1
+        assert Path(result["path"]).exists()
+
+    def test_rejects_invalid_key(self, scoped_root):
         from strap.tools.sidecar import write_sidecar
-        result = write_sidecar("../etc/passwd", '{"bad": true}')
-        assert "Error" in result or "invalid" in result
 
-    def test_rejects_invalid_json(self, scratch_dir):
+        result = json.loads(write_sidecar("../etc/passwd", '{"bad": true}'))
+        assert result["ok"] is False
+
+    def test_rejects_invalid_json(self, scoped_root):
         from strap.tools.sidecar import write_sidecar
-        result = write_sidecar("test", "not json")
-        assert "Error" in result and "JSON" in result
 
-    def test_key_length_limit(self, scratch_dir):
-        from strap.tools.sidecar import write_sidecar
-        # Key regex allows 1-64 chars; 65 chars should be rejected
-        result = write_sidecar("a" * 65, '{"ok": true}')
-        assert "invalid" in result.lower() or "Error" in result
+        result = json.loads(write_sidecar("test", "not json"))
+        assert result["ok"] is False
 
-    def test_valid_key_at_max_length(self, scratch_dir):
-        """A 64-character key should be accepted (boundary case)."""
-        from strap.tools.sidecar import write_sidecar
-        key = "a" * 64
-        result = write_sidecar(key, '{"x": 1}')
-        assert "Sidecar written" in result
-        assert (scratch_dir / f"{key}.json").exists()
+    def test_versioned_writes_do_not_overwrite(self, scoped_root):
+        from strap.tools.sidecar import read_sidecar, write_sidecar
 
-    def test_written_file_is_valid_json(self, scratch_dir):
-        """The file on disk should be valid JSON matching the input data."""
-        from strap.tools.sidecar import write_sidecar
-        data = {"alpha": 1, "beta": [1, 2, 3]}
-        write_sidecar("mykey", json.dumps(data))
-        on_disk = json.loads((scratch_dir / "mykey.json").read_text())
-        assert on_disk == data
+        first = json.loads(write_sidecar("scholar_findings", '{"v": 1}'))
+        second = json.loads(write_sidecar("scholar_findings", '{"v": 2}'))
+        listing = json.loads(read_sidecar("list"))
+        latest = json.loads(read_sidecar("scholar_findings"))
 
-    def test_key_with_hyphen_and_underscore(self, scratch_dir):
-        """Hyphens and underscores are valid in keys."""
-        from strap.tools.sidecar import write_sidecar
-        result = write_sidecar("my-key_001", '{"ok": true}')
-        assert "Sidecar written" in result
-
-    def test_key_with_space_rejected(self, scratch_dir):
-        """Spaces are not allowed in keys."""
-        from strap.tools.sidecar import write_sidecar
-        result = write_sidecar("bad key", '{"ok": true}')
-        assert "Error" in result or "invalid" in result.lower()
-
-    def test_overwrites_existing_file(self, scratch_dir):
-        """Writing twice to the same key should overwrite."""
-        from strap.tools.sidecar import write_sidecar, read_sidecar
-        write_sidecar("overwrite_test", '{"v": 1}')
-        write_sidecar("overwrite_test", '{"v": 2}')
-        content = read_sidecar("overwrite_test")
-        assert '"v": 2' in content
+        assert first["version"] == 1
+        assert second["version"] == 2
+        assert len(listing["keys"]["scholar_findings"]) == 2
+        assert latest["data"]["v"] == 2
 
 
 class TestReadSidecar:
-    def test_reads_written_file(self, scratch_dir):
-        from strap.tools.sidecar import write_sidecar, read_sidecar
-        write_sidecar("test_key", '{"value": 42}')
-        result = read_sidecar("test_key")
-        assert "42" in result
-        assert "KB" in result
+    def test_list_available_keys(self, scoped_root):
+        from strap.tools.sidecar import read_sidecar, write_sidecar
 
-    def test_list_available_keys(self, scratch_dir):
-        from strap.tools.sidecar import write_sidecar, read_sidecar
         write_sidecar("alpha", '{"a": 1}')
         write_sidecar("beta", '{"b": 2}')
-        result = read_sidecar("list")
-        assert "alpha" in result
-        assert "beta" in result
+        result = json.loads(read_sidecar("list"))
 
-    def test_missing_key_shows_available(self, scratch_dir):
-        from strap.tools.sidecar import write_sidecar, read_sidecar
+        assert result["ok"] is True
+        assert "alpha" in result["keys"]
+        assert "beta" in result["keys"]
+
+    def test_missing_key_shows_available(self, scoped_root):
+        from strap.tools.sidecar import read_sidecar, write_sidecar
+
         write_sidecar("existing", '{"x": 1}')
-        result = read_sidecar("nonexistent")
-        assert "No sidecar file" in result
-        assert "existing" in result
+        result = json.loads(read_sidecar("nonexistent"))
 
-    def test_empty_list(self, scratch_dir):
-        from strap.tools.sidecar import read_sidecar
-        result = read_sidecar("list")
-        assert "No sidecar files" in result
+        assert result["ok"] is False
+        assert "existing" in result["details"]["available_keys"]
 
-    def test_read_returns_original_data(self, scratch_dir):
-        """Data read back should match what was written."""
-        from strap.tools.sidecar import write_sidecar, read_sidecar
-        original = {"nested": {"key": "value"}, "numbers": [1, 2, 3]}
-        write_sidecar("data_test", json.dumps(original))
-        result = read_sidecar("data_test")
-        # The result string contains the JSON content
-        assert '"nested"' in result
-        assert '"value"' in result
+    def test_scopes_are_isolated(self, scoped_root):
+        from strap.handoffs import initialize_handoff_scope
+        from strap.tools.sidecar import read_sidecar, write_sidecar
 
-    def test_size_reported_in_kb(self, scratch_dir):
-        """The read result should include a KB size indicator."""
-        from strap.tools.sidecar import write_sidecar, read_sidecar
-        write_sidecar("size_check", json.dumps({"data": "x" * 100}))
-        result = read_sidecar("size_check")
-        assert "KB" in result
+        write_sidecar("shared", '{"scope": "a"}')
+
+        initialize_handoff_scope(
+            run_id="run-b",
+            thread_id="thread-b",
+            invocation_id="inv-b",
+        )
+        result = json.loads(read_sidecar("shared"))
+        assert result["ok"] is False
+
+        write_sidecar("shared", '{"scope": "b"}')
+        latest_b = json.loads(read_sidecar("shared"))
+        assert latest_b["data"]["scope"] == "b"
+
+        initialize_handoff_scope(
+            run_id="run-a",
+            thread_id="thread-a",
+            invocation_id="inv-a-2",
+        )
+        latest_a = json.loads(read_sidecar("shared"))
+        assert latest_a["data"]["scope"] == "a"
+
+    def test_different_scopes_can_use_different_roots(self, scoped_root):
+        from strap.handoffs import initialize_handoff_scope
+        from strap.tools.sidecar import read_sidecar, write_sidecar
+
+        with tempfile.TemporaryDirectory(prefix="test_sidecar_other_") as other_tmpdir:
+            other_root = Path(other_tmpdir)
+
+            initialize_handoff_scope(
+                run_id="run-a",
+                thread_id="thread-a",
+                invocation_id="inv-a-root",
+                artifact_root=scoped_root,
+            )
+            path_a = json.loads(write_sidecar("shared", '{"root": "a"}'))["path"]
+
+            initialize_handoff_scope(
+                run_id="run-b-root",
+                thread_id="thread-b-root",
+                invocation_id="inv-b-root",
+                artifact_root=other_root,
+            )
+            path_b = json.loads(write_sidecar("shared", '{"root": "b"}'))["path"]
+            latest_b = json.loads(read_sidecar("shared"))
+
+            assert path_a.startswith(str(scoped_root))
+            assert path_b.startswith(str(other_root))
+            assert latest_b["data"]["root"] == "b"

@@ -32,15 +32,17 @@ from langchain.chat_models import init_chat_model  # noqa: E402
 _PACKAGE_DIR = Path(__file__).parent
 
 from .guardrails import SubagentGuardMiddleware  # noqa: E402
+from .prompts import FILE_IO_DIRECTIVE, THINK_DIRECTIVE, build_system_prompt  # noqa: E402
 from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
 from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
+from .subagent_config import load_subagent_specs  # noqa: E402
 from .verifier import OutputVerifierMiddleware  # noqa: E402
-import yaml  # noqa: E402
 
 from .tools import get_core_tools  # noqa: E402
 from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_adaptive_separation_tools,
     get_biosteam_tools,
+    get_contaminant_removal_tools,
     get_database_query_tools,
     get_interpolation_tools,
     get_ml_prediction_tools,
@@ -80,6 +82,7 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "thermal_prediction": get_thermal_prediction_tools,
     "interpolation": get_interpolation_tools,
     "biosteam": get_biosteam_tools,
+    "contaminant_removal": get_contaminant_removal_tools,
     "solvent_lookup": get_solvent_lookup_tools,
     "reflection": get_reflection_tools,
     "sidecar_write": get_sidecar_write_tools,
@@ -93,80 +96,6 @@ def _create_session_scratch_dir() -> Path:
     atexit.register(shutil.rmtree, scratch, True)
     logger.info("Session scratch directory: %s", scratch)
     return scratch
-
-
-SYSTEM_PROMPT = """\
-{routing_table}
-
-## Delegation policy
-- You can answer simple queries directly using your tools, or delegate complex analysis
-  to specialists via task(). After specialists return, synthesize their results.
-- Your direct tools handle: listing polymers/solvents, solvent properties, solubility
-  predictions, and separation selectivity rankings. Delegate to subagents for
-  complex planning (multi-scheme design, sequential separation, TEA/LCA, safety, etc.).
-- For "what solvents separate X from Y" queries, rank_solvents_selectivity returns
-  selectivity, solubilities, boiling points, and atmospheric feasibility in one table.
-- When separating a binary pair A/B, ALWAYS check BOTH directions:
-  rank_solvents_selectivity(target=A, other=B) AND rank_solvents_selectivity(target=B, other=A).
-  One direction may have excellent solvents while the other has none.
-- When the user asks for "multiple schemes" or "compare strategies", delegate ONCE to
-  separation-engineer — it has a multi-scheme tool that generates multiple options in
-  a single invocation.
-- Prefer delegating to subagents one at a time. You may launch three task() calls in
-  parallel when the tasks are independent (e.g. separation + safety).
-  Never launch more than three task() calls at once.
-- When the user asks for a diagram, plot, or visualization of a separation sequence,
-  delegate to visualization-specialist with a short instruction like
-  "Create a separation tree plot for LDPE,HDPE,PS,PVC at 120C".
-  The specialist has matplotlib tools (create_separation_tree_plot,
-  create_process_flow_diagram) that produce publication-quality PNG plots.
-  NEVER ask it to generate Mermaid or text-based diagrams.
-
-## Multi-polymer pipeline protocol
-When asked to propose separation sequences AND test them in BioSTEAM:
-1. Delegate to separation-engineer with: "Plan sequential separation for <polymers> at <temp>C"
-2. From the result, extract the `top_k_sequences` — each has `sequence` (polymer order) and `solvent_mapping` (polymer→solvent dict).
-3. For EACH sequence, build a polymers_json array:
-   [{{"polymer":"<P1>","solvent":"<S1>"}},{{"polymer":"<P2>","solvent":"<S2>"}},...]
-4. Delegate to biosteam-analyst with ALL sequences to test, e.g.:
-   "Run multi-polymer BioSTEAM for these alternative sequences:
-    Seq 1: [{{"polymer":"LDPE","solvent":"Xylene"}},{{"polymer":"PET","solvent":"Toluene"}},{{"polymer":"EVOH","solvent":"Ethylene Glycol"}}]
-    Seq 2: [{{"polymer":"PET","solvent":"Toluene"}},{{"polymer":"LDPE","solvent":"Xylene"}},{{"polymer":"EVOH","solvent":"Ethylene Glycol"}}]
-    ..."
-5. Synthesize: rank sequences by blended MSP and GWP.
-
-## Structured results from subagents
-Each subagent appends a <STRUCTURED_RESULT> JSON block at the end of its response.
-Use it as the authoritative source for numeric data when delegating downstream.
-
-Sequential handoff — extract from <STRUCTURED_RESULT> and include in next task():
-- separation-engineer → biosteam-analyst: extract top_k_sequences[*].solvent_mapping
-- separation-engineer → visualization-specialist: extract best_sequence and solvent_mapping
-- statistics-ml → visualization-specialist: extract summary stats or prediction results
-- safety-analyst results: read g_score and hazard_codes per solvent
-
-Parallel synthesis — when combining results from parallel agents:
-- Prefer numeric fields from <STRUCTURED_RESULT> over parsing prose for comparisons.
-
-You can also call get_subagent_result(agent_name) to retrieve the structured
-JSON from a completed subagent, or get_all_subagent_results() to see all results.
-These are faster than re-parsing prose when you need specific numeric fields.
-
-Fallback: if no <STRUCTURED_RESULT> block is present, extract data from the prose as before.
-""".format(routing_table=generate_routing_table())
-
-
-_THINK_DIRECTIVE = (
-    "\n\n## REFLECTION\n"
-    "After each tool call, use think() to assess findings and decide whether to "
-    "continue or synthesize. Use domain tools first, never rely on general knowledge alone."
-)
-
-_FILE_IO_DIRECTIVE = (
-    "\n\n## FILE I/O\n"
-    "In multi-agent chains: read_file referenced paths FIRST, write_file your findings LAST."
-)
-
 
 class SubagentOverride(TypedDict, total=False):
     """Per-subagent guardrail overrides for create_dissolve_agent().
@@ -193,17 +122,21 @@ def _resolve_tools(group_names: list[str], registry: dict | None = None) -> list
     return tools
 
 
-# Tools that should never count against the subagent tool-call budget
+# Tools that should never count against the subagent tool-call budget.
+# Keep file handoff helpers free, but bill exploratory filesystem tools.
 _ALWAYS_FREE_TOOLS = {
     "write_file", "read_file",  # inter-agent communication
-    "ls", "glob", "edit_file", "grep", "execute", "write_todos",  # filesystem/meta
+    "write_todos",  # planning/meta
 }
 
 
-def _resolve_guardrails(cfg: dict | None) -> list:
+def _resolve_guardrails(cfg: dict | None, *, agent_name: str | None = None) -> list:
     """Build middleware list from YAML guardrails config."""
     if cfg is None:
-        return [SubagentGuardMiddleware(free_tools=_ALWAYS_FREE_TOOLS.copy())]
+        return [SubagentGuardMiddleware(
+            free_tools=_ALWAYS_FREE_TOOLS.copy(),
+            agent_name=agent_name,
+        )]
     free = set(cfg["free_tools"]) if cfg.get("free_tools") else set()
     free |= _ALWAYS_FREE_TOOLS
     return [SubagentGuardMiddleware(
@@ -213,6 +146,7 @@ def _resolve_guardrails(cfg: dict | None) -> list:
         synthesis_tools=set(cfg["synthesis_tools"]) if cfg.get("synthesis_tools") else set(),
         truncate_tool_results_after=cfg.get("truncate_tool_results_after"),
         free_tools=free,
+        agent_name=agent_name,
     )]
 
 
@@ -222,28 +156,17 @@ def _build_subagents(
 ) -> list[SubAgent]:
     """Load subagent definitions from YAML config.
 
-    Falls back to ``subagents.yaml`` next to this module.
-    The ``_THINK_DIRECTIVE`` is appended to every system prompt automatically.
+    Falls back to the shared subagent config manifest next to this module.
+    The ``THINK_DIRECTIVE`` is appended to every system prompt automatically.
 
     Args:
-        yaml_path: Path to YAML config file. Defaults to subagents.yaml.
+        yaml_path: Optional manifest, directory, or legacy YAML path.
         overrides: Optional dict mapping subagent name -> guardrail overrides.
             Override keys mirror ``SubagentGuardMiddleware`` parameters:
             ``max_tool_calls``, ``max_iterations``, ``token_budget``,
             ``synthesis_tools``, ``truncate_tool_results_after``, ``free_tools``.
     """
-    if yaml_path is None:
-        yaml_path = _PACKAGE_DIR / "subagents.yaml"
-
-    with open(yaml_path) as f:
-        data = yaml.safe_load(f)
-
-    # Support both the old flat-list format and the new mapping format
-    # (with top-level "subagents" and "execution_pairs" keys).
-    if isinstance(data, dict):
-        specs = data["subagents"]
-    else:
-        specs = data
+    specs = load_subagent_specs(yaml_path)
 
     _overrides = overrides or {}
 
@@ -275,13 +198,13 @@ def _build_subagents(
         if agent_name in _overrides:
             guardrail_cfg.update(_overrides[agent_name])
 
-        prompt = spec["system_prompt"].rstrip() + _FILE_IO_DIRECTIVE + _THINK_DIRECTIVE
+        prompt = spec["system_prompt"].rstrip() + FILE_IO_DIRECTIVE + THINK_DIRECTIVE
         sa = SubAgent(
             name=agent_name,
             description=spec["description"].strip(),
             system_prompt=prompt,
             tools=_resolve_tools(spec.get("tool_groups", [])),
-            middleware=_resolve_guardrails(guardrail_cfg),
+            middleware=_resolve_guardrails(guardrail_cfg, agent_name=agent_name),
         )
         subagents.append(sa)
 
@@ -353,17 +276,17 @@ def create_dissolve_agent(
         max_tool_calls=12,
         truncate_tool_results_after=3000,
         free_tools={"think", "task", "read_file", "write_file", "write_todos",
-                    "get_subagent_result", "get_all_subagent_results"},
+                    "get_subagent_result", "get_subagent_results",
+                    "get_all_subagent_results", "list_handoffs",
+                    "get_handoff_details", "build_handoff"},
     )
+
+    # Set up per-agent scratch root for scoped sidecar artifacts
+    scratch_dir = _create_session_scratch_dir()
 
     # Structured result extractor: intercepts task() ToolMessages and
     # extracts <STRUCTURED_RESULT> JSON blocks into a per-invocation registry.
-    result_extractor = StructuredResultExtractorMiddleware()
-
-    # Set up per-session scratch directory for sidecar tools
-    scratch_dir = _create_session_scratch_dir()
-    from .tools.sidecar import set_scratch_dir
-    set_scratch_dir(scratch_dir)
+    result_extractor = StructuredResultExtractorMiddleware(artifact_root=scratch_dir)
 
     # Middleware order (innermost → outermost):
     #   routing → output_verifier → result_extractor → orchestrator_guard
@@ -371,7 +294,7 @@ def create_dissolve_agent(
         model=model,
         tools=get_core_tools() + get_result_extractor_tools(),
         subagents=_build_subagents(overrides=subagent_overrides),
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=build_system_prompt(generate_routing_table()),
         memory=["./AGENTS.md"],
         skills=["./skills/"],
         backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),

@@ -8,6 +8,13 @@ import pytest
 DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "solubility_coefficients.json"
 
 
+def _parse_tool_result(raw: str) -> dict:
+    parsed = json.loads(raw)
+    assert "display" in parsed
+    assert "data" in parsed
+    return parsed
+
+
 # ------------------------------------------------------------------
 # Coefficient JSON structure tests
 # ------------------------------------------------------------------
@@ -19,12 +26,12 @@ class TestCoefficientsJSON:
             self.__class__.data = json.load(f)
 
     def test_entry_count(self):
-        assert self.data["n_entries"] == 352
-        assert len(self.data["entries"]) == 352
+        assert self.data["n_entries"] == 362
+        assert len(self.data["entries"]) == 362
 
     def test_categories_sum(self):
         cats = self.data["categories"]
-        assert sum(cats.values()) == 352
+        assert sum(cats.values()) == 362
 
     def test_known_insoluble_pairs(self):
         insol = [
@@ -63,42 +70,53 @@ class TestPredictSolubility:
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("HDPE", "toluene", 100.0)
         assert isinstance(result, str)
-        assert "%" in result
-        assert "BP" in result
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "predict_solubility"
+        assert parsed["data"]["success"] is True
+        assert "%" in parsed["display"]
+        assert "BP" in parsed["display"]
 
     def test_case_insensitive(self):
         from strap.tools.interpolation import predict_solubility
         r1 = predict_solubility("hdpe", "Toluene", 100.0)
         r2 = predict_solubility("HDPE", "toluene", 100.0)
-        assert "%" in r1
-        assert "%" in r2
+        assert "%" in _parse_tool_result(r1)["display"]
+        assert "%" in _parse_tool_result(r2)["display"]
 
     def test_alias_matching(self):
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("HDPE", "water", 100.0)
         # water → h2o
         assert isinstance(result, str)
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "predict_solubility"
 
     def test_unknown_polymer(self):
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("NONEXISTENT", "toluene", 100.0)
-        assert "Unknown polymer" in result
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["success"] is False
+        assert "Unknown polymer" in parsed["display"]
 
     def test_unknown_solvent(self):
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("HDPE", "nonexistent_solvent", 100.0)
-        assert "Unknown solvent" in result
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["success"] is False
+        assert "Unknown solvent" in parsed["display"]
 
     def test_insoluble_pair(self):
         from strap.tools.interpolation import predict_solubility
         result = predict_solubility("PC", "water", 100.0)
-        assert "Insoluble" in result
+        parsed = _parse_tool_result(result)
+        assert "Insoluble" in parsed["display"]
 
     def test_extrapolation_still_returns(self):
         from strap.tools.interpolation import predict_solubility
         # 0°C is below the fit range (25°C min) — should still return a result
         result = predict_solubility("HDPE", "toluene", 0.0)
-        assert "%" in result
+        parsed = _parse_tool_result(result)
+        assert "%" in parsed["display"]
 
 
 class TestPredictSolubilityRange:
@@ -106,14 +124,17 @@ class TestPredictSolubilityRange:
         from strap.tools.interpolation import predict_solubility_range
         result = predict_solubility_range("HDPE", "toluene", 25, 50, 5)
         assert isinstance(result, str)
-        assert "T (C)" in result
-        assert "25.0" in result
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "predict_solubility_range"
+        assert "T (C)" in parsed["display"]
+        assert "25.0" in parsed["display"]
 
     def test_cap_at_200(self):
         from strap.tools.interpolation import predict_solubility_range
         # 0.1 step over 200 range → 2000 points, should be capped
         result = predict_solubility_range("HDPE", "toluene", 0, 200, 0.1)
-        lines = [l for l in result.split("\n") if l.startswith("|") and "T (C)" not in l and "---" not in l]
+        parsed = _parse_tool_result(result)
+        lines = [l for l in parsed["display"].split("\n") if l.startswith("|") and "T (C)" not in l and "---" not in l]
         assert len(lines) <= 200
 
 
@@ -122,5 +143,7 @@ class TestListCoverage:
         from strap.tools.interpolation import list_interpolation_coverage
         result = list_interpolation_coverage()
         assert isinstance(result, str)
-        assert "352" in result
-        assert "HDPE" in result
+        parsed = _parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "list_interpolation_coverage"
+        assert "362" in parsed["display"]
+        assert "HDPE" in parsed["display"]

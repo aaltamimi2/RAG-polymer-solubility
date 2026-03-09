@@ -1,27 +1,33 @@
-"""Structured result extractor middleware.
-
-Intercepts task() ToolMessage responses from subagents, extracts
-<STRUCTURED_RESULT> JSON blocks, and stores them in a per-invocation
-thread-safe dict registry keyed by invocation ID.
-
-The original ToolMessage content is never modified — the extracted
-data is stored separately and made available via accessor functions.
-"""
+"""Structured result extraction and handoff tools."""
 
 from __future__ import annotations
 
-import contextvars
 import json
 import logging
 import re
-import threading
 import uuid
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware.types import AgentMiddleware
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
+
+from .handoffs import (
+    bind_handoff_scope,
+    build_handoff_for_consumer,
+    cleanup_handoff_scope,
+    get_handoff,
+    get_latest_result_handoff,
+    get_current_scope,
+    initialize_handoff_scope,
+    list_handoff_records,
+    list_result_records,
+    record_to_json_envelope,
+    records_to_json_envelope,
+    store_agent_failure,
+    store_agent_result,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -30,209 +36,194 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
-# ------------------------------------------------------------------
-# Storage: thread-safe invocation-ID-keyed registry
-# ------------------------------------------------------------------
-
-@dataclass
-class _RegistryState:
-    """Accumulated structured results for one orchestrator invocation."""
-    results: dict[str, dict] = field(default_factory=dict)
-
-
-# Thread-safe registry keyed by invocation ID.
-# ContextVar stores only the immutable ID string — safe across copy_context().
-# Actual mutable state lives in the module-level dict, protected by a lock.
-_registry_lock = threading.Lock()
-_registry: dict[str, _RegistryState] = {}
-_invocation_id: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "_structured_result_invocation_id"
-)
-
-
-def _get_current_state() -> _RegistryState | None:
-    """Get the _RegistryState for the current invocation, or None."""
-    try:
-        inv_id = _invocation_id.get()
-    except LookupError:
-        return None
-    with _registry_lock:
-        return _registry.get(inv_id)
-
-
-# Regex to extract <STRUCTURED_RESULT>...</STRUCTURED_RESULT> blocks.
-# re.DOTALL so . matches newlines; non-greedy to stop at first closing tag.
 _STRUCTURED_RESULT_RE = re.compile(
     r"<STRUCTURED_RESULT>\s*(.*?)\s*</STRUCTURED_RESULT>",
     re.DOTALL,
 )
 
 
-def _extract_structured_result(text: str) -> dict | None:
+def _json_error(message: str, **details: Any) -> str:
+    payload: dict[str, Any] = {"ok": False, "error": message}
+    if details:
+        payload["details"] = details
+    return json.dumps(payload, indent=2)
+
+
+def _extract_structured_result(text: str) -> dict[str, Any] | None:
     """Extract and parse a <STRUCTURED_RESULT> JSON block from text."""
     match = _STRUCTURED_RESULT_RE.search(text)
     if not match:
         return None
     json_text = match.group(1).strip()
+    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", json_text, re.DOTALL)
+    if fenced:
+        json_text = fenced.group(1).strip()
     try:
         return json.loads(json_text)
-    except (json.JSONDecodeError, ValueError) as e:
+    except (json.JSONDecodeError, ValueError) as exc:
         logger.warning(
             "result_extractor: malformed JSON in <STRUCTURED_RESULT> — skipping. "
             "Error: %s  |  First 200 chars: %.200s",
-            e,
+            exc,
             json_text,
         )
         return None
 
 
-# ------------------------------------------------------------------
-# Public accessor functions
-# ------------------------------------------------------------------
-
-def get_structured_results() -> dict[str, dict]:
-    """Return all accumulated structured results for this invocation.
-
-    Keys are subagent names (e.g. "separation-engineer", "safety-analyst").
-    Returns an empty dict if no results yet or outside middleware context.
-    """
-    state = _get_current_state()
-    if state is None:
-        return {}
-    with _registry_lock:
-        return dict(state.results)
+def get_structured_results() -> dict[str, list[dict[str, Any]]]:
+    """Return all stored subagent results grouped by producer."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for record in list_result_records():
+        grouped.setdefault(record.producer, []).append(record.payload)
+    return grouped
 
 
-def get_structured_result(agent_name: str) -> dict | None:
-    """Return the structured result for a specific subagent, or None."""
-    state = _get_current_state()
-    if state is None:
-        return None
-    with _registry_lock:
-        return state.results.get(agent_name)
+def get_structured_result(agent_name: str) -> dict[str, Any] | None:
+    """Return the latest structured result payload for a specific subagent."""
+    record = get_latest_result_handoff(producer=agent_name)
+    return None if record is None else record.payload
 
 
-# ------------------------------------------------------------------
-# Orchestrator tools for querying results
-# ------------------------------------------------------------------
-
-def get_subagent_result(agent_name: str) -> str:
-    """Retrieve the structured JSON result from a previously-completed subagent.
-
-    Use this after a subagent has returned its results to get the machine-readable
-    structured data rather than parsing the prose response.
-
-    Args:
-        agent_name: The subagent name that was called via task(subagent_type=...).
-            Known agents: separation-engineer, safety-analyst, biosteam-analyst,
-            scholar-researcher, patent-researcher, rag-analyst,
-            visualization-specialist, statistics-ml.
-
-    Returns:
-        JSON string of the structured result, or a descriptive error message.
-    """
-    result = get_structured_result(agent_name)
-    if result is None:
-        available = list(get_structured_results().keys())
-        if not available:
-            return (
-                f"No structured results available yet. "
-                f"Subagent '{agent_name}' has not returned in this session."
-            )
-        return (
-            f"No structured result found for '{agent_name}'. "
-            f"Available agents with results: {available}"
+def get_subagent_result(agent_name: str, strategy: str = "latest") -> str:
+    """Retrieve stored handoff records for a specific subagent."""
+    if strategy != "latest":
+        return _json_error(
+            f"Unsupported strategy '{strategy}'",
+            supported_strategies=["latest"],
         )
-    try:
-        return json.dumps(result, indent=2)
-    except (TypeError, ValueError) as e:
-        return f"Error serializing result for '{agent_name}': {e}"
+    record = get_latest_result_handoff(producer=agent_name)
+    if record is None:
+        available = sorted({r.producer for r in list_handoff_records()})
+        return _json_error(
+            f"No structured result found for '{agent_name}'",
+            available_agents=available,
+        )
+    return record_to_json_envelope(record)
+
+
+def get_subagent_results(agent_name: str) -> str:
+    """Retrieve all stored handoff records for a specific subagent."""
+    records = list_result_records(producer=agent_name)
+    if not records:
+        available = sorted({r.producer for r in list_handoff_records()})
+        return _json_error(
+            f"No structured results found for '{agent_name}'",
+            available_agents=available,
+        )
+    return records_to_json_envelope(records)
 
 
 def get_all_subagent_results() -> str:
-    """Retrieve all structured JSON results from all completed subagents.
+    """Retrieve all stored subagent result records."""
+    records = list_result_records()
+    if not records:
+        return _json_error("No structured results available")
+    return records_to_json_envelope(records)
 
-    Returns:
-        JSON string mapping agent names to their structured results.
-    """
-    all_results = get_structured_results()
-    if not all_results:
-        return "No structured results available. No subagents have completed yet."
+
+def list_handoffs(
+    producer: str = "",
+    consumer: str = "",
+    contract: str = "",
+    status: str = "",
+) -> str:
+    """List stored handoff records filtered by metadata."""
+    records = list_handoff_records(
+        producer=producer or None,
+        consumer=consumer or None,
+        contract=contract or None,
+        status=status or None,
+    )
+    if not records:
+        return _json_error(
+            "No handoffs matched the requested filters",
+            producer=producer or None,
+            consumer=consumer or None,
+            contract=contract or None,
+            status=status or None,
+        )
+    return records_to_json_envelope(records)
+
+
+def get_handoff_details(handoff_id: str) -> str:
+    """Retrieve one handoff by ID."""
+    record = get_handoff(handoff_id)
+    if record is None:
+        return _json_error(f"Handoff '{handoff_id}' not found")
+    return record_to_json_envelope(record)
+
+
+def build_handoff(
+    consumer: str,
+    source_handoff_id: str = "",
+    producer: str = "",
+    strategy: str = "latest",
+) -> str:
+    """Build a consumer-specific handoff via a typed adapter or generic fallback."""
     try:
-        return json.dumps(all_results, indent=2)
-    except (TypeError, ValueError) as e:
-        return f"Error serializing results: {e}"
+        record = build_handoff_for_consumer(
+            consumer=consumer,
+            source_handoff_id=source_handoff_id or None,
+            producer=producer or None,
+            strategy=strategy,
+        )
+    except ValueError as exc:
+        logger.warning(
+            "build_handoff failed for producer=%s consumer=%s source_handoff_id=%s: %s",
+            producer or "<latest>",
+            consumer,
+            source_handoff_id or "<none>",
+            exc,
+        )
+        return _json_error(str(exc))
+    return record_to_json_envelope(record)
 
-
-# ------------------------------------------------------------------
-# Middleware class
-# ------------------------------------------------------------------
 
 class StructuredResultExtractorMiddleware(AgentMiddleware):
-    """Intercepts task() ToolMessage responses and extracts structured result JSON.
+    """Capture subagent structured results as append-only handoff records."""
 
-    For every task() tool call:
-    1. Lets the handler execute the subagent normally.
-    2. Extracts the subagent name from the tool call arguments.
-    3. Finds and parses the <STRUCTURED_RESULT> block in the returned text.
-    4. Stores the result in a per-invocation thread-safe dict registry.
-    5. Returns the original result unmodified.
-    """
+    def __init__(self, artifact_root: Path | None = None) -> None:
+        self._artifact_root = artifact_root
+        self._scope = None
+        self._user_query: str | None = None
 
     def before_agent(self, state, runtime) -> None:
-        try:
-            from langgraph.config import get_config
-            cfg = get_config()
-            run_id = cfg.get("run_id")
-            inv_id = str(run_id) if run_id is not None else uuid.uuid4().hex
-        except Exception:
-            inv_id = uuid.uuid4().hex
-        _invocation_id.set(inv_id)
-        with _registry_lock:
-            _registry[inv_id] = _RegistryState()
-        logger.debug("result_extractor: registry initialized, invocation=%s", inv_id)
+        scope = self._initialize_scope(state)
+        self._scope = scope
+        logger.debug("result_extractor: initialized scope %s", scope.scope_id)
 
     async def abefore_agent(self, state, runtime) -> None:
-        try:
-            from langgraph.config import get_config
-            cfg = get_config()
-            run_id = cfg.get("run_id")
-            inv_id = str(run_id) if run_id is not None else uuid.uuid4().hex
-        except Exception:
-            inv_id = uuid.uuid4().hex
-        _invocation_id.set(inv_id)
-        with _registry_lock:
-            _registry[inv_id] = _RegistryState()
-        logger.debug("result_extractor: registry initialized (async), invocation=%s", inv_id)
+        scope = self._initialize_scope(state)
+        self._scope = scope
+        logger.debug("result_extractor: initialized scope %s (async)", scope.scope_id)
 
     def after_agent(self, state, runtime) -> None:
-        try:
-            inv_id = _invocation_id.get()
-            with _registry_lock:
-                _registry.pop(inv_id, None)
-            logger.debug("result_extractor: registry cleaned up, invocation=%s", inv_id)
-        except LookupError:
-            pass
+        cleanup_handoff_scope()
+        self._scope = None
+        self._user_query = None
 
     async def aafter_agent(self, state, runtime) -> None:
-        try:
-            inv_id = _invocation_id.get()
-            with _registry_lock:
-                _registry.pop(inv_id, None)
-            logger.debug("result_extractor: registry cleaned up (async), invocation=%s", inv_id)
-        except LookupError:
-            pass
+        cleanup_handoff_scope()
+        self._scope = None
+        self._user_query = None
 
     def wrap_tool_call(
         self,
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
+        if get_current_scope() is None:
+            if self._scope is not None:
+                bind_handoff_scope(
+                    self._scope,
+                    artifact_root=self._artifact_root,
+                    user_query=self._user_query,
+                )
+            else:
+                self._scope = self._initialize_scope()
         result = handler(request)
         if request.tool_call.get("name") == "task":
-            subagent_type = request.tool_call.get("args", {}).get("subagent_type", "")
-            self._process_result(result, subagent_type)
+            self._process_result(result, request.tool_call)
         return result
 
     async def awrap_tool_call(
@@ -240,63 +231,164 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
         request: ToolCallRequest,
         handler: Callable[[ToolCallRequest], ToolMessage | Command],
     ) -> ToolMessage | Command:
+        if get_current_scope() is None:
+            if self._scope is not None:
+                bind_handoff_scope(
+                    self._scope,
+                    artifact_root=self._artifact_root,
+                    user_query=self._user_query,
+                )
+            else:
+                self._scope = self._initialize_scope()
         result = await handler(request)
         if request.tool_call.get("name") == "task":
-            subagent_type = request.tool_call.get("args", {}).get("subagent_type", "")
-            self._process_result(result, subagent_type)
+            self._process_result(result, request.tool_call)
         return result
 
-    def _process_result(self, result, subagent_type: str) -> None:
+    def _initialize_scope(self, state: Any | None = None):
+        if state is not None:
+            self._user_query = self._extract_root_user_query(state)
+        try:
+            from langgraph.config import get_config
+
+            cfg = get_config()
+            configurable = cfg.get("configurable", {})
+            run_id = cfg.get("run_id")
+            thread_id = configurable.get("thread_id")
+            return initialize_handoff_scope(
+                run_id=str(run_id) if run_id is not None else None,
+                thread_id=str(thread_id) if thread_id is not None else None,
+                invocation_id=uuid.uuid4().hex,
+                artifact_root=self._artifact_root,
+                user_query=self._user_query,
+            )
+        except Exception:
+            return initialize_handoff_scope(
+                invocation_id=uuid.uuid4().hex,
+                artifact_root=self._artifact_root,
+                user_query=self._user_query,
+            )
+
+    @staticmethod
+    def _extract_root_user_query(state: Any) -> str | None:
+        messages = None
+        if isinstance(state, dict):
+            messages = state.get("messages")
+        else:
+            messages = getattr(state, "messages", None)
+        if not isinstance(messages, list):
+            return None
+
+        for message in messages:
+            text = StructuredResultExtractorMiddleware._message_to_user_text(message)
+            if text:
+                return text
+        return None
+
+    @staticmethod
+    def _message_to_user_text(message: Any) -> str | None:
+        if isinstance(message, HumanMessage):
+            return StructuredResultExtractorMiddleware._coerce_text(message.content)
+        if isinstance(message, dict):
+            role = str(message.get("role") or message.get("type") or "").lower()
+            if role in {"user", "human"}:
+                return StructuredResultExtractorMiddleware._coerce_text(
+                    message.get("content")
+                )
+            return None
+        if isinstance(message, tuple) and len(message) == 2:
+            role, content = message
+            if str(role).lower() in {"user", "human"}:
+                return StructuredResultExtractorMiddleware._coerce_text(content)
+        return None
+
+    @staticmethod
+    def _coerce_text(content: Any) -> str | None:
+        if isinstance(content, str):
+            text = content.strip()
+            return text or None
+        if isinstance(content, list):
+            parts: list[str] = []
+            for item in content:
+                if isinstance(item, str):
+                    stripped = item.strip()
+                    if stripped:
+                        parts.append(stripped)
+                elif isinstance(item, dict):
+                    text = item.get("text")
+                    if text:
+                        stripped = str(text).strip()
+                        if stripped:
+                            parts.append(stripped)
+            if parts:
+                return "\n".join(parts)
+            return None
+        if content is None:
+            return None
+        text = str(content).strip()
+        return text or None
+
+    def _process_result(self, result, tool_call: dict[str, Any]) -> None:
+        subagent_type = tool_call.get("args", {}).get("subagent_type", "")
+        task_prompt = tool_call.get("args", {}).get("description")
         if not subagent_type:
             return
 
+        if get_current_scope() is None:
+            self._initialize_scope()
+
         text = self._extract_text_from_result(result)
         if text is None:
-            logger.debug(
-                "result_extractor: could not find text for subagent '%s'",
+            record = store_agent_failure(
+                producer=subagent_type,
+                error_kind="missing_tool_text",
+                message=(
+                    f"Subagent '{subagent_type}' returned no text content that could "
+                    "be parsed for a structured result."
+                ),
+                source_tool_call_id=tool_call.get("id"),
+                task_prompt=task_prompt,
+            )
+            logger.info(
+                "result_extractor: stored %s for '%s' status=%s",
+                record.handoff_id,
                 subagent_type,
+                record.status,
             )
             return
 
         parsed = _extract_structured_result(text)
         if parsed is None:
+            record = store_agent_failure(
+                producer=subagent_type,
+                error_kind="missing_structured_result",
+                message=(
+                    f"Subagent '{subagent_type}' returned no valid "
+                    "<STRUCTURED_RESULT> block."
+                ),
+                source_tool_call_id=tool_call.get("id"),
+                raw_text=text,
+                task_prompt=task_prompt,
+            )
             logger.info(
-                "result_extractor: no <STRUCTURED_RESULT> block for '%s'",
+                "result_extractor: stored %s for '%s' status=%s",
+                record.handoff_id,
                 subagent_type,
+                record.status,
             )
             return
 
-        try:
-            inv_id = _invocation_id.get()
-        except LookupError:
-            # Fallback: create a new invocation ID so the result is not lost
-            inv_id = uuid.uuid4().hex
-            _invocation_id.set(inv_id)
-            with _registry_lock:
-                _registry[inv_id] = _RegistryState()
-            logger.warning(
-                "result_extractor: created fallback invocation ID '%s' for '%s'",
-                inv_id,
-                subagent_type,
-            )
-
-        with _registry_lock:
-            reg_state = _registry.get(inv_id)
-            if reg_state is None:
-                reg_state = _RegistryState()
-                _registry[inv_id] = reg_state
-
-            if subagent_type in reg_state.results:
-                logger.info(
-                    "result_extractor: overwriting result for '%s' (duplicate call)",
-                    subagent_type,
-                )
-            reg_state.results[subagent_type] = parsed
-
+        record = store_agent_result(
+            producer=subagent_type,
+            payload=parsed,
+            source_tool_call_id=tool_call.get("id"),
+            task_prompt=task_prompt,
+        )
         logger.info(
-            "result_extractor: stored result for '%s' — keys: %s",
+            "result_extractor: stored %s for '%s' status=%s",
+            record.handoff_id,
             subagent_type,
-            list(parsed.keys()),
+            record.status,
         )
 
     @staticmethod
@@ -309,9 +401,13 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
             if not isinstance(update, dict):
                 return None
             messages = update.get("messages", [])
+            fallback_text: str | None = None
             for msg in messages:
                 if isinstance(msg, ToolMessage):
                     content = msg.content
                     if isinstance(content, str):
-                        return content
+                        fallback_text = content
+                        if _extract_structured_result(content) is not None:
+                            return content
+            return fallback_text
         return None

@@ -29,6 +29,15 @@ class Database:
     def _sanitize_column(col: str) -> str:
         return re.sub(r"[^a-z0-9_]", "_", col.lower().strip())
 
+    @staticmethod
+    def _sanitize_table_name(name: str) -> str:
+        table = re.sub(r"[^a-z0-9_]", "_", name.lower().strip().replace("-", "_").replace(" ", "_"))
+        if not table:
+            return "table"
+        if table[0].isdigit():
+            table = f"t_{table}"
+        return table
+
     def _load_all_csvs(self) -> None:
         if not self.data_dir.exists():
             logger.warning(
@@ -41,8 +50,7 @@ class Database:
             logger.warning("No CSV files found in %s", self.data_dir)
             return
         for csv_path in csv_files:
-            table_name = csv_path.stem.lower().replace("-", "_").replace(" ", "_")
-            table_name = re.sub(r"[^a-z0-9_]", "_", table_name)
+            table_name = self._sanitize_table_name(csv_path.stem)
             df = pd.read_csv(csv_path, encoding="utf-8-sig")
             df.columns = [self._sanitize_column(c) for c in df.columns]
             self.conn.execute(f"DROP TABLE IF EXISTS {table_name}")
@@ -55,14 +63,23 @@ class Database:
 
 
 _database: Optional[Database] = None
+_database_cache: dict[Path, Database] = {}
+
+
+def _resolve_data_dir(data_dir: Optional[str | Path] = None) -> Path:
+    return Path(data_dir).resolve() if data_dir else Database._default_data_dir().resolve()
 
 
 def get_database(data_dir: Optional[str | Path] = None) -> Database:
-    """Return (or create) the module-level Database singleton."""
+    """Return a cached Database instance scoped to the resolved data directory."""
     global _database
-    if _database is None:
-        _database = Database(data_dir)
-    return _database
+    resolved_dir = _resolve_data_dir(data_dir)
+    database = _database_cache.get(resolved_dir)
+    if database is None:
+        database = Database(resolved_dir)
+        _database_cache[resolved_dir] = database
+    _database = database
+    return database
 
 
 def get_connection(data_dir: Optional[str | Path] = None) -> duckdb.DuckDBPyConnection:

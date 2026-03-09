@@ -10,7 +10,9 @@ Covers:
 
 from __future__ import annotations
 
+import json
 import math
+import warnings
 
 import numpy as np
 import numpy.testing as npt
@@ -421,6 +423,26 @@ class TestThreeTierCoefficients:
         assert "source" in result
         assert result["source"] == "static"
 
+    def test_predict_caps_large_solubility_without_overflow_warning(self):
+        """predict() should cap extreme coefficients cleanly without RuntimeWarning."""
+        from strap.solubility import predict
+
+        entry = {
+            "A": 1_000.0,
+            "B": 0.0,
+            "C": 0.0,
+            "t_min_c": 25.0,
+            "t_max_c": 160.0,
+            "source": "static",
+        }
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always", RuntimeWarning)
+            result = predict(entry, 80.0)
+
+        assert result["solubility_pct"] == 100.0
+        assert not any(issubclass(w.category, RuntimeWarning) for w in caught)
+
     def test_get_entry_returns_coefficients(self):
         """get_entry for a known pair should return dict with A, B, C keys."""
         from strap.solubility import get_entry
@@ -449,6 +471,13 @@ class TestThreeTierCoefficients:
 class TestAgentTools:
     """Tests for strap.tools.thermal_prediction agent-facing tools."""
 
+    @staticmethod
+    def _parse_tool_result(raw: str) -> dict:
+        parsed = json.loads(raw)
+        assert "display" in parsed
+        assert "data" in parsed
+        return parsed
+
     def test_predict_thermal_properties_tool(self):
         """Tool should return Markdown string containing polymer name."""
         from strap.tools.thermal_prediction import predict_thermal_properties
@@ -458,10 +487,13 @@ class TestAgentTools:
             polymer_name="Polyethylene",
         )
         assert isinstance(result, str)
-        assert "Polyethylene" in result
+        parsed = self._parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "predict_thermal_properties"
+        assert parsed["data"]["success"] is True
+        assert "Polyethylene" in parsed["display"]
         # Should contain table-like Markdown
-        assert "Tm" in result
-        assert "Delta Hf" in result or "delta_Hf" in result.lower()
+        assert "Tm" in parsed["display"]
+        assert "Delta Hf" in parsed["display"] or "delta_Hf" in parsed["display"].lower()
 
     def test_generate_solubility_tool(self):
         """Tool should return Markdown with solubility prediction."""
@@ -474,8 +506,10 @@ class TestAgentTools:
             temperature_c=25.0,
         )
         assert isinstance(result, str)
+        parsed = self._parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "generate_solubility_for_new_polymer"
         # The tool should mention toluene or TestPolymer in the output
-        assert "toluene" in result.lower() or "TestPolymer" in result
+        assert "toluene" in parsed["display"].lower() or "TestPolymer" in parsed["display"]
 
     def test_list_generated_polymers_tool(self):
         """Tool should return Markdown (even if no entries)."""
@@ -483,8 +517,10 @@ class TestAgentTools:
 
         result = list_generated_polymers()
         assert isinstance(result, str)
+        parsed = self._parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "list_generated_polymers"
         # Should contain a heading
-        assert "ML-Generated" in result or "Generated" in result or "generated" in result
+        assert "ML-Generated" in parsed["display"] or "Generated" in parsed["display"] or "generated" in parsed["display"]
 
     def test_predict_thermal_properties_tool_returns_confidence(self):
         """Tool output should mention confidence level."""
@@ -495,8 +531,9 @@ class TestAgentTools:
             polymer_name="PE",
         )
         assert isinstance(result, str)
+        parsed = self._parse_tool_result(result)
         # Should mention confidence somewhere
-        assert "confidence" in result.lower() or "Confidence" in result
+        assert "confidence" in parsed["display"].lower() or "Confidence" in parsed["display"]
 
     def test_tool_error_handling(self):
         """Tool with invalid PSMILES should return a string (not raise)."""
@@ -508,3 +545,5 @@ class TestAgentTools:
             polymer_name="BadPolymer",
         )
         assert isinstance(result, str)
+        parsed = self._parse_tool_result(result)
+        assert parsed["data"]["tool_name"] == "predict_thermal_properties"

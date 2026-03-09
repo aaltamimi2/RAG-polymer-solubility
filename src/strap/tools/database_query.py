@@ -1,26 +1,21 @@
 """Database query tools for STRAP deepagents.
-
 Six plain-function tools that let an agent explore and query the
 DuckDB-backed solvent / polymer database.  Every function obtains its
 own connection lazily via ``get_connection()`` so there is no module-level
 database state.
 """
-
 from __future__ import annotations
-
 import logging
 from typing import Dict, List, Optional, Tuple
-
 from strap.database import get_connection
+from strap.services.tool_response_service import json_tool_error, json_tool_response, json_tool_success
 from strap.tools._helpers import safe_tool_wrapper, DataValidator, truncate_output
-
 logger = logging.getLogger(__name__)
-
-
+def _db_error(tool_name: str, message: str, *, error_code: str = "query_failed", **data) -> str:
+    return json_tool_error(message, tool_name=tool_name, error_code=error_code, **data)
 # ------------------------------------------------------------------
 # Internal helpers (not exported)
 # ------------------------------------------------------------------
-
 def _table_schemas(conn) -> Dict[str, dict]:
     """Build a {table_name: schema_dict} mapping from the live connection."""
     tables_df = conn.execute("SHOW TABLES").fetchdf()
@@ -34,8 +29,6 @@ def _table_schemas(conn) -> Dict[str, dict]:
             "row_count": row_count,
         }
     return schemas
-
-
 def _execute_query(conn, query: str, limit: int = 100) -> dict:
     """Execute *query* safely and return a result dict."""
     try:
@@ -46,10 +39,8 @@ def _execute_query(conn, query: str, limit: int = 100) -> dict:
         ]
         if any(kw in query_lower.split() for kw in dangerous_keywords):
             return {"success": False, "error": "Unsafe operation detected", "query": query}
-
         if "limit" not in query_lower and not query_lower.rstrip().endswith(";"):
             query = f"{query.rstrip(';')} LIMIT {limit}"
-
         result_df = conn.execute(query).fetchdf()
         preview = (
             result_df.head(10).to_markdown(index=False) if len(result_df) > 0 else "No data"
@@ -66,8 +57,6 @@ def _execute_query(conn, query: str, limit: int = 100) -> dict:
         }
     except Exception as e:
         return {"success": False, "error": str(e), "query": query}
-
-
 def _get_sample_data(conn, table_name: str, n: int = 3) -> str:
     try:
         df = conn.execute(f"SELECT * FROM {table_name} LIMIT {n}").fetchdf()
@@ -76,8 +65,6 @@ def _get_sample_data(conn, table_name: str, n: int = 3) -> str:
         return result
     except Exception as e:
         return f"Error: {e}"
-
-
 def _verify_inputs(
     conn,
     table_name: str,
@@ -87,21 +74,17 @@ def _verify_inputs(
     """Comprehensive input verification against the live connection."""
     issues: List[str] = []
     warnings: List[str] = []
-
     validator = DataValidator(conn)
-
     # Verify table
     table_val = validator.verify_table_exists(table_name)
     if not table_val.is_valid:
         return False, f"Table '{table_name}' not found. {table_val.warnings}"
-
     # Get schema once
     try:
         schema = conn.execute(f"DESCRIBE {table_name}").fetchdf()
         available_cols = set(schema["column_name"].values)
     except Exception as e:
         return False, f"Could not get schema: {e}"
-
     # Verify all columns
     for purpose, col_name in columns.items():
         if col_name not in available_cols:
@@ -109,13 +92,11 @@ def _verify_inputs(
             similar = [c for c in available_cols if col_name.lower() in c.lower()]
             if similar:
                 warnings.append(f"Did you mean: {similar}?")
-
     if issues:
         msg = "Verification failed:\n- " + "\n- ".join(issues)
         if warnings:
             msg += "\n\n" + "\n".join(warnings)
         return False, msg
-
     # Verify values if provided
     if values:
         for col_name, expected_vals in values.items():
@@ -127,35 +108,26 @@ def _verify_inputs(
                     issues.append(f"Value '{val}' not found in {col_name}")
                     if val_result.warnings:
                         warnings.extend(val_result.warnings[:1])
-
     if issues:
         msg = "Value verification failed:\n- " + "\n- ".join(issues)
         if warnings:
             msg += "\n\nAvailable: " + str(warnings[0]) if warnings else ""
         return False, msg
-
     return True, "All inputs verified"
-
-
 # ==================================================================
 # Public tool functions
 # ==================================================================
-
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def list_tables() -> str:
     """List all available SQL tables with schemas, row counts, and data quality info.
-
     WHEN TO USE:
     - "What tables are available?"
     - "Show me the database schema"
     """
     conn = get_connection()
     schemas = _table_schemas(conn)
-
     if not schemas:
-        return "No tables available."
-
+        return _db_error("list_tables", "No tables available.", error_code="no_tables")
     info_parts = ["Available Tables:\n"]
     for table_name, schema in schemas.items():
         info_parts.append(f"\n**Table: {table_name}** ({schema['row_count']} rows)")
@@ -176,31 +148,34 @@ def list_tables() -> str:
                     info_parts.append(f"  - {col}: {dtype} [{unique_count} unique values]")
             except Exception:
                 info_parts.append(f"  - {col}: {dtype}")
-
-    return "\n".join(info_parts)
-
-
-@safe_tool_wrapper
+    return json_tool_success(
+        "\n".join(info_parts),
+        tool_name="list_tables",
+        tables=schemas,
+        n_tables=len(schemas),
+    )
+@safe_tool_wrapper(structured_output=True)
 def describe_table(table_name: str) -> str:
     """Get detailed information about a specific table including sample data and statistics.
-
     Args:
         table_name: Name of the table to describe
-
     WHEN TO USE:
     - "Describe the solvents table"
     - "What columns does this table have?"
     """
     conn = get_connection()
     schemas = _table_schemas(conn)
-
     if table_name not in schemas:
         available = list(schemas.keys())
-        return f"Error: Table '{table_name}' not found. Available tables: {available}"
-
+        return _db_error(
+            "describe_table",
+            f"Error: Table '{table_name}' not found. Available tables: {available}",
+            error_code="table_not_found",
+            table_name=table_name,
+            available_tables=available,
+        )
     schema = schemas[table_name]
     output = [f"**Table: {table_name}**\n", f"Rows: {schema['row_count']}\n", "Columns:"]
-
     for col, dtype in schema["types"].items():
         try:
             if "INT" in str(dtype).upper() or "DOUBLE" in str(dtype).upper() or "FLOAT" in str(dtype).upper():
@@ -217,33 +192,37 @@ def describe_table(table_name: str) -> str:
                 output.append(f"  - {col}: {dtype} [{unique_count} unique values]")
         except Exception:
             output.append(f"  - {col}: {dtype}")
-
     output.append(f"\n**Sample data (5 rows):**")
     output.append(_get_sample_data(conn, table_name, 5))
-
-    return "\n".join(output)
-
-
-@safe_tool_wrapper
+    return json_tool_success(
+        "\n".join(output),
+        tool_name="describe_table",
+        table_name=table_name,
+        schema=schema,
+        sample_markdown=_get_sample_data(conn, table_name, 5),
+    )
+@safe_tool_wrapper(structured_output=True)
 def check_column_values(table_name: str, column_name: str, limit: int = 50) -> str:
     """Check what values exist in a specific column with frequency counts.
-
     Args:
         table_name: Table to query
         column_name: Column to inspect
         limit: Max unique values to return (default: 50)
-
     WHEN TO USE:
     - "What polymers are in the database?"
     - "Show unique values in the solvent column"
     """
     limit = max(1, min(limit, 500))  # cap between 1 and 500
     conn = get_connection()
-
     is_valid, msg = _verify_inputs(conn, table_name, {"column": column_name})
     if not is_valid:
-        return msg
-
+        return _db_error(
+            "check_column_values",
+            msg,
+            error_code="invalid_column_request",
+            table_name=table_name,
+            column_name=column_name,
+        )
     query = f"""
     SELECT {column_name}, COUNT(*) as count
     FROM {table_name}
@@ -252,42 +231,43 @@ def check_column_values(table_name: str, column_name: str, limit: int = 50) -> s
     LIMIT {limit}
     """
     result_df = conn.execute(query).fetchdf()
-
+    values = result_df.to_dict("records")
+    total_unique = len(result_df)
     output = f"**Unique values in {table_name}.{column_name}:**\n\n"
     output += result_df.to_markdown(index=False)
-    output += f"\n\nTotal unique values: {len(result_df)}"
-
+    output += f"\n\nTotal unique values: {total_unique}"
     total_rows = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
     output += f"\nTotal rows in table: {total_rows}"
-
     del result_df
-    return output
-
-
-@safe_tool_wrapper
+    return json_tool_success(
+        output,
+        tool_name="check_column_values",
+        table_name=table_name,
+        column_name=column_name,
+        limit=limit,
+        values=values,
+        total_unique=total_unique,
+        total_rows=int(total_rows),
+    )
+@safe_tool_wrapper(structured_output=True)
 def query_database(sql_query: str, export_csv: bool = False) -> str:
     """Execute a SQL query with validation and error reporting.
-
     Args:
         sql_query: SQL query to execute
         export_csv: Create a CSV export of results (default: False)
-
     WHEN TO USE:
     - "Query the database for LDPE solubility data"
     - "Run a SQL query to find solvents with high selectivity"
     """
     conn = get_connection()
     result = _execute_query(conn, sql_query)
-
     if result["success"]:
         df = result["dataframe"]
-
         # Generate CSV export if requested
         export_id = None
         if export_csv and result["rows"] > 0:
             try:
                 from export_manager import export_manager
-
                 export_id = export_manager.create_export(
                     data=df.to_dict(orient="records"),
                     tool_name="query_database",
@@ -295,32 +275,43 @@ def query_database(sql_query: str, export_csv: bool = False) -> str:
                 )
             except Exception as e:
                 logger.error(f"Failed to create CSV export: {e}")
-
         # Format output
         output = (
             f"**Query Results**\n\nQuery: `{result['query']}`\n\n"
             f"Rows returned: {result['rows']}\n\n"
         )
-
         if export_id:
             output += f"**CSV Export Available:** `/api/export/{export_id}`\n\n"
-
         if result["rows"] > 0:
             output += "**Data:**\n" + result["preview"]
             if result["rows"] > 10:
                 output += f"\n\n_(Showing first 10 of {result['rows']} rows)_"
         else:
             output += "No rows matched the query."
-        return output
+        return json_tool_response(
+            output,
+            {
+                "query": result["query"],
+                "rows": result["rows"],
+                "columns": result["columns"],
+                "data": result["data"],
+                "preview": result["preview"],
+                "export_csv": export_csv,
+                "export_id": export_id,
+            },
+            tool_name="query_database",
+            success=True,
+        )
     else:
-        return (
+        return _db_error(
+            "query_database",
             f"**Query Error**\n\nQuery: `{result['query']}`\n\n"
             f"Error: {result['error']}\n\n"
-            f"Tip: Use check_column_values() to verify column names and values."
+            f"Tip: Use check_column_values() to verify column names and values.",
+            error_code="sql_query_failed",
+            query=result["query"],
         )
-
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def validate_and_query(
     table_name: str,
     required_columns: str = "",
@@ -330,11 +321,9 @@ def validate_and_query(
     filters: Optional[str] = None,
 ) -> str:
     """Validate inputs BEFORE executing a query to prevent hallucinations.
-
     Also supports data accuracy verification: when filters is provided and
     required_columns is empty, runs a count query with WHERE clause and
     shows 5 sample rows matching the filter.
-
     Args:
         table_name: Table to validate against
         required_columns: Comma-separated column names to verify (default: "")
@@ -342,7 +331,6 @@ def validate_and_query(
         filter_values: Optional comma-separated values to verify exist
         sql_query: Optional query to run if validation passes
         filters: Optional SQL WHERE clause filter for data verification
-
     WHEN TO USE:
     - "Validate that these columns exist before querying"
     - "Check if LDPE exists in the polymer column"
@@ -350,32 +338,43 @@ def validate_and_query(
     - "Check how many rows match this filter"
     """
     conn = get_connection()
-
     # --- Data verification mode ---
     if filters is not None and not required_columns.strip():
         # Validate table name before constructing any SQL
         _validator = DataValidator(conn)
         _table_check = _validator.verify_table_exists(table_name)
         if not _table_check.is_valid:
-            return f"Table validation failed: {_table_check.issues}"
-
+            return _db_error(
+                "validate_and_query",
+                f"Table validation failed: {_table_check.issues}",
+                error_code="table_validation_failed",
+                table_name=table_name,
+            )
         where_clause = f"WHERE {filters}" if filters else ""
-
         count_query = f"SELECT COUNT(*) as row_count FROM {table_name} {where_clause}"
         count_result = _execute_query(conn, count_query, limit=1)
         if not count_result["success"]:
-            return f"Verification query failed: {count_result['error']}"
+            return _db_error(
+                "validate_and_query",
+                f"Verification query failed: {count_result['error']}",
+                error_code="verification_query_failed",
+                table_name=table_name,
+                filters=filters,
+            )
         count = count_result["data"][0]["row_count"] if count_result["data"] else 0
-
         sample_query = f"SELECT * FROM {table_name} {where_clause} LIMIT 5"
         sample_result = _execute_query(conn, sample_query, limit=5)
         if not sample_result["success"]:
-            return f"Verification sample query failed: {sample_result['error']}"
-
+            return _db_error(
+                "validate_and_query",
+                f"Verification sample query failed: {sample_result['error']}",
+                error_code="verification_sample_failed",
+                table_name=table_name,
+                filters=filters,
+            )
         output = f"**Data Verification for {table_name}**\n\n"
         output += f"Filter: {filters or 'None'}\n"
         output += f"Total matching rows: {count}\n\n"
-
         if count > 0:
             import pandas as pd
             sample_df = pd.DataFrame(sample_result["data"])
@@ -388,24 +387,28 @@ def validate_and_query(
             output += "1. Column names are correct\n"
             output += "2. Filter values exist in the data\n"
             output += "3. Data types match (e.g., strings need quotes)\n"
-
-        return output
-
+        return json_tool_response(
+            output,
+            {
+                "table_name": table_name,
+                "filters": filters,
+                "match_count": count,
+                "sample_rows": sample_result["data"],
+            },
+            tool_name="validate_and_query",
+            success=True,
+        )
     # --- Validation mode ---
     validator = DataValidator(conn)
-
     output = ["**Input Validation Report**\n"]
     all_valid = True
-
     columns = [c.strip() for c in required_columns.split(",") if c.strip()]
-
     table_val = validator.verify_table_exists(table_name)
     if table_val.is_valid:
         output.append(f"Table '{table_name}' exists ({table_val.verified_row_count} rows)")
     else:
         output.append(f"Table issue: {table_val.issues}")
         all_valid = False
-
     for col in columns:
         col_val = validator.verify_column_exists(table_name, col)
         if col_val.is_valid:
@@ -415,7 +418,6 @@ def validate_and_query(
             if col_val.warnings:
                 output.append(f"   {col_val.warnings[0]}")
             all_valid = False
-
     if filter_column and filter_values:
         values = [v.strip() for v in filter_values.split(",")]
         for val in values:
@@ -429,7 +431,6 @@ def validate_and_query(
                 if val_result.warnings:
                     output.append(f"   {val_result.warnings[0]}")
                 all_valid = False
-
     if sql_query and all_valid:
         output.append("\n**Query Execution:**")
         result = _execute_query(conn, sql_query)
@@ -441,5 +442,16 @@ def validate_and_query(
             output.append(f"Query failed: {result['error']}")
     elif sql_query and not all_valid:
         output.append("\nQuery not executed due to validation failures")
-
-    return "\n".join(output)
+    return json_tool_response(
+        "\n".join(output),
+        {
+            "table_name": table_name,
+            "required_columns": columns,
+            "filter_column": filter_column,
+            "filter_values": [v.strip() for v in filter_values.split(",")] if filter_values else [],
+            "sql_query": sql_query,
+            "all_valid": all_valid,
+        },
+        tool_name="validate_and_query",
+        success=all_valid,
+    )

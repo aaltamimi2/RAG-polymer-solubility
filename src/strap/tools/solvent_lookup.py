@@ -1,31 +1,24 @@
 """Solvent price and GWP lookup tools.
-
 Two retrieval strategies:
 - **Price**: built-in database → web search fallback (chemical market data is open)
 - **GWP**: built-in database → web search fallback → solvent-class average estimate
   (ecoinvent/GaBi values are mostly paywalled)
 """
-
 from __future__ import annotations
-
 import json
 import logging
 import os
 import re
 from datetime import datetime
 from typing import Any
-
 from strap.tools._helpers import safe_tool_wrapper
-
 logger = logging.getLogger(__name__)
-
 # ---------------------------------------------------------------------------
 # Built-in solvent database
 # ---------------------------------------------------------------------------
 # Sources:
 #   - 16 existing solvents from biosteam_runner.py (price + GWP from Branch-TEA)
 #   - ~10 common solvents from ChemAnalyst/IMARC/ECHEMI + published LCA studies
-
 _SOLVENT_DB: dict[str, dict[str, Any]] = {
     # ── BioSTEAM solvents (high confidence — Branch-TEA validated) ──────
     "sec-Butyl Acetate": {
@@ -290,18 +283,15 @@ _SOLVENT_DB: dict[str, dict[str, Any]] = {
         "aliases": ["limonene", "R-limonene", "orange terpene", "(+)-limonene"],
     },
 }
-
 # ---------------------------------------------------------------------------
 # Alias index (built once at import time)
 # ---------------------------------------------------------------------------
 _ALIAS_INDEX: dict[str, str] = {}  # lowercase alias → canonical name
 _CANONICAL_LOWER: dict[str, str] = {}  # lowercase canonical → canonical name
-
 for _canonical, _info in _SOLVENT_DB.items():
     _CANONICAL_LOWER[_canonical.lower()] = _canonical
     for _alias in _info.get("aliases", []):
         _ALIAS_INDEX[_alias.lower()] = _canonical
-
 # ---------------------------------------------------------------------------
 # GWP class averages for fallback estimates
 # ---------------------------------------------------------------------------
@@ -318,15 +308,11 @@ _GWP_CLASS_AVERAGES: dict[str, tuple[float, float]] = {
     "alcohol": (1.5, 3.5),
     "terpene": (0.5, 2.0),
 }
-
-
 # ---------------------------------------------------------------------------
 # Name resolution
 # ---------------------------------------------------------------------------
-
 def _resolve_name(query: str) -> str | None:
     """Resolve a solvent query to its canonical name in _SOLVENT_DB.
-
     Resolution order:
     1. Exact match on canonical name (case-insensitive)
     2. Exact match on alias (case-insensitive)
@@ -335,15 +321,12 @@ def _resolve_name(query: str) -> str | None:
     q = query.strip().lower()
     if not q:
         return None
-
     # 1. Exact canonical match
     if q in _CANONICAL_LOWER:
         return _CANONICAL_LOWER[q]
-
     # 2. Exact alias match
     if q in _ALIAS_INDEX:
         return _ALIAS_INDEX[q]
-
     # 3. Substring match — only match if query is a substring of a known name
     #    (not the reverse, to avoid "2-methyltetrahydrofuran" matching "tetrahydrofuran")
     candidates: list[tuple[str, int]] = []
@@ -353,22 +336,16 @@ def _resolve_name(query: str) -> str | None:
     for alias_lower, canon in _ALIAS_INDEX.items():
         if q in alias_lower:
             candidates.append((canon, len(alias_lower)))
-
     if candidates:
         # Sort by name length (shorter = more specific match)
         candidates.sort(key=lambda x: x[1])
         return candidates[0][0]
-
     return None
-
-
 # ---------------------------------------------------------------------------
 # Web search helper (SerpAPI)
 # ---------------------------------------------------------------------------
-
 def _serpapi_search(query: str, num_results: int = 5) -> list[dict[str, str]]:
     """Run a SerpAPI Google search, returning organic results.
-
     Returns list of {title, snippet, link} dicts. Returns empty list if
     SERPAPI_API_KEY is not set or the request fails.
     """
@@ -376,13 +353,11 @@ def _serpapi_search(query: str, num_results: int = 5) -> list[dict[str, str]]:
     if not api_key:
         logger.debug("SERPAPI_KEY not set — skipping web search")
         return []
-
     try:
         import requests
     except ImportError:
         logger.debug("requests not installed — skipping web search")
         return []
-
     try:
         resp = requests.get(
             "https://serpapi.com/search.json",
@@ -398,7 +373,6 @@ def _serpapi_search(query: str, num_results: int = 5) -> list[dict[str, str]]:
     except Exception as exc:
         logger.warning("SerpAPI search failed: %s", exc)
         return []
-
     results = []
     for item in data.get("organic_results", []):
         results.append({
@@ -407,12 +381,9 @@ def _serpapi_search(query: str, num_results: int = 5) -> list[dict[str, str]]:
             "link": item.get("link", ""),
         })
     return results
-
-
 # ---------------------------------------------------------------------------
 # Price parsing from web search snippets
 # ---------------------------------------------------------------------------
-
 # Matches patterns like: $1.05/kg, $1050/MT, USD 1.05/kg, 1.05 USD/kg,
 # $1,050/ton, $1050 per metric ton, etc.
 _PRICE_PER_KG_RE = re.compile(
@@ -423,11 +394,8 @@ _PRICE_PER_MT_RE = re.compile(
     r"\$?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(?:USD\s*)?(?:/(?:MT|ton(?:ne)?)|per\s+(?:metric\s+)?ton(?:ne)?)",
     re.IGNORECASE,
 )
-
-
 def _parse_price_from_snippets(snippets: list[str]) -> tuple[float | None, str | None]:
     """Extract price per kg from search result snippets.
-
     Returns (price_usd_per_kg, source_snippet) or (None, None).
     """
     for snippet in snippets:
@@ -444,18 +412,13 @@ def _parse_price_from_snippets(snippets: list[str]) -> tuple[float | None, str |
             if 10 < price_mt < 100_000:  # sanity check
                 return round(price_mt / 1000, 3), snippet
     return None, None
-
-
 # ---------------------------------------------------------------------------
 # GWP parsing from web search snippets
 # ---------------------------------------------------------------------------
-
 _GWP_RE = re.compile(
     r"(\d+(?:\.\d+)?)\s*kg\s*CO2(?:\s*-?\s*eq(?:uiv)?)?(?:\s*/\s*kg|\s+per\s+kg)",
     re.IGNORECASE,
 )
-
-
 def _parse_gwp_from_snippets(snippets: list[str]) -> tuple[float | None, str | None]:
     """Extract GWP (kg CO2e/kg) from search result snippets."""
     for snippet in snippets:
@@ -465,30 +428,23 @@ def _parse_gwp_from_snippets(snippets: list[str]) -> tuple[float | None, str | N
             if 0.01 < gwp < 50:  # sanity check
                 return gwp, snippet
     return None, None
-
-
 # ---------------------------------------------------------------------------
 # Tool 1: lookup_solvent_price
 # ---------------------------------------------------------------------------
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
     """Look up the bulk industrial price of a solvent.
-
     Checks a curated database first, then falls back to web search
     (SerpAPI) for solvents not in the database.
-
     Args:
         solvent: Solvent name (common name, abbreviation, or CAS).
             Examples: "Acetone", "MEK", "THF", "Toluene"
         region: Price region (default "North America").
-
     Returns:
         JSON string with keys: solvent, price_usd_kg, currency, region,
         source, confidence, date
     """
     year = datetime.now().year
-
     # 1. Check built-in database
     canonical = _resolve_name(solvent)
     if canonical and canonical in _SOLVENT_DB:
@@ -503,13 +459,11 @@ def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
             "date": f"Q4 2024",
             "cas": entry.get("cas"),
         })
-
     # 2. Web search fallback
     query = f'"{solvent}" bulk price per kg {year} industrial'
     results = _serpapi_search(query)
     snippets = [r["snippet"] for r in results if r.get("snippet")]
     price, source_snippet = _parse_price_from_snippets(snippets)
-
     if price is not None:
         source_url = results[0]["link"] if results else "web search"
         return json.dumps({
@@ -521,7 +475,6 @@ def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
             "confidence": "web_search",
             "date": str(year),
         })
-
     # 3. Not found
     return json.dumps({
         "solvent": solvent,
@@ -536,24 +489,18 @@ def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
             "Try a more common name, CAS number, or check ChemAnalyst/ECHEMI manually."
         ),
     })
-
-
 # ---------------------------------------------------------------------------
 # Tool 2: lookup_solvent_gwp
 # ---------------------------------------------------------------------------
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def lookup_solvent_gwp(solvent: str) -> str:
     """Look up the cradle-to-gate GWP (Global Warming Potential) of a solvent.
-
     Checks a curated database first (16 BioSTEAM solvents + 10 common
     industrials). If not found, attempts web search. If still not found,
     returns a solvent-class average estimate with a warning.
-
     Args:
         solvent: Solvent name (common name, abbreviation, or CAS).
             Examples: "Acetone", "MEK", "THF", "Toluene"
-
     Returns:
         JSON string with keys: solvent, gwp_kg_co2e, unit, production_route,
         source, confidence
@@ -571,13 +518,11 @@ def lookup_solvent_gwp(solvent: str) -> str:
             "confidence": entry["gwp_confidence"],
             "cas": entry.get("cas"),
         })
-
     # 2. Web search fallback
     query = f'"{solvent}" GWP cradle-to-gate "kg CO2" per kg'
     results = _serpapi_search(query)
     snippets = [r["snippet"] for r in results if r.get("snippet")]
     gwp, source_snippet = _parse_gwp_from_snippets(snippets)
-
     if gwp is not None:
         source_url = results[0]["link"] if results else "web search"
         return json.dumps({
@@ -588,13 +533,11 @@ def lookup_solvent_gwp(solvent: str) -> str:
             "source": f"Web search ({source_url})",
             "confidence": "web_search",
         })
-
     # 3. Not found — provide class-average guidance
     class_guidance = {
         cls: f"{lo}-{hi} kg CO2e/kg"
         for cls, (lo, hi) in _GWP_CLASS_AVERAGES.items()
     }
-
     return json.dumps({
         "solvent": solvent,
         "gwp_kg_co2e": None,

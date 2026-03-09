@@ -8,9 +8,37 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from deepagents.middleware._utils import append_to_system_message
-from langchain.agents.middleware.types import AgentMiddleware, ModelResponse
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain.agents.middleware.types import AgentMiddleware, ModelResponse, hook_config
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+from .guardrail_checks import (
+    get_separation_analysis_coverage_errors,
+    get_separation_feasibility_errors,
+    get_separation_selectivity_scope_errors,
+    get_separation_support_scope_errors,
+    get_separation_temperature_bound_errors,
+    get_structured_result_errors,
+)
+from .guardrail_messages import (
+    iteration_limit_message,
+    separation_analysis_coverage_repair_message,
+    separation_feasibility_repair_message,
+    structured_result_repair_message,
+    token_budget_message,
+    tool_budget_repair_message,
+    tool_budget_suffix,
+)
+from .guardrail_policy import (
+    inject_separation_support_directive,
+    inject_separation_temperature_bound_directive,
+    inject_synthesis_directive,
+    inject_visualization_tool_directive,
+    maybe_block_late_separation_todos,
+    maybe_block_duplicate_biosteam_batch,
+    maybe_enforce_visualization_tool_directive,
+    restrict_visualization_tools,
+)
+from .guardrail_utils import extract_completed_tool_names
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -27,11 +55,22 @@ class _GuardState:
     total_output_tokens: int = 0
     total_tool_calls: int = 0
     synthesis_tool_seen: bool = False
+    structured_result_repairs: int = 0
+    tool_budget_repairs: int = 0
+    separation_analysis_repairs: int = 0
 
 
 _guard_state: contextvars.ContextVar[_GuardState] = contextvars.ContextVar(
     "_guard_state"
 )
+_MAX_STRUCTURED_RESULT_REPAIRS = 1
+_SEPARATION_NON_ANALYSIS_TOOLS = {
+    "think",
+    "write_todos",
+    "list_available_polymers",
+    "list_available_solvents",
+    "get_supported_polymers_and_solvents",
+}
 
 
 class SubagentGuardMiddleware(AgentMiddleware):
@@ -63,6 +102,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         truncate_tool_results_after: int | None = None,
         free_tools: set[str] | None = None,
         keep_recent: int = 4,
+        agent_name: str | None = None,
     ) -> None:
         self._max_iterations = max_iterations
         self._token_budget = token_budget
@@ -71,6 +111,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
         self._truncate_tool_results_after = truncate_tool_results_after
         self._free_tools: set[str] = free_tools or set()
         self._keep_recent = keep_recent
+        self._agent_name = agent_name
 
     # -- per-invocation state (ContextVar-isolated) ---------------------------
 
@@ -104,15 +145,17 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
             )
-            return AIMessage(
-                content="[LIMIT] Max iterations reached. Synthesize your answer now.",
-            )
+            return AIMessage(content=iteration_limit_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
 
         # Inject synthesis directive if a key tool has already returned
         request = self._inject_synthesis_directive(request)
+        request = self._inject_separation_temperature_bound_directive(request)
+        request = self._inject_separation_support_directive(request)
+        request = self._inject_visualization_tool_directive(request)
+        request = self._restrict_visualization_tools(request)
 
         # Truncate old tool results to limit context growth
         request = self._truncate_old_tool_results(request)
@@ -131,9 +174,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._state.total_output_tokens,
                 total_tokens,
             )
-            return AIMessage(
-                content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
-            )
+            return AIMessage(content=token_budget_message())
 
         # Track and enforce tool-call limit
         return self._enforce_tool_call_limit(response)
@@ -149,15 +190,17 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
             )
-            return AIMessage(
-                content="[LIMIT] Max iterations reached. Synthesize your answer now.",
-            )
+            return AIMessage(content=iteration_limit_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
 
         # Inject synthesis directive if a key tool has already returned
         request = self._inject_synthesis_directive(request)
+        request = self._inject_separation_temperature_bound_directive(request)
+        request = self._inject_separation_support_directive(request)
+        request = self._inject_visualization_tool_directive(request)
+        request = self._restrict_visualization_tools(request)
 
         # Truncate old tool results to limit context growth
         request = self._truncate_old_tool_results(request)
@@ -176,12 +219,109 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._state.total_output_tokens,
                 total_tokens,
             )
-            return AIMessage(
-                content="[LIMIT] Token budget exceeded. Synthesize your answer now.",
-            )
+            return AIMessage(content=token_budget_message())
 
         # Track and enforce tool-call limit
         return self._enforce_tool_call_limit(response)
+
+    @hook_config(can_jump_to=["model"])
+    def after_model(self, state, runtime):
+        """Force one repair turn when a synthesis-capable subagent omits its contract."""
+        messages = state.get("messages", [])
+        last_ai = self._get_last_ai_message(messages)
+        if last_ai is None:
+            return None
+        if self._should_repair_tool_budget(last_ai):
+            self._state.tool_budget_repairs += 1
+            return {
+                "messages": [
+                    HumanMessage(
+                        content=tool_budget_repair_message(self._agent_name)
+                    )
+                ],
+                "jump_to": "model",
+            }
+        separation_analysis_errors = get_separation_analysis_coverage_errors(
+            messages,
+            last_ai,
+            self._agent_name,
+        )
+        if self._should_repair_separation_analysis_coverage(messages, separation_analysis_errors):
+            self._state.separation_analysis_repairs += 1
+            detail = "; ".join(separation_analysis_errors[:2])
+            return {
+                "messages": [
+                    HumanMessage(
+                        content=separation_analysis_coverage_repair_message(detail)
+                    )
+                ],
+                "jump_to": "model",
+            }
+        structured_errors = get_structured_result_errors(last_ai, self._agent_name)
+        if self._should_repair_structured_result(messages, structured_errors):
+            self._state.structured_result_repairs += 1
+            detail = ""
+            if structured_errors:
+                detail = f" Validation errors: {'; '.join(structured_errors[:3])}."
+            return {
+                "messages": [
+                    HumanMessage(
+                        content=structured_result_repair_message(detail)
+                    )
+                ],
+                "jump_to": "model",
+            }
+
+        separation_errors = get_separation_feasibility_errors(last_ai, self._agent_name)
+        separation_errors.extend(
+            get_separation_temperature_bound_errors(messages, last_ai, self._agent_name)
+        )
+        separation_errors.extend(
+            get_separation_support_scope_errors(messages, last_ai, self._agent_name)
+        )
+        separation_errors.extend(
+            get_separation_selectivity_scope_errors(messages, last_ai, self._agent_name)
+        )
+        if self._should_repair_separation_feasibility(messages, separation_errors):
+            self._state.structured_result_repairs += 1
+            detail = "; ".join(separation_errors[:3])
+            return {
+                "messages": [
+                    HumanMessage(
+                        content=separation_feasibility_repair_message(detail)
+                    )
+                ],
+                "jump_to": "model",
+            }
+
+        return None
+
+    async def aafter_model(self, state, runtime):
+        return self.after_model(state, runtime)
+
+    def wrap_tool_call(self, request, handler):
+        blocked = self._maybe_enforce_visualization_tool_directive(request)
+        if blocked is not None:
+            return blocked
+        blocked = self._maybe_block_late_separation_todos(request)
+        if blocked is not None:
+            return blocked
+        blocked = self._maybe_block_duplicate_biosteam_batch(request)
+        if blocked is not None:
+            return blocked
+        return handler(request)
+
+    async def awrap_tool_call(self, request, handler):
+        blocked = self._maybe_enforce_visualization_tool_directive(request)
+        if blocked is not None:
+            return blocked
+        blocked = self._maybe_block_late_separation_todos(request)
+        if blocked is not None:
+            return blocked
+        blocked = self._maybe_block_duplicate_biosteam_batch(request)
+        if blocked is not None:
+            return blocked
+        return await handler(request)
 
     # -- helpers -------------------------------------------------------------
 
@@ -236,11 +376,7 @@ class SubagentGuardMiddleware(AgentMiddleware):
                     if isinstance(item, dict) and item.get("type") == "text":
                         parts.append(item["text"])
                 existing_text = "\n".join(parts)
-            suffix = (
-                "\n\n[LIMIT] Tool call budget exhausted. Synthesize your "
-                "findings into a clear, complete answer NOW. Do NOT call "
-                "any more tools."
-            )
+            suffix = tool_budget_suffix()
             return AIMessage(content=existing_text + suffix)
         return response
 
@@ -248,37 +384,153 @@ class SubagentGuardMiddleware(AgentMiddleware):
         """Scan recent ToolMessages for synthesis tool results."""
         if self._state.synthesis_tool_seen or not self._synthesis_tools:
             return
-        # Walk backwards from the end; stop at the first AIMessage
-        for msg in reversed(messages):
-            if isinstance(msg, ToolMessage):
-                tool_name = getattr(msg, "name", None)
-                if tool_name and tool_name in self._synthesis_tools:
-                    self._state.synthesis_tool_seen = True
-                    logger.info(
-                        "SubagentGuard: synthesis tool '%s' detected — "
-                        "will inject synthesis directive",
-                        tool_name,
-                    )
-                    return
-            elif isinstance(msg, AIMessage):
-                break
+        completed = [name for name in extract_completed_tool_names(messages) if name in self._synthesis_tools]
+        if completed:
+            self._state.synthesis_tool_seen = True
+            logger.info(
+                "SubagentGuard: synthesis tool(s) %s detected — will inject synthesis directive",
+                completed,
+            )
+            return
+
+    def _should_repair_tool_budget(self, last_ai: AIMessage) -> bool:
+        if self._agent_name not in {"safety-analyst", "biosteam-analyst"}:
+            return False
+        if self._state.tool_budget_repairs >= 1:
+            return False
+        content = getattr(last_ai, "content", "") or ""
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if isinstance(item, dict) and item.get("type") == "text":
+                    parts.append(item["text"])
+                elif isinstance(item, str):
+                    parts.append(item)
+            content = "\n".join(parts)
+        return "[LIMIT] Tool call budget exhausted" in str(content)
 
     def _inject_synthesis_directive(
         self, request: ModelRequest
     ) -> ModelRequest:
-        """Append a synthesis directive to the system prompt if a key tool
-        has already returned results."""
-        if not self._state.synthesis_tool_seen or request.system_message is None:
-            return request
-        directive = (
-            "\n\n[NOTE] A comprehensive analysis tool has returned results. "
-            "Consider synthesizing your findings now unless you need "
-            "additional data for a complete answer."
+        return inject_synthesis_directive(
+            request,
+            synthesis_tool_seen=self._state.synthesis_tool_seen,
         )
-        new_system = append_to_system_message(
-            request.system_message, directive
+
+    def _inject_visualization_tool_directive(
+        self, request: ModelRequest
+    ) -> ModelRequest:
+        return inject_visualization_tool_directive(
+            request,
+            agent_name=self._agent_name,
         )
-        return request.override(system_message=new_system)
+
+    def _inject_separation_support_directive(
+        self,
+        request: ModelRequest,
+    ) -> ModelRequest:
+        return inject_separation_support_directive(
+            request,
+            agent_name=self._agent_name,
+        )
+
+    def _inject_separation_temperature_bound_directive(
+        self,
+        request: ModelRequest,
+    ) -> ModelRequest:
+        return inject_separation_temperature_bound_directive(
+            request,
+            agent_name=self._agent_name,
+        )
+
+    def _restrict_visualization_tools(
+        self, request: ModelRequest
+    ) -> ModelRequest:
+        return restrict_visualization_tools(
+            request,
+            agent_name=self._agent_name,
+        )
+
+    @staticmethod
+    def _get_last_ai_message(messages: list) -> AIMessage | None:
+        for message in reversed(messages):
+            if isinstance(message, AIMessage):
+                return message
+        return None
+
+    def _should_repair_structured_result(
+        self,
+        messages: list,
+        errors: list[str] | None = None,
+    ) -> bool:
+        has_separation_analysis_evidence = False
+        if self._agent_name == "separation-engineer":
+            completed_tool_names = [
+                name for name in extract_completed_tool_names(messages)
+                if name not in _SEPARATION_NON_ANALYSIS_TOOLS
+            ]
+            has_separation_analysis_evidence = bool(completed_tool_names)
+
+        if not self._state.synthesis_tool_seen and not has_separation_analysis_evidence:
+            return False
+        if self._state.structured_result_repairs >= _MAX_STRUCTURED_RESULT_REPAIRS:
+            return False
+
+        last_ai = self._get_last_ai_message(messages)
+        if last_ai is None:
+            return False
+        if getattr(last_ai, "tool_calls", None):
+            return False
+
+        return bool(
+            errors if errors is not None else get_structured_result_errors(last_ai, self._agent_name)
+        )
+
+    def _should_repair_separation_analysis_coverage(
+        self,
+        messages: list,
+        errors: list[str] | None = None,
+    ) -> bool:
+        if self._agent_name != "separation-engineer":
+            return False
+        if self._state.separation_analysis_repairs >= 1:
+            return False
+
+        last_ai = self._get_last_ai_message(messages)
+        if last_ai is None:
+            return False
+        if getattr(last_ai, "tool_calls", None):
+            return False
+
+        return bool(
+            errors
+            if errors is not None
+            else get_separation_analysis_coverage_errors(messages, last_ai, self._agent_name)
+        )
+
+    def _should_repair_separation_feasibility(
+        self,
+        messages: list,
+        errors: list[str] | None = None,
+    ) -> bool:
+        if self._agent_name != "separation-engineer":
+            return False
+        if not self._state.synthesis_tool_seen:
+            return False
+        if self._state.structured_result_repairs >= _MAX_STRUCTURED_RESULT_REPAIRS:
+            return False
+
+        last_ai = self._get_last_ai_message(messages)
+        if last_ai is None:
+            return False
+        if getattr(last_ai, "tool_calls", None):
+            return False
+
+        return bool(
+            errors
+            if errors is not None
+            else get_separation_feasibility_errors(last_ai, self._agent_name)
+        )
 
     def _truncate_old_tool_results(
         self, request: ModelRequest
@@ -319,3 +571,21 @@ class SubagentGuardMiddleware(AgentMiddleware):
         if truncated:
             return request.override(messages=new_messages)
         return request
+
+    def _maybe_block_duplicate_biosteam_batch(self, request) -> ToolMessage | None:
+        return maybe_block_duplicate_biosteam_batch(
+            request,
+            agent_name=self._agent_name,
+        )
+
+    def _maybe_block_late_separation_todos(self, request) -> ToolMessage | None:
+        return maybe_block_late_separation_todos(
+            request,
+            agent_name=self._agent_name,
+        )
+
+    def _maybe_enforce_visualization_tool_directive(self, request) -> ToolMessage | None:
+        return maybe_enforce_visualization_tool_directive(
+            request,
+            agent_name=self._agent_name,
+        )

@@ -7,6 +7,7 @@ AdaptiveAnalyzer, fuzzy matching, solvent name normalization.
 from __future__ import annotations
 
 import gc
+import json
 import re
 import os
 import logging
@@ -62,6 +63,112 @@ def _format_tool_result(result) -> str:
     return result_str
 
 
+def _is_tool_envelope(text: str) -> bool:
+    try:
+        parsed = json.loads(text)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    return isinstance(parsed, dict) and "display" in parsed and "data" in parsed
+
+
+def _normalize_tool_envelope(tool_name: str, text: str) -> str:
+    from strap.services.tool_response_service import json_tool_response
+
+    parsed = json.loads(text)
+    data = parsed.get("data")
+    if not isinstance(data, dict):
+        data = {"value": data}
+    success = data.get("success") if "success" in data else None
+    return json_tool_response(
+        parsed.get("display", ""),
+        data,
+        tool_name=tool_name,
+        success=success,
+    )
+
+
+def _looks_like_error_text(text: str) -> bool:
+    normalized = text.strip().lower()
+    if not normalized:
+        return False
+
+    failure_prefixes = (
+        "error:",
+        "failed",
+        "search failed",
+        "literature search failed",
+        "ingestion failed",
+        "no results found",
+        "no relevant",
+        "no data found",
+        "no documents",
+        "no pdf",
+        "no tables",
+        "google scholar search requires",
+        "failed to ",
+        "could not ",
+    )
+    if normalized.startswith("❌") or normalized.startswith("⚠️"):
+        return True
+    if any(normalized.startswith(prefix) for prefix in failure_prefixes):
+        return True
+    failure_substrings = (
+        " not ready",
+        " cannot be empty",
+        " not found",
+        " failed:",
+        " failed ",
+        " unavailable",
+    )
+    if any(substr in normalized for substr in failure_substrings):
+        return True
+    return False
+
+
+def _wrap_structured_result(tool_name: str, result) -> str:
+    from strap.services.tool_response_service import json_tool_error, json_tool_response
+
+    if isinstance(result, str):
+        result_str = truncate_output(result)
+        if _is_tool_envelope(result_str):
+            return _normalize_tool_envelope(tool_name, result_str)
+        try:
+            parsed = json.loads(result_str)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            if _looks_like_error_text(result_str):
+                return json_tool_error(
+                    result_str,
+                    tool_name=tool_name,
+                    error_code="tool_reported_failure",
+                )
+            return json_tool_response(result_str, tool_name=tool_name, success=True)
+        if isinstance(parsed, dict):
+            return json_tool_response(
+                result_str,
+                parsed,
+                tool_name=tool_name,
+            )
+        if isinstance(parsed, list):
+            return json_tool_response(
+                result_str,
+                {"items": parsed},
+                tool_name=tool_name,
+            )
+        return json_tool_response(result_str, {"value": parsed}, tool_name=tool_name)
+
+    if isinstance(result, dict):
+        if "display" in result and "data" in result:
+            return json.dumps(result, indent=2, ensure_ascii=False)
+        display = json.dumps(result, indent=2, ensure_ascii=False)
+        return json_tool_response(display, result, tool_name=tool_name)
+    if isinstance(result, list):
+        display = json.dumps(result, indent=2, ensure_ascii=False)
+        return json_tool_response(display, {"items": result}, tool_name=tool_name)
+
+    result_str = _format_tool_result(result)
+    return json_tool_response(result_str, tool_name=tool_name, success=True)
+
+
 def _format_tool_error(func_name: str, error: Exception) -> str:
     """Format tool error with context-aware recovery suggestions."""
     error_msg = str(error)[:500]
@@ -105,6 +212,22 @@ def _format_tool_error(func_name: str, error: Exception) -> str:
     )
 
 
+def _format_structured_tool_error(
+    tool_name: str,
+    error: Exception,
+    *,
+    error_code: str = "tool_execution_failed",
+) -> str:
+    from strap.services.tool_response_service import json_tool_error
+
+    return json_tool_error(
+        str(error),
+        tool_name=tool_name,
+        error_code=error_code,
+        exception_type=type(error).__name__,
+    )
+
+
 def _run_coroutine(coro):
     """Run an async coroutine from a sync context."""
     try:
@@ -119,20 +242,44 @@ def _run_coroutine(coro):
         return asyncio.run(coro)
 
 
-def safe_tool_wrapper(func):
+def safe_tool_wrapper(
+    func=None,
+    *,
+    structured_output: bool = False,
+    tool_name: str | None = None,
+    error_code: str = "tool_execution_failed",
+):
     """Decorator for safe tool execution with error handling and memory cleanup.
 
     Always produces a sync wrapper so LangGraph/deepagents can invoke tools
     synchronously.  Async tool functions are called via _run_coroutine().
     """
+    if func is None:
+        return lambda real_func: safe_tool_wrapper(
+            real_func,
+            structured_output=structured_output,
+            tool_name=tool_name,
+            error_code=error_code,
+        )
+
+    resolved_tool_name = tool_name or func.__name__
+
     if asyncio.iscoroutinefunction(func):
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
             try:
                 result = _run_coroutine(func(*args, **kwargs))
+                if structured_output:
+                    return _wrap_structured_result(resolved_tool_name, result)
                 return _format_tool_result(result)
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
+                if structured_output:
+                    return _format_structured_tool_error(
+                        resolved_tool_name,
+                        e,
+                        error_code=error_code,
+                    )
                 return _format_tool_error(func.__name__, e)
             finally:
                 gc.collect()
@@ -142,9 +289,17 @@ def safe_tool_wrapper(func):
         def sync_wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
+                if structured_output:
+                    return _wrap_structured_result(resolved_tool_name, result)
                 return _format_tool_result(result)
             except Exception as e:
                 logger.error(f"Tool {func.__name__} error: {e}", exc_info=True)
+                if structured_output:
+                    return _format_structured_tool_error(
+                        resolved_tool_name,
+                        e,
+                        error_code=error_code,
+                    )
                 return _format_tool_error(func.__name__, e)
             finally:
                 gc.collect()

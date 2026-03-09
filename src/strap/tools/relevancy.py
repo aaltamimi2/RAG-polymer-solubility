@@ -142,7 +142,7 @@ def compute_vector_score(text: str) -> float:
         return 0.5
 
     try:
-        from strap.vendor.rag import get_rag_system
+        from strap.services.rag_service import get_rag_system
 
         rag = get_rag_system()
 

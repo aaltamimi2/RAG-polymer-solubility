@@ -223,6 +223,15 @@ def get_biosteam_tools() -> list:
     ])
 
 
+def get_contaminant_removal_tools() -> list:
+    return _safe_import("strap.tools.contaminant_removal", [
+        "list_supported_contaminants",
+        "screen_contaminant_leaching",
+        "screen_contaminant_strap_removal",
+        "compare_contaminant_removal_modes",
+    ])
+
+
 def get_solvent_lookup_tools() -> list:
     return _safe_import("strap.tools.solvent_lookup", [
         "lookup_solvent_price",
@@ -247,7 +256,12 @@ def get_sidecar_read_tools() -> list:
 def get_result_extractor_tools() -> list:
     """Orchestrator tools for querying accumulated structured results."""
     return _safe_import("strap.result_extractor", [
-        "get_subagent_result", "get_all_subagent_results",
+        "get_subagent_result",
+        "get_subagent_results",
+        "get_all_subagent_results",
+        "list_handoffs",
+        "get_handoff_details",
+        "build_handoff",
     ])
 
 
@@ -301,6 +315,7 @@ def get_all_tools() -> list:
         get_rag_diagnostics_tools,
         get_advanced_separation_tools,
         get_biosteam_tools,
+        get_contaminant_removal_tools,
         get_thermal_prediction_tools,
         get_solvent_lookup_tools,
         get_reflection_tools,

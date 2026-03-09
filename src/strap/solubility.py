@@ -162,7 +162,9 @@ def predict(entry: dict, temp_c: float) -> dict:
     """
     t_k = temp_c + 273.15
     ln_s = entry["A"] + entry["B"] / t_k + entry["C"] * np.log(t_k)
-    s_pct = np.clip(np.exp(ln_s), 0.0, 100.0)
+    # Solubility is capped at 100 wt%; clip in log space to avoid overflow noise.
+    ln_s_capped = float(np.clip(ln_s, -745.0, np.log(100.0)))
+    s_pct = np.exp(ln_s_capped)
 
     extrapolation = ""
     if temp_c < entry["t_min_c"]:

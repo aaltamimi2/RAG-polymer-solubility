@@ -1,25 +1,19 @@
 """Adaptive separation tools for selective polymer dissolution analysis.
-
 Provides two tool functions extracted from the monolithic agent source:
   - find_optimal_separation_conditions
   - analyze_selective_solubility_enhanced
-
 These are plain functions (no @tool decorator) intended for deep-agent
 orchestration.  Each function lazily obtains its database connection via
 ``get_connection()`` so there is no module-level global state.
 """
-
 from __future__ import annotations
-
 import gc
-import json
 import logging
 from typing import Dict, List, Optional, Tuple, Any
-
 import numpy as np
 import pandas as pd
-
 from strap.database import get_connection
+from strap.services.tool_response_service import json_tool_error, json_tool_response, json_tool_success
 from strap.tools._helpers import (
     safe_tool_wrapper,
     DataValidator,
@@ -29,19 +23,15 @@ from strap.tools._helpers import (
     normalize_solvent_name,
     save_plot,
 )
-
 logger = logging.getLogger(__name__)
-
+def _adaptive_error(tool_name: str, message: str, *, error_code: str = "analysis_failed", **data) -> str:
+    return json_tool_error(message, tool_name=tool_name, error_code=error_code, **data)
 # ------------------------------------------------------------------
 # Internal helpers
 # ------------------------------------------------------------------
-
-
 def _get_plot_url(filepath: str) -> str:
     """Convert a filepath to a displayable string."""
     return f"Plot saved: `{filepath}`"
-
-
 def _execute_query(conn, query: str, limit: int = 100) -> Dict[str, Any]:
     """Execute a read-only query and return a result dict (mirrors SQLDatabase.execute_query)."""
     try:
@@ -51,18 +41,14 @@ def _execute_query(conn, query: str, limit: int = 100) -> Dict[str, Any]:
         ]
         if any(keyword in query_lower.split() for keyword in dangerous_keywords):
             return {"success": False, "error": "Unsafe operation detected", "query": query}
-
         if "limit" not in query_lower and not query_lower.strip().endswith(";"):
             query = f"{query.rstrip(';')} LIMIT {limit}"
-
         result_df = conn.execute(query).fetchdf()
-
         preview = (
             result_df.head(10).to_markdown(index=False)
             if len(result_df) > 0
             else "No data"
         )
-
         return {
             "success": True,
             "query": query,
@@ -75,8 +61,6 @@ def _execute_query(conn, query: str, limit: int = 100) -> Dict[str, Any]:
         }
     except Exception as e:
         return {"success": False, "error": str(e), "query": query}
-
-
 def _verify_inputs(
     conn,
     validator: DataValidator,
@@ -87,19 +71,16 @@ def _verify_inputs(
     """Comprehensive input verification (port of the module-level verify_inputs)."""
     issues: List[str] = []
     warnings: List[str] = []
-
     # Verify table
     table_val = validator.verify_table_exists(table_name)
     if not table_val.is_valid:
         return False, f"Table '{table_name}' not found. {table_val.warnings}"
-
     # Get schema once
     try:
         schema = conn.execute(f"DESCRIBE {table_name}").fetchdf()
         available_cols = set(schema["column_name"].values)
     except Exception as e:
         return False, f"Could not get schema: {e}"
-
     # Verify all columns
     for purpose, col_name in columns.items():
         if col_name not in available_cols:
@@ -107,13 +88,11 @@ def _verify_inputs(
             similar = [c for c in available_cols if col_name.lower() in c.lower()]
             if similar:
                 warnings.append(f"Did you mean: {similar}?")
-
     if issues:
         msg = "Verification failed:\n- " + "\n- ".join(issues)
         if warnings:
             msg += "\n\n" + "\n".join(warnings)
         return False, msg
-
     # Verify values if provided
     if values:
         for col_name, expected_vals in values.items():
@@ -125,22 +104,16 @@ def _verify_inputs(
                     issues.append(f"Value '{val}' not found in {col_name}")
                     if val_result.warnings:
                         warnings.extend(val_result.warnings[:1])
-
     if issues:
         msg = "Value verification failed:\n- " + "\n- ".join(issues)
         if warnings:
             msg += "\n\nAvailable: " + str(warnings[0]) if warnings else ""
         return False, msg
-
     return True, "All inputs verified"
-
-
 # ------------------------------------------------------------------
 # Tool 1: find_optimal_separation_conditions
 # ------------------------------------------------------------------
-
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def find_optimal_separation_conditions(
     target_polymer: str,
     comparison_polymers: str,
@@ -153,13 +126,11 @@ def find_optimal_separation_conditions(
     solubility_column: str = "solubility____",
 ) -> str:
     """Find optimal solvent and temperature to separate a target polymer from others.
-
     Args:
         target_polymer: Polymer to dissolve (e.g., "LDPE", "PP")
         comparison_polymers: Polymers to NOT dissolve, comma-separated (e.g., "HDPE,PP,PS")
         start_temperature: Starting temperature in °C (default: 25.0)
         initial_selectivity: Required selectivity in percentage points (default: 30.0)
-
     WHEN TO USE:
     - "Find optimal conditions to separate LDPE from HDPE and PP"
     - "What solvent and temperature selectively dissolves PS?"
@@ -168,20 +139,24 @@ def find_optimal_separation_conditions(
     conn = get_connection()
     validator = DataValidator(conn)
     analyzer = AdaptiveAnalyzer(conn, validator)
-
     # Safely parse comparison_polymers
     if isinstance(comparison_polymers, str):
         comp_polymers = [p.strip() for p in comparison_polymers.split(",") if p.strip()]
     elif isinstance(comparison_polymers, list):
         comp_polymers = comparison_polymers
     else:
-        return f"Error: comparison_polymers must be a comma-separated string, got {type(comparison_polymers)}"
-
+        return _adaptive_error(
+            "find_optimal_separation_conditions",
+            f"Error: comparison_polymers must be a comma-separated string, got {type(comparison_polymers)}",
+            error_code="invalid_comparison_polymers",
+        )
     if not comp_polymers:
-        return "Error: No comparison polymers specified."
-
+        return _adaptive_error(
+            "find_optimal_separation_conditions",
+            "Error: No comparison polymers specified.",
+            error_code="missing_comparison_polymers",
+        )
     all_polymers = [target_polymer] + comp_polymers
-
     is_valid, msg = _verify_inputs(
         conn,
         validator,
@@ -194,17 +169,20 @@ def find_optimal_separation_conditions(
         },
         {polymer_column: all_polymers},
     )
-
     if not is_valid:
-        return f"Input validation failed:\n{msg}"
-
+        return _adaptive_error(
+            "find_optimal_separation_conditions",
+            f"Input validation failed:\n{msg}",
+            error_code="input_validation_failed",
+            target_polymer=target_polymer,
+            comparison_polymers=comp_polymers,
+        )
     output = [f"**Adaptive Separation Analysis**\n"]
     output.append(f"Target: Dissolve {target_polymer}")
     output.append(f"Separate from: {', '.join(comp_polymers)}")
     output.append(
         f"Starting conditions: T={start_temperature}°C, selectivity threshold={initial_selectivity}%\n"
     )
-
     temp_result = analyzer.explore_temperature_range(
         table_name,
         polymer_column,
@@ -216,7 +194,6 @@ def find_optimal_separation_conditions(
         start_temp=start_temperature,
         min_selectivity=initial_selectivity,
     )
-
     opt = temp_result.get("optimal_conditions")
     if opt and opt["selectivity"] >= initial_selectivity:
         output.append("**Separation IS FEASIBLE**\n")
@@ -225,7 +202,6 @@ def find_optimal_separation_conditions(
         output.append(f"  - Selectivity: {opt['selectivity']:.1f}%")
         output.append(f"  - Target solubility: {opt['target_solubility']:.1f}%")
         output.append(f"  - Max other solubility: {opt['max_other_solubility']:.1f}%")
-
         # Show alternative conditions at other temperatures
         alternatives = [
             c for c in temp_result.get("all_conditions", [])
@@ -246,19 +222,25 @@ def find_optimal_separation_conditions(
         output.append(f"  - Required: {initial_selectivity}%")
     else:
         output.append("**Separation NOT FEASIBLE** with current data\n")
-
     output.append(f"\n**Recommendation:** {temp_result.get('recommendation', 'N/A')}")
     output.append(f"**Temperatures explored:** {temp_result.get('temperatures_explored', [])}")
-
-    return "\n".join(output)
-
-
+    return json_tool_success(
+        "\n".join(output),
+        tool_name="find_optimal_separation_conditions",
+        target_polymer=target_polymer,
+        comparison_polymers=comp_polymers,
+        start_temperature_c=start_temperature,
+        initial_selectivity=initial_selectivity,
+        table_name=table_name,
+        optimal_conditions=temp_result.get("optimal_conditions"),
+        all_conditions=temp_result.get("all_conditions", []),
+        recommendation=temp_result.get("recommendation"),
+        temperatures_explored=temp_result.get("temperatures_explored", []),
+    )
 # ------------------------------------------------------------------
 # Tool 2: analyze_selective_solubility_enhanced
 # ------------------------------------------------------------------
-
-
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def analyze_selective_solubility_enhanced(
     target_polymer: str,
     comparison_polymers: Optional[str] = None,
@@ -274,7 +256,6 @@ def analyze_selective_solubility_enhanced(
     solubility_column: str = "solubility____",
 ) -> str:
     """Analyze selective solubility, optionally with threshold search or property enrichment.
-
     Args:
         target_polymer: Polymer to dissolve (e.g., "LDPE", "PP", "PET")
         comparison_polymers: Polymers to avoid, comma-separated; omit to compare against all
@@ -283,7 +264,6 @@ def analyze_selective_solubility_enhanced(
         search_mode: "full" (default) or "threshold_search" for iterative threshold relaxation
         enrich_properties: When True, look up BP, LogP, energy, G-score for each result
         rank_by: Sort criterion: "selectivity" (default), "energy", "logp", "bp"
-
     WHEN TO USE:
     - "Find a solvent that dissolves LDPE but not HDPE"
     - "Find selective solvents using adaptive threshold search"
@@ -292,7 +272,6 @@ def analyze_selective_solubility_enhanced(
     """
     conn = get_connection()
     validator = DataValidator(conn)
-
     # Handle single temperature or range
     if "-" in str(temperature_range):
         parts = str(temperature_range).split("-")
@@ -304,7 +283,6 @@ def analyze_selective_solubility_enhanced(
         # Single temperature - use as both min and max (+-5 deg C range)
         temp = float(temperature_range)
         temp_min, temp_max = temp - 5, temp + 5
-
     # Safely build comp_list
     comp_list: List[str] = []
     if comparison_polymers:
@@ -319,26 +297,35 @@ def analyze_selective_solubility_enhanced(
             comp_list = [p for p in _get_polys() if p.upper() != target_polymer.upper()]
         except Exception as e:
             logger.warning(f"Could not get polymers: {e}")
-            return f"Error: Could not retrieve polymer list"
+            return _adaptive_error(
+                "analyze_selective_solubility_enhanced",
+                "Error: Could not retrieve polymer list",
+                error_code="polymer_list_unavailable",
+                target_polymer=target_polymer,
+            )
         output = ["**Selective Solubility Analysis (All Polymers)**\n"]
-
     if not comp_list:
-        return "Error: No comparison polymers found."
-
+        return _adaptive_error(
+            "analyze_selective_solubility_enhanced",
+            "Error: No comparison polymers found.",
+            error_code="missing_comparison_polymers",
+            target_polymer=target_polymer,
+        )
     output.append(f"Target: {target_polymer}")
     output.append(f"Comparing against: {', '.join(comp_list)}")
     output.append(f"Temperature range: {temp_min}°C - {temp_max}°C\n")
-
     val_result = validator.verify_value_exists(table_name, polymer_column, target_polymer)
     if not val_result.is_valid:
-        return f"Target polymer '{target_polymer}' not found. {val_result.warnings}"
-
+        return _adaptive_error(
+            "analyze_selective_solubility_enhanced",
+            f"Target polymer '{target_polymer}' not found. {val_result.warnings}",
+            error_code="target_polymer_not_found",
+            target_polymer=target_polymer,
+        )
     all_polymers = [target_polymer] + comp_list
-
     # Use interpolation model instead of SQL
     import pandas as pd
     from strap.solubility import get_solubility as _get_sol, get_available_solvents as _get_svnts
-
     mid_temp = (temp_min + temp_max) / 2
     rows_interp = []
     for sv in _get_svnts():
@@ -359,19 +346,15 @@ def analyze_selective_solubility_enhanced(
         columns=[solvent_column, polymer_column, "avg_solubility", "min_solubility", "max_solubility", "n_points"]
     )
     output.append(f"Data points analyzed: {len(df)}\n")
-
     solvents = df[solvent_column].unique()
     selectivity_data: List[Dict[str, Any]] = []
-
     for solvent in solvents:
         solvent_data = df[df[solvent_column] == solvent]
-
         target_sol = solvent_data[solvent_data[polymer_column] == target_polymer]
         if len(target_sol) == 0:
             continue
         target_avg = target_sol["avg_solubility"].values[0]
         target_n = target_sol["n_points"].values[0]
-
         other_data = solvent_data[solvent_data[polymer_column].isin(comp_list)]
         if len(other_data) == 0:
             max_other = 0
@@ -379,10 +362,8 @@ def analyze_selective_solubility_enhanced(
         else:
             max_other = other_data["avg_solubility"].max()
             avg_other = other_data["avg_solubility"].mean()
-
         selectivity = target_avg - max_other
         selectivity_ratio = target_avg / max_other if max_other > 0.001 else float("inf")
-
         selectivity_data.append(
             {
                 "solvent": solvent,
@@ -394,9 +375,7 @@ def analyze_selective_solubility_enhanced(
                 "n_data_points": target_n,
             }
         )
-
     selectivity_data.sort(key=lambda x: x["selectivity_difference"], reverse=True)
-
     # ------------------------------------------------------------------
     # Threshold-search early return (replaces adaptive_threshold_search)
     # ------------------------------------------------------------------
@@ -409,7 +388,6 @@ def analyze_selective_solubility_enhanced(
         ts_output.append(f"Comparing against: {', '.join(comp_list)}")
         ts_output.append(f"Temperature: {temp_mid}°C")
         ts_output.append(f"Starting threshold: {start_threshold}\n")
-
         found = False
         thresholds_tried: List[Tuple[float, int]] = []
         for thr in thresholds:
@@ -427,16 +405,26 @@ def analyze_selective_solubility_enhanced(
                     ts_output.append(f"     Max other solubility: {r['max_other_solubility']:.4f}")
                 found = True
                 break
-
         ts_output.insert(5, f"Thresholds tried: {[t[0] for t in thresholds_tried]}")
         if not found:
             ts_output.append(f"\n**No selective solvents found** even at threshold {thresholds[-1]}")
             ts_output.append("\nConsider:")
             ts_output.append("  - Exploring higher temperatures")
             ts_output.append("  - Using find_optimal_separation_conditions for comprehensive search")
-
-        return "\n".join(ts_output)
-
+        return json_tool_response(
+            "\n".join(ts_output),
+            {
+                "target_polymer": target_polymer,
+                "comparison_polymers": comp_list,
+                "temperature_c": temp_mid,
+                "search_mode": search_mode,
+                "thresholds_tried": [t[0] for t in thresholds_tried],
+                "found": found,
+                "results": matching[:10] if found else [],
+            },
+            tool_name="analyze_selective_solubility_enhanced",
+            success=True,
+        )
     # ------------------------------------------------------------------
     # Property enrichment (replaces analyze_separation_with_properties)
     # ------------------------------------------------------------------
@@ -447,7 +435,6 @@ def analyze_selective_solubility_enhanced(
             entry["logp"] = props.get("logp")
             entry["energy"] = props.get("energy")
             entry["g_score"] = props.get("g_score")
-
     # ------------------------------------------------------------------
     # Rank-by override
     # ------------------------------------------------------------------
@@ -469,10 +456,13 @@ def analyze_selective_solubility_enhanced(
             selectivity_data.sort(
                 key=lambda x: (x.get(rank_key) is None, x.get(rank_key, float("inf")))
             )
-
     if not selectivity_data:
-        return f"No selectivity data found for {target_polymer}"
-
+        return _adaptive_error(
+            "analyze_selective_solubility_enhanced",
+            f"No selectivity data found for {target_polymer}",
+            error_code="no_selectivity_data",
+            target_polymer=target_polymer,
+        )
     if auto_threshold:
         thresholds_tried = []
         for threshold in AdaptiveAnalyzer.SELECTIVITY_THRESHOLDS:
@@ -486,9 +476,7 @@ def analyze_selective_solubility_enhanced(
                     f"solvent(s) at threshold {threshold}"
                 )
                 break
-
         output.append(f"Thresholds searched: {[t[0] for t in thresholds_tried]}\n")
-
     output.append(f"**Selective Solvents (ranked by {rank_by}):**\n")
     for i, data in enumerate(selectivity_data[:15], 1):
         if data["selectivity_difference"] > 10:
@@ -519,24 +507,19 @@ def analyze_selective_solubility_enhanced(
                 props_parts.append(f"G-Score: {data['g_score']:.2f}/10")
             if props_parts:
                 output.append(f"   - Properties: {' | '.join(props_parts)}")
-
     # Create visualization
     if len(selectivity_data) > 0:
         try:
             import matplotlib
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
-
             fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
             top_n = min(12, len(selectivity_data))
             solvent_names = [d["solvent"] for d in selectivity_data[:top_n]]
             target_sols = [d["target_solubility"] for d in selectivity_data[:top_n]]
             other_sols = [d["max_other_solubility"] for d in selectivity_data[:top_n]]
-
             x = np.arange(len(solvent_names))
             width = 0.35
-
             axes[0].bar(
                 x - width / 2, target_sols, width,
                 label=target_polymer, color="green", alpha=0.8,
@@ -555,7 +538,6 @@ def analyze_selective_solubility_enhanced(
             axes[0].set_xticklabels(solvent_names, rotation=45, ha="right")
             axes[0].legend()
             axes[0].grid(True, alpha=0.3, axis="y")
-
             selectivity_diffs = [
                 d["selectivity_difference"] for d in selectivity_data[:top_n]
             ]
@@ -575,18 +557,14 @@ def analyze_selective_solubility_enhanced(
             axes[1].set_title("Selectivity Ranking", fontsize=14, fontweight="bold")
             axes[1].legend()
             axes[1].grid(True, alpha=0.3, axis="x")
-
             plt.tight_layout()
             filepath = save_plot(fig, f"selective_solubility_{target_polymer}", "matplotlib")
             output.append(f"\n{_get_plot_url(filepath)}")
         except Exception as e:
             logger.warning(f"Could not create visualization: {e}")
-
     del df
     gc.collect()
-
     display = "\n".join(output)
-
     # Build structured data for programmatic access
     top_solvents = selectivity_data[:10] if selectivity_data else []
     structured_data = {
@@ -606,6 +584,5 @@ def analyze_selective_solubility_enhanced(
         "algorithm_used": "selective_solubility",
         "coverage_complete": len(top_solvents) > 0,
     }
-
     # Return structured JSON
-    return json.dumps({"display": display, "data": structured_data}, ensure_ascii=False)
+    return json_tool_response(display, structured_data, tool_name="analyze_selective_solubility_enhanced", success=True)

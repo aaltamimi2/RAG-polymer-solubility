@@ -27,467 +27,33 @@ import plotly.express as px              # noqa: E402
 from plotly.subplots import make_subplots  # noqa: E402
 
 from strap.database import get_connection
+from strap.services.visualization_service import (
+    PUB_COLORS as _PUB_COLORS,
+    PUB_FONTSIZE as _PUB_FONTSIZE,
+    apply_pub_style as _apply_pub_style,
+    execute_query as _execute_query,
+    get_cosmobase_column as _get_cosmobase_column,
+    get_plot_url as _get_plot_url,
+    get_solvent_name_column as _get_solvent_name_column,
+    get_solvent_table_name as _get_solvent_table_name,
+    lookup_solvent_properties as _lookup_solvent_properties,
+    normalize_solvent_names as _normalize_solvent_names,
+    verify_inputs as _verify_inputs,
+)
 from strap.tools._helpers import (
     safe_tool_wrapper,
-    truncate_output,
     save_plot,
     get_plots_dir,
     get_cross_database_properties,
-    normalize_solvent_name,
 )
 
 logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# Publication-quality plot style
-# ---------------------------------------------------------------------------
-
-_PUB_FONT = "Liberation Sans"  # metrically identical to Arial
-_PUB_FONTSIZE = 8
-_PUB_COLORS = [
-    "#0072B2",  # blue
-    "#D55E00",  # vermillion
-    "#009E73",  # bluish green
-    "#CC79A7",  # reddish purple
-    "#F0E442",  # yellow
-    "#56B4E9",  # sky blue
-    "#E69F00",  # orange
-    "#000000",  # black
-]
-
-
-def _apply_pub_style():
-    """Apply publication-quality rcParams (call before creating a figure)."""
-    plt.rcParams.update({
-        "font.family": "sans-serif",
-        "font.sans-serif": [_PUB_FONT, "Arial", "DejaVu Sans"],
-        "font.size": _PUB_FONTSIZE,
-        "axes.labelsize": _PUB_FONTSIZE,
-        "axes.titlesize": _PUB_FONTSIZE,
-        "xtick.labelsize": _PUB_FONTSIZE,
-        "ytick.labelsize": _PUB_FONTSIZE,
-        "legend.fontsize": _PUB_FONTSIZE - 1,
-        "axes.linewidth": 0.6,
-        "xtick.major.width": 0.6,
-        "ytick.major.width": 0.6,
-        "xtick.major.size": 3,
-        "ytick.major.size": 3,
-        "xtick.direction": "in",
-        "ytick.direction": "in",
-        "xtick.top": True,
-        "ytick.right": True,
-        "savefig.dpi": 300,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.05,
-    })
-
-
-# ---------------------------------------------------------------------------
-# Solvent-name normalization helpers (local copies from the vendor source)
-# ---------------------------------------------------------------------------
-
-SOLVENT_NAME_MAPPING: Dict[str, List[str]] = {
-    # Xylene variants - expand to both isomers
-    "xylene": ["1,2-dimethylbenzene", "1,4-dimethylbenzene"],
-    "xylenes": ["1,2-dimethylbenzene", "1,4-dimethylbenzene"],
-    "o-xylene": ["1,2-dimethylbenzene"],
-    "p-xylene": ["1,4-dimethylbenzene"],
-    "m-xylene": ["1,4-dimethylbenzene"],
-    "ortho-xylene": ["1,2-dimethylbenzene"],
-    "para-xylene": ["1,4-dimethylbenzene"],
-    # Alkanes
-    "heptane": ["n-heptane"],
-    "n-heptane": ["n-heptane"],
-    "hexane": ["hexane"],
-    "n-hexane": ["hexane"],
-    "pentane": ["pentane"],
-    "n-pentane": ["pentane"],
-    "octane": ["octane"],
-    "n-octane": ["octane"],
-    # Polar aprotic
-    "dmso": ["dimethylsulfoxide"],
-    "dimethyl sulfoxide": ["dimethylsulfoxide"],
-    "dmf": ["dimethylformamide"],
-    "dimethyl formamide": ["dimethylformamide"],
-    "nmp": ["n-methylpyrrolidone"],
-    "n-methyl-2-pyrrolidone": ["n-methylpyrrolidone"],
-    # Ketones
-    "acetone": ["propanone"],
-    "2-propanone": ["propanone"],
-    "mek": ["butanone"],
-    "methyl ethyl ketone": ["butanone"],
-    # Alcohols
-    "ipa": ["2-propanol"],
-    "isopropanol": ["2-propanol"],
-    "isopropyl alcohol": ["2-propanol"],
-    "n-propanol": ["propanol"],
-    "1-propanol": ["propanol"],
-    "meoh": ["methanol"],
-    "etoh": ["ethanol"],
-    # Ethers
-    "tetrahydrofuran": ["thf"],
-    "tetrahydropyran": ["thp"],
-    "dihydropyran": ["2,3-dihydropyran"],
-    # Halogenated
-    "dcm": ["ch2cl2"],
-    "dichloromethane": ["ch2cl2"],
-    "methylene chloride": ["ch2cl2"],
-    "chloroform": ["chcl3"],
-    "trichloromethane": ["chcl3"],
-    # Others
-    "ethyl acetate": ["ethylacetate"],
-    "methyl acetate": ["methylacetate"],
-    "water": ["h2o"],
-    "ethylene glycol": ["glycol"],
-    "propylene glycol": ["propyleneglycol"],
-}
-
-SOLVENT_FRAGMENT_RECONSTRUCTION: Dict[Tuple[str, str], str] = {
-    ("2", "3-dihydropyran"): "2,3-dihydropyran",
-    ("1", "2-dimethylbenzene"): "1,2-dimethylbenzene",
-    ("1", "4-dimethylbenzene"): "1,4-dimethylbenzene",
-    ("1", "3-dimethylbenzene"): "1,3-dimethylbenzene",
-    ("1", "2-dichloroethane"): "1,2-dichloroethane",
-    ("1", "1-dichloroethane"): "1,1-dichloroethane",
-    ("1", "2-dichlorobenzene"): "1,2-dichlorobenzene",
-    ("1", "4-dichlorobenzene"): "1,4-dichlorobenzene",
-    ("1", "2-ethanediol"): "1,2-ethanediol",
-    ("1", "3-propanediol"): "1,3-propanediol",
-    ("1", "4-dioxane"): "1,4-dioxane",
-    ("2", "2-dimethylbutane"): "2,2-dimethylbutane",
-    ("2", "3-butanediol"): "2,3-butanediol",
-    ("2", "4-pentanedione"): "2,4-pentanedione",
-}
-
-
-def _normalize_solvent_names(solvents: List[str]) -> List[str]:
-    """Normalize solvent names to match database entries.
-
-    Expands common names (e.g. ``'xylene'``) to actual database names and
-    reconstructs names that were incorrectly split on commas.
-    """
-    # Reconstruct fragmented solvent names
-    reconstructed: List[str] = []
-    i = 0
-    while i < len(solvents):
-        solvent = solvents[i].strip().lower()
-        if i + 1 < len(solvents):
-            next_solvent = solvents[i + 1].strip().lower()
-            fragment_key = (solvent, next_solvent)
-            if fragment_key in SOLVENT_FRAGMENT_RECONSTRUCTION:
-                reconstructed.append(SOLVENT_FRAGMENT_RECONSTRUCTION[fragment_key])
-                i += 2
-                continue
-        reconstructed.append(solvent)
-        i += 1
-
-    # Apply the standard normalization mapping
-    normalized: List[str] = []
-    for solvent in reconstructed:
-        solvent_lower = solvent.strip().lower()
-        if solvent_lower in SOLVENT_NAME_MAPPING:
-            normalized.extend(SOLVENT_NAME_MAPPING[solvent_lower])
-        else:
-            normalized.append(solvent_lower)
-    return normalized
-
-
-# ---------------------------------------------------------------------------
-# Lightweight SQL execution helper (replaces ``sql_db.execute_query``)
-# ---------------------------------------------------------------------------
-
-def _execute_query(query: str, limit: int = 100) -> Dict[str, Any]:
-    """Execute *query* through the shared DuckDB connection.
-
-    Returns a dict compatible with the legacy ``sql_db.execute_query`` API.
-    """
-    conn = get_connection()
-    try:
-        query_lower = query.lower().strip()
-        dangerous_keywords = [
-            "drop", "delete", "insert", "update", "alter", "create", "truncate",
-        ]
-        if any(keyword in query_lower.split() for keyword in dangerous_keywords):
-            return {"success": False, "error": "Unsafe operation detected", "query": query}
-
-        if "limit" not in query_lower and not query_lower.rstrip().endswith(";"):
-            query = f"{query.rstrip(';')} LIMIT {limit}"
-
-        result_df = conn.execute(query).fetchdf()
-        preview = (
-            result_df.head(10).to_markdown(index=False)
-            if len(result_df) > 0
-            else "No data"
-        )
-        return {
-            "success": True,
-            "query": query,
-            "rows": len(result_df),
-            "columns": list(result_df.columns),
-            "data": result_df.to_dict("records"),
-            "dataframe": result_df,
-            "preview": preview,
-            "dtypes": {str(k): str(v) for k, v in result_df.dtypes.to_dict().items()},
-        }
-    except Exception as e:
-        return {"success": False, "error": str(e), "query": query}
-
-
-# ---------------------------------------------------------------------------
-# Input verification helper (replaces ``verify_inputs``)
-# ---------------------------------------------------------------------------
-
-def _verify_inputs(
-    table_name: str,
-    columns: Dict[str, str],
-    values: Optional[Dict[str, List[str]]] = None,
-) -> Tuple[bool, str]:
-    """Comprehensive input verification against the live database."""
-    conn = get_connection()
-    issues: List[str] = []
-    warnings: List[str] = []
-
-    # Verify table exists
-    try:
-        tables = conn.execute("SHOW TABLES").fetchdf()
-        if table_name not in tables["name"].values:
-            return False, f"Table '{table_name}' not found. Available: {list(tables['name'].values)}"
-    except Exception as e:
-        return False, f"Could not list tables: {e}"
-
-    # Get schema
-    try:
-        schema = conn.execute(f"DESCRIBE {table_name}").fetchdf()
-        available_cols = set(schema["column_name"].values)
-    except Exception as e:
-        return False, f"Could not get schema: {e}"
-
-    # Verify columns
-    for purpose, col_name in columns.items():
-        if col_name not in available_cols:
-            issues.append(f"Column '{col_name}' ({purpose}) not found")
-            similar = [c for c in available_cols if col_name.lower() in c.lower()]
-            if similar:
-                warnings.append(f"Did you mean: {similar}?")
-
-    if issues:
-        msg = "Verification failed:\n- " + "\n- ".join(issues)
-        if warnings:
-            msg += "\n\n" + "\n".join(warnings)
-        return False, msg
-
-    # Verify values if provided
-    if values:
-        for col_name, expected_vals in values.items():
-            if col_name not in available_cols:
-                continue
-            for val in expected_vals:
-                safe_value = str(val).replace("'", "''")
-                count = conn.execute(
-                    f"SELECT COUNT(*) FROM {table_name} "
-                    f"WHERE LOWER(CAST({col_name} AS VARCHAR)) = LOWER('{safe_value}')"
-                ).fetchone()[0]
-                if count == 0:
-                    issues.append(f"Value '{val}' not found in {col_name}")
-
-    if issues:
-        msg = "Value verification failed:\n- " + "\n- ".join(issues)
-        return False, msg
-
-    return True, "All inputs verified"
-
-
-# ---------------------------------------------------------------------------
-# Plot URL helper
-# ---------------------------------------------------------------------------
-
-def _get_plot_url(filepath: str) -> str:
-    """Convert a filepath to a user-facing display string."""
-    return f"Plot saved: `{filepath}`"
-
-
-# ---------------------------------------------------------------------------
-# Solvent-property helpers (replaces global ``get_solvent_table_name`` /
-# ``lookup_solvent_properties``)
-# ---------------------------------------------------------------------------
-
-def _get_solvent_table_name() -> Optional[str]:
-    """Auto-detect the solvent-data table in the current database."""
-    conn = get_connection()
-    try:
-        tables = conn.execute("SHOW TABLES").fetchdf()
-    except Exception:
-        return None
-
-    for tbl in tables["name"].values:
-        if "solvent" in tbl.lower() and "solubility" not in tbl.lower():
-            try:
-                cols_df = conn.execute(f"DESCRIBE {tbl}").fetchdf()
-                cols_lower = [c.lower() for c in cols_df["column_name"].values]
-                if (
-                    any("bp" in c or "boil" in c for c in cols_lower)
-                    or any("logp" in c for c in cols_lower)
-                    or any("energy" in c for c in cols_lower)
-                ):
-                    return str(tbl)
-            except Exception:
-                continue
-    return None
-
-
-def _get_solvent_name_column(table_name: str) -> Optional[str]:
-    """Return the column that holds solvent names in *table_name*."""
-    conn = get_connection()
-    try:
-        cols_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
-        cols = list(cols_df["column_name"].values)
-        types_map = dict(zip(cols_df["column_name"], cols_df["column_type"]))
-    except Exception:
-        return None
-
-    priority_patterns = ["solvent_name", "solvent", "name", "compound"]
-    for pattern in priority_patterns:
-        for col in cols:
-            if pattern in col.lower():
-                return col
-
-    for col in cols:
-        if "VARCHAR" in str(types_map.get(col, "")).upper() or "TEXT" in str(types_map.get(col, "")).upper():
-            return col
-    return cols[0] if cols else None
-
-
-def _get_cosmobase_column(table_name: str) -> Optional[str]:
-    """Return the cosmobase column name if present."""
-    conn = get_connection()
-    try:
-        cols_df = conn.execute(f"DESCRIBE {table_name}").fetchdf()
-        for col in cols_df["column_name"].values:
-            if "cosmobase" in col.lower():
-                return str(col)
-    except Exception:
-        pass
-    return None
-
-
-async def _lookup_solvent_properties(
-    solvent_names: List[str],
-    solvent_table: str,
-) -> Dict[str, Dict[str, Any]]:
-    """Look up solvent properties with robust fuzzy matching (async)."""
-    conn = get_connection()
-
-    from strap.solvent_registry import ABBREVIATION_MAP
-
-    try:
-        cols_df = conn.execute(f"DESCRIBE {solvent_table}").fetchdf()
-        cols = list(cols_df["column_name"].values)
-    except Exception:
-        return {}
-
-    cols_lower = {c.lower(): c for c in cols}
-
-    cosmobase_col = _get_cosmobase_column(solvent_table)
-    name_col = _get_solvent_name_column(solvent_table)
-
-    logp_col = next((cols_lower[k] for k in cols_lower if "logp" in k), None)
-    bp_col = next((cols_lower[k] for k in cols_lower if "bp" in k or "boil" in k), None)
-    energy_col = next((cols_lower[k] for k in cols_lower if "energy" in k), None)
-    cp_col = next((cols_lower[k] for k in cols_lower if "cp" in k and "logp" not in k), None)
-
-    match_col = cosmobase_col or name_col
-    if not match_col:
-        return {}
-
-    def _find_solvent_match(solvent: str):
-        """Try multiple strategies to find a solvent row."""
-        sol_lower = solvent.lower().strip()
-        sol_normalized = sol_lower.replace("-", "").replace(" ", "").replace(",", "")
-
-        # Strategy 1: Exact match
-        try:
-            df = conn.execute(
-                f"SELECT * FROM {solvent_table} WHERE LOWER(\"{match_col}\") = '{sol_lower}'"
-            ).fetchdf()
-            if len(df) > 0:
-                return df.iloc[0]
-        except Exception:
-            pass
-
-        # Strategy 2: Abbreviation mapping
-        if sol_lower in ABBREVIATION_MAP:
-            full_name = ABBREVIATION_MAP[sol_lower]
-            try:
-                df = conn.execute(
-                    f"SELECT * FROM {solvent_table} WHERE LOWER(\"{match_col}\") LIKE '%{full_name}%' "
-                    f"ORDER BY LENGTH(\"{match_col}\")"
-                ).fetchdf()
-                if len(df) > 0:
-                    return df.iloc[0]
-            except Exception:
-                pass
-
-        # Strategy 3: Substring
-        try:
-            df = conn.execute(
-                f"SELECT * FROM {solvent_table} WHERE LOWER(\"{match_col}\") LIKE '%{sol_lower}%' "
-                f"ORDER BY LENGTH(\"{match_col}\")"
-            ).fetchdf()
-            if len(df) > 0:
-                return df.iloc[0]
-        except Exception:
-            pass
-
-        # Strategy 4: Normalized match
-        try:
-            df = conn.execute(
-                f"SELECT * FROM {solvent_table} "
-                f"WHERE REPLACE(REPLACE(REPLACE(LOWER(\"{match_col}\"), '-', ''), ' ', ''), ',', '') "
-                f"LIKE '%{sol_normalized}%' ORDER BY LENGTH(\"{match_col}\")"
-            ).fetchdf()
-            if len(df) > 0:
-                return df.iloc[0]
-        except Exception:
-            pass
-
-        # Strategy 5: Reverse abbreviation lookup
-        for abbrev, full in ABBREVIATION_MAP.items():
-            if abbrev in sol_lower or sol_lower in full:
-                try:
-                    df = conn.execute(
-                        f"SELECT * FROM {solvent_table} WHERE LOWER(\"{match_col}\") LIKE '%{full}%' "
-                        f"ORDER BY LENGTH(\"{match_col}\")"
-                    ).fetchdf()
-                    if len(df) > 0:
-                        return df.iloc[0]
-                except Exception:
-                    pass
-
-        return None
-
-    # Run matches (synchronously under the hood -- DuckDB is not truly async)
-    props_map: Dict[str, Dict[str, Any]] = {}
-    for solvent in solvent_names:
-        row = _find_solvent_match(solvent)
-        props: Dict[str, Any] = {"logp": None, "bp": None, "energy": None, "cp": None}
-        if row is not None:
-            props = {
-                "logp": row[logp_col] if logp_col and logp_col in row.index else None,
-                "bp": row[bp_col] if bp_col and bp_col in row.index else None,
-                "energy": row[energy_col] if energy_col and energy_col in row.index else None,
-                "cp": row[cp_col] if cp_col and cp_col in row.index else None,
-            }
-        props_map[solvent] = props
-
-    return props_map
-
-
 # ===================================================================
 # Visualization tool functions
 # ===================================================================
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_solubility_vs_temperature(
     table_name: str,
     polymer_column: str,
@@ -586,7 +152,7 @@ def plot_solubility_vs_temperature(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_solubility_vs_temperature_interactive(
     table_name: str,
     polymer_column: str,
@@ -725,7 +291,7 @@ def plot_solubility_vs_temperature_interactive(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_selectivity_heatmap(
     table_name: str,
     polymer_column: str,
@@ -844,7 +410,7 @@ def plot_selectivity_heatmap(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_multi_panel_analysis(
     table_name: str,
     polymer_column: str,
@@ -1028,7 +594,7 @@ def plot_multi_panel_analysis(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_comparison_dashboard(
     table_name: str,
     polymer_column: str,
@@ -1167,7 +733,7 @@ def plot_comparison_dashboard(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 def plot_interpolation_vs_sql(
     polymer_solvent_pairs: str,
     temperature_min: float = 25.0,
@@ -1279,7 +845,7 @@ def plot_interpolation_vs_sql(
     return output
 
 
-@safe_tool_wrapper
+@safe_tool_wrapper(structured_output=True)
 async def plot_solvent_properties(
     table_name: str,
     polymer_column: str,
