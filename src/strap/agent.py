@@ -90,6 +90,97 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "result_extractor": get_result_extractor_tools,
 }
 
+
+def _get_cli_version() -> str:
+    """Return the installed CLI version for startup rendering."""
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+
+        return version("strap-agent")
+    except Exception:
+        return "0.2.0"
+
+
+def _build_startup_panel(*, accent: str, version_text: str, thread_id: str, use_checkpointer: bool) -> object:
+    """Build the startup splash panel for interactive CLI sessions."""
+    import getpass
+
+    from rich.table import Table
+    from rich.text import Text
+    from rich.panel import Panel
+
+    logo = Text(justify="center")
+    for line in (
+        "   ____  _________ __________ _    _    ______",
+        "  / __ \\/  _/ ___// ___/ __ \\ |  / |  / / __/",
+        " / / / // / \\__ \\/ /__/ /_/ / | /| | / / _/  ",
+        "/_/ /_/___/____/\\___/\\____/|__/ |_|/_/___/  ",
+    ):
+        logo.append(line + "\n", style=f"bold {accent}")
+    logo.append("Contaminant-aware solubility orchestration", style=f"{accent}")
+
+    status = Table.grid(padding=(0, 1))
+    status.add_row(Text(f"Welcome back {getpass.getuser()}", style="bold white"))
+    status.add_row(Text(f"DISSOLVE v{version_text}", style=f"bold {accent}"))
+    status.add_row(Text("Separation · Contaminants · TEA/LCA · Safety", style="white"))
+    status.add_row(Text(str(Path.cwd()), style="dim"))
+    if os.getenv("LANGSMITH_API_KEY"):
+        status.add_row(Text("LangSmith tracing enabled", style="green"))
+    else:
+        status.add_row(Text("LangSmith tracing disabled", style="yellow"))
+    if use_checkpointer:
+        status.add_row(Text(f"Session {thread_id}", style="dim"))
+    else:
+        status.add_row(Text("Session persistence disabled", style="dim"))
+    status.add_row(Text("Type quit to exit", style="dim"))
+
+    layout = Table.grid(expand=True)
+    layout.add_column(ratio=3, justify="center")
+    layout.add_column(ratio=2)
+    layout.add_row(logo, status)
+
+    return Panel(
+        layout,
+        border_style=accent,
+        title="[bold white]DISSOLVE CLI[/]",
+        subtitle="[dim]interactive session[/]",
+        padding=(1, 2),
+    )
+
+
+def _show_startup_animation(console, *, version_text: str, thread_id: str, use_checkpointer: bool) -> None:
+    """Render a short blue startup animation for interactive sessions only."""
+    import sys
+    import time
+
+    from rich.live import Live
+
+    if not (console.is_terminal and sys.stdin.isatty() and sys.stderr.isatty() and not os.getenv("CI")):
+        return
+
+    accents = ["#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#3b82f6", "#2563eb"]
+    with Live(console=console, transient=True, refresh_per_second=20) as live:
+        for accent in accents:
+            live.update(
+                _build_startup_panel(
+                    accent=accent,
+                    version_text=version_text,
+                    thread_id=thread_id,
+                    use_checkpointer=use_checkpointer,
+                )
+            )
+            time.sleep(0.07)
+
+    console.print(
+        _build_startup_panel(
+            accent="#3b82f6",
+            version_text=version_text,
+            thread_id=thread_id,
+            use_checkpointer=use_checkpointer,
+        )
+    )
+    console.print()
+
 def _create_session_scratch_dir() -> Path:
     """Create a per-session temp directory for sidecar files."""
     scratch = Path(tempfile.mkdtemp(prefix="strap_scratch_"))
@@ -337,7 +428,6 @@ def main():
 
     from rich.console import Console
     from rich.markdown import Markdown
-    from rich.panel import Panel
     from rich.spinner import Spinner as RichSpinner
     from rich.live import Live
     from rich.text import Text
@@ -365,27 +455,37 @@ def main():
 
     use_checkpointer = not args.no_persist
     thread_id = _get_or_create_thread_id(args.session)
+    version_text = _get_cli_version()
 
     console = Console(stderr=True)
 
     # ── Suppress all library logging for clean CLI output ──
     logging.disable(logging.CRITICAL)
 
-    # ── Banner ──
-    console.print()
-    console.print(
-        Text.assemble(
-            ("DISSOLVE", "bold cyan"),
-            (" v0.2.0", "dim"),
-        )
+    # ── Banner / startup splash ──
+    _show_startup_animation(
+        console,
+        version_text=version_text,
+        thread_id=thread_id,
+        use_checkpointer=use_checkpointer,
     )
-    console.print("[dim]Data Integrated Solubility Solver via LLM Evaluation[/]")
-    if os.getenv("LANGSMITH_API_KEY"):
-        console.print("[dim]LangSmith tracing:[/] [green]enabled[/]")
-    if use_checkpointer:
-        console.print(f"[dim]Session ID:[/] [bold]{thread_id}[/bold]  "
-                      "[dim](pass --session {id} to resume)[/]")
-    console.print("[dim]Type [bold]quit[/bold] to exit.[/]\n")
+    if not (console.is_terminal and sys.stdin.isatty() and sys.stderr.isatty() and not os.getenv("CI")):
+        console.print()
+        console.print(
+            Text.assemble(
+                ("DISSOLVE", "bold cyan"),
+                (f" v{version_text}", "dim"),
+            )
+        )
+        console.print("[dim]Data Integrated Solubility Solver via LLM Evaluation[/]")
+        if os.getenv("LANGSMITH_API_KEY"):
+            console.print("[dim]LangSmith tracing:[/] [green]enabled[/]")
+        if use_checkpointer:
+            console.print(
+                f"[dim]Session ID:[/] [bold]{thread_id}[/bold]  "
+                "[dim](pass --session {id} to resume)[/]"
+            )
+        console.print("[dim]Type [bold]quit[/bold] to exit.[/]\n")
 
     # ── Load agent with spinner ──
     with Live(

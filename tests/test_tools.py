@@ -1,6 +1,7 @@
 """Smoke tests for STRAP/DISSOLVE tool loading and core tools."""
 
 import json
+from types import SimpleNamespace
 
 from strap.tools import get_core_tools, get_all_tools
 
@@ -124,3 +125,46 @@ def test_run_biosteam_batch_returns_partial_results_for_large_screen(monkeypatch
     assert len(parsed["data"]["results"]) >= 5
     assert call_solvents[0][:2] == ["Heptane", "Toluene"]
     assert "Xylene" in call_solvents[0][2]
+
+
+def test_cli_main_renders_markdown_answer_without_nameerror(monkeypatch):
+    import sys
+
+    from rich.markdown import Markdown
+
+    from strap import agent as agent_module
+
+    printed = []
+    user_inputs = iter(["What polymers are available?", "quit"])
+
+    class DummyLive:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeAgent:
+        def invoke(self, payload, config):
+            return {
+                "messages": [
+                    SimpleNamespace(type="ai", content="**Test answer**"),
+                ]
+            }
+
+    def fake_print(self, *args, **kwargs):
+        printed.extend(args)
+
+    monkeypatch.setattr(agent_module, "_show_startup_animation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(agent_module, "create_dissolve_agent", lambda **kwargs: FakeAgent())
+    monkeypatch.setattr("rich.live.Live", DummyLive)
+    monkeypatch.setattr("rich.console.Console.input", lambda self, prompt="": next(user_inputs))
+    monkeypatch.setattr("rich.console.Console.print", fake_print)
+    monkeypatch.setattr(sys, "argv", ["dissolve", "--no-persist"])
+
+    agent_module.main()
+
+    assert any(isinstance(item, Markdown) for item in printed)
