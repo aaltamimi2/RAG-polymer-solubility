@@ -27,13 +27,34 @@ def tracing_enabled() -> bool:
     return bool(os.getenv("LANGSMITH_API_KEY")) and langsmith_trace is not None and LangSmithClient is not None
 
 
+def _workspace_id() -> str | None:
+    value = (
+        os.getenv("LANGSMITH_WORKSPACE_ID")
+        or os.getenv("LANGCHAIN_WORKSPACE_ID")
+    )
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _friendly_langsmith_error(exc: Exception) -> str:
+    text = str(exc)
+    if "X-Tenant-ID" in text or "workspace specification" in text:
+        return (
+            "LangSmith workspace ID is required for this org-scoped API key. "
+            "Set LANGSMITH_WORKSPACE_ID on the deployment."
+        )
+    return text
+
+
 def get_langsmith_client() -> Any | None:
     global _LANGSMITH_CLIENT
     if not tracing_enabled():
         return None
     if _LANGSMITH_CLIENT is None:
         try:
-            _LANGSMITH_CLIENT = LangSmithClient()
+            _LANGSMITH_CLIENT = LangSmithClient(workspace_id=_workspace_id())
         except Exception:
             logger.exception("Failed to initialize LangSmith client")
             return None
@@ -114,7 +135,11 @@ def summarize_subagent_tool_runs(run_id: str | None) -> dict[str, Any]:
         run = client.read_run(run_id, load_child_runs=True)
     except Exception as exc:
         logger.exception("Failed to read LangSmith subagent run %s", run_id)
-        return {"tools": [], "tool_count": 0, "error": str(exc)}
+        return {
+            "tools": [],
+            "tool_count": 0,
+            "error": _friendly_langsmith_error(exc),
+        }
 
     tools: list[dict[str, Any]] = []
 
