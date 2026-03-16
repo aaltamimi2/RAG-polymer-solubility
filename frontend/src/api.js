@@ -113,7 +113,7 @@ const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, session_id: sessionId, model }),
       },
-      { timeout: 120000 } // 2 minutes for agent responses
+      { timeout: 300000 } // 5 minutes for cold starts and complex multi-agent runs
     );
 
     if (!response.ok) {

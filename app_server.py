@@ -676,6 +676,13 @@ class V9AgentRuntime:
             self._agents[model_name] = agent
         return agent
 
+    def warm_agent(self, model: str | None = None) -> None:
+        model_name = _normalize_model_name(model)
+        try:
+            self._get_agent(model_name)
+        except Exception:
+            logger.exception("Failed to warm DISSOLVE agent for model %s", model_name)
+
     def get_or_create_session(self, session_id: str | None, requested_model: str) -> SessionState:
         if session_id and session_id in self._sessions:
             return self._sessions[session_id]
@@ -826,6 +833,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/plots", StaticFiles(directory=str(PLOTS_DIR)), name="plots")
+
+
+@app.on_event("startup")
+async def warm_default_agent_on_startup() -> None:
+    if os.getenv("DISSOLVE_WARM_DEFAULT_AGENT", "true").strip().lower() in {"0", "false", "no"}:
+        logger.info("Skipping default agent warmup")
+        return
+    default_model = MODEL_ALIASES["gemini-3.1-flash-lite-preview"]
+    logger.info("Warming default DISSOLVE agent for model %s", default_model)
+    await asyncio.to_thread(agent_runtime.warm_agent, default_model)
 
 
 @app.get("/api/status")
