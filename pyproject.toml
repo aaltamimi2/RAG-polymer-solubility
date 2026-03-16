@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "DISSOLVE: Data Integrated Solubility Solver via LLM Evaluation"
 requires-python = ">=3.10"
 dependencies = [
-    "deepagents>=0.3.10,<0.4",
+    "deepagents==0.3.10",
     "langchain-anthropic",
     "langchain-google-genai",
     "langsmith",
@@ -16,6 +16,11 @@ dependencies = [
     "pandas",
     "numpy",
     "scipy",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "scikit-learn",
+    "joblib",
     "python-dotenv",
     "fastapi",
     "uvicorn",
@@ -29,10 +34,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
-viz = ["matplotlib", "seaborn", "plotly"]
+viz = []
 ml = [
-    "scikit-learn",
-    "joblib",
     "torch>=2.0",
     "sentence-transformers>=3.0",
 ]
