@@ -40,6 +40,21 @@ def test_separation_engineer_prompt_includes_bounded_temperature_guidance():
     assert "experimental confirmation or a fuller feasibility check" in prompt
 
 
+def test_statistics_ml_prompt_mentions_hsp_visualization_workflow():
+    bundle = load_subagent_bundle()
+    stats_ml = next(item for item in bundle["subagents"] if item["name"] == "statistics-ml")
+    prompt = stats_ml["system_prompt"]
+    description = stats_ml["description"]
+    routing_phrases = stats_ml["routing"]["phrases"]
+
+    assert "HSP radar" in description
+    assert "predict_solubility_ml generates HSP visual artifacts" in prompt
+    assert "show or plot the HSP radar" in prompt
+    assert "return the generated artifact path(s)" in prompt
+    assert "hsp radar" in routing_phrases
+    assert "hansen sphere" in routing_phrases
+
+
 def test_load_routing_configuration_from_split_manifest():
     routing_rules, parallel_pairs, parallel_3way, sequential_pairs = load_routing_configuration()
 
