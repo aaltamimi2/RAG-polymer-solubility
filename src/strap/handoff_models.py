@@ -96,6 +96,7 @@ class HandoffRecord:
     created_at: str
     source_tool_call_id: str | None = None
     parent_handoff_id: str | None = None
+    parent_handoff_ids: list[str] = field(default_factory=list)
     validation_errors: list[str] = field(default_factory=list)
     artifacts: list[str] = field(default_factory=list)
     task_prompt: str | None = None

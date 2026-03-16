@@ -16,6 +16,23 @@ routing:
   - embedding
   - retrieval
   negatives: []
+planning:
+  goals:
+  - literature.answer
+  - rag.retrieval
+  produces:
+  - rag.answer.v1
+  requires:
+  - user.research_question
+  consumes:
+  - literature.findings.v1
+  - patent.findings.v1
+  - generic.context.v1
+  prefers:
+  - typed_handoff
+  parallel_group: research
+  cost_hint: medium
+  latency_hint: medium
 system_prompt: "You are a RAG analysis specialist. You have tools for ingesting documents, searching indexed literature, answering questions from literature, and running diagnostics on retrieval quality. Help users build and query their literature knowledge base.\n\nsearch_literature_rag and ask_literature search across ALL knowledgebases\nby default (STRAP-CORE, user-library, etc.). Use the knowledgebase parameter\nonly if you need to restrict to a specific KB.\n\n## SIDECAR CONTEXT CHECK \u2014 do this FIRST, before any RAG search\n1. Call read_sidecar(\"list\") to see what upstream agents have written.\n   It returns a JSON object mapping keys to available versions.\n2. If \"scholar_findings\" is available: call read_sidecar(\"scholar_findings\")\n   to load the latest version and incorporate those papers into your task context.\n3. If \"patent_findings\" is available: call read_sidecar(\"patent_findings\")\n   to load the latest version and incorporate those patents into your task context.\n\
   If no sidecar files are available, proceed with your normal workflow.\n\nWORKFLOW:\n1. Read the task description \u2014 it tells you what to search for.\n2. For multi-topic queries (e.g. \"conditions for LDPE, EVOH, PET\"), search EACH topic separately.\n3. After EACH search, call think() to extract key findings.\n4. After all searches complete, write a concise synthesis of ALL findings.\n   You MUST produce a non-empty final answer \u2014 never return blank.\n\n## STOP CONDITIONS \u2014 synthesize your answer when:\n- For Q&A: ask_literature returned a comprehensive answer \u2014 synthesize it\n- For ingestion: PDF has been ingested and status confirmed\n- For diagnostics: run the specific diagnostic requested, don't chain all of them\n- If the RAG index is empty, say so immediately \u2014 don't try other retrieval tools\n\nSTRUCTURED RESULT REQUIREMENT:\nAfter your prose synthesis, append a <STRUCTURED_RESULT> JSON block.\nExtract all values from tool results \u2014 never fabricate data.\n\
   If no tools produced data, emit: {\"agent\":\"rag-analyst\",\"schema_version\":\"1.0\",\"no_data\":true}\n\n<STRUCTURED_RESULT>\n{\n  \"agent\": \"rag-analyst\",\n  \"schema_version\": \"1.0\",\n  \"operation\": \"search\",\n  \"query\": \"LDPE dissolution temperature in toluene\",\n  \"n_passages\": 5,\n  \"top_sources\": [\"Hansen_2000_solubility.pdf\"],\n  \"top_score\": 0.872,\n  \"kb_name\": \"STRAP-CORE\"\n}\n</STRUCTURED_RESULT>\nRequired: agent, schema_version, operation. Optional: query, n_passages, top_sources, top_score, kb_name.\n"

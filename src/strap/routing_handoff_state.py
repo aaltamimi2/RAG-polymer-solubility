@@ -6,10 +6,10 @@ import json
 
 from langchain_core.messages import ToolMessage
 
-from .routing_classifier import SEQUENTIAL_PAIRS
 from .routing_message_state import (
     _extract_returned_subagent_calls,
     _get_active_remaining_steps,
+    _get_step_dependencies,
     _get_latest_dispatch_for_subagent,
     _get_ordered_plan,
     _get_tool_call_registry,
@@ -133,6 +133,101 @@ def _has_returned_subagent_since(
     return False
 
 
+def _get_consumer_predecessor_dispatches(
+    messages: list,
+    ordered_plan: list[dict],
+    consumer: str,
+) -> list[tuple[str, dict | None]]:
+    """Return declared predecessors and their latest successful dispatch, in plan order."""
+    predecessors = list(_get_step_dependencies(ordered_plan, consumer))
+    return [
+        (
+            producer,
+            _get_latest_dispatch_for_subagent(messages, producer, status="ok"),
+        )
+        for producer in predecessors
+    ]
+
+
+def _get_missing_required_handoffs_for_consumer(
+    messages: list,
+    ordered_plan: list[dict],
+    consumer: str,
+) -> tuple[tuple[str, str], ...]:
+    """Return successful producer->consumer handoffs that still need to be built."""
+    missing: list[tuple[str, str]] = []
+    for producer, dispatch in _get_consumer_predecessor_dispatches(messages, ordered_plan, consumer):
+        if dispatch is None:
+            continue
+        if _has_built_handoff_since(
+            messages,
+            producer=producer,
+            consumer=consumer,
+            after_task_call_id=dispatch["tool_call_id"],
+        ):
+            continue
+        missing.append((producer, consumer))
+    return tuple(missing)
+
+
+def _get_ready_required_handoffs_for_consumer(
+    messages: list,
+    ordered_plan: list[dict],
+    consumer: str,
+) -> tuple[tuple[dict, int], ...] | None:
+    """Return all required predecessor handoffs once every declared dependency is satisfied."""
+    predecessor_dispatches = _get_consumer_predecessor_dispatches(messages, ordered_plan, consumer)
+    if not predecessor_dispatches:
+        return ()
+
+    ready_handoffs: list[tuple[dict, int]] = []
+    for producer, dispatch in predecessor_dispatches:
+        if dispatch is None:
+            return None
+        handoff_result = _get_built_handoff_result_since(
+            messages,
+            producer=producer,
+            consumer=consumer,
+            after_task_call_id=dispatch["tool_call_id"],
+        )
+        if handoff_result is None:
+            return None
+        ready_handoffs.append(handoff_result)
+    return tuple(ready_handoffs)
+
+
+def _compose_ready_handoff(consumer: str, ready_handoffs: tuple[tuple[dict, int], ...]) -> dict:
+    """Collapse one or more validated upstream handoffs into the next task-ready payload."""
+    latest_handoff, _latest_index = max(ready_handoffs, key=lambda item: item[1])
+    if len(ready_handoffs) == 1:
+        return latest_handoff
+
+    handoffs = [handoff for handoff, _ in ready_handoffs]
+    prompt_lines = [
+        f"Use all validated upstream handoffs before continuing as {consumer}.",
+        "Required upstream handoffs:",
+    ]
+    for handoff in handoffs:
+        prompt_lines.append(
+            f"- {handoff.get('producer')} | handoff_id={handoff.get('handoff_id')} | contract={handoff.get('contract')}"
+        )
+        task_prompt = str(handoff.get("task_prompt") or "").strip()
+        if task_prompt:
+            prompt_lines.append(f"  Guidance: {task_prompt}")
+    prompt_lines.append(
+        "Treat all listed handoffs as authoritative upstream context and combine them in this step."
+    )
+
+    return {
+        **latest_handoff,
+        "consumer": consumer,
+        "producers": [handoff.get("producer") for handoff in handoffs],
+        "handoff_ids": [handoff.get("handoff_id") for handoff in handoffs],
+        "contracts": [handoff.get("contract") for handoff in handoffs],
+        "task_prompt": "\n".join(prompt_lines),
+    }
+
+
 def _get_pending_required_handoff(
     messages: list,
     allowed_rules: list[dict],
@@ -147,33 +242,10 @@ def _get_pending_required_handoff(
         return None
 
     next_name = remaining[0]["subagent"]
-    plan_names = {step["subagent"] for step in ordered_plan}
-    predecessors = [
-        producer for producer, consumer in SEQUENTIAL_PAIRS
-        if consumer == next_name and producer in plan_names
-    ]
-    successful_predecessors = [
-        dispatch
-        for producer in predecessors
-        if (dispatch := _get_latest_dispatch_for_subagent(messages, producer, status="ok")) is not None
-    ]
-    if not successful_predecessors:
+    missing_required = _get_missing_required_handoffs_for_consumer(messages, ordered_plan, next_name)
+    if not missing_required:
         return None
-
-    tool_messages = _get_tool_message_registry(messages)
-    latest_predecessor = max(
-        successful_predecessors,
-        key=lambda dispatch: tool_messages.get(dispatch["tool_call_id"], {}).get("message_index", -1),
-    )
-    if _has_built_handoff_since(
-        messages,
-        producer=latest_predecessor["subagent"],
-        consumer=next_name,
-        after_task_call_id=latest_predecessor["tool_call_id"],
-    ):
-        return None
-
-    return latest_predecessor["subagent"], next_name
+    return missing_required[0]
 
 
 def _get_ready_downstream_consumer(
@@ -201,38 +273,17 @@ def _get_ready_downstream_handoff(
         return None
 
     next_name = remaining[0]["subagent"]
-    plan_names = {step["subagent"] for step in ordered_plan}
-    predecessors = [
-        producer for producer, consumer in SEQUENTIAL_PAIRS
-        if consumer == next_name and producer in plan_names
-    ]
-    successful_predecessors = [
-        dispatch
-        for producer in predecessors
-        if (dispatch := _get_latest_dispatch_for_subagent(messages, producer, status="ok")) is not None
-    ]
-    if not successful_predecessors:
+    ready_handoffs = _get_ready_required_handoffs_for_consumer(messages, ordered_plan, next_name)
+    if ready_handoffs is None:
+        return None
+    if not ready_handoffs:
         return None
 
-    tool_messages = _get_tool_message_registry(messages)
-    latest_predecessor = max(
-        successful_predecessors,
-        key=lambda dispatch: tool_messages.get(dispatch["tool_call_id"], {}).get("message_index", -1),
-    )
-    handoff_result = _get_built_handoff_result_since(
-        messages,
-        producer=latest_predecessor["subagent"],
-        consumer=next_name,
-        after_task_call_id=latest_predecessor["tool_call_id"],
-    )
-    if handoff_result is None:
-        return None
-
-    handoff, handoff_index = handoff_result
+    handoff, handoff_index = max(ready_handoffs, key=lambda item: item[1])
     if _has_returned_subagent_since(
         messages,
         subagent=next_name,
         after_message_index=handoff_index,
     ):
         return None
-    return handoff
+    return _compose_ready_handoff(next_name, ready_handoffs)

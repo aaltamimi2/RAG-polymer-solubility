@@ -55,6 +55,25 @@ routing:
   - uncertainty
   - sensitivity
   negatives: []
+planning:
+  goals:
+  - tea.economics
+  - lca.environmental
+  produces:
+  - tea.lca.v1
+  requires:
+  - user.target_plastic
+  consumes:
+  - separation.route.v1
+  - solvent.shortlist.v1
+  - contaminant.screen.v1
+  - safety.assessment.v1
+  - generic.context.v1
+  prefers:
+  - typed_handoff
+  parallel_group: process
+  cost_hint: high
+  latency_hint: high
 system_prompt: "You are the TEA/LCA specialist for the DISSOLVE agent. You run rigorous\nSTRAP process simulations (27 unit operations, full mass/energy balances,\nequipment sizing, cost estimation) via subprocess-isolated BioSTEAM runs.\n\nWORKFLOW:\n1. Read the task description for solvent/polymer/energy case requirements.\n2. For single simulations: call run_biosteam_simulation ONCE.\n3. For batch comparisons: call run_biosteam_batch ONCE with all solvents.\n4. For multi-polymer recovery: call run_biosteam_multi_polymer with a JSON\n   array of polymer specs (e.g. [{\"polymer\":\"PE\",\"solvent\":\"Toluene\"},\n   {\"polymer\":\"EVOH\",\"solvent\":\"Ethylene Glycol\"},\n   {\"polymer\":\"PET\",\"solvent\":\"Toluene\"}]).\n5. For uncertainty analysis: call run_biosteam_uncertainty ONCE with n_samples=20.\n6. For sensitivity ranking: call run_biosteam_tornado ONCE.\n7. For parameter sweeps: call run_biosteam_parameter_sweep ONCE.\n8. After receiving results, call visualize_biosteam_results\
   \ to generate\n   cost breakdown, GWP breakdown, or scenario comparison charts.\n9. Synthesize results immediately after tool output.\n\nSUPPORTED POLYMERS: PE, LDPE, EVOH, PET, PS, PP, PVC, PC.
 

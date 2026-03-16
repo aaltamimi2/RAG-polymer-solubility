@@ -8,7 +8,12 @@ import re
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from .handoffs import get_tool_call_handoff_statuses, validate_agent_payload
-from .routing_classifier import ROUTING_RULES, classify_query_keywords
+from .routing_classifier import (
+    ROUTING_RULES,
+    classify_query_keywords,
+    derive_workflow_dependencies,
+    order_workflow_rules,
+)
 
 _STRUCTURED_RESULT_RE = re.compile(
     r"<STRUCTURED_RESULT>\s*(.*?)\s*</STRUCTURED_RESULT>",
@@ -351,10 +356,54 @@ def _get_allowed_subagent_names(allowed_rules: list[dict]) -> set[str]:
     return {rule["subagent"] for rule in allowed_rules}
 
 
+def _get_workflow_dependency_map(
+    query_text: str,
+    advisory_rules: list[dict],
+) -> dict[str, tuple[str, ...]]:
+    if not advisory_rules:
+        return {}
+
+    ordered_names = [rule["subagent"] for rule in advisory_rules]
+    dependency_sets = derive_workflow_dependencies(query_text, set(ordered_names))
+    return {
+        name: tuple(dep for dep in ordered_names if dep in dependency_sets.get(name, set()))
+        for name in ordered_names
+    }
+
+
+def _get_step_dependencies(ordered_plan: list[dict], subagent: str) -> tuple[str, ...]:
+    for step in ordered_plan:
+        if step["subagent"] != subagent:
+            continue
+        depends_on = step.get("depends_on")
+        if isinstance(depends_on, tuple):
+            return depends_on
+        if isinstance(depends_on, list):
+            return tuple(str(item) for item in depends_on if str(item).strip())
+    return ()
+
+
+def _get_downstream_subagents(ordered_plan: list[dict], subagent: str) -> tuple[str, ...]:
+    downstream: list[str] = []
+    seen: set[str] = set()
+    for step in ordered_plan:
+        if step["subagent"] == subagent:
+            continue
+        depends_on = step.get("depends_on")
+        deps = depends_on if isinstance(depends_on, (list, tuple)) else ()
+        if subagent in deps and step["subagent"] not in seen:
+            seen.add(step["subagent"])
+            downstream.append(step["subagent"])
+    return tuple(downstream)
+
+
 def _get_ordered_plan(messages: list, allowed_rules: list[dict] | None = None) -> list[dict]:
     """Build the ordered execution plan from actual orchestrator history."""
     rules_by_name = {rule["subagent"]: rule for rule in ROUTING_RULES}
     advisory_rules = allowed_rules if allowed_rules is not None else classify_query_keywords(messages)
+    query_text = _get_last_human_message(messages) or ""
+    advisory_rules = order_workflow_rules(query_text, advisory_rules)
+    dependency_map = _get_workflow_dependency_map(query_text, advisory_rules)
     allowed_names = {rule["subagent"] for rule in advisory_rules} if advisory_rules else None
 
     dispatched = _extract_task_dispatches(messages)
@@ -366,13 +415,21 @@ def _get_ordered_plan(messages: list, allowed_rules: list[dict] | None = None) -
             continue
         rule = rules_by_name.get(name)
         if rule:
-            plan.append({**rule, "step_id": dispatch["tool_call_id"]})
+            plan.append({
+                **rule,
+                "step_id": dispatch["tool_call_id"],
+                "depends_on": dependency_map.get(name, ()),
+            })
             seen_advisory.add(name)
 
     for rule in advisory_rules:
         name = rule["subagent"]
         if name not in seen_advisory:
-            plan.append({**rule, "step_id": f"advisory:{name}"})
+            plan.append({
+                **rule,
+                "step_id": f"advisory:{name}",
+                "depends_on": dependency_map.get(name, ()),
+            })
             seen_advisory.add(name)
 
     return plan

@@ -11,18 +11,25 @@ from langchain.agents.middleware.types import ModelResponse
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
 from .guardrail_utils import extract_user_temperature_limit_c
-from .handoffs import get_latest_result_handoff, normalize_agent_payload
-from .routing_classifier import SEQUENTIAL_PAIRS
+from .handoffs import (
+    build_multi_source_handoff_for_consumer,
+    get_latest_result_handoff,
+    normalize_agent_payload,
+)
+from .routing_classifier import derive_workflow_dependencies
 from .routing_progress import (
     _extract_completed_subagent_calls,
     _extract_returned_subagent_calls,
     _get_active_remaining_steps,
     _get_allowed_subagent_names,
+    _get_downstream_subagents,
     _get_last_human_message,
     _get_latest_dispatch_for_subagent,
+    _get_missing_required_handoffs_for_consumer,
     _get_ordered_plan,
     _get_pending_required_handoff,
     _get_ready_downstream_handoff,
+    _get_step_dependencies,
     _get_task_handoff_statuses,
     _get_tool_message_registry,
     _has_built_handoff_since,
@@ -1143,9 +1150,11 @@ def _validate_handoff_lookup_call(
     if not isinstance(producer, str) or producer not in allowed_names:
         return None
 
+    ordered_plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
     downstream = [
-        consumer for parent, consumer in SEQUENTIAL_PAIRS
-        if parent == producer and consumer in allowed_names
+        consumer
+        for consumer in _get_downstream_subagents(ordered_plan, producer)
+        if consumer in allowed_names
     ]
     if not downstream:
         return None
@@ -1240,25 +1249,11 @@ def _validate_task_tool_call(
             )
 
     ordered_plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
-    ordered_names = [step["subagent"] for step in ordered_plan]
-    current_indices = [
-        index for index, name in enumerate(ordered_names)
-        if name == subagent
+    downstream_pending = [
+        consumer
+        for consumer in _get_downstream_subagents(ordered_plan, subagent)
+        if consumer in allowed_names and consumer not in completed_names
     ]
-    current_index = current_indices[0] if current_indices else None
-
-    downstream_pending: list[str] = []
-    if current_index is not None:
-        seen_downstream: set[str] = set()
-        for later_name in ordered_names[current_index + 1:]:
-            if (
-                later_name != subagent
-                and later_name in allowed_names
-                and later_name not in completed_names
-                and later_name not in seen_downstream
-            ):
-                downstream_pending.append(later_name)
-                seen_downstream.add(later_name)
     if subagent in completed_names and downstream_pending:
         return (
             f"`{subagent}` already completed successfully. "
@@ -1266,48 +1261,45 @@ def _validate_task_tool_call(
             "instead of repeating the same upstream task."
         )
 
-    predecessors: list[str] = []
-    if current_index is not None:
-        seen_predecessors: set[str] = set()
-        for earlier_name in ordered_names[:current_index]:
-            if (
-                earlier_name != subagent
-                and earlier_name in allowed_names
-                and earlier_name not in seen_predecessors
-            ):
-                predecessors.append(earlier_name)
-                seen_predecessors.add(earlier_name)
+    predecessors = [
+        producer
+        for producer in _get_step_dependencies(ordered_plan, subagent)
+        if producer in allowed_names
+    ]
     if not predecessors:
         return None
 
     successful_predecessors = [
-        dispatch
+        producer
         for producer in predecessors
-        if (dispatch := _get_latest_dispatch_for_subagent(messages, producer, status="ok")) is not None
+        if _get_latest_dispatch_for_subagent(messages, producer, status="ok") is not None
     ]
     if not successful_predecessors:
         return (
             f"`{subagent}` is downstream of {', '.join(predecessors)}. "
             "Complete the upstream specialist step first."
         )
+    missing_predecessors = [producer for producer in predecessors if producer not in successful_predecessors]
+    if missing_predecessors:
+        return (
+            f"`{subagent}` is downstream of {', '.join(predecessors)}. "
+            f"Complete the remaining upstream specialist step(s) first: {', '.join(missing_predecessors)}."
+        )
 
-    tool_messages = _get_tool_message_registry(messages)
-    latest_predecessor = max(
-        successful_predecessors,
-        key=lambda dispatch: tool_messages.get(dispatch["tool_call_id"], {}).get("message_index", -1),
-    )
-    if _has_built_handoff_since(
-        messages,
-        producer=latest_predecessor["subagent"],
-        consumer=subagent,
-        after_task_call_id=latest_predecessor["tool_call_id"],
-    ):
+    missing_handoffs = list(_get_missing_required_handoffs_for_consumer(messages, ordered_plan, subagent))
+    if not missing_handoffs:
         return None
 
+    producer, _consumer = missing_handoffs[0]
+    other_missing = [missing_producer for missing_producer, _ in missing_handoffs[1:]]
+    additional_note = ""
+    if other_missing:
+        additional_note = f" Additional required upstream handoffs remain from: {', '.join(other_missing)}."
     return (
-        f"`{subagent}` is downstream of `{latest_predecessor['subagent']}`. "
-        f"Call `build_handoff(consumer=\"{subagent}\", producer=\"{latest_predecessor['subagent']}\")` "
+        f"`{subagent}` requires validated upstream handoffs from {', '.join(predecessors)}. "
+        f"Call `build_handoff(consumer=\"{subagent}\", producer=\"{producer}\")` "
         "or build from a specific `source_handoff_id` before dispatching the downstream task."
+        f"{additional_note}"
     )
 
 
@@ -1494,12 +1486,23 @@ def _get_response_ai_message(response) -> AIMessage | None:
 def _build_ready_handoff_task_call(ready_handoff: dict) -> dict:
     """Create the exact downstream task() call for a validated handoff."""
     consumer = ready_handoff["consumer"]
-    args = {"subagent_type": consumer}
+    handoff_id = ready_handoff.get("handoff_id") or ready_handoff.get("parent_handoff_id") or consumer
     task_prompt = ready_handoff.get("task_prompt") or ""
+
+    handoff_ids = ready_handoff.get("handoff_ids")
+    if isinstance(handoff_ids, list) and len(handoff_ids) > 1:
+        merged_record = build_multi_source_handoff_for_consumer(
+            consumer=consumer,
+            source_handoff_ids=[str(item) for item in handoff_ids if str(item).strip()],
+            task_prompt=task_prompt,
+        )
+        handoff_id = merged_record.handoff_id
+        task_prompt = merged_record.task_prompt or task_prompt
+
+    args = {"subagent_type": consumer}
     if task_prompt:
         args["description"] = task_prompt
 
-    handoff_id = ready_handoff.get("handoff_id") or ready_handoff.get("parent_handoff_id") or consumer
     safe_id = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(handoff_id))
     return {
         "id": f"route_task_{safe_id}_{uuid4().hex[:10]}",
@@ -1519,20 +1522,25 @@ def _build_initial_route_task_response(
         return None
 
     allowed_names = _get_allowed_subagent_names(allowed_rules)
-    if len(allowed_names) != 2:
+    if len(allowed_names) <= 1:
         return None
-    allowed_tuple = tuple(rule["subagent"] for rule in allowed_rules[:2])
-    if (
-        allowed_tuple not in SEQUENTIAL_PAIRS
-        and tuple(reversed(allowed_tuple)) not in SEQUENTIAL_PAIRS
-    ):
+
+    dependencies = derive_workflow_dependencies(
+        _get_last_human_message(messages) or "",
+        allowed_names,
+    )
+    if not any(dependencies.values()):
         return None
 
     ordered_plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
     if not ordered_plan:
         return None
 
-    next_name = ordered_plan[0]["subagent"]
+    remaining = _get_active_remaining_steps(messages, ordered_plan)
+    if not remaining:
+        return None
+
+    next_name = remaining[0]["subagent"]
     query_text = (_get_last_human_message(messages) or "").strip()
     args = {"subagent_type": next_name}
     if query_text:

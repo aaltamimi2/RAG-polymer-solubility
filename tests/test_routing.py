@@ -109,6 +109,193 @@ def test_classify_query_prefers_contaminant_only_when_tea_and_safety_are_negated
     assert "separation-engineer" not in hint
 
 
+def test_classify_query_supports_four_stage_research_workflow():
+    from strap.routing_classifier import classify_query
+
+    hint = classify_query(
+        [
+            HumanMessage(
+                content=(
+                    "Do a literature search and patent search for multilayer polymer recycling methods, "
+                    "answer the question with RAG, then create a chart visualization of the retrieved findings."
+                )
+            )
+        ]
+    )
+
+    assert hint is not None
+    assert "scholar-researcher" in hint
+    assert "patent-researcher" in hint
+    assert "rag-analyst" in hint
+    assert "visualization-specialist" in hint
+    assert "staged workflow" in hint
+
+
+def test_plan_workflow_rules_can_start_from_query_goals_without_seed_rules():
+    from strap.routing_classifier import plan_workflow_rules
+
+    planned = plan_workflow_rules(
+        (
+            "Do a literature search and patent search for multilayer polymer recycling methods, "
+            "answer the question with RAG, then create a chart visualization of the retrieved findings."
+        ),
+        None,
+    )
+
+    assert [rule["subagent"] for rule in planned] == [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst",
+        "visualization-specialist",
+    ]
+
+
+def test_plan_workflow_rules_preserves_goal_chain_when_seed_is_empty_for_process_query():
+    from strap.routing_classifier import plan_workflow_rules
+
+    planned = plan_workflow_rules(
+        (
+            "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream using "
+            "selective dissolution at atmospheric pressure. Propose up to 1 additional wash "
+            "step for phthalate removal. Then run a techno-economic analysis on solvent recovery."
+        ),
+        [],
+    )
+
+    assert [rule["subagent"] for rule in planned] == [
+        "separation-engineer",
+        "contaminant-removal-analyst",
+        "biosteam-analyst",
+    ]
+
+
+def test_runtime_planner_inserts_uncovered_contaminant_goal_for_complex_mixed_query():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_message_state import _get_ordered_plan
+
+    query = (
+        "Do a literature search and patent search for solvent-based delamination of HDPE/EVOH "
+        "food-packaging laminates, answer the question with RAG, then design an optimal "
+        "atmospheric-pressure separation sequence for an HDPE/EVOH mixed waste stream using "
+        "selective dissolution. Propose up to 1 additional wash step for phthalate removal, "
+        "then run a techno-economic analysis on solvent recovery for the best option, and "
+        "finally create a chart summarizing both the retrieved findings and the process results."
+    )
+    messages = [HumanMessage(content=query)]
+
+    middleware = RoutingMiddleware(classifier_model=None)
+    allowed = middleware._get_allowed_rules(messages)
+    names = [rule["subagent"] for rule in allowed]
+
+    assert set(names) == {
+        "separation-engineer",
+        "contaminant-removal-analyst",
+        "biosteam-analyst",
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst",
+        "visualization-specialist",
+    }
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed)
+    dependency_map = {step["subagent"]: step["depends_on"] for step in plan}
+
+    assert dependency_map["separation-engineer"] == ()
+    assert dependency_map["scholar-researcher"] == ()
+    assert dependency_map["patent-researcher"] == ()
+    assert dependency_map["contaminant-removal-analyst"] == ("separation-engineer",)
+    assert dependency_map["biosteam-analyst"] == ("contaminant-removal-analyst",)
+    assert dependency_map["rag-analyst"] == ("scholar-researcher", "patent-researcher")
+    assert set(dependency_map["visualization-specialist"]) == {"biosteam-analyst", "rag-analyst"}
+
+
+def test_infer_requested_goals_uses_query_context_for_process_query():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream using "
+            "selective dissolution at atmospheric pressure. Propose up to 1 additional wash "
+            "step for phthalate removal. Then run a techno-economic analysis on solvent recovery."
+        )
+    )
+
+    assert {
+        "separation.route",
+        "separation.feasibility",
+        "contaminant.screening",
+        "contaminant.removal",
+        "tea.economics",
+    }.issubset(goals)
+    assert "safety.assessment" not in goals
+
+
+def test_infer_requested_goals_respects_negated_query_context_requests():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Only do contaminant-removal screening. Do not do TEA, safety, literature, or general process design. "
+            "For EVOH contaminated with di-n-butyl phthalate (DBP), compare leaching versus STRAP contaminant removal."
+        )
+    )
+
+    assert goals == {"contaminant.screening", "contaminant.removal"}
+
+
+def test_infer_requested_goals_ignores_negated_solvent_screening_for_biosteam_only_query():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Only do BioSTEAM TEA/LCA. For LDPE dissolved in toluene, run a techno-economic "
+            "analysis and life-cycle assessment under energy case C1. Do not do solvent screening "
+            "or process design."
+        )
+    )
+
+    assert goals == {"tea.economics", "lca.environmental"}
+
+
+def test_infer_requested_goals_uses_query_context_for_research_workflow():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Do a literature search and patent search for multilayer polymer recycling methods, "
+            "answer the question with RAG, then create a chart visualization of the retrieved findings."
+        )
+    )
+
+    assert goals == {
+        "literature.search",
+        "patent.search",
+        "literature.answer",
+        "rag.retrieval",
+        "visualization.plot",
+    }
+
+
+def test_infer_available_query_inputs_maps_core_process_requirements():
+    from strap.routing_classifier import infer_available_query_inputs
+
+    available = infer_available_query_inputs(
+        (
+            "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream using "
+            "selective dissolution at atmospheric pressure. Propose up to 1 additional wash "
+            "step for phthalate removal. Then run a techno-economic analysis on solvent recovery."
+        )
+    )
+
+    assert {
+        "user.polymers",
+        "user.target_plastic",
+        "user.target_polymer",
+        "user.contaminants",
+        "user.solvents_or_route",
+    }.issubset(available)
+
+
 def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route_is_weaker():
     from strap.routing import RoutingMiddleware
 
@@ -132,6 +319,42 @@ def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route
 
     names = [rule["subagent"] for rule in allowed]
     assert names[:2] == ["separation-engineer", "contaminant-removal-analyst"]
+
+
+def test_get_allowed_rules_plans_four_stage_research_workflow():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_message_state import _get_ordered_plan
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Do a literature search and patent search for multilayer polymer recycling methods, "
+                "answer the question with RAG, then create a chart visualization of the retrieved findings."
+            )
+        )
+    ]
+
+    middleware = RoutingMiddleware()
+    allowed = middleware._get_allowed_rules(messages)
+
+    assert [rule["subagent"] for rule in allowed] == [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst",
+        "visualization-specialist",
+    ]
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed)
+    assert [step["subagent"] for step in plan] == [
+        "scholar-researcher",
+        "patent-researcher",
+        "rag-analyst",
+        "visualization-specialist",
+    ]
+    assert plan[0]["depends_on"] == ()
+    assert plan[1]["depends_on"] == ()
+    assert plan[2]["depends_on"] == ("scholar-researcher", "patent-researcher")
+    assert plan[3]["depends_on"] == ("rag-analyst",)
 
 
 def test_wrap_tool_call_blocks_write_todos_before_first_sequential_dispatch():
@@ -218,6 +441,274 @@ def test_initial_route_task_response_dispatches_first_specialist():
     assert ai_msg.tool_calls[0]["name"] == "task"
     assert ai_msg.tool_calls[0]["args"]["subagent_type"] == "separation-engineer"
     assert "DBP contamination" in ai_msg.tool_calls[0]["args"]["description"]
+
+
+def test_ordered_plan_places_contaminant_before_biosteam_for_integrated_query():
+    from strap.routing_message_state import _get_ordered_plan
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
+                "using selective dissolution at atmospheric pressure. Propose up to 1 "
+                "additional wash step for phthalate removal. Then run a techno-economic "
+                "analysis on the solvent recovery for the best option."
+            )
+        )
+    ]
+    allowed_rules = [
+        {"subagent": "separation-engineer", "description": "process design"},
+        {"subagent": "biosteam-analyst", "description": "tea"},
+        {"subagent": "contaminant-removal-analyst", "description": "contaminant screening"},
+    ]
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
+
+    assert [step["subagent"] for step in plan] == [
+        "separation-engineer",
+        "contaminant-removal-analyst",
+        "biosteam-analyst",
+    ]
+    assert plan[0]["depends_on"] == ()
+    assert plan[1]["depends_on"] == ("separation-engineer",)
+    assert plan[2]["depends_on"] == ("contaminant-removal-analyst",)
+
+
+def test_derive_workflow_dependencies_prefers_transitive_contaminant_handoff_for_biosteam():
+    from strap.routing_classifier import derive_workflow_dependencies
+
+    dependencies = derive_workflow_dependencies(
+        (
+            "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
+            "using selective dissolution at atmospheric pressure. Propose up to 1 "
+            "additional wash step for phthalate removal. Then run a techno-economic "
+            "analysis on the solvent recovery for the best option."
+        ),
+        {
+            "separation-engineer",
+            "contaminant-removal-analyst",
+            "biosteam-analyst",
+        },
+    )
+
+    assert dependencies["separation-engineer"] == set()
+    assert dependencies["contaminant-removal-analyst"] == {"separation-engineer"}
+    assert dependencies["biosteam-analyst"] == {"contaminant-removal-analyst"}
+
+
+def test_pending_required_handoff_tracks_depends_on_for_three_step_workflow():
+    from strap.routing import _get_pending_required_handoff
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
+                "using selective dissolution at atmospheric pressure. Propose up to 1 "
+                "additional wash step for phthalate removal. Then run a techno-economic "
+                "analysis on the solvent recovery for the best option."
+            )
+        ),
+        AIMessage(content="", tool_calls=[_task_call("tc_sep", "separation-engineer")]),
+        ToolMessage(content=_structured_result_content("separation-engineer"), tool_call_id="tc_sep"),
+    ]
+    allowed_rules = [
+        {"subagent": "separation-engineer", "description": "process design"},
+        {"subagent": "contaminant-removal-analyst", "description": "contaminant screening"},
+        {"subagent": "biosteam-analyst", "description": "tea"},
+    ]
+
+    pending = _get_pending_required_handoff(messages, allowed_rules)
+
+    assert pending == ("separation-engineer", "contaminant-removal-analyst")
+
+
+def test_pending_required_handoff_tracks_each_missing_join_edge_in_order():
+    from strap.routing import _get_pending_required_handoff
+
+    query = (
+        "Do a literature search and patent search for multilayer polymer recycling methods, "
+        "answer the question with RAG."
+    )
+    allowed_rules = [
+        {"subagent": "scholar-researcher", "description": "literature"},
+        {"subagent": "patent-researcher", "description": "patents"},
+        {"subagent": "rag-analyst", "description": "rag"},
+    ]
+    messages = [
+        HumanMessage(content=query),
+        AIMessage(content="", tool_calls=[_task_call("tc_scholar", "scholar-researcher")]),
+        ToolMessage(content=_structured_result_content("scholar-researcher"), tool_call_id="tc_scholar"),
+        AIMessage(content="", tool_calls=[_task_call("tc_patent", "patent-researcher")]),
+        ToolMessage(content=_structured_result_content("patent-researcher"), tool_call_id="tc_patent"),
+    ]
+
+    pending = _get_pending_required_handoff(messages, allowed_rules)
+    assert pending == ("scholar-researcher", "rag-analyst")
+
+    messages.extend([
+        AIMessage(content="", tool_calls=[{
+            "id": "bh_scholar",
+            "name": "build_handoff",
+            "args": {"consumer": "rag-analyst", "producer": "scholar-researcher"},
+        }]),
+        ToolMessage(
+            content=(
+                '{"ok": true, "handoff": {"handoff_id": "h_scholar_rag", '
+                '"producer": "scholar-researcher", "consumer": "rag-analyst", '
+                '"contract": "literature_context.v1", "status": "ok", '
+                '"task_prompt": "Use the literature findings."}}'
+            ),
+            tool_call_id="bh_scholar",
+        ),
+    ])
+
+    pending = _get_pending_required_handoff(messages, allowed_rules)
+    assert pending == ("patent-researcher", "rag-analyst")
+
+
+def test_ready_downstream_handoff_for_join_requires_all_direct_handoffs():
+    from strap.routing import _get_ready_downstream_handoff
+
+    query = (
+        "Do a literature search and patent search for multilayer polymer recycling methods, "
+        "answer the question with RAG."
+    )
+    allowed_rules = [
+        {"subagent": "scholar-researcher", "description": "literature"},
+        {"subagent": "patent-researcher", "description": "patents"},
+        {"subagent": "rag-analyst", "description": "rag"},
+    ]
+    messages = [
+        HumanMessage(content=query),
+        AIMessage(content="", tool_calls=[_task_call("tc_scholar", "scholar-researcher")]),
+        ToolMessage(content=_structured_result_content("scholar-researcher"), tool_call_id="tc_scholar"),
+        AIMessage(content="", tool_calls=[_task_call("tc_patent", "patent-researcher")]),
+        ToolMessage(content=_structured_result_content("patent-researcher"), tool_call_id="tc_patent"),
+        AIMessage(content="", tool_calls=[{
+            "id": "bh_scholar",
+            "name": "build_handoff",
+            "args": {"consumer": "rag-analyst", "producer": "scholar-researcher"},
+        }]),
+        ToolMessage(
+            content=(
+                '{"ok": true, "handoff": {"handoff_id": "h_scholar_rag", '
+                '"producer": "scholar-researcher", "consumer": "rag-analyst", '
+                '"contract": "literature_context.v1", "status": "ok", '
+                '"task_prompt": "Use the literature findings."}}'
+            ),
+            tool_call_id="bh_scholar",
+        ),
+    ]
+
+    assert _get_ready_downstream_handoff(messages, allowed_rules) is None
+
+    messages.extend([
+        AIMessage(content="", tool_calls=[{
+            "id": "bh_patent",
+            "name": "build_handoff",
+            "args": {"consumer": "rag-analyst", "producer": "patent-researcher"},
+        }]),
+        ToolMessage(
+            content=(
+                '{"ok": true, "handoff": {"handoff_id": "h_patent_rag", '
+                '"producer": "patent-researcher", "consumer": "rag-analyst", '
+                '"contract": "patent_context.v1", "status": "ok", '
+                '"task_prompt": "Use the patent findings."}}'
+            ),
+            tool_call_id="bh_patent",
+        ),
+    ])
+
+    ready = _get_ready_downstream_handoff(messages, allowed_rules)
+
+    assert ready is not None
+    assert ready["consumer"] == "rag-analyst"
+    assert set(ready["handoff_ids"]) == {"h_scholar_rag", "h_patent_rag"}
+    assert "scholar-researcher" in ready["task_prompt"]
+    assert "patent-researcher" in ready["task_prompt"]
+
+
+def test_ordered_plan_prefers_biosteam_closure_for_visualization_chain():
+    from strap.routing_message_state import _get_ordered_plan
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
+                "using selective dissolution at atmospheric pressure. Then run a techno-economic "
+                "analysis on the solvent recovery for the best option and create a chart of the TEA results."
+            )
+        )
+    ]
+    allowed_rules = [
+        {"subagent": "separation-engineer", "description": "process design"},
+        {"subagent": "biosteam-analyst", "description": "tea"},
+        {"subagent": "visualization-specialist", "description": "visualization"},
+    ]
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
+
+    assert [step["subagent"] for step in plan] == [
+        "separation-engineer",
+        "biosteam-analyst",
+        "visualization-specialist",
+    ]
+    assert plan[0]["depends_on"] == ()
+    assert plan[1]["depends_on"] == ("separation-engineer",)
+    assert plan[2]["depends_on"] == ("biosteam-analyst",)
+
+
+def test_ordered_plan_uses_generic_fallback_for_literature_then_visualization_query():
+    from strap.routing_message_state import _get_ordered_plan
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Do a literature search for multilayer polymer recycling methods, "
+                "then create a chart summarizing the papers."
+            )
+        )
+    ]
+    allowed_rules = [
+        {"subagent": "scholar-researcher", "description": "literature search"},
+        {"subagent": "visualization-specialist", "description": "visualization"},
+    ]
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
+
+    assert [step["subagent"] for step in plan] == [
+        "scholar-researcher",
+        "visualization-specialist",
+    ]
+    assert plan[0]["depends_on"] == ()
+    assert plan[1]["depends_on"] == ("scholar-researcher",)
+
+
+def test_initial_route_task_response_dispatches_first_specialist_for_three_step_workflow():
+    from strap.routing_guards import _build_initial_route_task_response
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
+                "using selective dissolution at atmospheric pressure. Propose up to 1 "
+                "additional wash step for phthalate removal. Then run a techno-economic "
+                "analysis on the solvent recovery for the best option."
+            )
+        )
+    ]
+    allowed_rules = [
+        {"subagent": "separation-engineer", "description": "process design"},
+        {"subagent": "contaminant-removal-analyst", "description": "contaminant screening"},
+        {"subagent": "biosteam-analyst", "description": "tea"},
+    ]
+
+    response = _build_initial_route_task_response(messages, allowed_rules)
+
+    assert response is not None
+    ai_msg = response.result[0]
+    assert ai_msg.tool_calls[0]["name"] == "task"
+    assert ai_msg.tool_calls[0]["args"]["subagent_type"] == "separation-engineer"
 
 
 def test_validate_task_tool_call_uses_active_ordered_plan_for_contaminant_sequence():
@@ -605,6 +1096,52 @@ class TestRoutingProgress:
         )
 
         assert handoff is None
+
+    def test_downstream_join_task_blocked_until_all_required_handoffs_exist(self):
+        from strap.routing_guards import _validate_task_tool_call
+
+        query = (
+            "Do a literature search and patent search for multilayer polymer recycling methods, "
+            "answer the question with RAG."
+        )
+        allowed_rules = [
+            {"subagent": "scholar-researcher", "description": "literature"},
+            {"subagent": "patent-researcher", "description": "patents"},
+            {"subagent": "rag-analyst", "description": "rag"},
+        ]
+        messages = [
+            HumanMessage(content=query),
+            AIMessage(content="", tool_calls=[_task_call("tc_scholar", "scholar-researcher")]),
+            ToolMessage(content=_structured_result_content("scholar-researcher"), tool_call_id="tc_scholar"),
+            AIMessage(content="", tool_calls=[_task_call("tc_patent", "patent-researcher")]),
+            ToolMessage(content=_structured_result_content("patent-researcher"), tool_call_id="tc_patent"),
+            AIMessage(content="", tool_calls=[{
+                "id": "bh_scholar",
+                "name": "build_handoff",
+                "args": {"consumer": "rag-analyst", "producer": "scholar-researcher"},
+            }]),
+            ToolMessage(
+                content=(
+                    '{"ok": true, "handoff": {"handoff_id": "h_scholar_rag", '
+                    '"producer": "scholar-researcher", "consumer": "rag-analyst", '
+                    '"contract": "literature_context.v1", "status": "ok"}}'
+                ),
+                tool_call_id="bh_scholar",
+            ),
+        ]
+
+        validation = _validate_task_tool_call(
+            {
+                "id": "tc_rag",
+                "name": "task",
+                "args": {"subagent_type": "rag-analyst", "description": "Use both upstream results."},
+            },
+            messages,
+            allowed_rules,
+        )
+
+        assert validation is not None
+        assert 'build_handoff(consumer="rag-analyst", producer="patent-researcher")' in validation
 
     def test_write_todos_blocked_once_progress_is_active(self):
         from strap.routing import RoutingMiddleware
@@ -1061,7 +1598,7 @@ class TestRoutingProgress:
         assert update["messages"][0].tool_call_id == "tc_viz_repeat"
         assert "already completed successfully" in update["messages"][0].content
 
-    def test_repeat_task_blocked_after_route_completion_even_when_description_differs(self):
+    def test_repeat_task_blocked_when_visualization_runs_before_required_stats_step(self):
         from strap.routing import RoutingMiddleware
 
         messages = [
@@ -1090,7 +1627,7 @@ class TestRoutingProgress:
 
         assert update is not None
         assert update["messages"][0].tool_call_id == "tc_viz_repeat"
-        assert "already returned for this single-specialist route" in update["messages"][0].content
+        assert "downstream of statistics-ml" in update["messages"][0].content
 
     def test_direct_domain_tool_blocked_when_multi_agent_route_is_active(self):
         from strap.routing import RoutingMiddleware

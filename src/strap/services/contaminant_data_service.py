@@ -242,6 +242,21 @@ def list_supported_contaminants(family: str | None = None) -> list[str]:
     return list(dataset["contaminants_by_family"].get(resolved_family, []))
 
 
+def get_contaminant_family(contaminant: str) -> str | None:
+    """Return the normalized family name for one supported contaminant or family alias."""
+    text = _clean_text(contaminant)
+    if not text:
+        return None
+    family_name = _FAMILY_ALIASES.get(_canonical_family_key(text))
+    if family_name:
+        return family_name
+
+    info = _load_dataset()["contaminants_lookup"].get(_canonical_contaminant_key(text))
+    if info is None:
+        return None
+    return str(info["family"])
+
+
 def expand_requested_contaminants(contaminants: list[str]) -> tuple[list[str], list[str], list[str]]:
     dataset = _load_dataset()
     supported: list[str] = []

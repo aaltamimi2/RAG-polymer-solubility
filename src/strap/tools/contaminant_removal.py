@@ -36,6 +36,24 @@ def _screening_markdown(title: str, result: dict[str, Any]) -> str:
     else:
         lines.append("- No passing solvents found under the current screening criteria.")
 
+    recommended_plan = result.get("recommended_wash_plan")
+    if isinstance(recommended_plan, dict):
+        lines.append("")
+        lines.append("## Recommended wash plan")
+        lines.append(
+            f"**Steps:** {recommended_plan.get('n_steps')} | "
+            f"**Coverage:** {recommended_plan.get('coverage_fraction', 0.0):.0%} | "
+            f"**Tradeoff score:** {recommended_plan.get('tradeoff_score')}"
+        )
+        for step in recommended_plan.get("steps", []):
+            families = ", ".join(step.get("covered_families", [])) or "Unspecified"
+            contaminants = ", ".join(step.get("covered_contaminants", [])[:6]) or "None"
+            lines.append(
+                f"- Step {step.get('step')}: `{step.get('solvent')}` at "
+                f"{step.get('operating_temperature_c')} C covering {families} "
+                f"({contaminants})"
+            )
+
     lines.append("")
     lines.append("## Top candidates")
     lines.append("| Solvent | Pass | Temp (C) | logD min | Target status |")
@@ -185,6 +203,17 @@ def compare_contaminant_removal_modes(
         f"**Leaching recommendations:** {', '.join(result['recommended_solvents']['leaching']) or 'None'}",
         f"**STRAP contaminant-removal recommendations:** {', '.join(result['recommended_solvents']['strap_contaminant_removal']) or 'None'}",
     ]
+    recommended_plan = result.get("recommended_wash_plan")
+    if isinstance(recommended_plan, dict):
+        lines.extend(
+            [
+                "",
+                "## Recommended wash plan",
+                f"**Steps:** {recommended_plan.get('n_steps')}",
+                f"**Coverage:** {recommended_plan.get('coverage_fraction', 0.0):.0%}",
+                f"**Tradeoff score:** {recommended_plan.get('tradeoff_score')}",
+            ]
+        )
     if result.get("caveats"):
         lines.extend(["", "## Caveats", *[f"- {item}" for item in result["caveats"]]])
     return json_tool_success(

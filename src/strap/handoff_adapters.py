@@ -349,6 +349,56 @@ def _adapt_contaminant_to_separation(
     return ("contaminant_guided_separation.v1", handoff_payload, " ".join(lines))
 
 
+def _adapt_contaminant_to_biosteam(
+    source: HandoffRecord,
+    *,
+    scope_user_query: str | None = None,
+) -> tuple[str, dict[str, Any], str]:
+    payload = source.payload
+    target_polymer = payload.get("target_polymer")
+    if not isinstance(target_polymer, str) or not target_polymer.strip():
+        raise ValueError("source handoff is missing target_polymer")
+
+    recommended_solvents = [
+        str(item).strip()
+        for item in (payload.get("recommended_solvents") or [])
+        if str(item).strip()
+    ]
+    candidate_solvents = [
+        str(item.get("solvent", "")).strip()
+        for item in (payload.get("candidate_solvents") or [])
+        if isinstance(item, dict) and str(item.get("solvent", "")).strip()
+    ]
+    solvents = list(dict.fromkeys(recommended_solvents + candidate_solvents))
+    if not solvents:
+        raise ValueError("source handoff has no usable solvent candidates")
+
+    handoff_payload = {
+        "source_handoff_id": source.handoff_id,
+        "mode": payload.get("mode"),
+        "target_plastic": target_polymer,
+        "other_polymers": payload.get("other_polymers", []),
+        "contaminants": payload.get("contaminants", []),
+        "supported_contaminants": payload.get("supported_contaminants", []),
+        "unsupported_contaminants": payload.get("unsupported_contaminants", []),
+        "recommended_solvents": recommended_solvents,
+        "candidate_solvents": solvents,
+        "best_solvent": solvents[0],
+        "source_user_query": scope_user_query,
+        "source_task_prompt": source.task_prompt,
+    }
+    lines = [
+        f"Run TEA/LCA for the contaminant-screened recovery option for {target_polymer}.",
+        f"Recommended solvents from contaminant screening: {', '.join(recommended_solvents) if recommended_solvents else 'none explicitly recommended'}.",
+        f"Candidate solvents to assess: {', '.join(solvents)}.",
+        "Use the best screened solvent first. If multiple recommended solvents are available, compare them in one batch before selecting the best option.",
+        "Use the contaminant-screening result as the solvent shortlist; do not repeat contaminant screening.",
+    ]
+    if scope_user_query:
+        lines.append(f"Original user request: {scope_user_query}")
+    return ("contaminant_biosteam.v1", handoff_payload, " ".join(lines))
+
+
 def _adapt_scholar_to_rag(
     source: HandoffRecord,
 ) -> tuple[str, dict[str, Any], str]:
@@ -387,6 +437,7 @@ def _adapt_patent_to_rag(
 
 _ADAPTERS: dict[tuple[str, str], Any] = {
     ("biosteam-analyst", "visualization-specialist"): _adapt_biosteam_to_visualization,
+    ("contaminant-removal-analyst", "biosteam-analyst"): _adapt_contaminant_to_biosteam,
     ("contaminant-removal-analyst", "separation-engineer"): _adapt_contaminant_to_separation,
     ("patent-researcher", "rag-analyst"): _adapt_patent_to_rag,
     ("scholar-researcher", "rag-analyst"): _adapt_scholar_to_rag,
@@ -411,5 +462,7 @@ def build_typed_handoff(
     if adapter is _adapt_separation_to_contaminant:
         return adapter(source, scope_user_query=scope_user_query)
     if adapter is _adapt_contaminant_to_separation:
+        return adapter(source, scope_user_query=scope_user_query)
+    if adapter is _adapt_contaminant_to_biosteam:
         return adapter(source, scope_user_query=scope_user_query)
     return adapter(source)

@@ -190,14 +190,26 @@ def test_rank_solvents_by_property_invalid_property_returns_standard_error():
 
 
 def test_lookup_solvent_price_returns_standard_envelope():
-    from strap.tools.solvent_lookup import lookup_solvent_price
+    from strap.tools.solvent_lookup import lookup_local_solvent_market_data, lookup_solvent_price
+
+    local = lookup_local_solvent_market_data("Toluene")
+    assert local is not None
+    assert local["price_usd_kg"] == pytest.approx(1.312)
+    assert local["price_source"] == "60_common_solvents-TEA-LCA.csv price column"
 
     parsed = json.loads(lookup_solvent_price("Toluene"))
 
     assert parsed["data"]["tool_name"] == "lookup_solvent_price"
     assert parsed["data"]["success"] is True
     assert parsed["data"]["solvent"] == "Toluene"
-    assert parsed["data"]["price_usd_kg"] == pytest.approx(0.82)
+    assert parsed["data"]["price_usd_kg"] == pytest.approx(1.312)
+
+    benzene = lookup_local_solvent_market_data("benzene")
+    assert benzene is not None
+    assert benzene["solvent"] == "Benzene"
+    assert benzene["price_usd_kg"] == pytest.approx(1.42)
+    assert benzene["cas"] == "71-43-2"
+    assert benzene["gwp_kg_co2e"] is None
 
 
 def test_search_google_scholar_empty_query_returns_standard_error():

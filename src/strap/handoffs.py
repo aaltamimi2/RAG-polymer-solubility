@@ -39,6 +39,22 @@ from .handoff_store import (
 logger = logging.getLogger(__name__)
 
 
+def _consumer_guidance(consumer: str) -> str:
+    return {
+        "biosteam-analyst": "Translate the upstream context into simulation-ready scenarios and compare TEA/LCA implications.",
+        "patent-researcher": "Use the upstream context to narrow patent search terms or extract the exact patent angles to investigate.",
+        "rag-analyst": "Use the upstream context before any new retrieval and only search further if the payload is insufficient.",
+        "safety-analyst": "Focus on the solvent/material safety implications contained in the upstream result.",
+        "scholar-researcher": "Use the upstream context to narrow literature search terms or extract the exact questions to investigate.",
+        "separation-engineer": "Use the upstream context to refine or extend the separation plan without re-running the upstream task unless necessary.",
+        "statistics-ml": "Use the upstream context to perform the requested calculations or screening without repeating the upstream analysis.",
+        "visualization-specialist": "Prefer plotting the provided numeric results or reusing upstream artifacts; do not re-run the upstream analysis.",
+    }.get(
+        consumer,
+        "Use your domain tools only as needed; do not repeat the upstream task unless the payload is insufficient.",
+    )
+
+
 def _build_generic_summary(payload: dict[str, Any]) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "available_keys": sorted(payload.keys()),
@@ -108,22 +124,7 @@ def _build_generic_prompt(
         for artifact in artifacts[:5]:
             lines.append(f"- {artifact}")
 
-    consumer_guidance = {
-        "biosteam-analyst": "Translate the upstream context into simulation-ready scenarios and compare TEA/LCA implications.",
-        "patent-researcher": "Use the upstream context to narrow patent search terms or extract the exact patent angles to investigate.",
-        "rag-analyst": "Use the upstream context before any new retrieval and only search further if the payload is insufficient.",
-        "safety-analyst": "Focus on the solvent/material safety implications contained in the upstream result.",
-        "scholar-researcher": "Use the upstream context to narrow literature search terms or extract the exact questions to investigate.",
-        "separation-engineer": "Use the upstream context to refine or extend the separation plan without re-running the upstream task unless necessary.",
-        "statistics-ml": "Use the upstream context to perform the requested calculations or screening without repeating the upstream analysis.",
-        "visualization-specialist": "Prefer plotting the provided numeric results or reusing upstream artifacts; do not re-run the upstream analysis.",
-    }
-    lines.append(
-        consumer_guidance.get(
-            consumer,
-            "Use your domain tools only as needed; do not repeat the upstream task unless the payload is insufficient.",
-        )
-    )
+    lines.append(_consumer_guidance(consumer))
     return "\n".join(lines)
 
 
@@ -150,6 +151,135 @@ def _adapt_generic_to_consumer(
         artifacts=artifacts,
     )
     return (contract, payload, task_prompt)
+
+
+def _build_multi_source_prompt(
+    *,
+    consumer: str,
+    source_payloads: list[dict[str, Any]],
+    artifacts: list[str],
+) -> str:
+    lines = [
+        f"Continue the task as {consumer} using the validated multi-source upstream handoff.",
+        "Treat `payload.source_handoffs` as authoritative upstream context.",
+        "Required upstream sources:",
+    ]
+    for source_payload in source_payloads:
+        lines.append(
+            f"- {source_payload['producer']} | handoff_id={source_payload['handoff_id']} | contract={source_payload['contract']}"
+        )
+        summary = source_payload.get("summary") or {}
+        if summary:
+            lines.append(
+                f"  Summary: {json.dumps(summary, ensure_ascii=False)}"
+            )
+        source_prompt = str(source_payload.get("task_prompt") or "").strip()
+        if source_prompt:
+            lines.append(f"  Guidance: {source_prompt}")
+
+    if artifacts:
+        lines.append("Available artifacts:")
+        for artifact in artifacts[:8]:
+            lines.append(f"- {artifact}")
+
+    lines.append(_consumer_guidance(consumer))
+    return "\n".join(lines)
+
+
+def build_multi_source_handoff_for_consumer(
+    *,
+    consumer: str,
+    source_handoff_ids: list[str],
+    task_prompt: str | None = None,
+) -> HandoffRecord:
+    """Create or reuse a merged multi-source context handoff for one consumer."""
+    unique_source_ids: list[str] = []
+    for handoff_id in source_handoff_ids:
+        if not isinstance(handoff_id, str) or not handoff_id.strip():
+            continue
+        normalized = handoff_id.strip()
+        if normalized not in unique_source_ids:
+            unique_source_ids.append(normalized)
+    if len(unique_source_ids) < 2:
+        raise ValueError("build_multi_source_handoff_for_consumer requires at least 2 source_handoff_ids")
+
+    unordered_sources: list[HandoffRecord] = []
+    for handoff_id in unique_source_ids:
+        source = get_handoff(handoff_id)
+        if source is None:
+            raise ValueError(f"source handoff '{handoff_id}' not found")
+        if source.status != "ok":
+            raise ValueError(f"source handoff {handoff_id} is {source.status} and cannot be merged")
+        unordered_sources.append(source)
+
+    sources = sorted(
+        unordered_sources,
+        key=lambda source: (
+            source.producer,
+            source.contract,
+            source.handoff_id,
+        ),
+    )
+    canonical_source_ids = [source.handoff_id for source in sources]
+
+    contract = f"multi-source.to.{_slugify(consumer, 'consumer')}.context.v1"
+    existing_records = list_handoff_records(
+        producer="multi-source",
+        consumer=consumer,
+        contract=contract,
+        status="ok",
+    )
+    for record in reversed(existing_records):
+        if record.parent_handoff_ids == canonical_source_ids:
+            return record
+        payload_ids = record.payload.get("source_handoff_ids")
+        if isinstance(payload_ids, list) and payload_ids == canonical_source_ids:
+            return record
+
+    all_artifacts: list[str] = []
+    seen_artifacts: set[str] = set()
+    source_payloads: list[dict[str, Any]] = []
+    for source in sources:
+        source_artifacts = source.artifacts or extract_artifacts_from_payload(source.payload)
+        for artifact in source_artifacts:
+            if artifact not in seen_artifacts:
+                seen_artifacts.add(artifact)
+                all_artifacts.append(artifact)
+        source_payloads.append(
+            {
+                "handoff_id": source.handoff_id,
+                "producer": source.producer,
+                "consumer": source.consumer,
+                "contract": source.contract,
+                "payload": source.payload,
+                "summary": _build_generic_summary(source.payload),
+                "artifacts": source_artifacts,
+                "task_prompt": source.task_prompt,
+            }
+        )
+
+    payload = {
+        "source_handoff_ids": canonical_source_ids,
+        "source_handoffs": source_payloads,
+        "producers": [source.producer for source in sources],
+        "contracts": [source.contract for source in sources],
+        "artifacts": all_artifacts,
+    }
+    merged_task_prompt = task_prompt or _build_multi_source_prompt(
+        consumer=consumer,
+        source_payloads=source_payloads,
+        artifacts=all_artifacts,
+    )
+    return store_derived_handoff(
+        producer="multi-source",
+        consumer=consumer,
+        contract=contract,
+        payload=payload,
+        parent_handoff_id=canonical_source_ids[0],
+        parent_handoff_ids=canonical_source_ids,
+        task_prompt=merged_task_prompt,
+        artifacts=all_artifacts,
+    )
 
 
 def build_handoff_for_consumer(

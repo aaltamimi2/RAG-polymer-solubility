@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import combinations
 from typing import Any
 
 from strap.database import get_connection
@@ -10,6 +11,7 @@ from strap.engines.precipitation import PrecipitationAnalyzer
 from strap.services.contaminant_data_service import (
     choose_miscibility_regime,
     expand_requested_contaminants,
+    get_contaminant_family,
     get_logd_entry,
     get_miscibility_entry,
     normalize_screening_solvent_name,
@@ -23,6 +25,9 @@ from strap.solubility import (
     resolve_polymer,
 )
 from strap.solvent_registry import resolve_to_interp_key
+from strap.tools._helpers import get_cross_database_properties
+from strap.tools.safety_gsk import lookup_local_gscore_data
+from strap.tools.solvent_lookup import lookup_local_solvent_market_data
 
 _SWELLING_PROXY_MIN_WT_PCT = 1.0
 _SWELLING_PROXY_MAX_WT_PCT = 10.0
@@ -31,6 +36,17 @@ _MAX_NON_TARGET_DISSOLUTION_WT_PCT = 1.0
 _PRECIPITATION_THRESHOLD_WT_PCT = 1.0
 _ATM_BP_MARGIN_C = 1.0
 _MAX_SCREEN_TEMP_C = 160.0
+_MAX_WASH_STEPS = 3
+_MISSING_PRICE_USD_KG = 1.50
+_MISSING_G_SCORE = 5.0
+_MISSING_MARGIN_C = 10.0
+_WASH_PLAN_WEIGHTS = {
+    "coverage": 100.0,
+    "step_penalty": 12.0,
+    "safety": 18.0,
+    "cost": 10.0,
+    "margin": 6.0,
+}
 
 
 @dataclass
@@ -137,6 +153,410 @@ def _candidate_sort_key(candidate: dict[str, Any]) -> tuple:
     )
 
 
+@dataclass(frozen=True)
+class _WashCandidateOption:
+    solvent: str
+    mode: str
+    covered_contaminants: tuple[str, ...]
+    covered_families: tuple[str, ...]
+    operating_temperature_c: float | None
+    boiling_point_c: float | None
+    bp_margin_c: float | None
+    price_usd_kg: float | None
+    g_score: float | None
+    gsk_class: str | None
+    g_score_source: str | None
+    g_score_uncertainty: float | None
+    candidate_row: dict[str, Any]
+
+
+def _as_float_or_none(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _row_has_polymer_window(row: dict[str, Any]) -> bool:
+    mode = str(row.get("mode") or "").strip()
+    target_status = str(row.get("target_polymer_status") or "").strip()
+    if mode == "leaching":
+        if target_status in {"", "dissolving", "unsupported_pair", "unsupported_polymer"}:
+            return False
+    elif mode == "strap_contaminant_removal":
+        if target_status != "dissolving_then_precipitating":
+            return False
+    elif target_status in {"unsupported_pair", "unsupported_polymer", "no_feasible_dissolution_precipitation_window"}:
+        return False
+
+    for other in (row.get("other_polymer_status") or {}).values():
+        status = str((other or {}).get("status") or "").strip()
+        if status in {"dissolving", "unsupported_pair", "unsupported_polymer"}:
+            return False
+    return True
+
+
+def _covered_contaminants_for_row(row: dict[str, Any]) -> tuple[str, ...]:
+    if not _row_has_polymer_window(row):
+        return ()
+
+    dissolution_rows = {
+        str(item.get("contaminant")): item
+        for item in (row.get("contaminants") or [])
+        if isinstance(item, dict) and str(item.get("contaminant") or "").strip()
+    }
+    precipitation_rows = {
+        str(item.get("contaminant")): item
+        for item in (row.get("precipitation_regime_contaminants") or [])
+        if isinstance(item, dict) and str(item.get("contaminant") or "").strip()
+    }
+
+    covered: list[str] = []
+    mode = str(row.get("mode") or "").strip()
+    for contaminant, item in dissolution_rows.items():
+        if item.get("miscible") is not True:
+            continue
+        logd_value = _as_float_or_none(item.get("logd"))
+        if logd_value is None or logd_value <= 0:
+            continue
+        if mode == "strap_contaminant_removal":
+            precip_item = precipitation_rows.get(contaminant)
+            if precip_item is None or precip_item.get("miscible") is not True:
+                continue
+        covered.append(contaminant)
+    return tuple(sorted(dict.fromkeys(covered)))
+
+
+def _lookup_solvent_tradeoff_profile(
+    solvent: str,
+    *,
+    conn: Any,
+) -> dict[str, Any]:
+    market = lookup_local_solvent_market_data(solvent) or {}
+    cross_db = get_cross_database_properties(solvent, conn)
+    gscore = lookup_local_gscore_data(solvent)
+    g_score = _as_float_or_none(cross_db.get("g_score"))
+    gsk_class = str(cross_db.get("gsk_class")).strip() if cross_db.get("gsk_class") else None
+    g_score_source: str | None = "gsk_dataset" if g_score is not None else None
+    g_score_uncertainty: float | None = None
+
+    if gscore is not None:
+        g_score = _as_float_or_none(gscore.get("g_score"))
+        if gscore.get("classification"):
+            gsk_class = str(gscore.get("classification")).strip()
+        g_score_source = str(gscore.get("source") or g_score_source or "").strip() or None
+        g_score_uncertainty = _as_float_or_none(gscore.get("g_score_uncertainty"))
+
+    return {
+        "price_usd_kg": _as_float_or_none(market.get("price_usd_kg")),
+        "price_source": market.get("price_source"),
+        "g_score": g_score,
+        "gsk_class": gsk_class,
+        "g_score_source": g_score_source,
+        "g_score_uncertainty": g_score_uncertainty,
+    }
+
+
+def _build_wash_candidate_options(
+    *,
+    mode_result: dict[str, Any],
+) -> tuple[list[_WashCandidateOption], dict[str, str | None]]:
+    conn = get_connection()
+    profile_cache: dict[str, dict[str, Any]] = {}
+    family_map = {
+        contaminant: get_contaminant_family(contaminant)
+        for contaminant in mode_result.get("supported_contaminants", [])
+    }
+    options: list[_WashCandidateOption] = []
+
+    for row in mode_result.get("candidate_solvents", []):
+        if not isinstance(row, dict):
+            continue
+        solvent = str(row.get("solvent") or "").strip()
+        if not solvent:
+            continue
+        covered_contaminants = _covered_contaminants_for_row(row)
+        if not covered_contaminants:
+            continue
+        if solvent not in profile_cache:
+            profile_cache[solvent] = _lookup_solvent_tradeoff_profile(solvent, conn=conn)
+        profile = profile_cache[solvent]
+        operating_temperature_c = _as_float_or_none(row.get("operating_temperature_c"))
+        boiling_point_c = _as_float_or_none(row.get("boiling_point_c"))
+        bp_margin_c = (
+            boiling_point_c - operating_temperature_c
+            if boiling_point_c is not None and operating_temperature_c is not None
+            else None
+        )
+        covered_families = tuple(
+            sorted(
+                {
+                    family_map.get(contaminant)
+                    for contaminant in covered_contaminants
+                    if family_map.get(contaminant)
+                }
+            )
+        )
+        options.append(
+            _WashCandidateOption(
+                solvent=solvent,
+                mode=str(row.get("mode") or mode_result.get("mode") or "").strip(),
+                covered_contaminants=covered_contaminants,
+                covered_families=covered_families,
+                operating_temperature_c=operating_temperature_c,
+                boiling_point_c=boiling_point_c,
+                bp_margin_c=bp_margin_c,
+                price_usd_kg=profile["price_usd_kg"],
+                g_score=profile["g_score"],
+                gsk_class=profile["gsk_class"],
+                g_score_source=profile.get("g_score_source"),
+                g_score_uncertainty=profile.get("g_score_uncertainty"),
+                candidate_row=row,
+            )
+        )
+
+    options.sort(
+        key=lambda option: (
+            len(option.covered_contaminants),
+            option.g_score if option.g_score is not None else _MISSING_G_SCORE,
+            -(option.price_usd_kg if option.price_usd_kg is not None else _MISSING_PRICE_USD_KG),
+        ),
+        reverse=True,
+    )
+    return options, family_map
+
+
+def _price_score(total_price_usd_kg: float | None) -> float:
+    if total_price_usd_kg is None:
+        return 0.5
+    capped = min(max(total_price_usd_kg, 0.0), 5.0)
+    return max(0.0, 1.0 - (capped / 5.0))
+
+
+def _safety_score(min_g_score: float | None) -> float:
+    if min_g_score is None:
+        return 0.5
+    return min(max(min_g_score / 10.0, 0.0), 1.0)
+
+
+def _margin_score(min_bp_margin_c: float | None) -> float:
+    if min_bp_margin_c is None:
+        return 0.5
+    return min(max(min_bp_margin_c, 0.0), 20.0) / 20.0
+
+
+def _plan_rank(plan: dict[str, Any]) -> tuple[float, float, float, float, float]:
+    total_price = _as_float_or_none(plan.get("estimated_total_solvent_price_usd_kg"))
+    min_g_score = _as_float_or_none(plan.get("min_g_score"))
+    return (
+        float(plan.get("coverage_fraction") or 0.0),
+        float(plan.get("tradeoff_score") or 0.0),
+        -float(plan.get("n_steps") or 0),
+        -(total_price if total_price is not None else _MISSING_PRICE_USD_KG),
+        min_g_score if min_g_score is not None else _MISSING_G_SCORE,
+    )
+
+
+def _annotate_wash_plan_labels(plans: list[dict[str, Any]]) -> None:
+    if not plans:
+        return
+    full_coverage = [plan for plan in plans if plan.get("full_coverage")]
+    ranked_pool = full_coverage or plans
+    labels_by_id: dict[str, set[str]] = {
+        str(plan["plan_id"]): set()
+        for plan in plans
+    }
+
+    best_overall = max(ranked_pool, key=_plan_rank)
+    labels_by_id[best_overall["plan_id"]].add("best_overall")
+
+    single_step = [plan for plan in ranked_pool if int(plan.get("n_steps") or 0) == 1]
+    if single_step:
+        labels_by_id[max(single_step, key=_plan_rank)["plan_id"]].add("best_single_step")
+
+    multi_step = [plan for plan in ranked_pool if int(plan.get("n_steps") or 0) > 1]
+    if multi_step:
+        labels_by_id[max(multi_step, key=_plan_rank)["plan_id"]].add("best_multi_step")
+
+    if full_coverage:
+        cheapest = min(
+            full_coverage,
+            key=lambda plan: (
+                _as_float_or_none(plan.get("estimated_total_solvent_price_usd_kg"))
+                if _as_float_or_none(plan.get("estimated_total_solvent_price_usd_kg")) is not None
+                else _MISSING_PRICE_USD_KG * int(plan.get("n_steps") or 1),
+                int(plan.get("n_steps") or 0),
+                -(_as_float_or_none(plan.get("min_g_score")) or _MISSING_G_SCORE),
+            ),
+        )
+        safest = max(
+            full_coverage,
+            key=lambda plan: (
+                _as_float_or_none(plan.get("min_g_score")) or _MISSING_G_SCORE,
+                -int(plan.get("n_steps") or 0),
+                -(
+                    _as_float_or_none(plan.get("estimated_total_solvent_price_usd_kg"))
+                    if _as_float_or_none(plan.get("estimated_total_solvent_price_usd_kg")) is not None
+                    else _MISSING_PRICE_USD_KG
+                ),
+            ),
+        )
+        labels_by_id[cheapest["plan_id"]].add("cheapest_full_coverage")
+        labels_by_id[safest["plan_id"]].add("safest_full_coverage")
+
+    for plan in plans:
+        plan["selection_labels"] = sorted(labels_by_id[str(plan["plan_id"])])
+
+
+def plan_contaminant_wash_steps(
+    *,
+    mode_result: dict[str, Any],
+    max_steps: int = _MAX_WASH_STEPS,
+) -> dict[str, Any]:
+    """Plan single- or multi-step contaminant washes from partial solvent coverage."""
+    supported_contaminants = list(dict.fromkeys(mode_result.get("supported_contaminants", []) or []))
+    if not supported_contaminants:
+        return {
+            "recommended_wash_plan": None,
+            "wash_step_plans": [],
+            "wash_step_objective": {
+                "max_steps_considered": max_steps,
+                **_WASH_PLAN_WEIGHTS,
+            },
+        }
+
+    options, family_map = _build_wash_candidate_options(mode_result=mode_result)
+    if not options:
+        return {
+            "recommended_wash_plan": None,
+            "wash_step_plans": [],
+            "wash_step_objective": {
+                "max_steps_considered": max_steps,
+                **_WASH_PLAN_WEIGHTS,
+            },
+        }
+
+    all_plans: list[dict[str, Any]] = []
+    universe = set(supported_contaminants)
+    max_considered_steps = max(1, min(max_steps, len(options)))
+    for n_steps in range(1, max_considered_steps + 1):
+        for combo_index, combo in enumerate(combinations(options, n_steps), start=1):
+            covered = sorted(
+                {
+                    contaminant
+                    for option in combo
+                    for contaminant in option.covered_contaminants
+                }
+            )
+            covered_set = set(covered)
+            uncovered = sorted(universe - covered_set)
+            total_price = sum(
+                option.price_usd_kg if option.price_usd_kg is not None else _MISSING_PRICE_USD_KG
+                for option in combo
+            )
+            min_g_score = min(
+                option.g_score if option.g_score is not None else _MISSING_G_SCORE
+                for option in combo
+            )
+            min_margin_c = min(
+                option.bp_margin_c if option.bp_margin_c is not None else _MISSING_MARGIN_C
+                for option in combo
+            )
+            coverage_fraction = len(covered_set) / len(universe) if universe else 0.0
+            tradeoff_score = (
+                _WASH_PLAN_WEIGHTS["coverage"] * coverage_fraction
+                - _WASH_PLAN_WEIGHTS["step_penalty"] * (n_steps - 1)
+                + _WASH_PLAN_WEIGHTS["safety"] * _safety_score(min_g_score)
+                + _WASH_PLAN_WEIGHTS["cost"] * _price_score(total_price)
+                + _WASH_PLAN_WEIGHTS["margin"] * _margin_score(min_margin_c)
+            )
+            step_payloads = []
+            for step_number, option in enumerate(combo, start=1):
+                step_payloads.append(
+                    {
+                        "step": step_number,
+                        "solvent": option.solvent,
+                        "mode": option.mode,
+                        "operating_temperature_c": option.operating_temperature_c,
+                        "boiling_point_c": option.boiling_point_c,
+                        "bp_margin_c": option.bp_margin_c,
+                        "covered_contaminants": list(option.covered_contaminants),
+                        "covered_families": list(option.covered_families),
+                        "price_usd_kg": option.price_usd_kg,
+                        "g_score": option.g_score,
+                        "gsk_class": option.gsk_class,
+                        "g_score_source": option.g_score_source or "imputed",
+                        "g_score_uncertainty": option.g_score_uncertainty,
+                        "target_polymer_status": option.candidate_row.get("target_polymer_status"),
+                    }
+                )
+            all_plans.append(
+                {
+                    "plan_id": f"{mode_result.get('mode', 'wash')}-plan-{n_steps}-{combo_index}",
+                    "mode": mode_result.get("mode"),
+                    "n_steps": n_steps,
+                    "steps": step_payloads,
+                    "covered_contaminants": covered,
+                    "covered_families": sorted(
+                        {
+                            family_map.get(contaminant)
+                            for contaminant in covered
+                            if family_map.get(contaminant)
+                        }
+                    ),
+                    "uncovered_contaminants": uncovered,
+                    "uncovered_families": sorted(
+                        {
+                            family_map.get(contaminant)
+                            for contaminant in uncovered
+                            if family_map.get(contaminant)
+                        }
+                    ),
+                    "coverage_fraction": round(coverage_fraction, 6),
+                    "full_coverage": not uncovered,
+                    "estimated_total_solvent_price_usd_kg": round(total_price, 4),
+                    "min_g_score": round(min_g_score, 3),
+                    "min_bp_margin_c": round(min_margin_c, 3),
+                    "tradeoff_score": round(tradeoff_score, 4),
+                }
+            )
+
+    all_plans.sort(key=_plan_rank, reverse=True)
+    _annotate_wash_plan_labels(all_plans)
+    selected_ids: set[str] = set()
+    selected_plans: list[dict[str, Any]] = []
+    for plan in all_plans:
+        if plan["selection_labels"] and plan["plan_id"] not in selected_ids:
+            selected_ids.add(plan["plan_id"])
+            selected_plans.append(plan)
+    for plan in all_plans:
+        if len(selected_plans) >= 6:
+            break
+        if plan["plan_id"] in selected_ids:
+            continue
+        selected_ids.add(plan["plan_id"])
+        selected_plans.append(plan)
+
+    recommended = selected_plans[0] if selected_plans else None
+    return {
+        "recommended_wash_plan": recommended,
+        "wash_step_plans": selected_plans,
+        "wash_step_objective": {
+            "max_steps_considered": max_considered_steps,
+            **_WASH_PLAN_WEIGHTS,
+            "notes": [
+                "coverage is prioritized first; full-contaminant coverage dominates partial coverage",
+                "additional wash steps incur a fixed penalty unless they materially improve safety or cost",
+                "total solvent price assumes comparable solvent intensity per wash step",
+                "missing solvent price or G-score data are imputed to neutral defaults",
+                "safety uses curated GSK scores first, then GreenSolventDB ML predictions, then imputation",
+            ],
+        },
+    }
+
+
 def screen_leaching_candidates(
     *,
     target_polymer: str,
@@ -230,7 +650,7 @@ def screen_leaching_candidates(
             "non-target polymer exclusion could not be verified for unsupported polymers: " + ", ".join(missing_other_polymers)
         )
     result_caveats.append("leaching-mode swelling is proxy-inferred in v1 and requires experimental validation")
-    return {
+    result = {
         "mode": "leaching",
         "target_polymer": resolved_target,
         "other_polymers": resolved_others,
@@ -247,6 +667,8 @@ def screen_leaching_candidates(
         ],
         "caveats": result_caveats,
     }
+    result.update(plan_contaminant_wash_steps(mode_result=result))
+    return result
 
 
 def _find_strap_candidate_temperature(target_polymer: str, solvent: str, other_polymers: list[str], max_temperature_c: float | None) -> dict[str, Any] | None:
@@ -415,7 +837,7 @@ def screen_strap_contaminant_removal_candidates(
             "non-target polymer exclusion could not be verified for unsupported polymers: " + ", ".join(missing_other_polymers)
         )
     result_caveats.append("temperature-swing contaminant removal is screened using a 1 wt% polymer precipitation threshold")
-    return {
+    result = {
         "mode": "strap_contaminant_removal",
         "target_polymer": resolved_target,
         "other_polymers": resolved_others,
@@ -433,6 +855,8 @@ def screen_strap_contaminant_removal_candidates(
         ],
         "caveats": result_caveats,
     }
+    result.update(plan_contaminant_wash_steps(mode_result=result))
+    return result
 
 
 def compare_contaminant_removal_modes(
@@ -459,25 +883,52 @@ def compare_contaminant_removal_modes(
     )
     leaching_count = len(leaching["recommended_solvents"])
     strap_count = len(strap_mode["recommended_solvents"])
-    if strap_count > leaching_count:
+    leaching_plan = leaching.get("recommended_wash_plan")
+    strap_plan = strap_mode.get("recommended_wash_plan")
+    if isinstance(leaching_plan, dict) and isinstance(strap_plan, dict):
+        leaching_key = _plan_rank(leaching_plan)
+        strap_key = _plan_rank(strap_plan)
+        if strap_key > leaching_key:
+            recommended_mode = "strap_contaminant_removal"
+        elif leaching_key > strap_key:
+            recommended_mode = "leaching"
+        else:
+            recommended_mode = "tie"
+    elif strap_count > leaching_count:
         recommended_mode = "strap_contaminant_removal"
     elif leaching_count > strap_count:
         recommended_mode = "leaching"
     else:
         recommended_mode = "tie"
-    return {
+    result = {
         "mode": "comparison",
         "target_polymer": leaching["target_polymer"],
         "other_polymers": leaching["other_polymers"],
         "contaminants": leaching["contaminants"],
         "supported_contaminants": leaching["supported_contaminants"],
         "unsupported_contaminants": leaching["unsupported_contaminants"],
+        "contaminant_families": leaching.get("contaminant_families") or strap_mode.get("contaminant_families"),
         "leaching": leaching,
         "strap_contaminant_removal": strap_mode,
         "recommended_mode": recommended_mode,
         "recommended_solvents": {
             "leaching": leaching["recommended_solvents"],
             "strap_contaminant_removal": strap_mode["recommended_solvents"],
+        },
+        "recommended_wash_plan": (
+            strap_plan
+            if recommended_mode == "strap_contaminant_removal"
+            else leaching_plan
+            if recommended_mode == "leaching"
+            else None
+        ),
+        "recommended_wash_plan_by_mode": {
+            "leaching": leaching_plan,
+            "strap_contaminant_removal": strap_plan,
+        },
+        "wash_step_plans": {
+            "leaching": leaching.get("wash_step_plans", []),
+            "strap_contaminant_removal": strap_mode.get("wash_step_plans", []),
         },
         "decision_basis": [
             "compare the number and quality of passing solvents in each mode",
@@ -486,3 +937,4 @@ def compare_contaminant_removal_modes(
         ],
         "caveats": list(dict.fromkeys(leaching["caveats"] + strap_mode["caveats"])),
     }
+    return result

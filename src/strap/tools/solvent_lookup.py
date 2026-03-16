@@ -5,12 +5,16 @@ Two retrieval strategies:
   (ecoinvent/GaBi values are mostly paywalled)
 """
 from __future__ import annotations
+import csv
 import json
 import logging
 import os
 import re
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
+from strap.solvent_registry import resolve_to_biosteam
 from strap.tools._helpers import safe_tool_wrapper
 logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
@@ -308,6 +312,7 @@ _GWP_CLASS_AVERAGES: dict[str, tuple[float, float]] = {
     "alcohol": (1.5, 3.5),
     "terpene": (0.5, 2.0),
 }
+_TEA_LCA_SOLVENT_CSV = Path(__file__).resolve().parents[3] / "data" / "60_common_solvents-TEA-LCA.csv"
 # ---------------------------------------------------------------------------
 # Name resolution
 # ---------------------------------------------------------------------------
@@ -341,6 +346,147 @@ def _resolve_name(query: str) -> str | None:
         candidates.sort(key=lambda x: x[1])
         return candidates[0][0]
     return None
+
+
+def _resolve_exact_name(query: str) -> str | None:
+    q = query.strip().lower()
+    if not q:
+        return None
+    if q in _CANONICAL_LOWER:
+        return _CANONICAL_LOWER[q]
+    if q in _ALIAS_INDEX:
+        return _ALIAS_INDEX[q]
+    return None
+
+
+def _float_or_none(raw: Any) -> float | None:
+    try:
+        return float(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+@lru_cache(maxsize=1)
+def _load_local_price_catalog() -> dict[str, dict[str, Any]]:
+    """Load TEA/LCA solvent prices from CSV and normalize them to USD/kg."""
+    if not _TEA_LCA_SOLVENT_CSV.exists():
+        return {}
+
+    loaded: dict[str, dict[str, Any]] = {}
+    try:
+        with _TEA_LCA_SOLVENT_CSV.open(encoding="utf-8-sig", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                raw_price = _float_or_none(row.get("price"))
+                if raw_price is None:
+                    continue
+                price_usd_kg = raw_price / 1000.0
+                if price_usd_kg <= 0:
+                    continue
+                candidates = [
+                    (row.get("name_cosmobase") or "").strip(),
+                    (row.get("name_biosteam") or "").strip(),
+                ]
+                keys: set[str] = set()
+                display_name: str | None = None
+                for candidate in candidates:
+                    if not candidate:
+                        continue
+                    variants = {
+                        candidate,
+                        candidate.replace("_", " "),
+                    }
+                    for variant in variants:
+                        cleaned = variant.strip()
+                        if not cleaned:
+                            continue
+                        keys.add(cleaned.lower())
+                        resolved = resolve_to_biosteam(cleaned) or _resolve_name(cleaned)
+                        if resolved:
+                            keys.add(resolved.lower())
+                            if display_name is None:
+                                display_name = resolved
+                if not keys:
+                    continue
+                record = {
+                    "solvent": display_name or (candidates[1] or candidates[0]).replace("_", " "),
+                    "price_usd_kg": round(price_usd_kg, 4),
+                    "price_source": "60_common_solvents-TEA-LCA.csv price column",
+                    "price_region": "TEA/LCA reference",
+                    "cas": (row.get("cas") or "").strip() or None,
+                }
+                for key in keys:
+                    loaded[key] = record
+    except Exception as exc:
+        logger.warning("Failed to load TEA/LCA price catalog: %s", exc)
+        return {}
+    return loaded
+
+
+def _lookup_csv_solvent_price(solvent: str) -> dict[str, Any] | None:
+    q = solvent.strip()
+    if not q:
+        return None
+
+    catalog = _load_local_price_catalog()
+    candidates = [q.lower()]
+    resolved = resolve_to_biosteam(q)
+    if resolved:
+        candidates.append(resolved.lower())
+    canonical = _resolve_name(q)
+    if canonical:
+        candidates.append(canonical.lower())
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        hit = catalog.get(candidate)
+        if hit:
+            return hit
+    return None
+
+
+def lookup_local_solvent_market_data(solvent: str) -> dict[str, Any] | None:
+    """Return curated local price/GWP metadata without any web fallback."""
+    csv_entry = _lookup_csv_solvent_price(solvent)
+    resolved_biosteam = resolve_to_biosteam(solvent)
+    canonical = _resolve_name(solvent)
+    csv_name = str((csv_entry or {}).get("solvent") or "").strip() or None
+    csv_entry_name = _resolve_exact_name(csv_name) if csv_name else None
+    entry_name: str | None = None
+    if csv_entry_name is not None and csv_entry_name in _SOLVENT_DB:
+        entry_name = csv_entry_name
+    elif csv_entry is None and canonical is not None and canonical in _SOLVENT_DB:
+        entry_name = canonical
+    elif csv_entry is None and resolved_biosteam in _SOLVENT_DB:
+        entry_name = resolved_biosteam
+    entry = _SOLVENT_DB.get(entry_name) if entry_name is not None else None
+    if csv_entry is None and entry is None:
+        return None
+
+    solvent_name = (
+        (csv_entry or {}).get("solvent")
+        or entry_name
+        or resolved_biosteam
+        or canonical
+        or solvent
+    )
+    return {
+        "solvent": solvent_name,
+        "price_usd_kg": (csv_entry or {}).get("price_usd_kg")
+        if (csv_entry or {}).get("price_usd_kg") is not None
+        else (entry or {}).get("price_usd_kg"),
+        "price_source": (csv_entry or {}).get("price_source") or (entry or {}).get("price_source"),
+        "price_region": (csv_entry or {}).get("price_region") or (entry or {}).get("price_region"),
+        "gwp_kg_co2e": (entry or {}).get("gwp_kg_co2e"),
+        "gwp_source": (entry or {}).get("gwp_source"),
+        "gwp_confidence": (entry or {}).get("gwp_confidence"),
+        "cas": (csv_entry or {}).get("cas") or (entry or {}).get("cas"),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Web search helper (SerpAPI)
 # ---------------------------------------------------------------------------
@@ -446,17 +592,16 @@ def lookup_solvent_price(solvent: str, region: str = "North America") -> str:
     """
     year = datetime.now().year
     # 1. Check built-in database
-    canonical = _resolve_name(solvent)
-    if canonical and canonical in _SOLVENT_DB:
-        entry = _SOLVENT_DB[canonical]
+    entry = lookup_local_solvent_market_data(solvent)
+    if entry and entry.get("price_usd_kg") is not None:
         return json.dumps({
-            "solvent": canonical,
+            "solvent": entry.get("solvent") or solvent,
             "price_usd_kg": entry["price_usd_kg"],
             "currency": "USD",
             "region": entry.get("price_region", region),
-            "source": entry["price_source"],
+            "source": entry.get("price_source"),
             "confidence": "high",
-            "date": f"Q4 2024",
+            "date": str(year),
             "cas": entry.get("cas"),
         })
     # 2. Web search fallback

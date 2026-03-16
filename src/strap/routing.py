@@ -27,6 +27,9 @@ from .routing_classifier import (
     classify_query_keywords,
     classify_query_llm,
     generate_routing_table,
+    order_workflow_rules,
+    plan_workflow_rules,
+    select_workflow_rules,
 )
 
 from .routing_progress import (
@@ -305,20 +308,12 @@ class RoutingMiddleware(AgentMiddleware):
         if self._classifier_model and cache_key:
             matched = classify_query_llm(cache_key, self._classifier_model)
 
-        matched = _normalize_matched_rules(cache_key, matched) if matched is not None else None
-        keyword_matched = _normalize_matched_rules(cache_key, keyword_matched)
-
-        if not matched:
-            matched = keyword_matched
-        elif keyword_matched:
-            matched_names = {rule["subagent"] for rule in matched}
-            keyword_names = {rule["subagent"] for rule in keyword_matched}
-            if (
-                {"separation-engineer", "contaminant-removal-analyst"}.issubset(keyword_names)
-                and not {"separation-engineer", "contaminant-removal-analyst"}.issubset(matched_names)
-            ):
-                matched = keyword_matched
-
+        matched = select_workflow_rules(
+            cache_key,
+            llm_matched=matched,
+            keyword_matched=keyword_matched,
+        )
+        matched = plan_workflow_rules(cache_key, matched)
         self._route_cache[cache_key] = matched or []
         return self._route_cache[cache_key]
 

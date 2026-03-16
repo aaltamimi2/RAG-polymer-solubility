@@ -38,6 +38,24 @@ routing:
     - google scholar
     - patent
     - sql
+planning:
+  goals:
+    - contaminant.screening
+    - contaminant.removal
+  produces:
+    - contaminant.screen.v1
+  requires:
+    - user.target_polymer
+    - user.contaminants
+  consumes:
+    - separation.route.v1
+    - solvent.shortlist.v1
+    - generic.context.v1
+  prefers:
+    - typed_handoff
+  parallel_group: process
+  cost_hint: medium
+  latency_hint: medium
 system_prompt: |
   You are a contaminant-removal specialist focused on deterministic solvent screening.
 

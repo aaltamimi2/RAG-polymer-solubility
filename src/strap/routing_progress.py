@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from langchain_core.messages import AIMessage, ToolMessage
 
-from .routing_classifier import SEQUENTIAL_PAIRS
 from .routing_handoff_state import (
     _get_built_handoff_result_since,
     _get_built_handoff_since,
+    _get_missing_required_handoffs_for_consumer,
     _get_pending_required_handoff,
     _get_ready_downstream_consumer,
     _get_ready_downstream_handoff,
@@ -27,6 +27,8 @@ from .routing_message_state import (
     _extract_user_temperature_limit_c,
     _get_active_remaining_steps,
     _get_allowed_subagent_names,
+    _get_downstream_subagents,
+    _get_step_dependencies,
     _get_effective_completed_task_ids,
     _get_effective_failed_task_ids,
     _get_last_human_message,
@@ -179,54 +181,38 @@ def _build_progress_directive(
 
     next_agent = remaining[0]
     next_name = next_agent["subagent"]
-    plan_names = {step["subagent"] for step in ordered_plan}
-    predecessors = [
-        producer for producer, consumer in SEQUENTIAL_PAIRS
-        if consumer == next_name and producer in plan_names
+    progress_allowed_rules = [
+        {
+            "subagent": step["subagent"],
+            "description": step.get("description", ""),
+        }
+        for step in ordered_plan
     ]
-    successful_predecessors = [
-        dispatch
-        for producer in predecessors
-        if (dispatch := _get_latest_dispatch_for_subagent(messages, producer, status="ok")) is not None
-    ]
-    if successful_predecessors:
-        tool_messages = _get_tool_message_registry(messages)
-        latest_predecessor = max(
-            successful_predecessors,
-            key=lambda dispatch: tool_messages.get(dispatch["tool_call_id"], {}).get("message_index", -1),
+    ready_handoff = _get_ready_downstream_handoff(messages, progress_allowed_rules)
+    if ready_handoff is not None:
+        task_prompt = ready_handoff.get("task_prompt") or ""
+        prompt_suffix = f', description="{task_prompt}"' if task_prompt else ""
+        return (
+            f"\n\n[PROGRESS: Completed subagents: {done_names}. "
+            f"Next required step: call "
+            f'task(subagent_type="{next_name}"{prompt_suffix}) now. '
+            "Do not call other orchestrator tools first. "
+            f"Remaining steps: {', '.join(step['subagent'] for step in remaining)}."
+            f"{failure_note}]"
         )
-        ready_handoff = _get_built_handoff_since(
-            messages,
-            producer=latest_predecessor["subagent"],
-            consumer=next_name,
-            after_task_call_id=latest_predecessor["tool_call_id"],
+
+    pending_handoff = _get_pending_required_handoff(messages, progress_allowed_rules)
+    if pending_handoff is not None:
+        producer, consumer = pending_handoff
+        return (
+            f"\n\n[PROGRESS: Completed subagents: {done_names}. "
+            f"Next required step: call "
+            f'build_handoff(consumer="{consumer}", producer="{producer}") '
+            f"or build from a specific source_handoff_id. "
+            f'Do not dispatch task(subagent_type="{consumer}") until all required upstream handoffs exist. '
+            f"Remaining steps: {', '.join(step['subagent'] for step in remaining)}."
+            f"{failure_note}]"
         )
-        if ready_handoff is not None:
-            task_prompt = ready_handoff.get("task_prompt") or ""
-            prompt_suffix = f', description="{task_prompt}"' if task_prompt else ""
-            return (
-                f"\n\n[PROGRESS: Completed subagents: {done_names}. "
-                f"Next required step: call "
-                f'task(subagent_type="{next_name}"{prompt_suffix}) now. '
-                "Do not call other orchestrator tools first. "
-                f"Remaining steps: {', '.join(step['subagent'] for step in remaining)}."
-                f"{failure_note}]"
-            )
-        if not _has_built_handoff_since(
-            messages,
-            producer=latest_predecessor["subagent"],
-            consumer=next_name,
-            after_task_call_id=latest_predecessor["tool_call_id"],
-        ):
-            return (
-                f"\n\n[PROGRESS: Completed subagents: {done_names}. "
-                f"Next required step: call "
-                f'build_handoff(consumer="{next_name}", producer="{latest_predecessor["subagent"]}") '
-                f"or build from a specific source_handoff_id. "
-                f'Do not dispatch task(subagent_type="{next_name}") until that handoff exists. '
-                f"Remaining steps: {', '.join(step['subagent'] for step in remaining)}."
-                f"{failure_note}]"
-            )
 
     return (
         f"\n\n[PROGRESS: Completed subagents: {done_names}. "

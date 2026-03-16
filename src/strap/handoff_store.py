@@ -9,6 +9,7 @@ import shutil
 import tempfile
 import threading
 import uuid
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -214,6 +215,84 @@ def _get_current_state() -> _ScopeState | None:
 def get_current_scope() -> HandoffScope | None:
     state = _get_current_state()
     return state.scope if state else None
+
+
+def snapshot_handoff_scope_state() -> dict[str, Any]:
+    """Return a serializable snapshot of the current in-memory handoff scope."""
+    state = _get_current_state()
+    if state is None:
+        raise RuntimeError("No active handoff scope.")
+
+    return {
+        "scope": asdict(state.scope),
+        "artifact_root": str(state.artifact_root),
+        "user_query": state.user_query,
+        "handoffs": [record.to_dict() for record in state.handoffs],
+    }
+
+
+def restore_handoff_scope_state(snapshot: dict[str, Any]) -> HandoffScope:
+    """Restore a previously snapshotted handoff scope into the current process."""
+    scope_data = snapshot.get("scope")
+    if not isinstance(scope_data, dict):
+        raise ValueError("restore_handoff_scope_state requires a mapping 'scope'")
+
+    try:
+        scope = HandoffScope(
+            invocation_id=str(scope_data["invocation_id"]),
+            run_id=str(scope_data["run_id"]),
+            thread_id=str(scope_data["thread_id"]),
+        )
+    except KeyError as exc:
+        raise ValueError(f"restore_handoff_scope_state missing scope field: {exc.args[0]}") from exc
+
+    artifact_root = Path(str(snapshot.get("artifact_root") or _get_handoff_root()))
+    artifact_root.mkdir(parents=True, exist_ok=True)
+    restored_records: list[HandoffRecord] = []
+    raw_records = snapshot.get("handoffs")
+    if raw_records is not None and not isinstance(raw_records, list):
+        raise ValueError("restore_handoff_scope_state requires 'handoffs' to be a list")
+
+    for raw_record in raw_records or []:
+        if not isinstance(raw_record, dict):
+            raise ValueError("restore_handoff_scope_state handoff records must be mappings")
+        raw_scope = raw_record.get("scope")
+        if not isinstance(raw_scope, dict):
+            raise ValueError("restore_handoff_scope_state handoff record missing nested scope")
+        record_scope = HandoffScope(
+            invocation_id=str(raw_scope["invocation_id"]),
+            run_id=str(raw_scope["run_id"]),
+            thread_id=str(raw_scope["thread_id"]),
+        )
+        restored_records.append(
+            HandoffRecord(
+                handoff_id=str(raw_record["handoff_id"]),
+                scope=record_scope,
+                producer=str(raw_record["producer"]),
+                consumer=str(raw_record["consumer"]),
+                contract=str(raw_record["contract"]),
+                status=str(raw_record["status"]),
+                payload=dict(raw_record.get("payload") or {}),
+                created_at=str(raw_record["created_at"]),
+                source_tool_call_id=raw_record.get("source_tool_call_id"),
+                parent_handoff_id=raw_record.get("parent_handoff_id"),
+                parent_handoff_ids=list(raw_record.get("parent_handoff_ids") or []),
+                validation_errors=list(raw_record.get("validation_errors") or []),
+                artifacts=list(raw_record.get("artifacts") or []),
+                task_prompt=raw_record.get("task_prompt"),
+            )
+        )
+
+    _scope_key.set(scope.scope_id)
+    with _states_lock:
+        _states[scope.scope_id] = _ScopeState(
+            scope=scope,
+            artifact_root=artifact_root,
+            user_query=str(snapshot.get("user_query")) if snapshot.get("user_query") is not None else None,
+            handoffs=restored_records,
+        )
+    logger.debug("handoffs: restored snapshot for scope %s with %d records", scope.scope_id, len(restored_records))
+    return scope
 
 
 def get_scope_user_query() -> str | None:
@@ -433,6 +512,7 @@ def store_derived_handoff(
     contract: str,
     payload: dict[str, Any],
     parent_handoff_id: str,
+    parent_handoff_ids: list[str] | None = None,
     task_prompt: str,
     artifacts: list[str] | None = None,
 ) -> HandoffRecord:
@@ -440,6 +520,19 @@ def store_derived_handoff(
     state = _get_current_state()
     if state is None:
         raise RuntimeError("No active handoff scope.")
+
+    normalized_parent_ids: list[str] = []
+    for handoff_id in parent_handoff_ids or [parent_handoff_id]:
+        if not isinstance(handoff_id, str) or not handoff_id.strip():
+            continue
+        normalized = handoff_id.strip()
+        if normalized not in normalized_parent_ids:
+            normalized_parent_ids.append(normalized)
+    primary_parent_id = parent_handoff_id.strip() if isinstance(parent_handoff_id, str) and parent_handoff_id.strip() else None
+    if primary_parent_id is None and normalized_parent_ids:
+        primary_parent_id = normalized_parent_ids[0]
+    if primary_parent_id and primary_parent_id not in normalized_parent_ids:
+        normalized_parent_ids.insert(0, primary_parent_id)
 
     record = HandoffRecord(
         handoff_id=f"h_{uuid.uuid4().hex[:12]}",
@@ -450,7 +543,8 @@ def store_derived_handoff(
         status="ok",
         payload=payload,
         created_at=_utcnow(),
-        parent_handoff_id=parent_handoff_id,
+        parent_handoff_id=primary_parent_id,
+        parent_handoff_ids=normalized_parent_ids,
         task_prompt=task_prompt,
         artifacts=artifacts or extract_artifacts_from_payload(payload),
     )

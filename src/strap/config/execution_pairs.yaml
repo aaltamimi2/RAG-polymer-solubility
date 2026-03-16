@@ -32,4 +32,6 @@ sequential:
 - - separation-engineer
   - contaminant-removal-analyst
 - - contaminant-removal-analyst
+  - biosteam-analyst
+- - contaminant-removal-analyst
   - separation-engineer

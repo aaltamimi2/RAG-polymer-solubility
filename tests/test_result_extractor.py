@@ -720,6 +720,35 @@ class TestHandoffMiddleware:
         assert derived["handoff"]["payload"]["recommended_solvents"] == ["acetone"]
         assert "Refine the separation route" in derived["handoff"]["task_prompt"]
 
+    def test_build_handoff_adapts_contaminant_to_biosteam(self):
+        from strap.handoffs import initialize_handoff_scope, store_agent_result
+        from strap.result_extractor import build_handoff
+
+        initialize_handoff_scope(
+            run_id="run-contaminant-bio",
+            thread_id="thread-contaminant-bio",
+            invocation_id="inv-contaminant-bio",
+            user_query="Plan separation, screen phthalate removal, then run TEA on the best screened option.",
+        )
+        source = store_agent_result(
+            producer="contaminant-removal-analyst",
+            payload=_minimal_payloads()["contaminant-removal-analyst"],
+            source_tool_call_id="tc-contaminant-bio",
+            task_prompt="Compare contaminant-removal modes and recommend solvents.",
+        )
+
+        derived = json.loads(
+            build_handoff(
+                consumer="biosteam-analyst",
+                source_handoff_id=source.handoff_id,
+            )
+        )
+
+        assert derived["ok"] is True
+        assert derived["handoff"]["contract"] == "contaminant_biosteam.v1"
+        assert derived["handoff"]["payload"]["target_plastic"] == "PET"
+        assert derived["handoff"]["payload"]["best_solvent"] == "acetone"
+
     def test_build_handoff_prefers_scope_user_query_for_visualization_intent(self):
         from strap.handoffs import initialize_handoff_scope, store_agent_result
         from strap.result_extractor import build_handoff
@@ -946,6 +975,7 @@ class TestHandoffMiddleware:
         }
         typed_contracts = {
             ("biosteam-analyst", "visualization-specialist"): "biosteam_plot.v1",
+            ("contaminant-removal-analyst", "biosteam-analyst"): "contaminant_biosteam.v1",
             ("contaminant-removal-analyst", "separation-engineer"): "contaminant_guided_separation.v1",
             ("patent-researcher", "rag-analyst"): "patent_context.v1",
             ("scholar-researcher", "rag-analyst"): "literature_context.v1",
@@ -1044,6 +1074,77 @@ class TestHandoffMiddleware:
         assert second["handoff"]["parent_handoff_id"] == first["handoff"]["handoff_id"]
         assert second["handoff"]["payload"]["source_handoff_id"] == first["handoff"]["handoff_id"]
         assert second["handoff"]["payload"]["source_contract"] == "literature_context.v1"
+
+    def test_build_multi_source_handoff_for_consumer_stores_deduplicated_join_envelope(self):
+        from strap.handoffs import (
+            build_handoff_for_consumer,
+            build_multi_source_handoff_for_consumer,
+            initialize_handoff_scope,
+            list_handoff_records,
+            store_agent_result,
+        )
+
+        initialize_handoff_scope(
+            run_id="run-multi-source",
+            thread_id="thread-multi-source",
+            invocation_id="inv-multi-source",
+        )
+        payloads = _minimal_payloads()
+        scholar = store_agent_result(
+            producer="scholar-researcher",
+            payload=payloads["scholar-researcher"],
+            source_tool_call_id="tc-scholar-multi",
+        )
+        patent = store_agent_result(
+            producer="patent-researcher",
+            payload=payloads["patent-researcher"],
+            source_tool_call_id="tc-patent-multi",
+        )
+        literature = build_handoff_for_consumer(
+            consumer="rag-analyst",
+            source_handoff_id=scholar.handoff_id,
+        )
+        patents = build_handoff_for_consumer(
+            consumer="rag-analyst",
+            source_handoff_id=patent.handoff_id,
+        )
+
+        first = build_multi_source_handoff_for_consumer(
+            consumer="rag-analyst",
+            source_handoff_ids=[literature.handoff_id, patents.handoff_id],
+        )
+        second = build_multi_source_handoff_for_consumer(
+            consumer="rag-analyst",
+            source_handoff_ids=[patents.handoff_id, literature.handoff_id],
+        )
+        third = build_multi_source_handoff_for_consumer(
+            consumer="rag-analyst",
+            source_handoff_ids=[literature.handoff_id, patents.handoff_id],
+        )
+        records = list_handoff_records(producer="multi-source", consumer="rag-analyst")
+
+        assert first.handoff_id == second.handoff_id
+        assert second.handoff_id == third.handoff_id
+        assert first.contract == "multi-source.to.rag-analyst.context.v1"
+        assert first.parent_handoff_ids == first.payload["source_handoff_ids"]
+        assert set(first.payload["source_handoff_ids"]) == {literature.handoff_id, patents.handoff_id}
+        assert {item["producer"] for item in first.payload["source_handoffs"]} == {
+            "scholar-researcher",
+            "patent-researcher",
+        }
+        assert {item["contract"] for item in first.payload["source_handoffs"]} == {
+            "literature_context.v1",
+            "patent_context.v1",
+        }
+        assert all(item["handoff_id"] in first.payload["source_handoff_ids"] for item in first.payload["source_handoffs"])
+        assert set(first.payload["producers"]) == {"scholar-researcher", "patent-researcher"}
+        assert set(first.payload["contracts"]) == {"literature_context.v1", "patent_context.v1"}
+        assert "Treat `payload.source_handoffs` as authoritative upstream context." in first.task_prompt
+        assert literature.handoff_id in first.task_prompt
+        assert patents.handoff_id in first.task_prompt
+        assert "contract=literature_context.v1" in first.task_prompt
+        assert "contract=patent_context.v1" in first.task_prompt
+        assert len(records) == 1
 
     def test_rebinding_same_scope_preserves_records_for_later_handoffs(self):
         from strap.handoffs import initialize_handoff_scope, list_handoff_records, store_agent_result

@@ -282,6 +282,56 @@ def _format_green_solvent_result(solvent_name: str, entry: dict) -> str:
         "ml_predicted": True,
     }
     return _gsk_response("get_solvent_gscore", display_str, **data_dict)
+
+
+def lookup_local_gscore_data(solvent_name: str, use_fuzzy_matching: bool = True) -> dict[str, Any] | None:
+    """Return local G-score metadata from curated GSK data or GreenSolventDB fallback."""
+    result = _lookup_gsk_exact(solvent_name)
+    if len(result) == 0 and use_fuzzy_matching:
+        match_result = _fuzzy_match_solvent_name(solvent_name, dataset="gsk", threshold=80)
+        if match_result:
+            result = _lookup_gsk_exact(match_result["matched_name"])
+            if len(result) > 0:
+                row = result.iloc[0]
+                return {
+                    "solvent_name": str(row["solvent_common_name"]),
+                    "classification": str(row["classification"]),
+                    "g_score": float(row["g_score"]),
+                    "source": "gsk_dataset",
+                    "ml_predicted": False,
+                    "fuzzy_matched": True,
+                    "match_confidence": int(match_result["score"]),
+                }
+
+    if len(result) > 0:
+        row = result.iloc[0]
+        return {
+            "solvent_name": str(row["solvent_common_name"]),
+            "classification": str(row["classification"]),
+            "g_score": float(row["g_score"]),
+            "source": "gsk_dataset",
+            "ml_predicted": False,
+            "fuzzy_matched": False,
+            "match_confidence": None,
+        }
+
+    green_entry = _lookup_green_solvent_db(solvent_name)
+    if green_entry:
+        return {
+            "solvent_name": str(green_entry["name"]),
+            "classification": None,
+            "g_score": float(green_entry["g_score"]),
+            "g_score_uncertainty": float(green_entry["uncertainty"]),
+            "source": "GreenSolventDB_10k",
+            "data_quality": str(green_entry["source"]),
+            "ml_predicted": True,
+            "fuzzy_matched": False,
+            "match_confidence": None,
+        }
+
+    return None
+
+
 @safe_tool_wrapper(structured_output=True)
 async def get_solvent_gscore(solvent_name: str, use_fuzzy_matching: bool = True) -> str:
     """Look up the GSK G-score composite safety rating (0-10) for a solvent.
