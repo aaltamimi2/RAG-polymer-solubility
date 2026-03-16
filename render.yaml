@@ -16,8 +16,6 @@ services:
         value: /app/plots
       - key: REPORTS_DIR
         value: /app/reports
-      - key: HSP_DATA_PATH
-        value: /app/HSP-ML-integration/RED_values_complete_CORRECTED.csv
       - key: GOOGLE_API_KEY
         sync: false
       - key: GITHUB_TOKEN

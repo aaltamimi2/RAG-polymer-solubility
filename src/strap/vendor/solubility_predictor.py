@@ -2,6 +2,7 @@
 ML-based polymer-solvent solubility predictor using corrected Hansen parameters.
 """
 
+import os
 import numpy as np
 import joblib
 import json
@@ -11,10 +12,17 @@ from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODEL_DIR = Path(
+    os.environ.get(
+        "ML_MODEL_DIR",
+        Path(__file__).resolve().parents[3] / "models",
+    )
+)
+
 class SolubilityPredictor:
     """Predict polymer-solvent solubility using Random Forest ML model."""
 
-    def __init__(self, model_dir='./models'):
+    def __init__(self, model_dir=DEFAULT_MODEL_DIR):
         """Load trained model artifacts."""
         model_dir = Path(model_dir)
 

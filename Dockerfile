@@ -24,7 +24,6 @@ COPY src ./src
 COPY app_server.py export_manager.py output_models.py ./
 COPY data ./data
 COPY models ./models
-COPY HSP-ML-integration ./HSP-ML-integration
 COPY --from=frontend-build /app/frontend/build ./frontend/build
 
 RUN pip install --no-cache-dir .

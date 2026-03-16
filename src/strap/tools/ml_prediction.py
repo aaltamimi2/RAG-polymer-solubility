@@ -9,7 +9,7 @@ import re
 import shutil
 from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
-import pandas as pd
+from strap.ml_assets import resolve_polymer_entry, resolve_solvent_entry, suggest_polymer_names
 from strap.database import get_connection
 from strap.services.tool_response_service import json_tool_error, json_tool_success
 from strap.tools._helpers import safe_tool_wrapper, truncate_output, save_plot, get_plots_dir
@@ -109,143 +109,32 @@ async def predict_solubility_ml(
         PLOTS_DIR = get_plots_dir()
         # Get predictor
         predictor = get_predictor()
-        # First, try to get polymer HSP from CSV (since we don't know if DB tables exist)
-        from pathlib import Path
-        csv_path = Path(__file__).resolve().parent.parent.parent.parent / 'HSP-ML-integration' / 'RED_values_complete_CORRECTED.csv'
-        if not csv_path.exists():
-            return json_tool_error(
-                f"HSP data file not found at {csv_path}. Ensure the HSP-ML-integration directory is in the project root.",
-                tool_name="predict_solubility_ml",
-                error_code="hsp_data_missing",
-                csv_path=str(csv_path),
-            )
         try:
-            hsp_data = pd.read_csv(csv_path)
-            # Find polymer
-            polymer_data = hsp_data[hsp_data['Polymer'].str.lower() == polymer_name.lower()]
-            if len(polymer_data) == 0:
-                # Try fuzzy matching with partial string match
-                all_polymers = hsp_data['Polymer'].unique()
-                matches = [p for p in all_polymers if polymer_name.upper() in p.upper()]
-                if len(matches) > 0:
-                    # Use the first match
-                    polymer_data = hsp_data[hsp_data['Polymer'] == matches[0]]
-                    polymer_name = matches[0]  # Update name to matched name
-                    logger.info(f"Fuzzy matched '{polymer_name}' to '{matches[0]}'")
-                else:
-                    # Suggest similar polymers
-                    suggestions = [p for p in all_polymers if any(term in p.upper() for term in ['PE', 'POLY', 'PET', 'PP', 'PVC', 'PS'])][:10]
-                    suggestion_text = "\n- ".join(suggestions) if suggestions else "No suggestions available"
-                    return json_tool_error(
-                        f"Hansen parameters not found for polymer '{polymer_name}'.\n\n**Similar polymers you might try:**\n- {suggestion_text}",
-                        tool_name="predict_solubility_ml",
-                        error_code="unknown_polymer",
-                        polymer_name=polymer_name,
-                        suggestions=suggestions,
-                    )
-            if len(polymer_data) == 0:
+            polymer_entry = resolve_polymer_entry(polymer_name)
+            if polymer_entry is None:
+                suggestions = suggest_polymer_names(polymer_name)
+                suggestion_text = "\n- ".join(suggestions) if suggestions else "No suggestions available"
                 return json_tool_error(
-                    f"Hansen parameters not found for polymer '{polymer_name}'. Try listing available polymers.",
+                    f"Hansen parameters not found for polymer '{polymer_name}'.\n\n**Similar polymers you might try:**\n- {suggestion_text}",
                     tool_name="predict_solubility_ml",
                     error_code="unknown_polymer",
                     polymer_name=polymer_name,
+                    suggestions=suggestions,
                 )
-            # Get polymer HSP values
-            polymer_row = polymer_data.iloc[0]
+            polymer_name = str(polymer_entry["polymer"])
             polymer_hsp = {
-                'Dispersion': float(polymer_row['Polymer_Dispersion']),
-                'Polar': float(polymer_row['Polymer_Polar']),
-                'Hydrogen': float(polymer_row['Polymer_Hydrogen'])
+                'Dispersion': float(polymer_entry['dispersion']),
+                'Polar': float(polymer_entry['polar']),
+                'Hydrogen': float(polymer_entry['hydrogen_bonding'])
             }
-            r0 = float(polymer_row['R0'])
-            # Common name to IUPAC name mapping for solvents
-            # NOTE: IUPAC names must match exactly what appears in the
-            #       RED_values_complete_CORRECTED.csv (including spaces/hyphens).
-            common_to_iupac = {
-                'acetone': 'Propan-2-one',
-                'ethanol': 'Ethanol',
-                'methanol': 'Methanol',
-                'isopropanol': 'Propan-2-ol',
-                'ipa': 'Propan-2-ol',
-                'thf': 'Tetrahydro-furan',
-                'tetrahydrofuran': 'Tetrahydro-furan',
-                'dmf': 'N,N-Dimethyl- formamide',
-                'dimethylformamide': 'N,N-Dimethyl- formamide',
-                'n,n-dimethylformamide': 'N,N-Dimethyl- formamide',
-                'dmso': 'Methylsulfi yl-methane',
-                'dimethyl sulfoxide': 'Methylsulfi yl-methane',
-                'dimethylsulfoxide': 'Methylsulfi yl-methane',
-                'dma': 'N,N-Dimethyl-acetamide',
-                'nmp': '1-Methyl-pyrrolidin-2- one',
-                'n-methyl-2-pyrrolidone': '1-Methyl-pyrrolidin-2- one',
-                'mek': 'Butan-2-one',
-                'mibk': '4-Methyl-pentan-2-one',
-                'dcm': 'Dichloro-methane',
-                'dichloromethane': 'Dichloro-methane',
-                'methylene chloride': 'Dichloro-methane',
-                'chloroform': 'Trichloro-methane',
-                'trichloromethane': 'Trichloro-methane',
-                'etoh': 'Ethanol',
-                'meoh': 'Methanol',
-                'acn': 'Acetonitrile',
-                'acetonitrile': 'Acetonitrile',
-                'dce': '1,2-Dichloro-ethane',
-                'ea': 'Acetic acid ethyl ester',
-                'ethyl acetate': 'Acetic acid ethyl ester',
-                'ether': 'Diethyl ether',
-                'diethyl ether': 'Diethyl ether',
-                'hexane': 'n-Hexane',
-                'n-hexane': 'n-Hexane',
-                'heptane': 'Heptane',
-                'octane': 'Octane',
-                'decane': 'Decane',
-                'benzene': 'Benzene',
-                'toluene': 'Toluene',
-                'xylene': 'o-Xylene',
-                'water': 'Water',
-                'dioxane': '1,4-Dioxane',
-                'pyridine': 'Pyridine',
-                'aniline': 'Aniline',
-                'nitromethane': 'Nitromethane',
-                'nitroethane': 'Nitroethane',
-                'cyclohexane': 'Cyclohexane',
-                'cyclohexanone': 'Cyclohexanone',
-                'ccl4': 'Tetrachloro-methane',
-                'carbon tetrachloride': 'Tetrachloro-methane',
-                'carbon disulfide': 'Carbon disulfide',
-                'cs2': 'Carbon disulfide',
-                'butanol': 'Butan-1-ol',
-                'propanol': 'Propan-1-ol',
-                'pentane': 'Pentane',
-                'butyl acetate': 'Acetic acid butyl ester',
-                'methyl acetate': 'Acetic acid methyl ester',
-                'propyl acetate': 'Acetic acid propyl ester',
-                'formic acid': 'Formic acid',
-            }
-            # Find solvent - first try exact match
-            solvent_data = hsp_data[hsp_data['Solvent'].str.lower() == solvent_name.lower()]
-            # If not found, try common name mapping
-            if len(solvent_data) == 0 and solvent_name.lower() in common_to_iupac:
-                iupac_name = common_to_iupac[solvent_name.lower()]
-                solvent_data = hsp_data[hsp_data['Solvent'].str.lower() == iupac_name.lower()]
-                if len(solvent_data) > 0:
-                    logger.info(f"Mapped common name '{solvent_name}' to IUPAC '{iupac_name}'")
-                    solvent_name = iupac_name  # Update to IUPAC name for display
-            # If still not found, try fuzzy matching
-            if len(solvent_data) == 0:
-                # Try partial string match first
-                all_solvents = hsp_data['Solvent'].unique()
-                matches = [s for s in all_solvents if solvent_name.upper() in s.upper()]
-                if len(matches) > 0:
-                    solvent_data = hsp_data[hsp_data['Solvent'] == matches[0]]
-                    logger.info(f"Fuzzy matched '{solvent_name}' to '{matches[0]}'")
-                    solvent_name = matches[0]
-                else:
-                    # Try database fuzzy matching as last resort
-                    match_result = _fuzzy_match_solvent_name(solvent_name, dataset="all", threshold=80)
-                    if match_result:
-                        solvent_data = hsp_data[hsp_data['Solvent'].str.lower() == match_result["matched_name"].lower()]
-            if len(solvent_data) == 0:
+            r0 = float(polymer_entry['interaction_radius'])
+
+            solvent_entry = resolve_solvent_entry(solvent_name)
+            if solvent_entry is None:
+                match_result = _fuzzy_match_solvent_name(solvent_name, dataset="all", threshold=80)
+                if match_result:
+                    solvent_entry = resolve_solvent_entry(match_result["matched_name"])
+            if solvent_entry is None:
                 return json_tool_error(
                     f"Hansen parameters not found for solvent '{solvent_name}'.\n\n"
                     "**Tip:** Common solvents in the database include:\n"
@@ -260,18 +149,17 @@ async def predict_solubility_ml(
                     error_code="unknown_solvent",
                     solvent_name=solvent_name,
                 )
-            # Get solvent HSP values
-            solvent_row = solvent_data.iloc[0]
+            solvent_name = str(solvent_entry["solvent"])
             solvent_hsp = {
-                'Dispersion': float(solvent_row['Solvent_Dispersion']),
-                'Polar': float(solvent_row['Solvent_Polar']),
-                'Hydrogen': float(solvent_row['Solvent_Hydrogen'])
+                'Dispersion': float(solvent_entry['dispersion']),
+                'Polar': float(solvent_entry['polar']),
+                'Hydrogen': float(solvent_entry['hydrogen_bonding'])
             }
-            molar_volume = float(solvent_row.get('Molar Volume', 100.0))
-        except Exception as csv_error:
-            logger.error(f"Error reading CSV: {csv_error}")
+            molar_volume = float(solvent_entry.get('molar_volume', 100.0))
+        except Exception as asset_error:
+            logger.error(f"Error loading ML HSP assets: {asset_error}")
             return json_tool_error(
-                f"Error loading Hansen parameters: {str(csv_error)}",
+                f"Error loading Hansen parameters: {str(asset_error)}",
                 tool_name="predict_solubility_ml",
                 error_code="hsp_data_load_failed",
             )

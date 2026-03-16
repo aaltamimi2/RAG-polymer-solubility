@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +33,7 @@ from strap.langsmith_tracing import (
     start_subagent_trace_capture,
     stop_subagent_trace_capture,
 )
+from strap.ml_assets import load_ml_polymer_catalog, missing_ml_assets
 from strap.routing_classifier import (
     classify_query_keywords,
     plan_workflow_rules,
@@ -65,12 +65,6 @@ DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT_DIR / "data")).resolve()
 PLOTS_DIR = Path(os.environ.get("PLOTS_DIR", get_plots_dir())).resolve()
 REPORTS_DIR = Path(os.environ.get("REPORTS_DIR", ROOT_DIR / "reports")).resolve()
 FRONTEND_BUILD_DIR = Path(os.environ.get("FRONTEND_BUILD_DIR", ROOT_DIR / "frontend" / "build")).resolve()
-HSP_CSV_PATH = Path(
-    os.environ.get(
-        "HSP_DATA_PATH",
-        ROOT_DIR / "HSP-ML-integration" / "RED_values_complete_CORRECTED.csv",
-    )
-).resolve()
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 PLOTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -234,60 +228,6 @@ def _table_summaries() -> list[dict[str, Any]]:
             }
         )
     return tables
-
-
-def _hsp_type_for_polymer(polymer_name: str) -> str:
-    upper = polymer_name.upper()
-    if any(token in upper for token in ("HDPE", "LDPE", "LLDPE", "PE", "PP", "POLYOLEFIN", "EVA", "EPDM")):
-        return "Polyolefins"
-    if any(token in upper for token in ("PET", "PBT", "PLA", "POLYESTER", "CELLIT", "CELLULOSE ACETATE")):
-        return "Polyesters and Cellulosics"
-    if any(token in upper for token in ("PA", "NYLON", "POLYAMIDE", "ARAMID")):
-        return "Polyamides"
-    if any(token in upper for token in ("PS", "HIPS", "ABS", "STYRENE", "SAN")):
-        return "Styrenics"
-    if any(token in upper for token in ("PVC", "PVDC", "VINYL", "PVA", "PVAC", "EVOH")):
-        return "Vinyl and Barrier Polymers"
-    if any(token in upper for token in ("PC", "PMMA", "POM", "PPO", "PBT", "PEEK", "PPS", "ENGINEERING")):
-        return "Engineering Thermoplastics"
-    if any(token in upper for token in ("PTFE", "PVDF", "ETFE", "FEP", "PFA", "FLUOR")):
-        return "Fluoropolymers"
-    if any(token in upper for token in ("PU", "TPU", "POLYURETHANE", "ELASTOMER", "RUBBER")):
-        return "Elastomers and Polyurethanes"
-    return "Other Polymers"
-
-
-def _load_ml_polymer_catalog() -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
-    if not HSP_CSV_PATH.exists():
-        raise FileNotFoundError(f"HSP data file not found: {HSP_CSV_PATH}")
-
-    df = pd.read_csv(HSP_CSV_PATH, usecols=[
-        "Polymer",
-        "Polymer_Dispersion",
-        "Polymer_Polar",
-        "Polymer_Hydrogen",
-        "R0",
-    ])
-    df = df.dropna(subset=["Polymer"]).drop_duplicates(subset=["Polymer"]).copy()
-    df["type"] = df["Polymer"].map(_hsp_type_for_polymer)
-
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for _, row in df.sort_values(["type", "Polymer"]).iterrows():
-        item = {
-            "polymer": str(row["Polymer"]),
-            "dispersion": float(row["Polymer_Dispersion"]),
-            "polar": float(row["Polymer_Polar"]),
-            "hydrogen_bonding": float(row["Polymer_Hydrogen"]),
-            "interaction_radius": float(row["R0"]),
-        }
-        grouped.setdefault(str(row["type"]), []).append(item)
-
-    types = [
-        {"type": polymer_type, "count": len(polymers)}
-        for polymer_type, polymers in sorted(grouped.items(), key=lambda item: item[0])
-    ]
-    return types, grouped
-
 
 def _git_revision() -> dict[str, str]:
     def _run(*args: str) -> str | None:
@@ -895,8 +835,7 @@ async def api_status():
         missing_files: list[str] = []
         if not any(DATA_DIR.glob("*.csv")):
             missing_files.append("No CSV files found in data directory")
-        if not HSP_CSV_PATH.exists():
-            missing_files.append(str(HSP_CSV_PATH.name))
+        missing_files.extend(missing_ml_assets())
         return {
             "status": "ready" if tables else "limited",
             "tables_loaded": len(tables),
@@ -1097,7 +1036,7 @@ async def api_report_issue(request: IssueReportRequest):
 @app.get("/api/ml/polymer-types")
 async def api_ml_polymer_types():
     try:
-        types, grouped = _load_ml_polymer_catalog()
+        types, grouped = load_ml_polymer_catalog()
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return {
@@ -1110,7 +1049,7 @@ async def api_ml_polymer_types():
 @app.get("/api/ml/polymers-by-type/{polymer_type}")
 async def api_ml_polymers_by_type(polymer_type: str):
     try:
-        _, grouped = _load_ml_polymer_catalog()
+        _, grouped = load_ml_polymer_catalog()
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
