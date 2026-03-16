@@ -10,7 +10,9 @@ FROM python:3.11-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=8000 \
+    DATA_DIR=/app/data \
+    ML_MODEL_DIR=/app/models
 
 WORKDIR /app
 

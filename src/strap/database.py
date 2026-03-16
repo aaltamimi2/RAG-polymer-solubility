@@ -10,6 +10,8 @@ from typing import Optional
 import duckdb
 import pandas as pd
 
+from strap.paths import get_data_dir
+
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +25,7 @@ class Database:
 
     @staticmethod
     def _default_data_dir() -> Path:
-        return Path(__file__).resolve().parent.parent.parent / "data"
+        return get_data_dir()
 
     @staticmethod
     def _sanitize_column(col: str) -> str:

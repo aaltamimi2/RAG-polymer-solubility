@@ -17,6 +17,8 @@ from typing import Optional, Sequence
 
 import numpy as np
 
+from strap.paths import get_data_path
+
 logger = logging.getLogger(__name__)
 
 # Method constants
@@ -33,12 +35,8 @@ _LOOKUP: Optional[dict[tuple[str, str], dict]] = None
 _KNOWN_POLYMERS: Optional[set[str]] = None
 _KNOWN_SOLVENTS: Optional[set[str]] = None
 
-_DATA_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "solubility_coefficients.json"
-)
-_GENERATED_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "generated_coefficients.json"
-)
+_DATA_PATH = get_data_path("solubility_coefficients.json")
+_GENERATED_PATH = get_data_path("generated_coefficients.json")
 
 
 def _load_coefficients() -> tuple[dict, dict[tuple[str, str], dict]]:

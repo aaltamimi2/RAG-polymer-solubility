@@ -6,15 +6,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-DATA_DIR = Path(os.environ.get("DATA_DIR", ROOT_DIR / "data")).resolve()
+from strap.paths import get_data_dir, get_models_dir
+
+DATA_DIR = Path(os.environ.get("DATA_DIR", get_data_dir())).resolve()
 ML_POLYMER_CATALOG_PATH = Path(
     os.environ.get("ML_POLYMER_CATALOG_PATH", DATA_DIR / "ml_polymer_catalog.json")
 ).resolve()
 ML_HSP_LOOKUP_PATH = Path(
     os.environ.get("ML_HSP_LOOKUP_PATH", DATA_DIR / "ml_hsp_lookup.json")
 ).resolve()
-ML_MODEL_DIR = Path(os.environ.get("ML_MODEL_DIR", ROOT_DIR / "models")).resolve()
+ML_MODEL_DIR = Path(os.environ.get("ML_MODEL_DIR", get_models_dir())).resolve()
 ML_MODEL_FILES = (
     "corrected_Random_Forest_20251231_212903_model.pkl",
     "corrected_Random_Forest_20251231_212903_scaler.pkl",

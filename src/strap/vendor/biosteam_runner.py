@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
+from strap.paths import get_data_path
 from strap.solvent_registry import resolve_to_biosteam
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ _MAX_SUBPROCESS_STDERR_BYTES = 2 * 1024 * 1024    # 2 MB
 # Solvent_Data.csv loader — boiling points, CAS, and LogP for all solvents
 # ---------------------------------------------------------------------------
 
-_SOLVENT_DATA_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "Solvent_Data.csv"
+_SOLVENT_DATA_CSV = get_data_path("Solvent_Data.csv")
 
 # {normalised_name: {"bp_c": float|None, "cas": str, "name": str, "logp": float|None}}
 _SOLVENT_CSV_DATA: dict[str, dict] = {}
@@ -139,8 +140,8 @@ def _csv_lookup(solvent: str) -> dict | None:
 # market reports, ecoinvent references, and published LCA studies.
 # Used as a second-tier fallback: validated > curated > class-average > generic.
 
-_CURATED_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "solvent-econ-lca-summary.csv"
-_TEA_LCA_SOLVENT_CSV = Path(__file__).resolve().parent.parent.parent.parent / "data" / "60_common_solvents-TEA-LCA.csv"
+_CURATED_CSV = get_data_path("solvent-econ-lca-summary.csv")
+_TEA_LCA_SOLVENT_CSV = get_data_path("60_common_solvents-TEA-LCA.csv")
 
 # {normalised_name: {"price": float|None, "gwp": float|None, "htc": ..., "htnc": ..., "etox": ..., "class": str}}
 _CURATED_BY_NAME: dict[str, dict] = {}

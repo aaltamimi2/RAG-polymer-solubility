@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from strap.paths import get_data_path
 from strap.solvent_registry import resolve_to_biosteam
 from strap.services.tool_response_service import json_tool_error, json_tool_response
 
@@ -134,7 +135,7 @@ _LEGACY_PC_SOLVENTS = [
 
 ALL_ENERGY_CASES = ["C1", "C2", "C3"]
 
-_TEA_LCA_SOLVENT_CSV = Path(__file__).resolve().parents[3] / "data" / "60_common_solvents-TEA-LCA.csv"
+_TEA_LCA_SOLVENT_CSV = get_data_path("60_common_solvents-TEA-LCA.csv")
 _TEA_LCA_TH_THRESHOLD = 5.0
 
 

@@ -8,11 +8,10 @@ from typing import Any
 
 import pandas as pd
 
+from strap.paths import get_data_path
 from strap.solvent_registry import resolve_to_bp_db_key, resolve_to_interp_key
 
-_WORKBOOK_PATH = (
-    Path(__file__).resolve().parent.parent.parent.parent / "data" / "zhou_contamintant_removal_SI_Data.xlsx"
-)
+_WORKBOOK_PATH = get_data_path("zhou_contamintant_removal_SI_Data.xlsx")
 _RT_TEMPERATURE_C = 25.0
 _FAMILY_ALIASES = {
     "pfas": "PFAS",

@@ -21,6 +21,7 @@ dependencies = [
     "plotly",
     "scikit-learn",
     "joblib",
+    "openpyxl",
     "python-dotenv",
     "fastapi",
     "uvicorn",

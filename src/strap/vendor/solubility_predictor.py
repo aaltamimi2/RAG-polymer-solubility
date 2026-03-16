@@ -10,12 +10,14 @@ import logging
 from pathlib import Path
 from typing import Dict, Any
 
+from strap.paths import get_models_dir
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL_DIR = Path(
     os.environ.get(
         "ML_MODEL_DIR",
-        Path(__file__).resolve().parents[3] / "models",
+        get_models_dir(),
     )
 )
 

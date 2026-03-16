@@ -19,17 +19,17 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from strap.paths import get_models_path
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
 
-_MODULE_DIR = Path(__file__).resolve().parent
-_PROJECT_ROOT = _MODULE_DIR.parent.parent.parent  # src/strap/thermal_ml -> project root
-_DEFAULT_MODEL_PATH = _PROJECT_ROOT / "models" / "thermal" / "polybert_thermal_best.pt"
-_DEFAULT_SCALER_PATH = _PROJECT_ROOT / "models" / "thermal" / "thermal_scaler.pkl"
-_DEFAULT_METADATA_PATH = _PROJECT_ROOT / "models" / "thermal" / "thermal_metadata.json"
+_DEFAULT_MODEL_PATH = get_models_path("thermal", "polybert_thermal_best.pt")
+_DEFAULT_SCALER_PATH = get_models_path("thermal", "thermal_scaler.pkl")
+_DEFAULT_METADATA_PATH = get_models_path("thermal", "thermal_metadata.json")
 
 # ---------------------------------------------------------------------------
 # Group contribution imports (always available)

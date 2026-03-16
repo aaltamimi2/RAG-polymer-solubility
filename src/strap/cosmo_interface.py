@@ -30,6 +30,8 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from strap.paths import get_data_path
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 R_GAS: float = 8.314  # J/(mol*K)
 
-_COSMO_ROOT = Path(__file__).resolve().parent.parent.parent / "data" / "cosmo_files"
+_COSMO_ROOT = get_data_path("cosmo_files")
 _POLYMER_DIR = _COSMO_ROOT / "polymers"
 _SOLVENT_DIR = _COSMO_ROOT / "solvents"
 

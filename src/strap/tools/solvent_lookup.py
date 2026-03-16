@@ -14,6 +14,8 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+from strap.paths import get_data_path
 from strap.solvent_registry import resolve_to_biosteam
 from strap.tools._helpers import safe_tool_wrapper
 logger = logging.getLogger(__name__)
@@ -312,7 +314,7 @@ _GWP_CLASS_AVERAGES: dict[str, tuple[float, float]] = {
     "alcohol": (1.5, 3.5),
     "terpene": (0.5, 2.0),
 }
-_TEA_LCA_SOLVENT_CSV = Path(__file__).resolve().parents[3] / "data" / "60_common_solvents-TEA-LCA.csv"
+_TEA_LCA_SOLVENT_CSV = get_data_path("60_common_solvents-TEA-LCA.csv")
 # ---------------------------------------------------------------------------
 # Name resolution
 # ---------------------------------------------------------------------------

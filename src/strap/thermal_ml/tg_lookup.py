@@ -26,6 +26,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from strap.paths import get_data_path
+
 logger = logging.getLogger(__name__)
 
 # Singleton state
@@ -34,7 +36,7 @@ _NAME_INDEX: dict[str, list[int]] | None = None
 _PSMILES_INDEX: dict[str, int] | None = None
 _ALL_SEARCHABLE: list[tuple[str, int]] | None = None
 
-_LOOKUP_PATH = Path(__file__).resolve().parent.parent.parent.parent / "data" / "thermal_properties" / "tg_lookup.json"
+_LOOKUP_PATH = get_data_path("thermal_properties", "tg_lookup.json")
 
 
 def load_tg_lookup(path: str | Path | None = None) -> dict:

@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from strap.database import get_connection
+from strap.paths import get_data_path
 from strap.services.tool_response_service import json_tool_error, json_tool_response
 from strap.solubility import get_logp
 from strap.tools._helpers import (
@@ -50,7 +51,7 @@ def _load_gsk_dataframe() -> pd.DataFrame:
     if _GSK_DATAFRAME is not None:
         return _GSK_DATAFRAME
 
-    csv_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "GSK_dataset.csv"
+    csv_path = get_data_path("GSK_dataset.csv")
     df = pd.read_csv(csv_path, encoding="utf-8-sig")
     df.columns = [_normalize_column_name(col) for col in df.columns]
     required = {"solvent_common_name", "classification", "g_score", "cas_number"}
@@ -102,7 +103,7 @@ def _load_green_solvent_db() -> tuple[dict[str, dict], dict[str, dict]]:
         return _GREEN_SOLVENT_DB, _GREEN_SOLVENT_DB_CAS
     by_name: dict[str, dict] = {}
     by_cas: dict[str, dict] = {}
-    csv_path = Path(__file__).resolve().parent.parent.parent.parent / "data" / "GreenSolventDB_10k.csv"
+    csv_path = get_data_path("GreenSolventDB_10k.csv")
     if csv_path.exists():
         with open(csv_path, "r") as f:
             reader = csv.DictReader(f)
