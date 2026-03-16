@@ -10,12 +10,17 @@ requires-python = ">=3.10"
 dependencies = [
     "deepagents>=0.3.10,<0.4",
     "langchain-anthropic",
+    "langchain-google-genai",
     "langsmith",
     "duckdb",
     "pandas",
     "numpy",
     "scipy",
     "python-dotenv",
+    "fastapi",
+    "uvicorn",
+    "httpx",
+    "python-multipart",
     "rapidfuzz",
     "requests",
     "pyyaml",
@@ -45,9 +50,7 @@ literature = [
 all = ["strap-agent[viz,ml,biosteam,rag,literature]"]
 
 [project.scripts]
-strap-agent = "strap.agent:main"
 dissolve = "strap.agent:main"
-deepagents = "strap.agent:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strap"]

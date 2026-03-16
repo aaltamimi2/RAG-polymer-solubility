@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>STRAP Solubility Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Cormorant Garamond', 'Georgia', 'serif'],
+            sans: ['DM Sans', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            navy: {
+              50: '#f0f4f8',
+              100: '#d9e2ec',
+              200: '#bcccdc',
+              300: '#9fb3c8',
+              400: '#829ab1',
+              500: '#627d98',
+              600: '#486581',
+              700: '#334e68',
+              800: '#243b53',
+              900: '#102a43',
+              950: '#0a1929',
+            },
+            copper: {
+              50: '#fdf8f4',
+              100: '#faeee4',
+              200: '#f5dcc8',
+              300: '#e8c4a4',
+              400: '#d9a87c',
+              500: '#c77b4a',
+              600: '#b8693a',
+              700: '#995532',
+              800: '#7a452e',
+              900: '#643a28',
+            },
+            cream: '#fdfbf7',
+          },
+          animation: {
+            'fade-up': 'fadeUp 0.6s ease-out forwards',
+            'fade-in': 'fadeIn 0.4s ease-out forwards',
+            'slide-in': 'slideIn 0.5s ease-out forwards',
+            'pulse-subtle': 'pulseSubtle 3s ease-in-out infinite',
+          },
+          keyframes: {
+            fadeUp: {
+              '0%': { opacity: '0', transform: 'translateY(20px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            fadeIn: {
+              '0%': { opacity: '0' },
+              '100%': { opacity: '1' },
+            },
+            slideIn: {
+              '0%': { opacity: '0', transform: 'translateX(-10px)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+            pulseSubtle: {
+              '0%, 100%': { opacity: '1' },
+              '50%': { opacity: '0.7' },
+            },
+          },
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #fdfbf7;
+      color: #102a43;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #bcccdc; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9fb3c8; }
+
+    /* Markdown styles */
+    .prose h1 { font-family: 'Cormorant Garamond', serif; font-size: 1.75rem; font-weight: 600; margin: 1.25rem 0 0.75rem; color: #102a43; }
+    .prose h2 { font-family: 'Cormorant Garamond', serif; font-size: 1.375rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #243b53; }
+    .prose h3 { font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600; margin: 0.875rem 0 0.375rem; color: #334e68; }
+    .prose p { margin: 0.625rem 0; line-height: 1.7; color: #334e68; }
+    .prose ul, .prose ol { margin: 0.5rem 0; padding-left: 1.5rem; color: #334e68; }
+    .prose li { margin: 0.25rem 0; }
+    .prose code { background: #f0f4f8; padding: 0.125rem 0.5rem; border-radius: 4px; font-size: 0.875rem; font-family: 'SF Mono', Monaco, monospace; color: #486581; border: 1px solid #d9e2ec; }
+    .prose pre { background: #102a43; padding: 1.25rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; }
+    .prose pre code { background: transparent; padding: 0; border: none; color: #d9e2ec; }
+    .prose table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.875rem; }
+    .prose th, .prose td { border: 1px solid #d9e2ec; padding: 0.625rem 0.875rem; text-align: left; }
+    .prose th { background: #f0f4f8; font-weight: 600; color: #243b53; }
+    .prose strong { font-weight: 600; color: #102a43; }
+    .prose em { font-style: italic; }
+    .prose a { color: #c77b4a; text-decoration: underline; text-underline-offset: 2px; }
+    .prose blockquote { border-left: 3px solid #c77b4a; padding-left: 1rem; margin: 0.75rem 0; color: #627d98; font-style: italic; }
+    .prose hr { border: none; border-top: 1px solid #d9e2ec; margin: 1.5rem 0; }
+
+    /* Typing animation */
+    .typing-dot { animation: typingBounce 1.4s ease-in-out infinite; }
+    .typing-dot:nth-child(1) { animation-delay: 0s; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes typingBounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    /* Molecular decoration */
+    .molecular-bg {
+      background-image:
+        radial-gradient(circle at 20% 80%, rgba(199, 123, 74, 0.03) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(26, 54, 93, 0.03) 0%, transparent 50%);
+    }
+
+    /* Glass effect for cards */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(217, 226, 236, 0.5);
+    }
+
+    /* Feature button hover */
+    .feature-btn {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .feature-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px -8px rgba(26, 54, 93, 0.15);
+    }
+
+    /* Stagger animations */
+    .stagger-1 { animation-delay: 0.1s; }
+    .stagger-2 { animation-delay: 0.2s; }
+    .stagger-3 { animation-delay: 0.3s; }
+    .stagger-4 { animation-delay: 0.4s; }
+    .stagger-5 { animation-delay: 0.5s; }
+    .stagger-6 { animation-delay: 0.6s; }
+  </style>
+</head>
+<body class="min-h-screen molecular-bg">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    const API_BASE = window.location.origin;
+
+    // ========== Markdown Renderer ==========
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let html = text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        .replace(/^\s*[-*]\s+(.*)$/gm, '<li>$1</li>')
+        .replace(/(<li>.*<\/li>)\n(?=<li>)/g, '$1')
+        .replace(/(<li>.*<\/li>)(?!\n<li>)/gs, '<ul>$1</ul>')
+        .replace(/^\d+\.\s+(.*)$/gm, '<li>$1</li>')
+        .replace(/^---$/gm, '<hr>')
+        .replace(/^>\s+(.*)$/gm, '<blockquote>$1</blockquote>')
+        .replace(/\|(.+)\|/g, (match, content) => {
+          const cells = content.split('|').map(c => c.trim());
+          if (cells.every(c => /^[-:]+$/.test(c))) return '';
+          const cellType = match.includes('---') ? 'th' : 'td';
+          return '<tr>' + cells.map(c => `<${cellType}>${c}</${cellType}>`).join('') + '</tr>';
+        })
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>');
+      html = html.replace(/(<tr>[\s\S]*?<\/tr>)+/g, '<table>$&</table>');
+      if (!html.startsWith('<')) html = '<p>' + html + '</p>';
+      return html;
+    }
+
+    // ========== API ==========
+    const api = {
+      async getStatus() {
+        const res = await fetch(`${API_BASE}/api/status`);
+        if (!res.ok) throw new Error('Failed to get status');
+        return res.json();
+      },
+      async chat(message, sessionId) {
+        const res = await fetch(`${API_BASE}/api/chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, session_id: sessionId })
+        });
+        if (!res.ok) throw new Error('Failed to send message');
+        return res.json();
+      },
+      async getTables() {
+        const res = await fetch(`${API_BASE}/api/tables`);
+        return res.json();
+      },
+      async getPlots() {
+        const res = await fetch(`${API_BASE}/api/plots`);
+        return res.json();
+      },
+      async clearSession(sessionId) {
+        await fetch(`${API_BASE}/api/session/${sessionId}`, { method: 'DELETE' });
+      }
+    };
+
+    // ========== Icon Component ==========
+    function Icon({ name, size = 20, className = '' }) {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current && lucide[name]) {
+          ref.current.innerHTML = '';
+          const svg = lucide.createElement(lucide[name]);
+          svg.setAttribute('width', size);
+          svg.setAttribute('height', size);
+          ref.current.appendChild(svg);
+        }
+      }, [name, size]);
+      return <span ref={ref} className={`inline-flex items-center justify-center ${className}`} />;
+    }
+
+    // ========== Feature Button ==========
+    function FeatureButton({ icon, label, description, onClick, delay = 0 }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`feature-btn group text-left p-5 bg-white rounded-xl border border-navy-100 hover:border-copper-300 opacity-0 animate-fade-up`}
+          style={{ animationDelay: `${delay}ms`, animationFillMode: 'forwards' }}
+        >
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-navy-50 to-navy-100 flex items-center justify-center text-navy-600 group-hover:from-copper-50 group-hover:to-copper-100 group-hover:text-copper-600 transition-all duration-300">
+              <Icon name={icon} size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-medium text-navy-900 group-hover:text-copper-700 transition-colors">{label}</h3>
+              <p className="text-sm text-navy-500 mt-0.5 leading-relaxed">{description}</p>
+            </div>
+          </div>
+        </button>
+      );
+    }
+
+    // ========== Message Component ==========
+    function Message({ message, isUser }) {
+      return (
+        <div className={`flex gap-4 ${isUser ? 'flex-row-reverse' : ''} animate-fade-up`}>
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isUser
+              ? 'bg-gradient-to-br from-copper-400 to-copper-600 text-white'
+              : 'bg-gradient-to-br from-navy-700 to-navy-900 text-white'
+          }`}>
+            <Icon name={isUser ? 'User' : 'FlaskConical'} size={16} />
+          </div>
+          <div className={`flex-1 max-w-[85%] ${isUser ? 'flex flex-col items-end' : ''}`}>
+            <div className={`inline-block rounded-2xl px-5 py-3.5 ${
+              isUser
+                ? 'bg-gradient-to-br from-copper-500 to-copper-600 text-white'
+                : 'bg-white border border-navy-100 shadow-sm'
+            }`}>
+              {isUser ? (
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+              ) : (
+                <div className="prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
+              )}
+            </div>
+            {message.images && message.images.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-3">
+                {message.images.map((img, i) => (
+                  <a key={i} href={`${API_BASE}/plots/${img}`} target="_blank" rel="noopener noreferrer" className="block">
+                    <img
+                      src={`${API_BASE}/plots/${img}`}
+                      alt={`Plot ${i + 1}`}
+                      className="rounded-xl max-w-sm max-h-72 border border-navy-100 shadow-md hover:shadow-lg hover:border-copper-300 transition-all duration-300"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
+            {message.elapsed !== undefined && (
+              <p className="text-xs text-navy-400 mt-2 font-medium tracking-wide">
+                {message.elapsed.toFixed(1)}s
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ========== Typing Indicator ==========
+    function TypingIndicator() {
+      return (
+        <div className="flex gap-4 animate-fade-in">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-navy-700 to-navy-900 flex items-center justify-center text-white">
+            <Icon name="FlaskConical" size={16} />
+          </div>
+          <div className="bg-white border border-navy-100 rounded-2xl px-5 py-4 shadow-sm">
+            <div className="flex gap-1.5">
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
+              <span className="typing-dot w-2 h-2 bg-navy-300 rounded-full"></span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========== Status Indicator ==========
+    function StatusIndicator({ status }) {
+      const isReady = status?.status === 'ready';
+      return (
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium tracking-wide ${
+          isReady
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-amber-50 text-amber-700 border border-amber-200'
+        }`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${isReady ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse-subtle`}></span>
+          {isReady ? `${status.tables_loaded} tables` : 'Loading'}
+        </div>
+      );
+    }
+
+    // ========== Main App ==========
+    function App() {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState('');
+      const [isLoading, setIsLoading] = useState(false);
+      const [sessionId, setSessionId] = useState(null);
+      const [status, setStatus] = useState(null);
+
+      const messagesEndRef = useRef(null);
+      const inputRef = useRef(null);
+
+      useEffect(() => {
+        api.getStatus().then(setStatus).catch(console.error);
+      }, []);
+
+      useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, [messages]);
+
+      useEffect(() => {
+        if (!isLoading) inputRef.current?.focus();
+      }, [isLoading]);
+
+      const handleSend = async () => {
+        if (!input.trim() || isLoading) return;
+        const userMessage = { role: 'user', content: input.trim() };
+        setMessages(prev => [...prev, userMessage]);
+        setInput('');
+        setIsLoading(true);
+
+        try {
+          const response = await api.chat(userMessage.content, sessionId);
+          if (!sessionId && response.session_id) setSessionId(response.session_id);
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: response.response,
+            images: response.images,
+            elapsed: response.elapsed_time,
+            iterations: response.iterations
+          }]);
+        } catch (e) {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: `I encountered an error: ${e.message}\n\nPlease check if the server is running.`
+          }]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+      };
+
+      const handleFeature = (prompt) => {
+        setInput(prompt);
+        inputRef.current?.focus();
+      };
+
+      const handleClear = async () => {
+        if (sessionId) await api.clearSession(sessionId);
+        setMessages([]);
+        setSessionId(null);
+      };
+
+      const features = [
+        {
+          icon: 'Database',
+          label: 'Explore Data',
+          description: 'View available tables and their structure',
+          prompt: 'What tables are available and what columns do they contain?'
+        },
+        {
+          icon: 'FlaskConical',
+          label: 'Find Solvents',
+          description: 'Search for solvents by polymer compatibility',
+          prompt: 'List solvents that dissolve polystyrene at room temperature'
+        },
+        {
+          icon: 'GitBranch',
+          label: 'Polymer Separation',
+          description: 'Find selective solvents to separate polymers',
+          prompt: 'Find solvents to separate LDPE from PET at 25°C'
+        },
+        {
+          icon: 'BarChart3',
+          label: 'Compare Properties',
+          description: 'Analyze and rank solvents by properties',
+          prompt: 'Rank solvents by energy cost (lowest first) and show a bar chart'
+        },
+        {
+          icon: 'Thermometer',
+          label: 'Temperature Analysis',
+          description: 'Study solubility vs temperature relationships',
+          prompt: 'Plot solubility vs temperature for HDPE across different solvents'
+        },
+        {
+          icon: 'TrendingUp',
+          label: 'Statistical Analysis',
+          description: 'Generate statistical insights and correlations',
+          prompt: 'Show statistical summary of solubility data with visualizations'
+        },
+      ];
+
+      return (
+        <div className="min-h-screen flex flex-col">
+          {/* Header */}
+          <header className="border-b border-navy-100 bg-white/80 backdrop-blur-md sticky top-0 z-30">
+            <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-navy-800 to-navy-950 flex items-center justify-center shadow-lg shadow-navy-900/20">
+                    <Icon name="FlaskConical" size={22} className="text-white" />
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-copper-500 border-2 border-white"></div>
+                </div>
+                <div>
+                  <h1 className="font-serif text-xl font-semibold text-navy-900 tracking-tight">STRAP Solubility Search</h1>
+                  <p className="text-xs text-navy-500 font-medium tracking-wide">Polymer-Solvent Analysis Platform</p>
+                </div>
+              </div>
+              <StatusIndicator status={status} />
+            </div>
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1 flex flex-col max-w-5xl mx-auto w-full">
+            <div className="flex-1 overflow-y-auto px-6 py-8">
+              {messages.length === 0 ? (
+                <div className="h-full flex flex-col">
+                  {/* Hero */}
+                  <div className="text-center py-12 opacity-0 animate-fade-up" style={{ animationDelay: '0ms', animationFillMode: 'forwards' }}>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-copper-50 rounded-full text-copper-700 text-sm font-medium mb-6 border border-copper-200">
+                      <Icon name="Sparkles" size={14} />
+                      AI-Powered Analysis
+                    </div>
+                    <h2 className="font-serif text-4xl font-semibold text-navy-900 mb-4 tracking-tight">
+                      Explore Polymer Solubility
+                    </h2>
+                    <p className="text-navy-500 max-w-xl mx-auto leading-relaxed text-lg">
+                      Search solubility data, find separation strategies, and analyze solvent properties
+                      with natural language queries.
+                    </p>
+                  </div>
+
+                  {/* Feature Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8">
+                    {features.map((feature, i) => (
+                      <FeatureButton
+                        key={feature.label}
+                        icon={feature.icon}
+                        label={feature.label}
+                        description={feature.description}
+                        onClick={() => handleFeature(feature.prompt)}
+                        delay={100 + i * 80}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Subtle footer text */}
+                  <div className="mt-auto pt-12 text-center opacity-0 animate-fade-in" style={{ animationDelay: '800ms', animationFillMode: 'forwards' }}>
+                    <p className="text-navy-400 text-sm">
+                      Type a question below or select a feature above to begin
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {messages.map((msg, i) => (
+                    <Message key={i} message={msg} isUser={msg.role === 'user'} />
+                  ))}
+                  {isLoading && <TypingIndicator />}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
+
+            {/* Input Area */}
+            <div className="border-t border-navy-100 bg-white/80 backdrop-blur-md p-6">
+              <div className="flex gap-3 items-end">
+                {messages.length > 0 && (
+                  <button
+                    onClick={handleClear}
+                    className="p-3 text-navy-400 hover:text-copper-600 hover:bg-copper-50 rounded-xl transition-all duration-200"
+                    title="Clear conversation"
+                  >
+                    <Icon name="RotateCcw" size={18} />
+                  </button>
+                )}
+                <div className="flex-1 relative">
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask about polymer solubility, separation strategies, solvent properties..."
+                    rows={1}
+                    className="w-full bg-white border border-navy-200 rounded-xl px-5 py-3.5 pr-14 resize-none focus:outline-none focus:ring-2 focus:ring-copper-400 focus:border-transparent placeholder-navy-400 text-navy-900 shadow-sm transition-shadow duration-200 hover:shadow-md"
+                    style={{ minHeight: '52px', maxHeight: '160px' }}
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || isLoading}
+                    className="absolute right-2 bottom-2 p-2.5 bg-gradient-to-br from-navy-800 to-navy-900 hover:from-copper-500 hover:to-copper-600 disabled:from-navy-200 disabled:to-navy-300 text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md disabled:shadow-none"
+                  >
+                    {isLoading ? (
+                      <Icon name="Loader2" size={18} className="animate-spin" />
+                    ) : (
+                      <Icon name="ArrowUp" size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-navy-400 mt-3 text-center">
+                Press <kbd className="px-1.5 py-0.5 bg-navy-100 rounded text-navy-600 font-medium">Enter</kbd> to send
+              </p>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

@@ -14,6 +14,7 @@ from typing import TypedDict
 
 logger = logging.getLogger(__name__)
 
+import deepagents.graph as deepagents_graph
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -36,6 +37,7 @@ from .prompts import FILE_IO_DIRECTIVE, THINK_DIRECTIVE, build_system_prompt  # 
 from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
 from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
 from .subagent_config import load_subagent_specs  # noqa: E402
+from .traced_subagent_middleware import TracedSubAgentMiddleware  # noqa: E402
 from .verifier import OutputVerifierMiddleware  # noqa: E402
 
 from .tools import get_core_tools  # noqa: E402
@@ -381,18 +383,23 @@ def create_dissolve_agent(
 
     # Middleware order (innermost → outermost):
     #   routing → output_verifier → result_extractor → orchestrator_guard
-    agent = create_deep_agent(
-        model=model,
-        tools=get_core_tools() + get_result_extractor_tools(),
-        subagents=_build_subagents(overrides=subagent_overrides),
-        system_prompt=build_system_prompt(generate_routing_table()),
-        memory=["./AGENTS.md"],
-        skills=["./skills/"],
-        backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-        middleware=[routing, output_verifier, result_extractor, orchestrator_guard],
-        name="dissolve-agent",
-        checkpointer=checkpointer,
-    )
+    original_subagent_middleware = deepagents_graph.SubAgentMiddleware
+    deepagents_graph.SubAgentMiddleware = TracedSubAgentMiddleware
+    try:
+        agent = create_deep_agent(
+            model=model,
+            tools=get_core_tools() + get_result_extractor_tools(),
+            subagents=_build_subagents(overrides=subagent_overrides),
+            system_prompt=build_system_prompt(generate_routing_table()),
+            memory=["./AGENTS.md"],
+            skills=["./skills/"],
+            backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
+            middleware=[routing, output_verifier, result_extractor, orchestrator_guard],
+            name="dissolve-agent",
+            checkpointer=checkpointer,
+        )
+    finally:
+        deepagents_graph.SubAgentMiddleware = original_subagent_middleware
     return agent
 
 

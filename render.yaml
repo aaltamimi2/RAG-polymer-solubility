@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: dissolve-v9
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/status
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: PORT
+        value: "8000"
+      - key: DATA_DIR
+        value: /app/data
+      - key: PLOTS_DIR
+        value: /app/plots
+      - key: REPORTS_DIR
+        value: /app/reports
+      - key: HSP_DATA_PATH
+        value: /app/HSP-ML-integration/RED_values_complete_CORRECTED.csv
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        value: aaltamimi2/RAG-polymer-solubility
+      - key: LANGSMITH_API_KEY
+        sync: false
+      - key: LANGSMITH_TRACING
+        value: "true"
+      - key: LANGSMITH_PROJECT
+        value: strap-agent

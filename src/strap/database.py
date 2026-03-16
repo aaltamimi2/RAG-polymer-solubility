@@ -85,3 +85,13 @@ def get_database(data_dir: Optional[str | Path] = None) -> Database:
 def get_connection(data_dir: Optional[str | Path] = None) -> duckdb.DuckDBPyConnection:
     """Convenience: return the DuckDB connection directly."""
     return get_database(data_dir).get_connection()
+
+
+def reload_database(data_dir: Optional[str | Path] = None) -> Database:
+    """Drop the cached Database for *data_dir* and reload CSV files from disk."""
+    global _database
+    resolved_dir = _resolve_data_dir(data_dir)
+    database = Database(resolved_dir)
+    _database_cache[resolved_dir] = database
+    _database = database
+    return database

@@ -3,6 +3,8 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+node_modules/
+frontend/build/
 .eggs/
 *.egg
 .venv/
