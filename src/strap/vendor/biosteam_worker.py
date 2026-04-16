@@ -20,10 +20,26 @@ import json
 import time
 import warnings
 import traceback
+from pathlib import Path
 from types import SimpleNamespace
+
+# ---------------------------------------------------------------------------
+# Inject the "Paola new model" parent directory so that the private
+# `plastics` package (which cannot be published to PyPI) is importable.
+# biosteam_worker.py lives at:
+#   <repo>/src/strap/vendor/biosteam_worker.py
+# The plastics folder lives at:
+#   <repo>/../../plastics/          (i.e. two levels above the repo root)
+# ---------------------------------------------------------------------------
+_WORKER_DIR = Path(__file__).resolve().parent           # .../vendor/
+_REPO_ROOT   = _WORKER_DIR.parent.parent.parent         # .../RAG-polymer-solubility/
+_PLASTICS_PARENT = _REPO_ROOT.parent                    # .../Paola new model/
+if str(_PLASTICS_PARENT) not in sys.path:
+    sys.path.insert(0, str(_PLASTICS_PARENT))
 
 # Suppress all warnings (BioSTEAM / thermosteam emit many RuntimeWarnings)
 warnings.filterwarnings('ignore')
+
 
 # ---------------------------------------------------------------------------
 # Energy-case mapping

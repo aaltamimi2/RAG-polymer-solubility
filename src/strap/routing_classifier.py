@@ -159,6 +159,14 @@ _SEQUENTIAL_CUE_RE = re.compile(
     r"\b(then|and then|after|followed by|before finally|finally|using the result|based on the result)\b",
     re.IGNORECASE,
 )
+_OPTIMIZATION_INTENT_RE = re.compile(
+    r"\b("
+    r"optimiz|maximiz|minimiz|max profit|min emissions?|min cost|max circularity|"
+    r"superstructure|pyomo|minlp|optimal pathway|waste management optim|"
+    r"best pathway|optimal processing|optimize waste"
+    r")\b",
+    re.IGNORECASE,
+)
 _QUERY_CONTEXT_LABEL_TO_GOALS: dict[str, tuple[str, ...]] = {
     "separation.route": ("separation.route",),
     "separation.feasibility": ("separation.feasibility",),
@@ -177,6 +185,7 @@ _QUERY_CONTEXT_LABEL_TO_GOALS: dict[str, tuple[str, ...]] = {
     "ml.prediction": ("ml.prediction",),
     "thermal.prediction": ("thermal.prediction",),
     "contaminant.screening": ("contaminant.screening", "contaminant.removal"),
+    "optimization.pathway": ("optimization.pathway",),
 }
 
 
@@ -206,6 +215,9 @@ Rules:
 - "separation-engineer" handles dissolution, purification, separation \
 sequences, selective solvents, mixed-stream processing
 - "safety-analyst" handles safety, toxicity, GSK scores, hazard data
+- "optimization-engineer" handles waste management optimization, profit \
+maximization, emission minimization, MINLP superstructure, Pyomo models, \
+optimal processing pathway selection for multi-layer plastic feeds (PE/PET/N6/EVOH)
 - When a query involves BOTH separation AND safety (e.g. "safest sequence"), \
 return both specialists""".format(subagent_list=_build_subagent_list())
 
