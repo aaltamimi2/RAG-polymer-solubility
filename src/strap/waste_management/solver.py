@@ -187,7 +187,7 @@ def solve_single(m, sense, solver_name="gurobi", solver_options=None):
         res = extract_results(m)
         print_results(res, label=f"Single Objective: {sense}")
         return res
-    elif len(result.solution) > 0 and result.solution[0].status.value in ("feasible", "locallyOptimal"):
+    elif len(result.solution) > 0 and str(getattr(result.solution[0], 'status', '')).split('.')[-1] in ("feasible", "locallyOptimal"):
         # Solver found a feasible point but couldn't certify optimality
         m.solutions.load_from(result)
         res = extract_results(m)

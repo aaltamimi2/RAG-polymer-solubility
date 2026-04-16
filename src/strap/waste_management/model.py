@@ -296,12 +296,14 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Circularity indicator: Energy score
     # -----------------------------------------------------------------------
-    M_e = 1e14
+    M_e = 1e5
     small_d = 1e-3
 
     # Energy consumed sub-index
-    m.e_ub = pyo.Constraint(expr=m.E <= UB_energy + (1 - m.z_energy) * M_e)
-    m.e_lb = pyo.Constraint(expr=m.E >= UB_energy - m.z_energy * M_e)
+    # Score maxes at 1.0
+    m.econ_bound = pyo.Constraint(expr=m.Econsumed <= 1.0)
+    m.e_ub = pyo.Constraint(expr=m.E <= UB_energy + (1 - m.z_energy) * M_e * UB_energy)
+    m.e_lb = pyo.Constraint(expr=m.E >= UB_energy - m.z_energy * M_e * UB_energy)
     m.econ_ub = pyo.Constraint(expr=
         m.Econsumed <= 1 - m.E / UB_energy + M_e * (1 - m.z_energy))
     m.econ_lb = pyo.Constraint(expr=
@@ -309,9 +311,9 @@ def build_model(data, config):
     m.econ_bin = pyo.Constraint(expr=m.Econsumed <= M_e * m.z_energy)
 
     # Renewable energy sub-index
-    m.erenew_ub = pyo.Constraint(expr=m.E <= (1 - m.z_renew) * M_e)
-    m.erenew_lb = pyo.Constraint(expr=m.E >= m.RE - m.z_renew * M_e + small_d)
-    # Bilinear: E * Erenewable ≈ RE  (these are the original MINLP constraints)
+    m.erenew_bound = pyo.Constraint(expr=m.Erenewable <= 1.0)
+    m.erenew_ub = pyo.Constraint(expr=m.E <= (1 - m.z_renew) * M_e * UB_energy)
+    m.erenew_lb = pyo.Constraint(expr=m.E >= m.RE - m.z_renew * M_e * UB_energy + small_d)
     m.erenew_prod_ub = pyo.Constraint(expr=
         m.E * m.Erenewable <= m.RE + M_e * m.z_renew * m.E)
     m.erenew_prod_lb = pyo.Constraint(expr=
@@ -327,11 +329,12 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Circularity indicator: GHG score
     # -----------------------------------------------------------------------
-    M_em = 1e7
+    M_em = 1e5
+    m.emgen_bound = pyo.Constraint(expr=m.Em_generated <= 1.0)
     m.em_ub = pyo.Constraint(expr=
-        m.D_ghg + m.I_ghg <= UB_ghg + (1 - m.z_emissions) * M_em)
+        m.D_ghg + m.I_ghg <= UB_ghg + (1 - m.z_emissions) * M_em * UB_ghg)
     m.em_lb = pyo.Constraint(expr=
-        m.D_ghg + m.I_ghg >= UB_ghg - m.z_emissions * M_em)
+        m.D_ghg + m.I_ghg >= UB_ghg - m.z_emissions * M_em * UB_ghg)
     m.emgen_ub = pyo.Constraint(expr=
         m.Em_generated <= 1 - (m.D_ghg + m.I_ghg) / UB_ghg + M_em * (1 - m.z_emissions))
     m.emgen_lb = pyo.Constraint(expr=
@@ -343,11 +346,12 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Circularity indicator: Water score
     # -----------------------------------------------------------------------
-    M_water = 1e8
+    M_water = 1e5
+    m.wwithdraw_bound = pyo.Constraint(expr=m.W_withdrawal <= 1.0)
     m.ww_ub = pyo.Constraint(expr=
-        m.W_w <= UB_withdrawal + (1 - m.z_water) * M_water)
+        m.W_w <= UB_withdrawal + (1 - m.z_water) * M_water * UB_withdrawal)
     m.ww_lb = pyo.Constraint(expr=
-        m.W_w >= UB_withdrawal - m.z_water * M_water)
+        m.W_w >= UB_withdrawal - m.z_water * M_water * UB_withdrawal)
     m.wwithdraw_ub = pyo.Constraint(expr=
         m.W_withdrawal <= 1 - m.W_w / UB_withdrawal + M_water * (1 - m.z_water))
     m.wwithdraw_lb = pyo.Constraint(expr=
@@ -355,7 +359,7 @@ def build_model(data, config):
     m.wwithdraw_bin = pyo.Constraint(expr=m.W_withdrawal <= M_water * m.z_water)
 
     # Water recycled (bilinear: W_recycled * W_w <= W_r)
-    m.wrecyc_cap = pyo.Constraint(expr=m.W_recycled <= 1)
+    m.wrecyc_cap = pyo.Constraint(expr=m.W_recycled <= 1.0)
     m.wrecyc_prod = pyo.Constraint(expr=m.W_recycled * m.W_w <= m.W_r)
 
     m.Water_score_def = pyo.Constraint(expr=
@@ -364,13 +368,14 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Circularity indicator: Waste score
     # -----------------------------------------------------------------------
-    M_waste = 1e9
-    M_d = 1e6
+    M_waste = 1e5
+    M_d = 1e5
 
+    m.wgen_bound = pyo.Constraint(expr=m.W_generated <= 1.0)
     m.wg_ub = pyo.Constraint(expr=
-        m.W_g <= UB_waste + (1 - m.z_waste) * M_waste)
+        m.W_g <= UB_waste + (1 - m.z_waste) * M_waste * UB_waste)
     m.wg_lb = pyo.Constraint(expr=
-        m.W_g >= UB_waste - m.z_waste * M_waste)
+        m.W_g >= UB_waste - m.z_waste * M_waste * UB_waste)
     m.wgen_ub = pyo.Constraint(expr=
         m.W_generated <= 1 - m.W_g / UB_waste + M_waste * (1 - m.z_waste))
     m.wgen_lb = pyo.Constraint(expr=
@@ -378,8 +383,9 @@ def build_model(data, config):
     m.wgen_bin = pyo.Constraint(expr=m.W_generated <= M_waste * m.z_waste)
 
     # Waste disposal / diversion
-    m.wd_ub = pyo.Constraint(expr=m.W_d <= (1 - m.z_disposal) * M_d)
-    m.wd_lb = pyo.Constraint(expr=m.W_d >= small_d - m.z_disposal * M_d)
+    m.wdiv_bound = pyo.Constraint(expr=m.W_diverted <= 1.0)
+    m.wd_ub = pyo.Constraint(expr=m.W_d <= (1 - m.z_disposal) * M_d * Feed)
+    m.wd_lb = pyo.Constraint(expr=m.W_d >= small_d - m.z_disposal * M_d * Feed)
     m.wdiv_ub1 = pyo.Constraint(expr=m.W_diverted <= 1 + M_d * (1 - m.z_disposal))
     m.wdiv_lb1 = pyo.Constraint(expr=m.W_diverted >= 1 - M_d * (1 - m.z_disposal))
     m.wdiv_ub2 = pyo.Constraint(expr=

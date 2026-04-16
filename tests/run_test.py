@@ -18,17 +18,8 @@ if __name__ == "__main__":
     print("Loading DISSOLVE agent...")
     agent = create_dissolve_agent()
     
-    test_prompt = """I have 8000 tonnes of mixed plastic waste.
-The mix is:
-- 60 % PE
-- 20 % PET
-- 10 % Nylon‑6
-- 10 % EVOH
-Please run the DISSOLVE optimizer (scenario A) and tell me:
-1. The circularity score (a number between 0 and 1).
-2. Which processing steps the model chose (separation, conversion, end‑of‑life).
-3. A short, plain‑English reason why it picked those steps.
-Give the answer as a short paragraph or a tiny table – nothing technical.
+    test_prompt = """I have 8000 tonnes of plastic waste consisting of 40% PE, 40% PET, 1% Nylon‑6, and 19% EVOH. 
+Run the optimization using SCENARIO_NAME and tell me the best processing pathway, the total profit, and the emissions.
 """
     print(f"\n[USER PROMPT]: {test_prompt}\n")
     print("Agent is thinking... (running tool calls!)\n")
