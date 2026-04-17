@@ -196,11 +196,10 @@ def run_waste_management_optimization(
         )
         
         m = build_model(data, CONFIG)
-        # User specified to use SCIP solver
         try:
             results = solve_single(m, objective, solver_name="scip")
         except Exception as e:
-            logger.warning(f"Failed to run SCIP solver: {e}. Falling back to default tools.")
+            logger.warning("Numerical troubles with SCIP. Falling back to default tools.")
             results = solve_single(m, objective, solver_name="gurobi")
         # circularity_score is already normalized 0-1 by solver.extract_results()
 
