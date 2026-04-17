@@ -343,7 +343,7 @@ def test_plan_workflow_rules_keeps_explicit_process_and_optimization_goals_toget
     dependencies = derive_workflow_dependencies(query, set(names))
     assert dependencies["separation-engineer"] == set()
     assert dependencies["biosteam-analyst"] == {"separation-engineer"}
-    assert dependencies["optimization-engineer"] == set()
+    assert dependencies["optimization-engineer"] == {"separation-engineer"}
 
 
 def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route_is_weaker():
@@ -408,7 +408,7 @@ def test_routing_middleware_keeps_explicit_process_chain_plus_optimization():
     plan = _get_ordered_plan(messages, allowed_rules=allowed)
     dependency_map = {step["subagent"]: step["depends_on"] for step in plan}
 
-    assert dependency_map["optimization-engineer"] == ()
+    assert dependency_map["optimization-engineer"] == ("separation-engineer",)
     assert dependency_map["separation-engineer"] == ()
     assert dependency_map["biosteam-analyst"] == ("separation-engineer",)
 

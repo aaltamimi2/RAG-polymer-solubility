@@ -8,6 +8,7 @@ from pyomo.repn.standard_repn import generate_standard_repn
 
 from strap.tools.waste_optimization import (
     _NUMERIC_WORKBOOK_COLUMNS,
+    _apply_solvent_filters,
     _map_biosteam_to_strap_row,
 )
 from strap.waste_management.data_loader import load_all_data
@@ -80,6 +81,30 @@ def test_numeric_workbook_columns_are_castable_to_float_before_row_updates():
     assert df["Water consumed/discarded [m3/yr]"].dtype.kind == "f"
     assert df["Waste generated - Non Hazardous [kg/yr]"].dtype.kind == "f"
     assert df["Total Energy indirect GHG emissions (Scope 2) [metric tons CO2 equivalent (t CO2e/yr)]"].dtype.kind == "f"
+
+
+def test_apply_solvent_filters_restricts_by_polymer_and_falls_back_when_needed():
+    df = pd.DataFrame(
+        [
+            {"Polymer": "PE", "Solvents": "Toluene"},
+            {"Polymer": "PE", "Solvents": "Xylene"},
+            {"Polymer": "EVOH", "Solvents": "Ethylene Glycol"},
+            {"Polymer": "EVOH", "Solvents": "Pyridazine"},
+        ]
+    )
+
+    filtered, applied, warnings, requested = _apply_solvent_filters(
+        df,
+        candidate_solvents=["Toluene", "Ethylene Glycol"],
+        polymer_solvent_filters_json={"PE": ["Toluene"], "EVOH": ["NotInWorkbook"]},
+    )
+
+    assert requested["global"] == ["Toluene", "Ethylene Glycol"]
+    assert applied["PE"] == ["Toluene"]
+    assert "EVOH" not in applied
+    assert any("No EVOH solvent overlap" in warning for warning in warnings)
+    assert filtered.loc[filtered["Polymer"] == "PE", "Solvents"].tolist() == ["Toluene"]
+    assert filtered.loc[filtered["Polymer"] == "EVOH", "Solvents"].tolist() == ["Ethylene Glycol", "Pyridazine"]
 
 
 def test_estimate_metric_upper_bound_is_data_driven():

@@ -89,6 +89,69 @@ def _partition_supported_polymers(polymers: list[str]) -> tuple[list[str], list[
     return supported, unsupported
 
 
+def _canonical_optimization_polymer(polymer: Any) -> str | None:
+    text = str(polymer or "").strip().upper()
+    if text in {"PE", "HDPE", "LDPE"}:
+        return "PE"
+    if text == "EVOH":
+        return "EVOH"
+    return None
+
+
+def _build_optimization_solvent_filters(payload: dict[str, Any]) -> tuple[dict[str, list[str]], list[str]]:
+    from .waste_management.data_loader import S_EV1, S_EV2, S_PE
+
+    pe_known = set(S_PE)
+    evoh_known = set(S_EV1) | set(S_EV2)
+
+    polymer_filters: dict[str, list[str]] = {"PE": [], "EVOH": []}
+    global_candidates: list[str] = []
+
+    def add_global(solvent: str) -> None:
+        if solvent and solvent not in global_candidates:
+            global_candidates.append(solvent)
+
+    def add_polymer(polymer: str, solvent: str) -> None:
+        if solvent and solvent not in polymer_filters[polymer]:
+            polymer_filters[polymer].append(solvent)
+            add_global(solvent)
+
+    def route_solvent(solvent: Any, polymer: Any = None) -> None:
+        solvent_name = str(solvent or "").strip()
+        if not solvent_name:
+            return
+        canonical_polymer = _canonical_optimization_polymer(polymer)
+        if canonical_polymer == "PE" and solvent_name in pe_known:
+            add_polymer("PE", solvent_name)
+            return
+        if canonical_polymer == "EVOH" and solvent_name in evoh_known:
+            add_polymer("EVOH", solvent_name)
+            return
+        if solvent_name in pe_known:
+            add_polymer("PE", solvent_name)
+        if solvent_name in evoh_known:
+            add_polymer("EVOH", solvent_name)
+
+    for step in payload.get("steps") or []:
+        if isinstance(step, dict):
+            route_solvent(step.get("solvent"), step.get("polymer"))
+
+    for polymer, solvent in (payload.get("solvent_mapping") or {}).items():
+        route_solvent(solvent, polymer)
+
+    for sequence in payload.get("top_k_sequences") or []:
+        if not isinstance(sequence, dict):
+            continue
+        for polymer, solvent in (sequence.get("solvent_mapping") or {}).items():
+            route_solvent(solvent, polymer)
+
+    for solvent in payload.get("top_solvents") or []:
+        route_solvent(solvent)
+
+    polymer_filters = {polymer: solvents for polymer, solvents in polymer_filters.items() if solvents}
+    return polymer_filters, global_candidates
+
+
 def _build_visualization_task_prompt(
     *,
     polymers: list[str],
@@ -231,6 +294,44 @@ def _adapt_separation_to_visualization(
         unsupported_polymers=unsupported_polymers,
     )
     return ("separation_plot.v1", handoff_payload, task_prompt)
+
+
+def _adapt_separation_to_optimization(
+    source: HandoffRecord,
+    *,
+    scope_user_query: str | None = None,
+) -> tuple[str, dict[str, Any], str]:
+    payload = source.payload
+    polymer_filters, global_candidates = _build_optimization_solvent_filters(payload)
+    filters_json = json.dumps(polymer_filters, ensure_ascii=False)
+    global_json = json.dumps(global_candidates, ensure_ascii=False)
+
+    handoff_payload = {
+        "source_handoff_id": source.handoff_id,
+        "polymers": payload.get("polymers", []),
+        "best_sequence": payload.get("best_sequence", []),
+        "steps": payload.get("steps", []),
+        "solvent_mapping": payload.get("solvent_mapping", {}),
+        "top_solvents": payload.get("top_solvents", []),
+        "polymer_solvent_filters": polymer_filters,
+        "candidate_solvents": global_candidates,
+        "source_user_query": scope_user_query,
+        "source_task_prompt": source.task_prompt,
+    }
+
+    lines = [
+        "Use the upstream separation-route solvent shortlist to constrain the waste optimization solve.",
+        f"Polymer-specific optimization solvent filters: {filters_json}.",
+        f"Global candidate solvents: {global_json}.",
+        "Call run_waste_management_optimization with the upstream shortlist when running the optimization.",
+        "Pass `candidate_solvents` using the listed global candidate solvents.",
+        "Pass `polymer_solvent_filters_json` using the listed polymer-specific filter JSON.",
+        "The optimization tool applies these as soft filters: if a polymer-specific shortlist has no overlap with the optimization workbook, it falls back to the full candidate set for that polymer and reports a filter note.",
+        "Do not broaden the candidate set beyond the upstream route shortlist unless the tool reports no overlap.",
+    ]
+    if scope_user_query:
+        lines.append(f"Original user request: {scope_user_query}")
+    return ("optimization_route_context.v1", handoff_payload, " ".join(lines))
 
 
 def _adapt_statistics_to_visualization(
@@ -443,6 +544,7 @@ _ADAPTERS: dict[tuple[str, str], Any] = {
     ("scholar-researcher", "rag-analyst"): _adapt_scholar_to_rag,
     ("separation-engineer", "biosteam-analyst"): _adapt_separation_to_biosteam,
     ("separation-engineer", "contaminant-removal-analyst"): _adapt_separation_to_contaminant,
+    ("separation-engineer", "optimization-engineer"): _adapt_separation_to_optimization,
     ("separation-engineer", "visualization-specialist"): _adapt_separation_to_visualization,
     ("statistics-ml", "visualization-specialist"): _adapt_statistics_to_visualization,
 }
@@ -460,6 +562,8 @@ def build_typed_handoff(
     if adapter is _adapt_separation_to_visualization:
         return adapter(source, scope_user_query=scope_user_query)
     if adapter is _adapt_separation_to_contaminant:
+        return adapter(source, scope_user_query=scope_user_query)
+    if adapter is _adapt_separation_to_optimization:
         return adapter(source, scope_user_query=scope_user_query)
     if adapter is _adapt_contaminant_to_separation:
         return adapter(source, scope_user_query=scope_user_query)

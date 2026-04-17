@@ -2,10 +2,12 @@
 Multi-layer Plastic Waste Optimization Tool.
 Integrates BioSTEAM simulations with Pyomo superstructure optimization.
 """
+import json
 import logging
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -19,6 +21,119 @@ from strap.waste_management.solver import solve_single
 logger = logging.getLogger(__name__)
 
 _NUMERIC_WORKBOOK_COLUMNS = tuple(STRAP_UNIT_COLS.values())
+_OPTIMIZATION_POLYMER_ALIASES = {
+    "PE": "PE",
+    "HDPE": "PE",
+    "LDPE": "PE",
+    "EVOH": "EVOH",
+}
+
+
+def _parse_csv_list(values: list[str] | str | None) -> list[str]:
+    if values is None:
+        return []
+    if isinstance(values, str):
+        raw_items = values.split(",")
+    elif isinstance(values, list):
+        raw_items = values
+    else:
+        raise TypeError("candidate solvents must be a comma-separated string or list of strings")
+
+    items: list[str] = []
+    seen: set[str] = set()
+    for value in raw_items:
+        text = str(value).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        items.append(text)
+    return items
+
+
+def _normalize_optimization_polymer(polymer: Any) -> str | None:
+    if polymer is None:
+        return None
+    text = str(polymer).strip().upper()
+    if not text:
+        return None
+    return _OPTIMIZATION_POLYMER_ALIASES.get(text)
+
+
+def _parse_polymer_solvent_filters(
+    polymer_solvent_filters_json: dict[str, Any] | str | None,
+) -> dict[str, list[str]]:
+    if polymer_solvent_filters_json in (None, "", {}):
+        return {}
+
+    if isinstance(polymer_solvent_filters_json, str):
+        payload = json.loads(polymer_solvent_filters_json)
+    elif isinstance(polymer_solvent_filters_json, dict):
+        payload = polymer_solvent_filters_json
+    else:
+        raise TypeError("polymer_solvent_filters_json must be a JSON string or mapping")
+
+    if not isinstance(payload, dict):
+        raise TypeError("polymer_solvent_filters_json must decode to a mapping")
+
+    parsed: dict[str, list[str]] = {}
+    for polymer, values in payload.items():
+        normalized_polymer = _normalize_optimization_polymer(polymer)
+        if normalized_polymer is None:
+            continue
+        solvents = _parse_csv_list(values)
+        if solvents:
+            parsed[normalized_polymer] = solvents
+    return parsed
+
+
+def _apply_solvent_filters(
+    df: pd.DataFrame,
+    *,
+    candidate_solvents: list[str] | str | None = None,
+    polymer_solvent_filters_json: dict[str, Any] | str | None = None,
+) -> tuple[pd.DataFrame, dict[str, list[str]], list[str], dict[str, list[str]]]:
+    global_candidates = _parse_csv_list(candidate_solvents)
+    polymer_filters = _parse_polymer_solvent_filters(polymer_solvent_filters_json)
+    requested_filters = {
+        "global": global_candidates,
+        **polymer_filters,
+    }
+    if not global_candidates and not polymer_filters:
+        return df.copy(), {}, [], requested_filters
+
+    filtered_df = df.copy()
+    warnings: list[str] = []
+    applied_filters: dict[str, list[str]] = {}
+    keep_mask = ~filtered_df["Polymer"].isin(["PE", "EVOH"])
+
+    for polymer in ("PE", "EVOH"):
+        polymer_mask = filtered_df["Polymer"].eq(polymer)
+        if not polymer_mask.any():
+            continue
+
+        available = list(
+            dict.fromkeys(
+                str(solvent).strip()
+                for solvent in filtered_df.loc[polymer_mask, "Solvents"].dropna().astype(str)
+                if str(solvent).strip()
+            )
+        )
+        requested = polymer_filters.get(polymer) or global_candidates
+        allowed = [solvent for solvent in requested if solvent in available]
+
+        if requested and allowed:
+            keep_mask |= polymer_mask & filtered_df["Solvents"].isin(allowed)
+            applied_filters[polymer] = allowed
+            continue
+
+        keep_mask |= polymer_mask
+        if requested and not allowed:
+            warnings.append(
+                f"No {polymer} solvent overlap between upstream shortlist and optimization workbook; "
+                f"falling back to full {polymer} candidate set."
+            )
+
+    return filtered_df.loc[keep_mask].copy(), applied_filters, warnings, requested_filters
 
 # BioSTEAM mapping to Excel metrics. Where exact mappings aren't directly available in standard JSON output, 
 # we scale based on capacities or use the primary metric (like GWP for all GHG).
@@ -67,7 +182,9 @@ def run_waste_management_optimization(
     n6_fraction: float,
     evoh_fraction: float,
     scenario: str = 'A',
-    objective: str = 'max_profit'
+    objective: str = 'max_profit',
+    candidate_solvents: list[str] | str | None = None,
+    polymer_solvent_filters_json: dict[str, Any] | str | None = None,
 ) -> str:
     """Run the PIW multi-layer plastic waste optimization model.
     This tools recalculates costs and operational parameters using BioSTEAM based on the specified input 
@@ -120,6 +237,11 @@ def run_waste_management_optimization(
         for column in _NUMERIC_WORKBOOK_COLUMNS:
             if column in df.columns:
                 df[column] = pd.to_numeric(df[column], errors="coerce").astype(float)
+        df, applied_filters, filter_warnings, requested_filters = _apply_solvent_filters(
+            df,
+            candidate_solvents=candidate_solvents,
+            polymer_solvent_filters_json=polymer_solvent_filters_json,
+        )
         
         # We need to simulate unique solvents used in the Excel
         # To save time, we group by Polymer and Solvent, run BioSTEAM once per (Polymer, Solvent), and update all matched Rows.
@@ -225,7 +347,10 @@ def run_waste_management_optimization(
         circularity_score = max(0.0, min(raw_ce / 1_000_000.0, 1.0))
         results['raw_circularity_score'] = raw_ce
         results['circularity_score'] = circularity_score
-        
+        results["requested_solvent_filters"] = requested_filters
+        results["applied_solvent_filters"] = applied_filters
+        results["solvent_filter_warnings"] = filter_warnings
+
         display = f"## Multi-layer Plastic Optimization Results\n\n"
         display += f"**Objective:** {objective} | **Scenario:** {scenario}\n"
         display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100}% PE, {pet_fraction*100}% PET, {n6_fraction*100}% N6, {evoh_fraction*100}% EVOH)\n\n"
@@ -249,6 +374,11 @@ def run_waste_management_optimization(
             display += f"- **Circularity (0‑1):** {results.get('circularity_score', 0):.4f}\n"
         display += f"- **Capital Cost:** ${results.get('capital_cost', 0):,.2f}\n"
         display += f"- **Operational Cost:** ${results.get('operational_cost', 0):,.2f}\n"
+        if applied_filters:
+            display += f"- **Applied solvent filters:** {applied_filters}\n"
+        if filter_warnings:
+            for warning in filter_warnings:
+                display += f"- **Filter note:** {warning}\n"
         
         # Remove any non-serializable objects from results before returning as JSON
         # Pyomo objects might be in dictionary, ensure all are primitives
