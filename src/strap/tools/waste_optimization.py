@@ -63,6 +63,53 @@ def _map_biosteam_to_strap_row(strap_data_row, res_json, capacity_tons_yr):
 
     return strap_data_row
 
+def _update_excel_with_biosteam(feed: float, pe_fraction: float, evoh_fraction: float, excel_path: Path):
+    """Run dynamic BioSTEAM simulations based on feed scaling and update the Excel file."""
+    capacity_pe = max(feed * pe_fraction, 1)
+    capacity_evoh = max(feed * evoh_fraction, 1)
+    
+    df = pd.read_excel(excel_path, sheet_name="StrapScenario3 Units")
+    unique_simulations = {}
+    
+    for _, row in df.iterrows():
+        w = row.get("Wash number")
+        p = row.get("Polymer")
+        s = row.get("Solvents")
+        if pd.isna(w) or pd.isna(p) or pd.isna(s): continue
+        
+        cap = capacity_pe if p == "PE" else capacity_evoh
+        key = (p, s, cap)
+        
+        if key not in unique_simulations:
+            config = build_single_config(
+                solvent=s,
+                target_plastic=p,
+                target_plastic_percent=100.0,
+                processing_capacity=cap,
+                energy_case="C1",
+            )
+            try:
+                res = run_single_simulation(config)
+                unique_simulations[key] = res
+            except Exception as e:
+                logger.error(f"Failed BioSTEAM simulation for {p} in {s}: {e}")
+                unique_simulations[key] = {"success": False}
+    
+    for i, row in df.iterrows():
+        p = row.get("Polymer")
+        s = row.get("Solvents")
+        if pd.isna(p) or pd.isna(s): continue
+        
+        cap = capacity_pe if p == "PE" else capacity_evoh
+        res = unique_simulations.get((p, s, cap), {})
+        
+        if res.get("success", False):
+            df.iloc[i] = _map_biosteam_to_strap_row(row, res, cap)
+            
+    with pd.ExcelWriter(excel_path, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
+        df.to_excel(writer, sheet_name="StrapScenario3 Units", index=False)
+
+
 @safe_tool_wrapper(structured_output=True)
 def run_waste_management_optimization(
     feed: float,
@@ -105,57 +152,8 @@ def run_waste_management_optimization(
         if not excel_path.exists():
             return json_tool_error(f"Excel file not found at {excel_path}", tool_name="run_waste_management_optimization")
         
-        # Define capacities
-        capacity_pe = max(feed * pe_fraction, 1)  # minimum 1 ton to avoid biosteam div/0
-        capacity_evoh = max(feed * evoh_fraction, 1)
-        
         # 2. Run BioSTEAM and update the Excel file
-        df = pd.read_excel(excel_path, sheet_name="StrapScenario3 Units")
-        
-        # We need to simulate unique solvents used in the Excel
-        # To save time, we group by Polymer and Solvent, run BioSTEAM once per (Polymer, Solvent), and update all matched Rows.
-        unique_simulations = {}
-        for _, row in df.iterrows():
-            w = row.get("Wash number")
-            p = row.get("Polymer")
-            s = row.get("Solvents")
-            if pd.isna(w) or pd.isna(p) or pd.isna(s): continue
-            
-            cap = capacity_pe if p == "PE" else capacity_evoh
-            key = (p, s, cap)
-            
-            if key not in unique_simulations:
-                config = build_single_config(
-                    solvent=s,
-                    target_plastic=p,
-                    target_plastic_percent=100.0, # pure feed entering that stage
-                    processing_capacity=cap, # MT per year
-                    energy_case="C1",
-                )
-                try:
-                    res = run_single_simulation(config)
-                    unique_simulations[key] = res
-                except Exception as e:
-                    logger.error(f"Failed BioSTEAM simulation for {p} in {s}: {e}")
-                    unique_simulations[key] = {"success": False}
-        
-        # Apply updates back to Dataframe
-        for i, row in df.iterrows():
-            p = row.get("Polymer")
-            s = row.get("Solvents")
-            if pd.isna(p) or pd.isna(s): continue
-            
-            cap = capacity_pe if p == "PE" else capacity_evoh
-            res = unique_simulations.get((p, s, cap), {})
-            
-            if res.get("success", False):
-                df.iloc[i] = _map_biosteam_to_strap_row(row, res, cap)
-        
-        # Save updated sheet using ExcelWriter (this preserves other sheets ideally, but doing pd.ExcelWriter requires care not to wipe others)
-        # We will use openpyxl to append/replace the sheet safely
-        with pd.ExcelWriter(excel_path, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
-            df.to_excel(writer, sheet_name="StrapScenario3 Units", index=False)
-            
+        _update_excel_with_biosteam(feed, pe_fraction, evoh_fraction, excel_path)
         
         # 3. Optimize Using Pyomo and SCIP
         scen_keys = {
@@ -298,6 +296,9 @@ def run_pareto_optimization(
 
         if not excel_path.exists():
             return json_tool_error(f"Excel file not found at {excel_path}", tool_name="run_pareto_optimization")
+
+        # 2. Run BioSTEAM and update the Excel file dynamically
+        _update_excel_with_biosteam(feed, pe_fraction, evoh_fraction, excel_path)
 
         scen_keys = {
             'A': {'other_sheet': 'Othertech w TransportA', 'distances': {'strap':0,'lf':9.2,'we':151,'py':1034,'gas_er':0,'gas_h2':2036,'gas_h2cc':2036}},
