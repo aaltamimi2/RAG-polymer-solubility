@@ -6,10 +6,14 @@ Supports:
   - Epsilon-constraint method for Pareto front generation
 """
 
+import logging
 import pyomo.environ as pyo
 import numpy as np
 import pandas as pd
 from strap.waste_management.data_loader import I_SET, J_SET, K_SET, POLYMERS, ALL_SOLVENTS, S_PE, S_EV1, S_EV2
+
+# Suppress verbose Pyomo loading warnings (like infeasible/suboptimal) during sweeps
+logging.getLogger('pyomo.core').setLevel(logging.ERROR)
 
 # Human-readable names for technology codes
 _TECH_DISPLAY_NAMES = {
