@@ -57,6 +57,7 @@ _REQUEST_PATTERNS = (
     ("tea.economics", re.compile(r"\b(tea|techno[- ]economic|biosteam|msp|capex|opex|operating cost|capital cost|payback)\b", re.IGNORECASE)),
     ("lca.environmental", re.compile(r"\b(lca|life cycle|gwp|emissions?|environmental)\b", re.IGNORECASE)),
     ("contaminant.screening", re.compile(r"\b(contaminant screening|strap contaminant removal|remove phthalates|remove pfas|leaching mode|pfas|phthalate|contamin|decontamin)\b", re.IGNORECASE)),
+    ("optimization.pathway", re.compile(r"\b(optimi[sz](?:e|ation)|max(?:imize)? profit|min(?:imize)? emissions?|min(?:imize)? cost|max(?:imize)? circularity|superstructure|pyomo|minlp|optimal pathway|waste management)\b", re.IGNORECASE)),
 )
 _POLYMER_CANONICAL_MAP = {
     "POLYETHYLENE": "PE",
@@ -170,6 +171,8 @@ class QueryContext:
             "thermal.prediction",
         } & set(self.request_labels):
             available.add("user.data_or_prediction_target")
+        if "optimization.pathway" in self.request_labels:
+            available.add("user.optimization_request")
         return frozenset(available)
 
 

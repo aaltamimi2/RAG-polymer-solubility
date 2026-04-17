@@ -276,6 +276,19 @@ def test_infer_requested_goals_uses_query_context_for_research_workflow():
     }
 
 
+def test_infer_requested_goals_prefers_optimization_goal_for_optimization_only_query():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Optimize waste management for an 8000 t/y multilayer feed of 40% PE, 40% PET, "
+            "1% Nylon-6, and 19% EVOH. Maximize profit and report emissions."
+        )
+    )
+
+    assert goals == {"optimization.pathway"}
+
+
 def test_infer_available_query_inputs_maps_core_process_requirements():
     from strap.routing_classifier import infer_available_query_inputs
 
@@ -294,6 +307,43 @@ def test_infer_available_query_inputs_maps_core_process_requirements():
         "user.contaminants",
         "user.solvents_or_route",
     }.issubset(available)
+
+
+def test_plan_workflow_rules_routes_optimization_only_query_to_optimization_engineer():
+    from strap.routing_classifier import plan_workflow_rules
+
+    planned = plan_workflow_rules(
+        (
+            "Optimize waste management for an 8000 t/y multilayer feed of 40% PE, 40% PET, "
+            "1% Nylon-6, and 19% EVOH. Maximize profit and report emissions."
+        ),
+        None,
+    )
+
+    assert [rule["subagent"] for rule in planned] == ["optimization-engineer"]
+
+
+def test_plan_workflow_rules_keeps_explicit_process_and_optimization_goals_together():
+    from strap.routing_classifier import derive_workflow_dependencies, plan_workflow_rules
+
+    query = (
+        "Find a separation route for a PE/PET/EVOH/Nylon-6 multilayer film, run TEA/LCA "
+        "on the route, then optimize waste management for profit and emissions."
+    )
+
+    planned = plan_workflow_rules(query, None)
+    names = [rule["subagent"] for rule in planned]
+
+    assert names == [
+        "separation-engineer",
+        "biosteam-analyst",
+        "optimization-engineer",
+    ]
+
+    dependencies = derive_workflow_dependencies(query, set(names))
+    assert dependencies["separation-engineer"] == set()
+    assert dependencies["biosteam-analyst"] == {"separation-engineer"}
+    assert dependencies["optimization-engineer"] == set()
 
 
 def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route_is_weaker():
@@ -319,6 +369,48 @@ def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route
 
     names = [rule["subagent"] for rule in allowed]
     assert names[:2] == ["separation-engineer", "contaminant-removal-analyst"]
+
+
+def test_routing_middleware_selects_optimization_engineer_for_optimization_only_query():
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "Optimize waste management for an 8000 t/y multilayer feed of 40% PE, 40% PET, "
+        "1% Nylon-6, and 19% EVOH. Maximize profit and report emissions."
+    )
+    messages = [HumanMessage(content=query)]
+
+    middleware = RoutingMiddleware(classifier_model=None)
+    allowed = middleware._get_allowed_rules(messages)
+
+    assert [rule["subagent"] for rule in allowed] == ["optimization-engineer"]
+
+
+def test_routing_middleware_keeps_explicit_process_chain_plus_optimization():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_message_state import _get_ordered_plan
+
+    query = (
+        "Find a separation route for a PE/PET/EVOH/Nylon-6 multilayer film, run TEA/LCA "
+        "on the route, then optimize waste management for profit and emissions."
+    )
+    messages = [HumanMessage(content=query)]
+
+    middleware = RoutingMiddleware(classifier_model=None)
+    allowed = middleware._get_allowed_rules(messages)
+
+    assert set(rule["subagent"] for rule in allowed) == {
+        "separation-engineer",
+        "biosteam-analyst",
+        "optimization-engineer",
+    }
+
+    plan = _get_ordered_plan(messages, allowed_rules=allowed)
+    dependency_map = {step["subagent"]: step["depends_on"] for step in plan}
+
+    assert dependency_map["optimization-engineer"] == ()
+    assert dependency_map["separation-engineer"] == ()
+    assert dependency_map["biosteam-analyst"] == ("separation-engineer",)
 
 
 def test_get_allowed_rules_plans_four_stage_research_workflow():

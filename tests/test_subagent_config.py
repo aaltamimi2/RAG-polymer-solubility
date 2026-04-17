@@ -15,10 +15,11 @@ from strap.subagent_config import (
 def test_load_split_manifest_defaults():
     bundle = load_subagent_bundle()
 
-    assert len(bundle["subagents"]) == 9
+    assert len(bundle["subagents"]) == 10
     assert "parallel" in bundle["execution_pairs"]
     assert "sequential" in bundle["execution_pairs"]
     assert bundle["subagents"][0]["name"] == "separation-engineer"
+    assert any(spec["name"] == "optimization-engineer" for spec in bundle["subagents"])
 
 
 def test_separation_engineer_prompt_includes_bounded_temperature_guidance():

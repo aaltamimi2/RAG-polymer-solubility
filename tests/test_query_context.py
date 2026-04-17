@@ -84,3 +84,16 @@ def test_extract_query_context_does_not_leak_route_goals_from_research_topic_tex
     assert {"literature.search", "patent.search", "literature.answer", "visualization.plot"}.issubset(
         set(context.request_labels)
     )
+
+
+def test_extract_query_context_captures_optimization_request_labels():
+    query = (
+        "Optimize waste management for an 8000 t/y multilayer feed of 40% PE, 40% PET, "
+        "1% Nylon-6, and 19% EVOH. Maximize profit and report emissions."
+    )
+
+    context = extract_query_context(query)
+
+    assert context.polymers == ("PE", "PET", "NYLON6", "EVOH")
+    assert "optimization.pathway" in context.request_labels
+    assert "user.optimization_request" in context.available_inputs

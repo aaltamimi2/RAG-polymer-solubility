@@ -64,6 +64,14 @@ _BIOSTEAM_INTENT_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_EXPLICIT_BIOSTEAM_ANALYSIS_RE = re.compile(
+    r"\b("
+    r"tea|lca|techno[- ]economic|life cycle|biosteam|process simulation|"
+    r"msp|capex|opex|operating cost|capital cost|"
+    r"uncertainty|sensitivity|tornado|parameter sweep|monte carlo|payback"
+    r")\b",
+    re.IGNORECASE,
+)
 _NEGATED_BIOSTEAM_RE = re.compile(
     r"\b(do not|don't|no)\b[^.]{0,48}\b("
     r"tea|lca|techno[- ]economic|life cycle|biosteam|msp|capex|opex|gwp"
@@ -74,6 +82,14 @@ _CONTAMINANT_INTENT_RE = re.compile(
     r"\b("
     r"contamin|decontamin|pfas|phthalate|additive removal|"
     r"leaching mode|contaminant screening|strap contaminant removal"
+    r")\b",
+    re.IGNORECASE,
+)
+_OPTIMIZATION_INTENT_RE = re.compile(
+    r"\b("
+    r"optimi[sz](?:e|ation)|max(?:imize)? profit|min(?:imize)? emissions?|"
+    r"min(?:imize)? cost|max(?:imize)? circularity|superstructure|pyomo|minlp|"
+    r"optimal pathway|waste management"
     r")\b",
     re.IGNORECASE,
 )
@@ -177,6 +193,7 @@ _QUERY_CONTEXT_LABEL_TO_GOALS: dict[str, tuple[str, ...]] = {
     "ml.prediction": ("ml.prediction",),
     "thermal.prediction": ("thermal.prediction",),
     "contaminant.screening": ("contaminant.screening", "contaminant.removal"),
+    "optimization.pathway": ("optimization.pathway",),
 }
 
 
@@ -206,6 +223,9 @@ Rules:
 - "separation-engineer" handles dissolution, purification, separation \
 sequences, selective solvents, mixed-stream processing
 - "safety-analyst" handles safety, toxicity, GSK scores, hazard data
+- "optimization-engineer" handles waste management optimization, profit \
+maximization, emission minimization, MINLP superstructure, Pyomo models, \
+and optimal processing pathway selection for multilayer plastic feeds
 - When a query involves BOTH separation AND safety (e.g. "safest sequence"), \
 return both specialists""".format(subagent_list=_build_subagent_list())
 
@@ -338,6 +358,10 @@ def infer_requested_goals(query_text: str) -> set[str]:
                 continue
             requested.add(goal)
 
+    if "optimization.pathway" in requested and not bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)):
+        requested.discard("tea.economics")
+        requested.discard("lca.environmental")
+
     return requested
 
 
@@ -397,6 +421,12 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
         contaminant_only = "only do contaminant-removal screening" in query_lower
         if contaminant_only and not has_explicit_safety_intent:
             matched_rules = [rule for rule in matched_rules if rule["subagent"] != "safety-analyst"]
+            names = {rule["subagent"] for rule in matched_rules}
+    if {"optimization-engineer", "biosteam-analyst"}.issubset(names):
+        has_explicit_biosteam_intent = bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
+        has_optimization_intent = bool(_OPTIMIZATION_INTENT_RE.search(query_text))
+        if has_optimization_intent and not has_explicit_biosteam_intent:
+            matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
             names = {rule["subagent"] for rule in matched_rules}
     if "contaminant-removal-analyst" in names and "separation-engineer" not in names:
         has_contaminant_intent = bool(_CONTAMINANT_INTENT_RE.search(query_text))

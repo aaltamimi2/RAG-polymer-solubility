@@ -232,6 +232,12 @@ def get_contaminant_removal_tools() -> list:
     ])
 
 
+def get_waste_optimization_tools() -> list:
+    return _safe_import("strap.tools.waste_optimization", [
+        "run_waste_management_optimization",
+    ])
+
+
 def get_solvent_lookup_tools() -> list:
     return _safe_import("strap.tools.solvent_lookup", [
         "lookup_solvent_price",
@@ -316,6 +322,7 @@ def get_all_tools() -> list:
         get_advanced_separation_tools,
         get_biosteam_tools,
         get_contaminant_removal_tools,
+        get_waste_optimization_tools,
         get_thermal_prediction_tools,
         get_solvent_lookup_tools,
         get_reflection_tools,

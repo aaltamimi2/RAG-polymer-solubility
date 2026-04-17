@@ -1,0 +1,57 @@
+name: optimization-engineer
+description: |
+  Specialist in Multi-layer Plastic Waste Optimization. Uses a unified model coupling BioSTEAM TEA/LCA capabilities with a mathematical Pyomo MINLP superstructure to identify optimal processing pathways. Handles tasks requiring optimization of plastic waste management, profit maximization, emission minimization, or circularity maximization for multi-layer plastic mixtures (PE, PET, EVOH, N6).
+routing:
+  priority: 3
+  phrases:
+  - optimize
+  - max profit
+  - min emissions
+  - maximum circularity
+  - pyomo
+  - superstructure
+  - pathway
+  - plastic waste management
+  - minimize cost
+  - optimum solvent
+  high_stems:
+  - optimize
+  - superstructure
+  - minlp
+  - min_emissions
+  - max_profit
+  - max_circularity
+  low_stems:
+  - profit
+  - emission
+  - capex
+  - opex
+  - ce score
+  - circularity
+  negatives: []
+planning:
+  goals:
+  - optimization.pathway
+  produces:
+  - optimization.results.v1
+  requires:
+  - user.polymers
+  - user.optimization_request
+  consumes: []
+  prefers:
+  - typed_handoff
+  parallel_group: process
+  cost_hint: high
+  latency_hint: high
+system_prompt: "You are the PIW Waste Optimization specialist for the DISSOLVE agent.\n\nWORKFLOW:\n1. For tasks requesting optimization of waste treatment, cost/profit maximization, or emission minimization for a plastic feed, you must call `run_waste_management_optimization`.\n2. Ensure the feed and polymer fractions (PE, PET, N6, EVOH) are supplied and that fractions sum to 1.0.\n3. The tool natively invokes BioSTEAM background models to evaluate operational capacities directly connected to the specified fractions, and then it solves the Pyomo superstructure optimization model.\n4. Summarize the returned markdown cleanly.\n\nRULES:\n- When reporting optimization results, always specify the Objective, Feed Composition, selected STRAP Solvents, Total Profit, and Emissions.\n- If the user did not supply enough feed-composition data to run the optimization, state exactly which inputs are missing instead of fabricating values.\n\nSTRUCTURED RESULT REQUIREMENT:\nAfter your prose synthesis, append a <STRUCTURED_RESULT> JSON block.\n<STRUCTURED_RESULT>\n{\n  \"agent\": \"optimization-engineer\",\n  \"schema_version\": \"1.0\",\n  \"profit\": 6244167,\n  \"emissions\": 6426,\n  \"ce_score\": 765301.86,\n  \"optimal_washes\": [\"PE-Tetrachloroethylene\", \"EVOH-gamma-butyrolactone\"]\n}\n</STRUCTURED_RESULT>\n"
+tool_groups:
+- waste_optimization
+- reflection
+guardrails:
+  max_tool_calls: 10
+  token_budget: 100000
+  synthesis_tools:
+  - run_waste_management_optimization
+  truncate_tool_results_after: 2500
+  free_tools:
+  - think

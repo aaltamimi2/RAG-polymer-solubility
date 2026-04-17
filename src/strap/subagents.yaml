@@ -9,3 +9,4 @@ subagent_files:
 - config/subagents/07_visualization-specialist.yaml
 - config/subagents/08_statistics-ml.yaml
 - config/subagents/09_contaminant-removal-analyst.yaml
+- config/subagents/10_optimization-engineer.yaml

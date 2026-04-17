@@ -64,6 +64,7 @@ from .tools import (  # noqa: E402  — tool group registry for YAML loader
     get_statistical_tools,
     get_thermal_prediction_tools,
     get_visualization_tools,
+    get_waste_optimization_tools,
 )
 
 # Map YAML tool_group names → getter functions
@@ -85,6 +86,7 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
     "interpolation": get_interpolation_tools,
     "biosteam": get_biosteam_tools,
     "contaminant_removal": get_contaminant_removal_tools,
+    "waste_optimization": get_waste_optimization_tools,
     "solvent_lookup": get_solvent_lookup_tools,
     "reflection": get_reflection_tools,
     "sidecar_write": get_sidecar_write_tools,
@@ -312,7 +314,7 @@ def _get_or_create_thread_id(session_arg: str | None = None) -> str:
 
 
 def create_dissolve_agent(
-    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro"),
+    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-3.1-flash-lite-preview"),
     subagent_overrides: dict[str, SubagentOverride] | None = None,
     checkpointer=None,
     enable_persistence: bool = False,
