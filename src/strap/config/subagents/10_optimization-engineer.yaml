@@ -49,9 +49,6 @@ planning:
   - optimization.results.v1
   requires:
   - generic.context.v1
-  consumes:
-  - tea.lca.v1
-  - separation.route.v1
   prefers:
   - typed_handoff
   parallel_group: process
