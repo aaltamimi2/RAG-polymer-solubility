@@ -118,24 +118,80 @@ def load_othertech_data(excel_path, sheet_name="Othertech w TransportA"):
     Load data for non-STRAP technologies (landfill, incineration, pyrolysis,
     gasification variants).
 
+    The Excel has a BASE 'Othertech' sheet with most data, and transport-
+    specific sheets ('Othertech w TransportA', 'B') that override some values.
+    We merge them: base first, then overlay transport-specific non-NaN values.
+
+    Row mapping BY POSITION (Julia uses setnames!):
+        row 1=lf, row 2=we, row 3=py, row 4=gas_er, row 5=gas_h2, row 6=gas_h2cc
+
     Returns a dict of dicts:
         other_data[metric][tech_key] = value
-    where tech_key is one of: lf, we, py, gas_er, gas_h2, gas_h2cc.
     """
-    df = pd.read_excel(excel_path, sheet_name=sheet_name)
+    import numpy as np
 
-    other_data = {key: {} for key in OTHER_COLS}
+    tech_order = ["lf", "we", "py", "gas_er", "gas_h2", "gas_h2cc"]
 
-    for _, row in df.iterrows():
-        tech_name = row.iloc[0]  # "Technology" column
-        if pd.isna(tech_name) or tech_name not in TECH_NAME_MAP:
-            continue
-        tech_key = TECH_NAME_MAP[tech_name]
-        for key, col in OTHER_COLS.items():
-            val = row.get(col, 0.0)
-            if pd.isna(val):
-                val = 0.0
-            other_data[key][tech_key] = float(val)
+    # Column mapping by position (cols 1-14 after Technology col 0)
+    col_map = {
+        "total_energy":  1,
+        "renewable":     2,
+        "direct_ghg":    3,
+        "indirect_ghg":  4,
+        "water_with":    5,
+        "water_recyc":   6,
+        "waste":         7,
+        "disposal":      8,
+        "gwp":           9,
+        "htc":          10,
+        "htnc":         11,
+        "ecot":         12,
+        "capex":        13,
+        "opex":         14,
+    }
+
+    other_data = {key: {} for key in col_map}
+
+    def _read_sheet_into(sheet, target):
+        """Read sheet by position and store non-NaN values into target dict."""
+        df_raw = pd.read_excel(excel_path, sheet_name=sheet, header=None)
+        for row_idx, tech_key in enumerate(tech_order):
+            data_row = row_idx + 1  # skip header
+            if data_row >= len(df_raw):
+                continue
+            for metric_key, col_idx in col_map.items():
+                if col_idx >= len(df_raw.columns):
+                    continue
+                val = df_raw.iloc[data_row, col_idx]
+                if pd.notna(val) and val is not None:
+                    target[metric_key][tech_key] = float(val)
+
+    # 1. Read BASE 'Othertech' sheet first (has the most complete data)
+    try:
+        _read_sheet_into("Othertech", other_data)
+    except Exception:
+        pass  # base sheet might not exist in all versions
+
+    # 2. Overlay transport-specific sheet (overrides base values where non-NaN)
+    try:
+        _read_sheet_into(sheet_name, other_data)
+    except Exception:
+        pass
+
+    # 3. Fill any remaining gaps with 0.0
+    for metric_key in col_map:
+        for tech_key in tech_order:
+            if tech_key not in other_data[metric_key]:
+                other_data[metric_key][tech_key] = 0.0
+
+    # 4. GWP fallback: compute from direct_ghg + indirect_ghg if missing
+    gwp_sum = sum(abs(other_data["gwp"].get(t, 0)) for t in tech_order)
+    if gwp_sum < 1e-10:
+        for t in tech_order:
+            other_data["gwp"][t] = (
+                other_data["direct_ghg"].get(t, 0.0)
+                + other_data["indirect_ghg"].get(t, 0.0)
+            )
 
     return other_data
 

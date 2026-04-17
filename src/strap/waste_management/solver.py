@@ -11,6 +11,27 @@ import numpy as np
 import pandas as pd
 from strap.waste_management.data_loader import I_SET, J_SET, K_SET, POLYMERS, ALL_SOLVENTS, S_PE, S_EV1, S_EV2
 
+# Human-readable names for technology codes
+_TECH_DISPLAY_NAMES = {
+    "st1": "STRAP Separation (Stage 1)",
+    "st2": "STRAP Separation (Stage 2)",
+    "lf": "Landfill",
+    "we": "Incineration (Waste-to-Energy)",
+    "py": "Pyrolysis",
+    "gas_er": "Gasification (Energy Recovery)",
+    "gas_h2": "Gasification (Hydrogen)",
+    "gas_h2cc": "Gasification (Hydrogen + CCS)",
+}
+
+
+def _pretty_tech(codes: list) -> list:
+    """Convert internal tech codes to human-readable names."""
+    return [_TECH_DISPLAY_NAMES.get(c, c) for c in codes]
+
+
+# Maximum theoretical CE score used for 0-1 normalization
+_CE_MAX = 1_000_000.0
+
 
 # ---------------------------------------------------------------------------
 # Solver selection helpers
@@ -104,17 +125,21 @@ def extract_results(m):
         if _val(m.b[p, s]) is not None and _val(m.b[p, s]) > 0.5
     ]
 
+    raw_ce = _val(m.CEoverall) or 0
+    circularity_01 = max(0.0, min(raw_ce / _CE_MAX, 1.0))
+
     return {
         "profit": _val(m.Profit),
         "emissions": _val(m.TotalEmissions),
-        "CE": _val(m.CEoverall),
+        "CE": raw_ce,
+        "circularity_score": circularity_01,
         "sales": _val(m.Sales),
         "capital_cost": _val(m.CapitalCost),
         "operational_cost": _val(m.OperationalCost),
         "transportation_cost": _val(m.TransportationCost),
-        "stage1_tech": x_sel,
-        "stage2_tech": y_sel,
-        "stage3_tech": z_sel,
+        "stage1_tech": _pretty_tech(x_sel),
+        "stage2_tech": _pretty_tech(y_sel),
+        "stage3_tech": _pretty_tech(z_sel),
         "wash1_selection": wash1_sel,
         "wash2_selection": wash2_sel,
         "E_score": _val(m.E_score),
@@ -134,19 +159,16 @@ def print_results(res, label=""):
 
     print(f"  Profit [USD]:      {res['profit']:,.2f}")
     print(f"  Emissions [tCO2]:  {res['emissions']:,.4f}")
-    print(f"  CE Score:          {res['CE']:,.6f}")
+    print(f"  Circularity (0-1): {res['circularity_score']:.4f}")
     print(f"  Sales:             {res['sales']:,.2f}")
     print(f"  Capital Cost:      {res['capital_cost']:,.2f}")
     print(f"  Operational Cost:  {res['operational_cost']:,.2f}")
     print(f"  Transport Cost:    {res['transportation_cost']:,.2f}")
-    print(f"  Stage 1:           {res['stage1_tech']}")
-    print(f"  Stage 2:           {res['stage2_tech']}")
-    print(f"  Stage 3:           {res['stage3_tech']}")
+    print(f"  Stage 1 (Separation):  {res['stage1_tech']}")
+    print(f"  Stage 2 (Conversion):  {res['stage2_tech']}")
+    print(f"  Stage 3 (End of Life): {res['stage3_tech']}")
     print(f"  STRAP Wash 1:      {res['wash1_selection']}")
     print(f"  STRAP Wash 2:      {res['wash2_selection']}")
-    print(f"  E_score:  {res['E_score']:.6f}  |  GHG_score: {res['GHG_score']:.6f}")
-    print(f"  Water_score: {res['Water_score']:.6f}  |  Waste_score: {res['Waste_score']:.6f}")
-    print(f"  Subs_score:  {res['Subs_score']:.6f}")
 
 
 # ---------------------------------------------------------------------------
@@ -172,7 +194,7 @@ def solve_single(m, sense, solver_name="gurobi", solver_options=None):
     _set_objective(m, sense)
     solver = _get_solver(solver_name, solver_options)
 
-    result = solver.solve(m, tee=True, load_solutions=False)
+    result = solver.solve(m, tee=False, load_solutions=False)
     status = result.solver.termination_condition
 
     _ACCEPTABLE = {

@@ -17,6 +17,13 @@ from strap.waste_management.solver import solve_single
 
 logger = logging.getLogger(__name__)
 
+# Human-readable scenario names
+_SCENARIO_NAMES = {
+    'A': 'Location 1: In-State & Out-of-State Facilities (Long-Distance Transport)',
+    'B': 'Location 2: In-State Facilities Only (Short-Distance Transport)',
+    'C': 'Location 3: Alternative Transport Configuration',
+}
+
 # BioSTEAM mapping to Excel metrics. Where exact mappings aren't directly available in standard JSON output, 
 # we scale based on capacities or use the primary metric (like GWP for all GHG).
 def _map_biosteam_to_strap_row(strap_data_row, res_json, capacity_tons_yr):
@@ -197,44 +204,229 @@ def run_waste_management_optimization(
         except Exception as e:
             logger.warning(f"Failed to run SCIP solver: {e}. Falling back to default tools.")
             results = solve_single(m, objective, solver_name="gurobi")
-        # Normalize circularity score (CE) to 0‑1 range as per paper
-        raw_ce = results.get('CE', 0)
-        circularity_score = max(0.0, min(raw_ce / 1_000_000.0, 1.0))
-        results['raw_circularity_score'] = raw_ce
-        results['circularity_score'] = circularity_score
-        
+        # circularity_score is already normalized 0-1 by solver.extract_results()
+
         display = f"## Multi-layer Plastic Optimization Results\n\n"
-        display += f"**Objective:** {objective} | **Scenario:** {scenario}\n"
-        display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100}% PE, {pet_fraction*100}% PET, {n6_fraction*100}% N6, {evoh_fraction*100}% EVOH)\n\n"
+        display += f"**Objective:** {objective} | **Scenario:** {_SCENARIO_NAMES.get(scenario, scenario)}\n"
+        display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100:.0f}% PE, {pet_fraction*100:.0f}% PET, {n6_fraction*100:.0f}% N6, {evoh_fraction*100:.0f}% EVOH)\n\n"
         
         display += "### Optimal Technology Pathways Selected\n"
-        display += f"- **Stage 1 (Separation):** {results.get('stage1_tech', [])}\n"
-        display += f"- **Stage 2 (Conversion):** {results.get('stage2_tech', [])}\n"
-        display += f"- **Stage 3 (End of Life):** {results.get('stage3_tech', [])}\n"
+        display += f"- **Stage 1 (Separation):** {', '.join(results.get('stage1_tech', [])) or 'None'}\n"
+        display += f"- **Stage 2 (Conversion):** {', '.join(results.get('stage2_tech', [])) or 'None'}\n"
+        display += f"- **Stage 3 (End of Life):** {', '.join(results.get('stage3_tech', [])) or 'None'}\n"
         
         display += "\n### Chosen STRAP Solvents\n"
-        display += f"- **Wash 1 (PE Target):** {results.get('wash1_selection', [])}\n"
-        display += f"- **Wash 2 (EVOH Target):** {results.get('wash2_selection', [])}\n"
+        display += f"- **Wash 1 (PE Target):** {', '.join(results.get('wash1_selection', [])) or 'None'}\n"
+        display += f"- **Wash 2 (EVOH Target):** {', '.join(results.get('wash2_selection', [])) or 'None'}\n"
         
         display += "\n### Economic and Environmental Impact\n"
         display += f"- **Total Profit:** ${results.get('profit', 0):,.2f}\n"
-        display += f"- **Emissions:** {results.get('emissions', 0):,.2f} tCO2\n"
-        # Show circularity appropriately based on selected objective
-        if objective == 'max_circularity':
-            display += f"- **Circularity (0‑1):** {results.get('circularity_score', 0):.4f}\n"
-        else:
-            display += f"- **Circularity (0‑1):** {results.get('circularity_score', 0):.4f}\n"
+        display += f"- **Emissions:** {results.get('emissions', 0):,.2f} tCO2e/yr\n"
+        display += f"- **Circularity Score (0–1):** {results.get('circularity_score', 0):.4f}\n"
         display += f"- **Capital Cost:** ${results.get('capital_cost', 0):,.2f}\n"
         display += f"- **Operational Cost:** ${results.get('operational_cost', 0):,.2f}\n"
         
         # Remove any non-serializable objects from results before returning as JSON
-        # Pyomo objects might be in dictionary, ensure all are primitives
         clean_results = {k: str(v) if not isinstance(v, (int, float, str, list, dict, bool)) else v for k, v in results.items()}
-        # expose circularity score for downstream use
-        clean_results['circularity_score'] = results.get('CE', 0)
         
         return json_tool_response(display, clean_results)
         
     except Exception as e:
         logger.exception("Error in run_waste_management_optimization")
         return json_tool_error(str(e), tool_name="run_waste_management_optimization")
+
+
+@safe_tool_wrapper(structured_output=True)
+def run_pareto_optimization(
+    feed: float,
+    pe_fraction: float,
+    pet_fraction: float,
+    n6_fraction: float,
+    evoh_fraction: float,
+    pareto_pair: str = 'profit_vs_emissions',
+    scenario: str = 'A',
+    n_points: int = 20,
+) -> str:
+    """Run epsilon-constraint multi-objective optimization to generate a Pareto front.
+
+    This tool performs multi-objective optimization as described in the PIW paper,
+    generating a Pareto trade-off curve between two objectives using the
+    epsilon-constraint method. It sweeps one objective as a constraint while
+    optimizing the other, producing a set of Pareto-optimal solutions.
+
+    Args:
+        feed: Total mixed plastic feed in tonnes/year (e.g. 8000).
+        pe_fraction: Fraction of Polyethylene (PE) in the feed (0.0 to 1.0).
+        pet_fraction: Fraction of Polyethylene terephthalate (PET) in the feed.
+        n6_fraction: Fraction of Nylon-6 (N6) in the feed.
+        evoh_fraction: Fraction of Ethylene vinyl alcohol (EVOH) in the feed.
+            (Note: fractions must sum to 1.0)
+        pareto_pair: Which two objectives to trade off. Options:
+            'profit_vs_emissions' — Max profit s.t. emissions ≤ ε  (default)
+            'profit_vs_circularity' — Max profit s.t. CE ≥ ε
+            'emissions_vs_circularity' — Min emissions s.t. CE ≥ ε
+        scenario: Location scenario 'A', 'B', or 'C'. Default is 'A'.
+        n_points: Number of Pareto points to generate (default 20, max 50).
+
+    WHEN TO USE:
+    - "Generate a Pareto front of profit vs emissions"
+    - "Show the trade-off between circularity and profit"
+    - "Run multi-objective optimization"
+    - "How does profit change as I tighten the emissions constraint?"
+    """
+    from strap.waste_management.solver import (
+        solve_single,
+        pareto_profit_vs_emissions,
+        pareto_profit_vs_ce,
+        pareto_emissions_vs_ce,
+    )
+
+    try:
+        # 1. Validate
+        assert feed > 0, "Feed must be greater than 0"
+        total_frac = pe_fraction + pet_fraction + n6_fraction + evoh_fraction
+        assert abs(total_frac - 1.0) < 0.01, f"Fractions must sum to 1.0, got {total_frac}"
+        n_points = max(5, min(n_points, 50))
+
+        valid_pairs = ('profit_vs_emissions', 'profit_vs_circularity', 'emissions_vs_circularity')
+        if pareto_pair not in valid_pairs:
+            pareto_pair = 'profit_vs_emissions'
+
+        # 2. Scenario config
+        base_dir = Path(__file__).resolve().parent.parent / "waste_management"
+        excel_path = base_dir / "Data for model_Scenarios.xlsx"
+
+        if not excel_path.exists():
+            return json_tool_error(f"Excel file not found at {excel_path}", tool_name="run_pareto_optimization")
+
+        scen_keys = {
+            'A': {'other_sheet': 'Othertech w TransportA', 'distances': {'strap':0,'lf':9.2,'we':151,'py':1034,'gas_er':0,'gas_h2':2036,'gas_h2cc':2036}},
+            'B': {'other_sheet': 'Othertech w TransportB', 'distances': {'strap':0,'lf':9.2,'we':151,'py':76.1,'gas_er':0,'gas_h2':76.1,'gas_h2cc':76.1}},
+            'C': {'other_sheet': 'Othertech w TransportA', 'distances': {'strap':0,'lf':9.2,'we':151,'py':1034,'gas_er':0,'gas_h2':2036,'gas_h2cc':2036}},
+        }
+        if scenario not in scen_keys:
+            scenario = 'A'
+
+        CONFIG = {
+            'Feed': feed,
+            'PE_f': pe_fraction,
+            'PET_f': pet_fraction,
+            'N6_f': n6_fraction,
+            'EV_f': evoh_fraction,
+            'Cpe': 1173, 'Cevoh': 8100, 'Cwte': 259.57,
+            'UB_energy': 6.26e7,
+            'UB_ghg': 21303.35985408156,
+            'UB_withdrawal': 14468.80855,
+            'UB_waste': 1.92e6,
+            'fc_t': 3.01, 'vc_t': 0.07,
+            'products_heat': 583.33, 'products_electricity': 724.3693,
+            'price_heat': 0.13, 'price_elec': 0.0996, 'Cgas_pw': 110,
+            'ce_weights': {'energy':0.20,'ghg':0.20,'water':0.20,'waste':0.20,'subs':0.20},
+            'distances': scen_keys[scenario]['distances'],
+        }
+
+        data = load_all_data(
+            excel_path=excel_path,
+            strap_sheet='StrapScenario3 Units',
+            other_sheet=scen_keys[scenario]['other_sheet'],
+            p_strap=1.0,
+        )
+
+        # 3. Solve anchor points (ideal/non-ideal) for the two objectives
+        from strap.waste_management.model import build_model as _build_model
+
+        # --- Anchor: max_profit ---
+        m_profit = _build_model(data, CONFIG)
+        res_profit = solve_single(m_profit, 'max_profit', solver_name='gurobi')
+        if res_profit is None:
+            m_profit = _build_model(data, CONFIG)
+            res_profit = solve_single(m_profit, 'max_profit', solver_name='scip')
+
+        # --- Anchor: min_emissions ---
+        m_emit = _build_model(data, CONFIG)
+        res_emit = solve_single(m_emit, 'min_emissions', solver_name='gurobi')
+        if res_emit is None:
+            m_emit = _build_model(data, CONFIG)
+            res_emit = solve_single(m_emit, 'min_emissions', solver_name='scip')
+
+        # --- Anchor: max_circularity ---
+        m_ce = _build_model(data, CONFIG)
+        res_ce = solve_single(m_ce, 'max_circularity', solver_name='gurobi')
+        if res_ce is None:
+            m_ce = _build_model(data, CONFIG)
+            res_ce = solve_single(m_ce, 'max_circularity', solver_name='scip')
+
+        # Extract anchor values
+        profit_ideal = res_profit['profit'] if res_profit else 0
+        emit_ideal = res_emit['emissions'] if res_emit else 0
+        emit_from_profit = res_profit['emissions'] if res_profit else emit_ideal
+        ce_ideal = res_ce['CE'] if res_ce else 0
+        ce_from_profit = res_profit['CE'] if res_profit else 0
+
+        # 4. Run epsilon-constraint sweep
+        m_pareto = _build_model(data, CONFIG)
+
+        if pareto_pair == 'profit_vs_emissions':
+            df = pareto_profit_vs_emissions(
+                m_pareto, emit_ideal, emit_from_profit, n_points=n_points, solver_name='gurobi',
+            )
+            x_label, y_label = 'emissions', 'profit'
+        elif pareto_pair == 'profit_vs_circularity':
+            df = pareto_profit_vs_ce(
+                m_pareto, ce_from_profit, ce_ideal, n_points=n_points, solver_name='gurobi',
+            )
+            x_label, y_label = 'CE', 'profit'
+        else:  # emissions_vs_circularity
+            df = pareto_emissions_vs_ce(
+                m_pareto, ce_from_profit, ce_ideal, n_points=n_points, solver_name='gurobi',
+            )
+            x_label, y_label = 'CE', 'emissions'
+
+        # 5. Build display output
+        display = f"## Pareto Front: {pareto_pair.replace('_', ' ').title()}\n\n"
+        display += f"**Scenario:** {_SCENARIO_NAMES.get(scenario, scenario)} | **Points:** {len(df)}/{n_points}\n"
+        display += f"**Feed:** {feed} tonnes/yr ({pe_fraction*100:.0f}% PE, {pet_fraction*100:.0f}% PET, {n6_fraction*100:.0f}% N6, {evoh_fraction*100:.0f}% EVOH)\n\n"
+
+        # Anchor points summary
+        display += "### Anchor (Ideal) Solutions\n"
+        if res_profit:
+            display += f"- **Max Profit:** ${res_profit['profit']:,.0f} | Emissions: {res_profit['emissions']:,.0f} tCO2e/yr | Circularity: {res_profit['circularity_score']:.4f}\n"
+        if res_emit:
+            display += f"- **Min Emissions:** ${res_emit['profit']:,.0f} | Emissions: {res_emit['emissions']:,.0f} tCO2e/yr | Circularity: {res_emit['circularity_score']:.4f}\n"
+        if res_ce:
+            display += f"- **Max Circularity:** ${res_ce['profit']:,.0f} | Emissions: {res_ce['emissions']:,.0f} tCO2e/yr | Circularity: {res_ce['circularity_score']:.4f}\n"
+
+        # Pareto table  (show up to 10 selected points across the front)
+        if len(df) > 0:
+            display += f"\n### Pareto Front ({len(df)} feasible points)\n"
+            display += "| # | Profit ($) | Emissions (tCO2e/yr) | Circularity (0–1) | Stage 1 | Stage 2 | Stage 3 |\n"
+            display += "|---|-----------|---------------------|-------------------|---------|---------|--------|\n"
+            step = max(1, len(df) // 10)
+            for idx in range(0, len(df), step):
+                row = df.iloc[idx]
+                ce_norm = max(0.0, min(row.get('CE', 0) / 1_000_000.0, 1.0))
+                display += f"| {idx+1} | {row.get('profit', 0):,.0f} | {row.get('emissions', 0):,.0f} | {ce_norm:.4f} | {', '.join(row.get('stage1', []))} | {', '.join(row.get('stage2', []))} | {', '.join(row.get('stage3', []))} |\n"
+        else:
+            display += "\n**No feasible Pareto points found.** The model may be infeasible for this configuration.\n"
+
+        display += "\n> **Tip:** You can also run `profit_vs_circularity` or `emissions_vs_circularity` Pareto fronts. Just ask!\n"
+
+        # Build clean JSON result
+        pareto_data = df.to_dict(orient='records') if len(df) > 0 else []
+        clean_results = {
+            'pareto_pair': pareto_pair,
+            'scenario': scenario,
+            'n_feasible': len(df),
+            'anchors': {
+                'max_profit': {k: v for k, v in (res_profit or {}).items() if isinstance(v, (int, float, str, list))},
+                'min_emissions': {k: v for k, v in (res_emit or {}).items() if isinstance(v, (int, float, str, list))},
+                'max_circularity': {k: v for k, v in (res_ce or {}).items() if isinstance(v, (int, float, str, list))},
+            },
+            'pareto_front': pareto_data[:20],  # cap JSON size
+        }
+
+        return json_tool_response(display, clean_results)
+
+    except Exception as e:
+        logger.exception("Error in run_pareto_optimization")
+        return json_tool_error(str(e), tool_name="run_pareto_optimization")

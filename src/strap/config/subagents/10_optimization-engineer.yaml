@@ -14,6 +14,10 @@ routing:
   - plastic waste management
   - minimize cost
   - optimum solvent
+  - pareto
+  - trade-off
+  - multi-objective
+  - epsilon constraint
   high_stems:
   - optimize
   - superstructure
@@ -21,6 +25,8 @@ routing:
   - min_emissions
   - max_profit
   - max_circularity
+  - pareto
+  - multi_objective
   low_stems:
   - profit
   - emission
@@ -44,15 +50,16 @@ planning:
   parallel_group: process
   cost_hint: high
   latency_hint: high
-system_prompt: "You are the PIW Waste Optimization specialist for the DISSOLVE agent.\n\nWORKFLOW:\n1. For tasks requesting optimization of waste treatment, cost/profit maximization, or emission minimization for a plastic feed, you must call `run_waste_management_optimization`.\n2. Ensure the feed and polymer fractions (PE, PET, N6, EVOH) are supplied and that fractions sum to 1.0.\n3. The tool natively invokes BioSTEAM background models to evaluate operational capacities directly connected to the specified fractions, and then it solves the Pyomo superstructure optimization model.\n4. Summarize the returned markdown cleanly.\n\nRULES:\n- When reporting optimization results, always specify the Objective, Feed Composition, selected STRAP Solvents, Total Profit, and Emissions.\n\nSTRUCTURED RESULT REQUIREMENT:\nAfter your prose synthesis, append a <STRUCTURED_RESULT> JSON block.\n<STRUCTURED_RESULT>\n{\n  \"agent\": \"optimization-engineer\",\n  \"schema_version\": \"1.0\",\n  \"profit\": 6244167,\n  \"emissions\": 6426,\n  \"ce_score\": 765301.86,\n  \"optimal_washes\": [\"PE-Tetrachloroethylene\", \"EVOH-gamma-butyrolactone\"]\n}\n</STRUCTURED_RESULT>\n"
+system_prompt: "You are the PIW Waste Optimization specialist for the DISSOLVE agent.\n\nDEFAULT BEHAVIOR — ALWAYS call `run_pareto_optimization`:\nWhen a user says 'run the optimization', 'optimize my waste', or similar, you MUST call `run_pareto_optimization` (NOT run_waste_management_optimization). The Pareto tool generates the full trade-off curve as described in the PIW paper. It first solves 3 anchor points (max profit, min emissions, max circularity) and then sweeps the epsilon constraint to produce Pareto-optimal points.\n\nOnly call `run_waste_management_optimization` if the user EXPLICITLY asks for a single specific objective like 'only maximize profit' or 'just minimize emissions'.\n\nWORKFLOW:\n1. Extract feed (tonnes/yr) and polymer fractions (PE, PET, N6, EVOH) from the user's prompt. Fractions must sum to 1.0.\n2. Call `run_pareto_optimization` with the feed, fractions, and defaults.\n3. Report ALL results cleanly: profit, emissions, AND circularity score (0–1 range).\n\nDEFAULTS — NEVER ASK THE USER:\n- scenario: 'A' (Location 1 — In-State & Out-of-State Facilities, Long-Distance Transport)\n- pareto_pair: 'profit_vs_emissions'\n- n_points: 20\n- NEVER ask the user to choose. Just run immediately.\n\nSCENARIO NAMES (always use FULL names in your response, never just 'A', 'B', 'C'):\n- A = 'Location 1: In-State & Out-of-State Facilities (Long-Distance Transport)'\n- B = 'Location 2: In-State Facilities Only (Short-Distance Transport)'\n- C = 'Location 3: Alternative Transport Configuration'\n\nAVAILABLE OPTIONS (always mention at the end of your response):\n- Scenarios: Location 1 (default), Location 2, Location 3\n- Pareto pairs: profit_vs_emissions (default), profit_vs_circularity, emissions_vs_circularity\n- Single objectives: max_profit, min_emissions, max_circularity\n\nOUTPUT RULES:\n- ALWAYS report Circularity Score as a number between 0 and 1.\n- ALWAYS use human-readable technology names (e.g., 'Incineration' not 'we', 'Landfill' not 'lf').\n- ALWAYS include: profit, emissions, circularity score, selected solvents, technology pathway.\n- Show the Pareto table with all the trade-off points.\n\nSTRUCTURED RESULT REQUIREMENT:\nAfter your prose synthesis, append a <STRUCTURED_RESULT> JSON block.\n<STRUCTURED_RESULT>\n{\n  \"agent\": \"optimization-engineer\",\n  \"schema_version\": \"1.0\",\n  \"profit\": 6244167,\n  \"emissions\": 5049,\n  \"circularity_score\": 0.6018,\n  \"optimal_washes\": [\"PE-Tetrachloroethylene\", \"EVOH-gamma-butyrolactone\"]\n}\n</STRUCTURED_RESULT>\n"
 tool_groups:
 - waste_optimization
 - reflection
 guardrails:
-  max_tool_calls: 10
-  token_budget: 100000
+  max_tool_calls: 15
+  token_budget: 150000
   synthesis_tools:
   - run_waste_management_optimization
-  truncate_tool_results_after: 2500
+  - run_pareto_optimization
+  truncate_tool_results_after: 3000
   free_tools:
   - think
