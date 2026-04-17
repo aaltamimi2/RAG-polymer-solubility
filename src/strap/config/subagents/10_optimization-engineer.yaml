@@ -5,9 +5,16 @@ routing:
   priority: 3
   phrases:
   - optimize
+  - optimization
+  - optimizaiotn
+  - optimzation
   - max profit
   - min emissions
   - maximum circularity
+  - max circularity
+  - max_circularity
+  - single objective
+  - single objectives
   - pyomo
   - superstructure
   - pathway
