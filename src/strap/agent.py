@@ -314,7 +314,7 @@ def _get_or_create_thread_id(session_arg: str | None = None) -> str:
 
 
 def create_dissolve_agent(
-    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-flash"),
+    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-2.5-pro"),
     subagent_overrides: dict[str, SubagentOverride] | None = None,
     checkpointer=None,
     enable_persistence: bool = False,

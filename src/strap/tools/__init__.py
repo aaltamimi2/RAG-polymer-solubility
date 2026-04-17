@@ -235,6 +235,7 @@ def get_contaminant_removal_tools() -> list:
 def get_waste_optimization_tools() -> list:
     return _safe_import("strap.tools.waste_optimization", [
         "run_waste_management_optimization",
+        "run_pareto_optimization",
     ])
 
 
