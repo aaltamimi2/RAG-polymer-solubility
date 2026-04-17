@@ -64,9 +64,6 @@ tool_groups:
 guardrails:
   max_tool_calls: 15
   token_budget: 150000
-  synthesis_tools:
-  - run_waste_management_optimization
-  - run_pareto_optimization
   truncate_tool_results_after: 3000
   free_tools:
   - think
