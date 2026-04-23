@@ -29,9 +29,10 @@ _RESEARCH_TOPIC_LEAD_RE = re.compile(
 )
 _ROUTE_PATTERNS = (
     ("separation.route", re.compile(r"\boptimal separation sequence\b", re.IGNORECASE)),
-    ("separation.route", re.compile(r"\bseparation sequence\b", re.IGNORECASE)),
-    ("separation.route", re.compile(r"\bseparation route\b", re.IGNORECASE)),
-    ("separation.route", re.compile(r"\bsolvent route\b", re.IGNORECASE)),
+    ("separation.route", re.compile(r"\bseparation sequences?\b", re.IGNORECASE)),
+    ("separation.route", re.compile(r"\bseparation routes?\b", re.IGNORECASE)),
+    ("separation.route", re.compile(r"\bsolvent routes?\b", re.IGNORECASE)),
+    ("separation.route", re.compile(r"\btop separation routes?\b", re.IGNORECASE)),
     ("separation.route", re.compile(r"\bselective dissolution\b", re.IGNORECASE)),
     ("separation.route", re.compile(r"\bprocess design\b", re.IGNORECASE)),
     ("separation.feasibility", re.compile(r"\bfeasible\b", re.IGNORECASE)),

@@ -31,6 +31,10 @@ def _workspace_id() -> str | None:
     value = (
         os.getenv("LANGSMITH_WORKSPACE_ID")
         or os.getenv("LANGCHAIN_WORKSPACE_ID")
+        or os.getenv("LANGSMITH_TENANT_ID")
+        or os.getenv("LANGCHAIN_TENANT_ID")
+        or os.getenv("LANGSMITH_TENANT")
+        or os.getenv("LANGCHAIN_TENANT")
     )
     if value is None:
         return None
@@ -52,11 +56,12 @@ def get_langsmith_client() -> Any | None:
     global _LANGSMITH_CLIENT
     if not tracing_enabled():
         return None
+    workspace_id = _workspace_id()
     if _LANGSMITH_CLIENT is None:
         try:
-            _LANGSMITH_CLIENT = LangSmithClient(workspace_id=_workspace_id())
-        except Exception:
-            logger.exception("Failed to initialize LangSmith client")
+            _LANGSMITH_CLIENT = LangSmithClient(workspace_id=workspace_id)
+        except Exception as exc:
+            logger.warning("Failed to initialize LangSmith client: %s", _friendly_langsmith_error(exc))
             return None
     return _LANGSMITH_CLIENT
 
@@ -73,15 +78,23 @@ def resolve_run_links(run_tree: Any) -> dict[str, str | None]:
 
     try:
         trace_url = client.get_run_url(run=run_tree, project_name=project_name)
-    except Exception:
-        logger.exception("Failed to resolve LangSmith run URL for run %s", run_id)
+    except Exception as exc:
+        logger.warning(
+            "Failed to resolve LangSmith run URL for run %s: %s",
+            run_id,
+            _friendly_langsmith_error(exc),
+        )
 
     share_enabled = os.getenv("LANGSMITH_SHARE_RUNS", "").strip().lower() in {"1", "true", "yes"}
     if share_enabled and run_id:
         try:
             shared_trace_url = client.share_run(run_id)
-        except Exception:
-            logger.exception("Failed to create shared LangSmith run URL for run %s", run_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to create shared LangSmith run URL for run %s: %s",
+                run_id,
+                _friendly_langsmith_error(exc),
+            )
 
     return {
         "run_id": run_id,
@@ -134,7 +147,11 @@ def summarize_subagent_tool_runs(run_id: str | None) -> dict[str, Any]:
     try:
         run = client.read_run(run_id, load_child_runs=True)
     except Exception as exc:
-        logger.exception("Failed to read LangSmith subagent run %s", run_id)
+        logger.warning(
+            "Failed to read LangSmith subagent run %s: %s",
+            run_id,
+            _friendly_langsmith_error(exc),
+        )
         return {
             "tools": [],
             "tool_count": 0,

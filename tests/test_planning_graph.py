@@ -22,7 +22,7 @@ def _edge_lookup(graph, *, kind: str) -> dict[tuple[str, str], tuple[str, ...]]:
 def test_build_planning_graph_loads_all_configured_subagents():
     graph = build_planning_graph()
 
-    assert len(graph.nodes) == 9
+    assert len(graph.nodes) == 10
     assert set(graph.nodes) == {
         "separation-engineer",
         "safety-analyst",
@@ -33,6 +33,7 @@ def test_build_planning_graph_loads_all_configured_subagents():
         "visualization-specialist",
         "statistics-ml",
         "contaminant-removal-analyst",
+        "optimization-engineer",
     }
 
     for node in graph.nodes.values():
@@ -66,6 +67,9 @@ def test_build_planning_graph_exposes_expected_capability_edges():
     )
     assert capability[("biosteam-analyst", "visualization-specialist")] == (
         "tea.lca.v1",
+    )
+    assert capability[("optimization-engineer", "visualization-specialist")] == (
+        "optimization.results.v1",
     )
     assert capability[("statistics-ml", "visualization-specialist")] == (
         "statistics.analysis.v1",

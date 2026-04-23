@@ -104,6 +104,32 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+_CONTRACT_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
+    "optimization.stage_candidates.v1": (
+        "schema_version",
+        "workflow_scope",
+        "route_id",
+        "constraint_mode",
+        "fallback_policy",
+        "operating_constraints",
+        "stages",
+        "candidate_pairs",
+        "polymer_solvent_filters",
+        "candidate_solvents",
+    ),
+    "optimization.infeasible.v1": (
+        "schema_version",
+        "analysis_type",
+        "constraint_mode",
+        "fallback_policy",
+        "failure_reason",
+        "message",
+        "requested_candidate_pairs",
+        "applied_candidate_pairs",
+        "suggested_relaxation",
+    ),
+}
+
 
 def set_handoff_root(path: Path) -> None:
     """Set the base directory used for namespaced handoff artifacts."""
@@ -415,6 +441,68 @@ def is_result_contract(contract: str) -> bool:
     return contract.endswith(_RESULT_CONTRACT_SUFFIX)
 
 
+def validate_contract_payload(contract: str, payload: dict[str, Any]) -> list[str]:
+    """Validate a derived typed handoff payload against its registered contract."""
+    if not isinstance(payload, dict):
+        return ["contract payload must be a mapping"]
+
+    errors: list[str] = []
+    for field_name in _CONTRACT_REQUIRED_FIELDS.get(contract, ()):
+        if field_name not in payload:
+            errors.append(f"missing required field '{field_name}'")
+
+    if contract == "optimization.stage_candidates.v1":
+        workflow_scope = payload.get("workflow_scope")
+        if workflow_scope not in {"single_stage", "multi_stage", "full_process"}:
+            errors.append("workflow_scope must be one of: single_stage, multi_stage, full_process")
+
+        constraint_mode = payload.get("constraint_mode")
+        if constraint_mode not in {"fixed", "hard", "soft", "ranked_soft"}:
+            errors.append("constraint_mode must be one of: fixed, hard, soft, ranked_soft")
+
+        fallback_policy = payload.get("fallback_policy")
+        if fallback_policy not in {"fail_closed", "broaden_silent", "broaden_disclosed"}:
+            errors.append("fallback_policy must be one of: fail_closed, broaden_silent, broaden_disclosed")
+
+        operating_constraints = payload.get("operating_constraints")
+        if not isinstance(operating_constraints, dict):
+            errors.append("operating_constraints must be a mapping")
+
+        stages = payload.get("stages")
+        if not isinstance(stages, list) or not stages:
+            errors.append("stages must be a non-empty list")
+        else:
+            for idx, stage in enumerate(stages):
+                if not isinstance(stage, dict):
+                    errors.append(f"stages[{idx}] must be a mapping")
+                    continue
+                for field_name in ("stage_id", "stage_kind", "target_polymer", "candidate_pairs"):
+                    if field_name not in stage:
+                        errors.append(f"stages[{idx}] missing required field '{field_name}'")
+
+        candidate_pairs = payload.get("candidate_pairs")
+        if not isinstance(candidate_pairs, list):
+            errors.append("candidate_pairs must be a list")
+
+        polymer_solvent_filters = payload.get("polymer_solvent_filters")
+        if not isinstance(polymer_solvent_filters, dict):
+            errors.append("polymer_solvent_filters must be a mapping")
+
+        candidate_solvents = payload.get("candidate_solvents")
+        if not isinstance(candidate_solvents, list):
+            errors.append("candidate_solvents must be a list")
+
+    elif contract == "optimization.infeasible.v1":
+        if payload.get("analysis_type") != "infeasible":
+            errors.append("analysis_type must be 'infeasible'")
+        if payload.get("constraint_mode") not in {"fixed", "hard", "soft", "ranked_soft"}:
+            errors.append("constraint_mode must be one of: fixed, hard, soft, ranked_soft")
+        if payload.get("fallback_policy") not in {"fail_closed", "broaden_silent", "broaden_disclosed"}:
+            errors.append("fallback_policy must be one of: fail_closed, broaden_silent, broaden_disclosed")
+
+    return errors
+
+
 def store_agent_result(
     *,
     producer: str,
@@ -534,19 +622,21 @@ def store_derived_handoff(
     if primary_parent_id and primary_parent_id not in normalized_parent_ids:
         normalized_parent_ids.insert(0, primary_parent_id)
 
+    contract_errors = validate_contract_payload(contract, payload)
     record = HandoffRecord(
         handoff_id=f"h_{uuid.uuid4().hex[:12]}",
         scope=state.scope,
         producer=producer,
         consumer=consumer,
         contract=contract,
-        status="ok",
+        status="ok" if not contract_errors else "invalid",
         payload=payload,
         created_at=_utcnow(),
         parent_handoff_id=primary_parent_id,
         parent_handoff_ids=normalized_parent_ids,
         task_prompt=task_prompt,
         artifacts=artifacts or extract_artifacts_from_payload(payload),
+        validation_errors=contract_errors,
     )
     with _states_lock:
         state.handoffs.append(record)

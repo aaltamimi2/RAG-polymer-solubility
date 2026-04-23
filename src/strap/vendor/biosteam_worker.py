@@ -299,8 +299,14 @@ def _run(config: dict) -> dict:
     # Extract TEA results
     # ------------------------------------------------------------------
     msp = _safe_call(pm.MSP)
-    tci = _safe_call(lambda: pm.system.TEA.TCI)
-    aoc = _safe_call(lambda: pm.system.TEA.AOC)
+    # BioSTEAM exposes the TEA object as .tea (lowercase) on the process model;
+    # `pm.system.TEA` is not a valid path and was raising AttributeError inside
+    # _safe_call, which swallowed the exception and returned None. That made
+    # every sim look like "success but zero economics", which then tripped the
+    # zero-metric row guards downstream. Matches the v8 reference at
+    # plastics-master-3/plastics/strap/process_model.py:952.
+    tci = _safe_call(lambda: pm.tea.TCI)
+    aoc = _safe_call(lambda: pm.tea.AOC)
 
     # ------------------------------------------------------------------
     # Extract LCA results

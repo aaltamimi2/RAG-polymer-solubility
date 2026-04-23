@@ -346,6 +346,24 @@ def test_plan_workflow_rules_keeps_explicit_process_and_optimization_goals_toget
     assert dependencies["optimization-engineer"] == {"separation-engineer"}
 
 
+def test_plan_workflow_rules_routes_separation_to_optimization_to_visualization_without_biosteam_for_pareto_query():
+    from strap.routing_classifier import plan_workflow_rules
+
+    query = (
+        "For an LDPE/EVOH/PET film, use the top separation routes as candidates, "
+        "run route-constrained optimization, broaden to the optimizer-supported candidate catalog "
+        "if the ranked routes are infeasible, and generate a Pareto front plot of total cost vs emissions."
+    )
+
+    planned = plan_workflow_rules(query, None)
+
+    assert [rule["subagent"] for rule in planned] == [
+        "separation-engineer",
+        "optimization-engineer",
+        "visualization-specialist",
+    ]
+
+
 def test_get_allowed_rules_falls_back_to_keyword_sequential_match_when_llm_route_is_weaker():
     from strap.routing import RoutingMiddleware
 
@@ -833,6 +851,67 @@ def test_validate_task_tool_call_uses_active_ordered_plan_for_contaminant_sequen
     assert "separation-engineer" in validation_error
 
 
+def test_validate_task_tool_call_blocks_biosteam_after_optimization_without_tea_intent():
+    """Post-optimization biosteam-analyst dispatch is blocked unless the user explicitly asked for TEA/LCA."""
+    from strap.routing_guards import _validate_task_tool_call
+
+    messages = [
+        HumanMessage(
+            content=(
+                "For a mixed plastic feedstock, run a Pareto sweep of total cost vs emissions "
+                "for the shortlisted solvents."
+            )
+        ),
+        AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+        ToolMessage(
+            content=_structured_result_content("optimization-engineer"),
+            tool_call_id="tc_opt",
+        ),
+    ]
+    allowed_rules = [
+        {"subagent": "optimization-engineer", "description": "run Pareto optimization"},
+        {"subagent": "biosteam-analyst", "description": "tea/lca"},
+    ]
+    call = _task_call("tc_bio", "biosteam-analyst", "Re-run BioSTEAM for the five sequences.")
+
+    err = _validate_task_tool_call(call, messages, allowed_rules)
+    assert err is not None
+    assert "biosteam-analyst" in err
+    assert "optimization-engineer" in err
+    assert "duplicate" in err.lower() or "internally" in err.lower()
+
+
+def test_validate_task_tool_call_allows_biosteam_when_user_requests_tea_lca():
+    """When the user explicitly asked for TEA/LCA, biosteam-analyst must still be dispatchable."""
+    from strap.routing_guards import _validate_task_tool_call
+
+    messages = [
+        HumanMessage(
+            content=(
+                "Run the Pareto sweep, then give me a detailed TEA and LCA breakdown "
+                "with capex/opex for the top route."
+            )
+        ),
+        AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+        ToolMessage(
+            content=_structured_result_content("optimization-engineer"),
+            tool_call_id="tc_opt",
+        ),
+    ]
+    allowed_rules = [
+        {"subagent": "optimization-engineer", "description": "run Pareto"},
+        {"subagent": "biosteam-analyst", "description": "detailed TEA/LCA"},
+    ]
+    call = _task_call("tc_bio", "biosteam-analyst", "Run detailed TEA and LCA.")
+
+    # Explicit TEA intent means the post-opt dedup does NOT fire. Predecessor
+    # guards may still block if a build_handoff is expected, but the dedup guard
+    # itself must not be the reason.
+    err = _validate_task_tool_call(call, messages, allowed_rules)
+    if err is not None:
+        assert "duplicate that work" not in err
+
+
 class TestRoutingProgress:
     def test_completed_subagents_preserve_repeated_calls(self):
         from strap.routing import _extract_completed_subagents
@@ -1006,6 +1085,51 @@ class TestRoutingProgress:
 
         assert "Write the final answer now using the completed subagent outputs" in progress
         assert "Do not call any more tools" in progress
+
+    def test_completion_progress_anchor_prioritizes_optimization_routes_over_separation_steps(self):
+        from strap.routing import _build_progress_directive
+
+        messages = [
+            HumanMessage(content="Compare optimized routes for LDPE, EVOH, and PET."),
+            AIMessage(content="", tool_calls=[_task_call("tc_sep", "separation-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"separation-engineer","schema_version":"1.0","polymers":["LDPE","EVOH","PET"],'
+                    '"best_sequence":["LDPE","EVOH","PET"],'
+                    '"steps":[{"step":1,"polymer":"LDPE","solvent":"Cyclohexane","temperature_c":76.0}],'
+                    '"solvent_mapping":{"LDPE":"Cyclohexane"},'
+                    '"top_k_sequences":[{"rank":1,"sequence":["LDPE","EVOH","PET"],"solvent_mapping":{"LDPE":"Cyclohexane","EVOH":"Methanol"}}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_sep",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"pareto_front",'
+                    '"x_metric":"total_cost","y_metric":"emissions","n_points_feasible":1,'
+                    '"n_routes_requested":2,"n_routes_solved":1,'
+                    '"points":[{"point_id":1,"route_id":"route_1","total_cost":1000,"emissions":100}],'
+                    '"route_reports":[{"route_id":"route_1","status":"solved","polymer_solvent_map":{"PE":"Cyclohexane","EVOH":"Dimethyl sulfoxide"}},{"route_id":"route_2","status":"skipped","reason":"not in catalog","polymer_solvent_map":{"PE":"Cyclohexane","EVOH":"Methanol"}}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+        ]
+        ordered_plan = [
+            {"subagent": "separation-engineer", "description": "sep", "step_id": "tc_sep"},
+            {"subagent": "optimization-engineer", "description": "opt", "step_id": "tc_opt"},
+        ]
+
+        progress = _build_progress_directive(messages, {"tc_sep", "tc_opt"}, ordered_plan)
+
+        assert "Optimization-engineer returned the latest validated downstream result" in progress
+        assert "route-constrained optimization result" in progress
+        assert "Validated optimization route route_1: PE-Cyclohexane, EVOH-Dimethyl sulfoxide." in progress
+        assert "Do not restate upstream separation step numbers" in progress
+        assert "Preserve validated Step 1" not in progress
 
     def test_invalid_handoff_without_scope_counts_as_failed(self):
         from strap.routing import (
@@ -2456,6 +2580,202 @@ class TestSeparationRoutePurityAndFallback:
         assert "preferred comparison" not in content
         assert "unsupported" in content
         assert "no supported contaminant-screening mode result is available" in content
+
+    def test_wrap_model_call_optimization_fallback_uses_only_optimization_payload(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(
+                content=(
+                    "For an LDPE/EVOH/PET film, use the top separation routes as candidates, "
+                    "run route-constrained optimization, and summarize the Pareto result."
+                )
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_sep", "separation-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"separation-engineer","schema_version":"1.0","polymers":["LDPE","EVOH","PET"],'
+                    '"best_sequence":["LDPE","EVOH","PET"],'
+                    '"steps":[{"step":1,"polymer":"LDPE","solvent":"Cyclohexane","temperature_c":120.0},'
+                    '{"step":2,"polymer":"EVOH","solvent":"Methanol","temperature_c":55.0}],'
+                    '"solvent_mapping":{"LDPE":"Cyclohexane","EVOH":"Methanol"},'
+                    '"top_k_sequences":[{"rank":1,"sequence":["LDPE","EVOH","PET"],"solvent_mapping":{"LDPE":"Cyclohexane","EVOH":"Methanol"}}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_sep",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"pareto_front",'
+                    '"x_metric":"total_cost","y_metric":"emissions","n_points_feasible":1,'
+                    '"n_routes_requested":2,"n_routes_solved":1,'
+                    '"points":[{"point_id":1,"route_id":"route_1","total_cost":36635.0,"emissions":7110.0}],'
+                    '"route_reports":[{"route_id":"route_1","status":"solved","polymer_solvent_map":{"PE":"Cyclohexane","EVOH":"Dimethyl sulfoxide"}},{"route_id":"route_2","status":"infeasible","reason":"cost-anchor solve failed under route enforcement","polymer_solvent_map":{"PE":"Cyclohexane","EVOH":"Methanol"}}],'
+                    '"solvent_filter_warnings":[]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("separation-engineer", "optimization-engineer")
+        )
+        handler = MagicMock()
+
+        response = middleware.wrap_model_call(request, handler)
+
+        handler.assert_not_called()
+        content = response.result[0].content
+        assert "route-constrained Pareto front" in content
+        assert "Route reports:" in content
+        assert "route_1: solved | PE-Cyclohexane, EVOH-Dimethyl sulfoxide" in content
+        assert "route_2: infeasible | PE-Cyclohexane, EVOH-Methanol" in content
+        assert "Pareto points:" in content
+        assert "Step 1" not in content
+        assert "Predicted separation order" not in content
+        assert (
+            response.result[0].additional_kwargs["strap_origin"]
+            == "routing_multi_specialist_separation_optimization_fallback"
+        )
+
+    def test_wrap_model_call_optimization_visualization_fallback_uses_plot_and_optimization_payloads(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(
+                content="Run optimization and generate a Pareto front plot for total cost vs emissions."
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"pareto_front",'
+                    '"x_metric":"total_cost","y_metric":"emissions","n_points_feasible":1,'
+                    '"n_routes_requested":1,"n_routes_solved":1,'
+                    '"points":[{"point_id":1,"route_id":"route_1","total_cost":24080.0,"emissions":0.0}],'
+                    '"route_reports":[{"route_id":"route_1","status":"solved","polymer_solvent_map":{"PE":"Heptane","EVOH":"gamma-butyrolactone"}}],'
+                    '"solvent_filter_warnings":["Broadened to optimizer-supported catalog."]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0",'
+                    '"plot_type":"optimization_pareto_front","plot_paths":["./plots/optimization_pareto_emissions.png"],'
+                    '"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("optimization-engineer", "visualization-specialist")
+        )
+        handler = MagicMock()
+
+        response = middleware.wrap_model_call(request, handler)
+
+        handler.assert_not_called()
+        content = response.result[0].content
+        assert "Optimization Pareto plot created." in content
+        assert "./plots/optimization_pareto_emissions.png" in content
+        assert "Validated Pareto result: 1 feasible point(s)" in content
+        assert "route_1: solved | PE-Heptane, EVOH-gamma-butyrolactone" in content
+        assert "Filter warnings:" in content
+        assert "Step 1" not in content
+        assert "Cyclohexane at 76.0C" not in content
+        assert (
+            response.result[0].additional_kwargs["strap_origin"]
+            == "routing_multi_specialist_optimization_visualization_fallback"
+        )
+
+    def test_wrap_model_call_optimization_visualization_fallback_tolerates_extra_allowed_specialists(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(
+                content="Run optimization and generate a Pareto front plot for total cost vs emissions."
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"pareto_front",'
+                    '"x_metric":"total_cost","y_metric":"emissions","n_points_feasible":1,'
+                    '"n_routes_requested":1,"n_routes_solved":1,'
+                    '"points":[{"point_id":1,"route_id":"route_1","total_cost":24080.0,"emissions":0.0}],'
+                    '"route_reports":[{"route_id":"route_1","status":"solved","polymer_solvent_map":{"PE":"Heptane","EVOH":"gamma-butyrolactone"}}],'
+                    '"solvent_filter_warnings":[]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0",'
+                    '"plot_type":"optimization_pareto_front","plot_paths":["./plots/optimization_pareto_emissions.png"],'
+                    '"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for(
+                "separation-engineer",
+                "optimization-engineer",
+                "biosteam-analyst",
+                "visualization-specialist",
+            )
+        )
+        handler = MagicMock()
+
+        response = middleware.wrap_model_call(request, handler)
+
+        handler.assert_not_called()
+        assert (
+            response.result[0].additional_kwargs["strap_origin"]
+            == "routing_multi_specialist_optimization_visualization_fallback"
+        )
+        assert "Optimization Pareto plot created." in response.result[0].content
 
     def test_wrap_model_call_short_circuits_single_specialist_separation_even_when_task_status_is_invalid(self):
         from strap.routing import RoutingMiddleware

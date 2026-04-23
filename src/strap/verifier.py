@@ -33,6 +33,15 @@ _verified_flag: contextvars.ContextVar[bool] = contextvars.ContextVar(
 _verification_revision_count: contextvars.ContextVar[int] = contextvars.ContextVar(
     "_verification_revision_count", default=0
 )
+# Tracks the hash of the issue set surfaced by the most recent verifier check so
+# we can detect stagnation (the agent keeps producing the same flagged text).
+_verification_last_issues_hash: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_verification_last_issues_hash", default=""
+)
+_verification_stagnation_count: contextvars.ContextVar[int] = contextvars.ContextVar(
+    "_verification_stagnation_count", default=0
+)
+_MAX_VERIFIER_STAGNATION = 1  # accept after seeing the same issue twice in a row
 _STRUCTURED_RESULT_RE = re.compile(
     r"<STRUCTURED_RESULT>\s*(.*?)\s*</STRUCTURED_RESULT>",
     re.DOTALL,
@@ -46,6 +55,47 @@ _TEMPERATURE_LIMIT_PATTERNS = (
 _BOILING_POINT_CAVEAT_MARGIN_C = 10.0
 _NEAR_BOILING_MARGIN_C = 5.0
 _MAX_VERIFIER_REVISIONS = 2
+
+
+def _hash_issues(issues: list[str] | None) -> str:
+    """Stable hash of a verifier issues list, whitespace-normalized."""
+    if not issues:
+        return ""
+    import hashlib
+
+    normalized = "|".join(sorted(" ".join(str(item).split()) for item in issues))
+    return hashlib.sha1(normalized.encode("utf-8")).hexdigest()
+
+
+def _response_with_caveat(response, ai_msg, issues: list[str] | None):
+    """Return a ModelResponse whose AI message has the unresolved verifier issues
+    appended as a visible caveat so the user can see what the verifier flagged
+    even though the agent couldn't fully resolve it."""
+    if not issues:
+        return response
+    try:
+        bullets = "\n".join(f"- {issue}" for issue in issues)
+        caveat = (
+            "\n\n> **Verifier caveat — unresolved after revision attempts:**\n"
+            f"> The response was accepted because the agent could not satisfy the "
+            f"following quality-check issues under the current prompt. Treat them "
+            f"as open items to address manually:\n>\n"
+            + "\n".join(f"> - {issue}" for issue in issues)
+        )
+        current = _extract_text(getattr(ai_msg, "content", ""))
+        new_content = (current or "") + caveat
+        return ModelResponse(result=[
+            AIMessage(
+                content=new_content,
+                additional_kwargs={
+                    **getattr(ai_msg, "additional_kwargs", {}),
+                    "strap_verifier_unresolved_issues": list(issues),
+                },
+            )
+        ])
+    except Exception:
+        logger.exception("verifier: failed to append caveat; returning original response")
+        return response
 _SELECTIVITY_OVERCLAIM_TERMS = (
     "will selectively dissolve",
     "will dissolve",
@@ -488,6 +538,172 @@ def _get_deterministic_separation_issues(messages: list, response_text: str) -> 
     return issues
 
 
+def _contains_filter_fallback_caveat(response_lower: str) -> bool:
+    phrases = (
+        "fallback",
+        "fell back",
+        "relaxed",
+        "no overlap",
+        "did not overlap",
+        "full candidate set",
+        "full pe candidate set",
+        "full evoh candidate set",
+        "shared optimization catalog",
+        "optimization catalog",
+        "partially applied",
+    )
+    return any(phrase in response_lower for phrase in phrases)
+
+
+def _mentions_upstream_sequence_prose(response_lower: str) -> bool:
+    return any(
+        phrase in response_lower
+        for phrase in (
+            "recommended separation sequence",
+            "step-by-step recommendation",
+            "step 1",
+            "step 2",
+            "overall assessment: this is the recommended feasible atmospheric-pressure route",
+        )
+    )
+
+
+def _extract_route_report_solvents(payload: dict) -> set[str]:
+    solvents: set[str] = set()
+    route_reports = payload.get("route_reports")
+    if not isinstance(route_reports, list):
+        return solvents
+    for report in route_reports:
+        if not isinstance(report, dict):
+            continue
+        route_map = report.get("polymer_solvent_map")
+        if not isinstance(route_map, dict):
+            continue
+        for solvent in route_map.values():
+            solvent_text = str(solvent).strip().lower()
+            if solvent_text:
+                solvents.add(solvent_text)
+    return solvents
+
+
+def _extract_separation_candidate_solvents(payload: dict) -> set[str]:
+    solvents: set[str] = set()
+    steps = payload.get("steps")
+    if isinstance(steps, list):
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            solvent_text = str(step.get("solvent", "")).strip().lower()
+            if solvent_text:
+                solvents.add(solvent_text)
+    top_k = payload.get("top_k_sequences")
+    if isinstance(top_k, list):
+        for entry in top_k:
+            if not isinstance(entry, dict):
+                continue
+            mapping = entry.get("solvent_mapping")
+            if not isinstance(mapping, dict):
+                continue
+            for solvent in mapping.values():
+                solvent_text = str(solvent).strip().lower()
+                if solvent_text:
+                    solvents.add(solvent_text)
+    return solvents
+
+
+def _get_deterministic_optimization_issues(messages: list, response_text: str) -> list[str]:
+    payload = _get_latest_validated_subagent_payload(messages, "optimization-engineer")
+    if not isinstance(payload, dict):
+        payload = _get_latest_subagent_payload(messages, "optimization-engineer")
+    if not isinstance(payload, dict):
+        return []
+
+    response_lower = response_text.lower()
+    issues: list[str] = []
+    analysis_type = str(payload.get("analysis_type") or "").strip().lower()
+    route_reports = payload.get("route_reports")
+    has_route_reports = isinstance(route_reports, list) and bool(route_reports)
+
+    if analysis_type == "infeasible":
+        if _mentions_upstream_sequence_prose(response_lower):
+            issues.append(
+                "The answer must report the optimization as infeasible and must not present upstream separation steps or sequences as the final optimized route."
+            )
+        if not any(
+            phrase in response_lower
+            for phrase in ("infeasible", "no feasible", "could not solve", "failed under", "failed to solve")
+        ):
+            issues.append(
+                "The answer must explicitly state that the optimization result was infeasible, rather than implying a successful optimized route exists."
+            )
+
+    if has_route_reports:
+        if _mentions_upstream_sequence_prose(response_lower):
+            issues.append(
+                "The answer must anchor the final synthesis on optimization route reports and Pareto points, not on upstream separation step-by-step prose."
+            )
+        if not any(
+            phrase in response_lower
+            for phrase in ("route", "pareto", "frontier", "point", "optimization")
+        ):
+            issues.append(
+                "The answer must explicitly describe the optimization route or Pareto result, rather than only restating the upstream separation analysis."
+            )
+        separation_payload = _get_latest_validated_subagent_payload(messages, "separation-engineer")
+        if not isinstance(separation_payload, dict):
+            separation_payload = _get_latest_subagent_payload(messages, "separation-engineer")
+        if isinstance(separation_payload, dict):
+            route_solvents = _extract_route_report_solvents(payload)
+            separation_solvents = _extract_separation_candidate_solvents(separation_payload)
+            for solvent in sorted(separation_solvents - route_solvents):
+                if solvent and solvent in response_lower:
+                    issues.append(
+                        "The answer mentions an upstream separation solvent that does not appear in the validated optimization route reports. Route conclusions must come from route_reports or points, not from earlier separation prose."
+                    )
+                    break
+
+    # Both shapes are supported: point_optimum emits flat fields and pareto_front
+    # historically nested its filter info under candidate_summary. The Pareto
+    # tool now also emits the flat fields, but the fallback keeps older Pareto
+    # payloads from silently escaping the verifier check.
+    candidate_summary = payload.get("candidate_summary") if isinstance(payload.get("candidate_summary"), dict) else {}
+
+    warnings_raw = (
+        payload.get("solvent_filter_warnings")
+        or candidate_summary.get("warnings")
+        or []
+    )
+    warnings = [str(item).strip() for item in warnings_raw if str(item).strip()]
+
+    requested_filters = payload.get("requested_solvent_filters")
+    if not isinstance(requested_filters, dict):
+        requested_filters = candidate_summary.get("requested_filters") if isinstance(candidate_summary.get("requested_filters"), dict) else {}
+    has_requested_filters = isinstance(requested_filters, dict) and any(
+        requested_filters.get(key) for key in requested_filters
+    )
+
+    simulation_failures = payload.get("simulation_failures") or []
+    has_sim_failures = bool(simulation_failures)
+
+    if warnings or has_sim_failures:
+        if has_requested_filters or has_sim_failures:
+            if not _contains_filter_fallback_caveat(response_lower):
+                if has_sim_failures and not has_requested_filters:
+                    issues.append(
+                        "The answer must explicitly disclose that at least one candidate polymer-solvent "
+                        "pair was dropped because its BioSTEAM simulation failed, rather than implying all "
+                        "evaluated options were fully simulated."
+                    )
+                else:
+                    issues.append(
+                        "The answer must explicitly disclose that the upstream solvent shortlist did not fully overlap "
+                        "with the optimization catalog and that the optimizer fell back to the broader candidate set "
+                        "for at least one polymer, rather than implying the solve stayed fully constrained."
+                    )
+
+    return issues
+
+
 def _merge_verdicts(primary: dict, extra_issues: list[str]) -> dict:
     if not extra_issues:
         return primary
@@ -568,10 +784,14 @@ class OutputVerifierMiddleware(AgentMiddleware):
     def before_agent(self, state, runtime):
         _verified_flag.set(False)
         _verification_revision_count.set(0)
+        _verification_last_issues_hash.set("")
+        _verification_stagnation_count.set(0)
 
     async def abefore_agent(self, state, runtime):
         _verified_flag.set(False)
         _verification_revision_count.set(0)
+        _verification_last_issues_hash.set("")
+        _verification_stagnation_count.set(0)
 
     # -- model-call wrapper -------------------------------------------------
 
@@ -620,6 +840,9 @@ class OutputVerifierMiddleware(AgentMiddleware):
             request.messages,
             content,
         )
+        deterministic_issues.extend(
+            _get_deterministic_optimization_issues(request.messages, content)
+        )
 
         verdict = {"pass": True, "confidence": "LOW", "issues": []}
         use_model_verifier = not _is_single_specialist_separation_context(request.messages)
@@ -661,22 +884,42 @@ class OutputVerifierMiddleware(AgentMiddleware):
                     },
                 )])
 
+        issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
+        issues_hash = _hash_issues(verdict.get("issues", []))
+        previous_hash = _verification_last_issues_hash.get()
+
+        # Stagnation escape hatch: the agent cannot satisfy the verifier on
+        # this set of issues. Accept-with-caveat rather than looping.
+        if previous_hash and previous_hash == issues_hash:
+            stagnation = _verification_stagnation_count.get() + 1
+            _verification_stagnation_count.set(stagnation)
+            if stagnation >= _MAX_VERIFIER_STAGNATION:
+                logger.warning(
+                    "verifier: issue set stagnated for %d consecutive checks — "
+                    "accepting response with unresolved caveats appended.",
+                    stagnation,
+                )
+                _verified_flag.set(True)
+                return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
+        else:
+            _verification_stagnation_count.set(0)
+        _verification_last_issues_hash.set(issues_hash)
+
         if self._revision_count >= _MAX_VERIFIER_REVISIONS:
             logger.warning(
-                "verifier: revision limit reached (%d) — returning latest response",
+                "verifier: revision limit reached (%d) — accepting with unresolved caveats.",
                 _MAX_VERIFIER_REVISIONS,
             )
             _verified_flag.set(True)
-            return response
+            return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
 
         # HIGH-confidence issues — inject feedback and re-invoke
-        issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
         logger.warning("verifier: HIGH confidence issues found:\n%s", issues_text)
 
         if request.system_message is None:
             logger.warning("verifier: cannot inject feedback — no system message")
             _verified_flag.set(True)
-            return response
+            return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
 
         feedback = (
             f"\n\n[VERIFICATION FEEDBACK — revise your response]\n"
@@ -761,6 +1004,9 @@ class OutputVerifierMiddleware(AgentMiddleware):
             request.messages,
             content,
         )
+        deterministic_issues.extend(
+            _get_deterministic_optimization_issues(request.messages, content)
+        )
 
         verdict = {"pass": True, "confidence": "LOW", "issues": []}
         use_model_verifier = not _is_single_specialist_separation_context(request.messages)
@@ -802,22 +1048,39 @@ class OutputVerifierMiddleware(AgentMiddleware):
                     },
                 )])
 
+        issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
+        issues_hash = _hash_issues(verdict.get("issues", []))
+        previous_hash = _verification_last_issues_hash.get()
+        if previous_hash and previous_hash == issues_hash:
+            stagnation = _verification_stagnation_count.get() + 1
+            _verification_stagnation_count.set(stagnation)
+            if stagnation >= _MAX_VERIFIER_STAGNATION:
+                logger.warning(
+                    "verifier (async): issue set stagnated for %d consecutive checks — "
+                    "accepting response with unresolved caveats appended.",
+                    stagnation,
+                )
+                _verified_flag.set(True)
+                return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
+        else:
+            _verification_stagnation_count.set(0)
+        _verification_last_issues_hash.set(issues_hash)
+
         if self._revision_count >= _MAX_VERIFIER_REVISIONS:
             logger.warning(
-                "verifier: revision limit reached (%d) — returning latest response",
+                "verifier (async): revision limit reached (%d) — accepting with unresolved caveats.",
                 _MAX_VERIFIER_REVISIONS,
             )
             _verified_flag.set(True)
-            return response
+            return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
 
         # HIGH-confidence issues — inject feedback and re-invoke
-        issues_text = "\n".join(f"- {i}" for i in verdict.get("issues", []))
-        logger.warning("verifier: HIGH confidence issues found:\n%s", issues_text)
+        logger.warning("verifier (async): HIGH confidence issues found:\n%s", issues_text)
 
         if request.system_message is None:
-            logger.warning("verifier: cannot inject feedback — no system message")
+            logger.warning("verifier (async): cannot inject feedback — no system message")
             _verified_flag.set(True)
-            return response
+            return _response_with_caveat(response, ai_msg, verdict.get("issues", []))
 
         feedback = (
             f"\n\n[VERIFICATION FEEDBACK — revise your response]\n"

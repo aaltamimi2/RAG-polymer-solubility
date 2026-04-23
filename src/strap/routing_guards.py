@@ -16,7 +16,11 @@ from .handoffs import (
     get_latest_result_handoff,
     normalize_agent_payload,
 )
-from .routing_classifier import derive_workflow_dependencies
+from .routing_classifier import (
+    _EXPLICIT_BIOSTEAM_ANALYSIS_RE,
+    _NEGATED_BIOSTEAM_RE,
+    derive_workflow_dependencies,
+)
 from .routing_progress import (
     _extract_completed_subagent_calls,
     _extract_returned_subagent_calls,
@@ -156,6 +160,20 @@ def _query_explicitly_requests_visualization(messages: list) -> bool:
     if not query:
         return False
     return bool(_VISUALIZATION_REQUEST_RE.search(query))
+
+
+def _query_has_explicit_biosteam_intent(messages: list) -> bool:
+    """Whether the user explicitly asked for a TEA/LCA / BioSTEAM analysis.
+
+    Mirrors the intent regex used by the routing classifier so the
+    post-optimization dedup here stays in sync with initial classification.
+    """
+    query = _get_last_human_message(messages)
+    if not query:
+        return False
+    if _NEGATED_BIOSTEAM_RE.search(query):
+        return False
+    return bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query))
 
 
 def _strip_structured_result_block(text: str) -> str:
@@ -671,6 +689,215 @@ def _build_separation_contaminant_payload_fallback(messages: list) -> AIMessage 
     )
 
 
+def _format_metric_value(value, *, money: bool = False) -> str:
+    if value is None:
+        return "N/A"
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if money:
+        return f"${number:,.2f}"
+    if abs(number) >= 1000:
+        return f"{number:,.2f}"
+    return f"{number:.2f}"
+
+
+def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage | None:
+    dispatch, payload, _, status = _get_latest_task_payload_bundle(messages, "optimization-engineer")
+    if dispatch is None or not isinstance(payload, dict):
+        return None
+
+    analysis_type = str(payload.get("analysis_type") or "").strip().lower()
+    lines: list[str] = []
+
+    if analysis_type == "infeasible":
+        lines.append("Optimization summary: the route-constrained optimization was infeasible.")
+        message = str(payload.get("message") or "").strip()
+        failure_reason = str(payload.get("failure_reason") or "").strip()
+        suggested_relaxation = str(payload.get("suggested_relaxation") or "").strip()
+        if message:
+            lines.append(message)
+        if failure_reason:
+            lines.append(f"Failure reason: {failure_reason}.")
+        if suggested_relaxation:
+            lines.append(f"Suggested relaxation: {suggested_relaxation}.")
+    elif analysis_type == "pareto_front":
+        x_metric = str(payload.get("x_metric") or "total_cost")
+        y_metric = str(payload.get("y_metric") or "emissions")
+        n_points = int(payload.get("n_points_feasible") or 0)
+        n_routes_requested = int(payload.get("n_routes_requested") or 0)
+        n_routes_solved = int(payload.get("n_routes_solved") or 0)
+        lines.append(
+            f"Optimization summary: route-constrained Pareto front with {n_points} feasible point(s) on {x_metric} vs {y_metric}."
+        )
+        if n_routes_requested:
+            lines.append(f"Validated routes solved: {n_routes_solved} of {n_routes_requested} requested.")
+
+        route_reports = payload.get("route_reports")
+        if isinstance(route_reports, list) and route_reports:
+            lines.append("Route reports:")
+            for report in route_reports[:5]:
+                if not isinstance(report, dict):
+                    continue
+                route_id = str(report.get("route_id") or "route")
+                status_text = str(report.get("status") or "unknown")
+                route_map = report.get("polymer_solvent_map")
+                route_text = ", ".join(
+                    f"{polymer}-{solvent}" for polymer, solvent in route_map.items()
+                ) if isinstance(route_map, dict) else ""
+                reason = str(report.get("reason") or "").strip()
+                line = f"- {route_id}: {status_text}"
+                if route_text:
+                    line += f" | {route_text}"
+                if reason:
+                    line += f" | {reason}"
+                lines.append(line)
+
+        points = payload.get("points")
+        if isinstance(points, list) and points:
+            lines.append("Pareto points:")
+            for point in points[:5]:
+                if not isinstance(point, dict):
+                    continue
+                point_id = point.get("point_id")
+                route_id = str(point.get("route_id") or "").strip()
+                x_value = _format_metric_value(point.get(x_metric), money=(x_metric == "total_cost"))
+                y_value = _format_metric_value(point.get(y_metric), money=(y_metric == "total_cost"))
+                line = f"- Point {point_id}: {x_metric} {x_value}; {y_metric} {y_value}"
+                if route_id:
+                    line += f"; route {route_id}"
+                lines.append(line)
+
+        warnings = payload.get("solvent_filter_warnings") or []
+        if warnings:
+            lines.append("Filter warnings:")
+            for item in warnings[:4]:
+                lines.append(f"- {item}")
+
+        simulation_failures = payload.get("simulation_failures") or []
+        if simulation_failures:
+            lines.append("Simulation failures:")
+            for item in simulation_failures[:4]:
+                if isinstance(item, dict):
+                    polymer = str(item.get("polymer") or "unknown polymer")
+                    solvent = str(item.get("solvent") or "unknown solvent")
+                    reason = str(item.get("reason") or "simulation failed")
+                    lines.append(f"- {polymer} / {solvent}: {reason}")
+                else:
+                    lines.append(f"- {item}")
+    else:
+        lines.append("Optimization summary:")
+        optimal_washes = payload.get("optimal_washes") or []
+        if optimal_washes:
+            lines.append(
+                "Selected washes: " + ", ".join(str(item) for item in optimal_washes if str(item).strip()) + "."
+            )
+        lines.append(
+            f"Total cost: {_format_metric_value(payload.get('total_cost'), money=True)}; "
+            f"emissions: {_format_metric_value(payload.get('emissions'))}; "
+            f"profit: {_format_metric_value(payload.get('profit'), money=True)}."
+        )
+
+    lines.append(
+        "This summary is grounded only in the validated optimization payload and does not restate upstream separation candidates as optimized outcomes."
+    )
+    return _build_origin_tagged_ai_message(
+        "\n".join(line for line in lines if line).strip(),
+        origin="routing_multi_specialist_separation_optimization_fallback",
+        subagent="optimization-engineer",
+        tool_call_id=dispatch["tool_call_id"],
+        status=status,
+    )
+
+
+def _build_optimization_visualization_payload_fallback(messages: list) -> AIMessage | None:
+    viz_dispatch, viz_payload, _, viz_status = _get_latest_task_payload_bundle(messages, "visualization-specialist")
+    opt_dispatch, opt_payload, _, opt_status = _get_latest_task_payload_bundle(messages, "optimization-engineer")
+    if viz_dispatch is None or not isinstance(viz_payload, dict):
+        return None
+    if opt_dispatch is None or not isinstance(opt_payload, dict):
+        return None
+
+    plot_type = str(viz_payload.get("plot_type") or "").strip()
+    if plot_type != "optimization_pareto_front":
+        return None
+
+    lines: list[str] = ["Optimization Pareto plot created."]
+    plot_paths = viz_payload.get("plot_paths") or []
+    if isinstance(plot_paths, list) and plot_paths:
+        lines.append("Plot path: " + ", ".join(str(path) for path in plot_paths if str(path).strip()) + ".")
+
+    analysis_type = str(opt_payload.get("analysis_type") or "").strip().lower()
+    if analysis_type == "pareto_front":
+        x_metric = str(opt_payload.get("x_metric") or "total_cost")
+        y_metric = str(opt_payload.get("y_metric") or "emissions")
+        n_points = int(opt_payload.get("n_points_feasible") or 0)
+        lines.append(f"Validated Pareto result: {n_points} feasible point(s) on {x_metric} vs {y_metric}.")
+
+        n_routes_requested = int(opt_payload.get("n_routes_requested") or 0)
+        n_routes_solved = int(opt_payload.get("n_routes_solved") or 0)
+        if n_routes_requested:
+            lines.append(f"Validated routes solved: {n_routes_solved} of {n_routes_requested} requested.")
+
+        points = opt_payload.get("points") or []
+        if isinstance(points, list) and points:
+            lines.append("Pareto points:")
+            for point in points[:5]:
+                if not isinstance(point, dict):
+                    continue
+                point_id = point.get("point_id")
+                route_id = str(point.get("route_id") or "").strip()
+                x_value = _format_metric_value(point.get(x_metric), money=(x_metric == "total_cost"))
+                y_value = _format_metric_value(point.get(y_metric), money=(y_metric == "total_cost"))
+                line = f"- Point {point_id}: {x_metric} {x_value}; {y_metric} {y_value}"
+                if route_id:
+                    line += f"; route {route_id}"
+                lines.append(line)
+
+        route_reports = opt_payload.get("route_reports") or []
+        if isinstance(route_reports, list) and route_reports:
+            lines.append("Route reports:")
+            for report in route_reports[:5]:
+                if not isinstance(report, dict):
+                    continue
+                route_id = str(report.get("route_id") or "route")
+                status_text = str(report.get("status") or "unknown")
+                route_map = report.get("polymer_solvent_map")
+                route_text = ", ".join(
+                    f"{polymer}-{solvent}" for polymer, solvent in route_map.items()
+                ) if isinstance(route_map, dict) else ""
+                reason = str(report.get("reason") or "").strip()
+                line = f"- {route_id}: {status_text}"
+                if route_text:
+                    line += f" | {route_text}"
+                if reason:
+                    line += f" | {reason}"
+                lines.append(line)
+
+        warnings = opt_payload.get("solvent_filter_warnings") or []
+        if warnings:
+            lines.append("Filter warnings:")
+            for item in warnings[:4]:
+                lines.append(f"- {item}")
+    elif analysis_type == "infeasible":
+        lines.append("Validated optimization result: infeasible.")
+        message = str(opt_payload.get("message") or "").strip()
+        if message:
+            lines.append(message)
+
+    lines.append(
+        "This summary is grounded only in the validated optimization and visualization payloads."
+    )
+    return _build_origin_tagged_ai_message(
+        "\n".join(line for line in lines if line).strip(),
+        origin="routing_multi_specialist_optimization_visualization_fallback",
+        subagent="visualization-specialist",
+        tool_call_id=viz_dispatch["tool_call_id"],
+        status=viz_status or opt_status,
+    )
+
+
 def _build_origin_tagged_ai_message(
     content: str,
     *,
@@ -883,9 +1110,6 @@ def _build_multi_specialist_completion_response(
     allowed_rules: list[dict],
 ) -> ModelResponse | None:
     allowed_names = _get_allowed_subagent_names(allowed_rules)
-    if allowed_names != {"separation-engineer", "contaminant-removal-analyst"}:
-        return None
-
     ordered_plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
     if not ordered_plan:
         return None
@@ -897,6 +1121,23 @@ def _build_multi_specialist_completion_response(
         dispatch["subagent"] for dispatch in _extract_returned_subagent_calls(messages)
     }
     if allowed_names - returned_names:
+        return None
+
+    if {"optimization-engineer", "visualization-specialist"}.issubset(allowed_names):
+        ai_message = _build_optimization_visualization_payload_fallback(messages)
+        if ai_message is None and {"separation-engineer", "optimization-engineer"}.issubset(allowed_names):
+            ai_message = _build_separation_optimization_payload_fallback(messages)
+        if ai_message is None:
+            return None
+        return ModelResponse(result=[ai_message])
+
+    if {"separation-engineer", "optimization-engineer"}.issubset(allowed_names):
+        ai_message = _build_separation_optimization_payload_fallback(messages)
+        if ai_message is None:
+            return None
+        return ModelResponse(result=[ai_message])
+
+    if allowed_names != {"separation-engineer", "contaminant-removal-analyst"}:
         return None
 
     ai_message = _build_separation_contaminant_payload_fallback(messages)
@@ -1203,6 +1444,20 @@ def _validate_task_tool_call(
             "`visualization-specialist` is disabled for this separation-only route because the user "
             "did not explicitly request a plot, diagram, heatmap, dashboard, or other visualization."
         )
+
+    if subagent == "biosteam-analyst" and not _query_has_explicit_biosteam_intent(messages):
+        optimization_completed = any(
+            call.get("subagent") == "optimization-engineer"
+            for call in _extract_completed_subagent_calls(messages)
+        )
+        if optimization_completed:
+            return (
+                "`biosteam-analyst` is disabled after `optimization-engineer` completes when the user "
+                "did not explicitly ask for a TEA/LCA or BioSTEAM analysis. The optimization tool "
+                "invokes BioSTEAM internally while compiling the STRAP coefficient table, so a follow-on "
+                "biosteam-analyst dispatch would duplicate that work. Synthesize the final answer "
+                "from the existing optimization handoff instead."
+            )
 
     if subagent not in allowed_names:
         return (

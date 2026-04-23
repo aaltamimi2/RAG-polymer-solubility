@@ -110,6 +110,58 @@ def _minimal_payloads() -> dict[str, dict]:
     }
 
 
+def test_validate_contract_payload_accepts_optimization_stage_candidates():
+    from strap.handoff_store import validate_contract_payload
+
+    errors = validate_contract_payload(
+        "optimization.stage_candidates.v1",
+        {
+            "schema_version": "1.0",
+            "workflow_scope": "multi_stage",
+            "route_id": "route-1",
+            "constraint_mode": "ranked_soft",
+            "fallback_policy": "broaden_disclosed",
+            "operating_constraints": {"temperature_max_c": 120.0, "pressure": "atmospheric"},
+            "stages": [
+                {
+                    "stage_id": "wash_1",
+                    "stage_kind": "selective_dissolution",
+                    "target_polymer": "PE",
+                    "candidate_pairs": [{"polymer": "PE", "solvent": "Cyclohexane"}],
+                }
+            ],
+            "candidate_pairs": [{"stage_id": "wash_1", "polymer": "PE", "solvent": "Cyclohexane"}],
+            "polymer_solvent_filters": {"PE": ["Cyclohexane"]},
+            "candidate_solvents": ["Cyclohexane"],
+        },
+    )
+
+    assert errors == []
+
+
+def test_validate_contract_payload_rejects_invalid_optimization_stage_candidates():
+    from strap.handoff_store import validate_contract_payload
+
+    errors = validate_contract_payload(
+        "optimization.stage_candidates.v1",
+        {
+            "schema_version": "1.0",
+            "workflow_scope": "unknown",
+            "constraint_mode": "loose",
+            "fallback_policy": "warn",
+            "operating_constraints": [],
+            "stages": [],
+            "candidate_pairs": {},
+            "polymer_solvent_filters": [],
+            "candidate_solvents": {},
+        },
+    )
+
+    assert any("workflow_scope must be one of" in error for error in errors)
+    assert any("constraint_mode must be one of" in error for error in errors)
+    assert any("fallback_policy must be one of" in error for error in errors)
+
+
 def test_normalize_agent_payload_flattens_contaminant_comparison_modes():
     from strap.handoff_store import normalize_agent_payload
 

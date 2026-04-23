@@ -464,3 +464,284 @@ def test_maybe_verify_allows_second_revision_for_persistent_high_confidence_issu
     assert handler.call_count == 0
     assert "selectivity-based candidate" in result.result[0].content
     verifier_model.invoke.assert_not_called()
+
+
+def test_deterministic_verifier_flags_missing_optimization_filter_fallback_disclosure():
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Use the separation shortlist, then optimize the waste pathway."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_sep",
+            "name": "task",
+            "args": {"subagent_type": "separation-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"separation-engineer","schema_version":"1.0","polymers":["LDPE","EVOH"],'
+                '"steps":[{"step":1,"polymer":"LDPE","solvent":"Cyclohexane"},'
+                '{"step":2,"polymer":"EVOH","solvent":"isopropylamine"}],'
+                '"solvent_mapping":{"LDPE":"Cyclohexane","EVOH":"isopropylamine"},'
+                '"top_solvents":["Cyclohexane","isopropylamine"],'
+                '"top_k_sequences":[]}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_sep",
+        ),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.1",'
+                '"profit":18660000,"emissions":6814,"ce_score":0.83,'
+                '"optimal_washes":["PE-Cyclohexane","EVOH-gamma-butyrolactone"],'
+                '"solvent_filter_status":"partially_applied_with_fallback",'
+                '"requested_solvent_filters":{"global":["Cyclohexane","isopropylamine"],'
+                '"PE":["Cyclohexane"],"EVOH":["isopropylamine"]},'
+                '"applied_solvent_filters":{"PE":["Cyclohexane"]},'
+                '"solvent_filter_warnings":["No EVOH solvent overlap between upstream shortlist and the shared optimization catalog; falling back to the full EVOH candidate set."]}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "The optimizer used the upstream shortlist and selected Cyclohexane plus gamma-butyrolactone.",
+    )
+
+    assert any("fell back to the broader candidate set" in issue for issue in issues)
+
+
+def test_deterministic_verifier_allows_explicit_optimization_filter_fallback_disclosure():
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Use the separation shortlist, then optimize the waste pathway."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.1",'
+                '"profit":18660000,"emissions":6814,"ce_score":0.83,'
+                '"optimal_washes":["PE-Cyclohexane","EVOH-gamma-butyrolactone"],'
+                '"solvent_filter_status":"partially_applied_with_fallback",'
+                '"requested_solvent_filters":{"global":["Cyclohexane","isopropylamine"],'
+                '"PE":["Cyclohexane"],"EVOH":["isopropylamine"]},'
+                '"applied_solvent_filters":{"PE":["Cyclohexane"]},'
+                '"solvent_filter_warnings":["No EVOH solvent overlap between upstream shortlist and the shared optimization catalog; falling back to the full EVOH candidate set."]}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "Cyclohexane was applied on the PE side, but the EVOH shortlist had no overlap with the optimization catalog so the solve fell back to the full EVOH candidate set.",
+    )
+
+    assert issues == []
+
+
+def test_deterministic_verifier_fires_on_pareto_nested_candidate_summary_warnings():
+    """Pareto payloads that only expose warnings under candidate_summary must still trip the verifier."""
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Run a Pareto sweep on the shortlisted solvents."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.2",'
+                '"analysis_type":"pareto_front","x_metric":"total_cost","y_metric":"emissions",'
+                '"n_points_feasible":3,"points":[],'
+                '"candidate_summary":{"status":"fallback_to_full_catalog",'
+                '"requested_filters":{"PE":["Cyclohexane"]},'
+                '"applied_filters":{},'
+                '"warnings":["No PE solvent overlap; falling back to full PE set."]}}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "The Pareto sweep used the requested shortlist and produced three feasible points.",
+    )
+
+    assert any("fell back to the broader candidate set" in issue for issue in issues)
+
+
+def test_verifier_helpers_hash_and_caveat():
+    """Unit coverage for the stagnation hash and the caveat-append escape hatch."""
+    from strap.verifier import _hash_issues, _response_with_caveat
+
+    # Hash is stable and whitespace-normalized
+    h1 = _hash_issues(["Issue A", "Issue B"])
+    h2 = _hash_issues(["Issue B", "Issue A"])  # order-independent
+    h3 = _hash_issues(["Issue A  ", "Issue   B"])  # whitespace-normalized
+    h4 = _hash_issues(["Issue A", "Issue C"])
+    assert h1 == h2 == h3
+    assert h1 != h4
+
+    # Empty issues returns empty string
+    assert _hash_issues([]) == ""
+    assert _hash_issues(None) == ""
+
+    # Caveat is appended to AI content and additional_kwargs carries the issue list
+    from types import SimpleNamespace
+
+    from langchain_core.messages import AIMessage
+
+    original = AIMessage(content="Here is my answer.", additional_kwargs={"strap_origin": "test"})
+    response = SimpleNamespace(result=[original])
+    revised = _response_with_caveat(response, original, ["Unresolved issue 1", "Unresolved issue 2"])
+    revised_msg = revised.result[0]
+    assert "Unresolved issue 1" in revised_msg.content
+    assert "Unresolved issue 2" in revised_msg.content
+    assert revised_msg.additional_kwargs.get("strap_verifier_unresolved_issues") == [
+        "Unresolved issue 1",
+        "Unresolved issue 2",
+    ]
+    # Original origin tag preserved
+    assert revised_msg.additional_kwargs.get("strap_origin") == "test"
+    # Original content preserved (caveat is appended, not replaced)
+    assert revised_msg.content.startswith("Here is my answer.")
+
+
+def test_deterministic_verifier_fires_on_simulation_failures():
+    """Dropped candidate pairs from BioSTEAM failures require explicit disclosure."""
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Run the optimization."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.0",'
+                '"analysis_type":"point_optimum",'
+                '"profit":1000,"emissions":100,"total_cost":500,'
+                '"optimal_washes":["PE-Heptane"],'
+                '"solvent_filter_status":"not_requested",'
+                '"requested_solvent_filters":{},'
+                '"applied_solvent_filters":{},'
+                '"solvent_filter_warnings":[],'
+                '"simulation_failures":[{"polymer":"EVOH","solvent":"Pyridazine"}]}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "The optimizer found the optimum at Heptane for PE with total cost $500.",
+    )
+
+    assert any("BioSTEAM simulation failed" in issue for issue in issues)
+
+
+def test_deterministic_verifier_blocks_upstream_sequence_prose_after_route_optimization():
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Optimize the shortlisted routes."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_sep",
+            "name": "task",
+            "args": {"subagent_type": "separation-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"separation-engineer","schema_version":"1.0","polymers":["LDPE","EVOH"],'
+                '"best_sequence":["LDPE","EVOH"],'
+                '"steps":[{"step":1,"polymer":"LDPE","solvent":"Cyclohexane","temperature_c":76.0}],'
+                '"solvent_mapping":{"LDPE":"Cyclohexane"},'
+                '"top_k_sequences":[{"rank":1,"sequence":["LDPE","EVOH"],"solvent_mapping":{"LDPE":"Cyclohexane","EVOH":"Methanol"}}]}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_sep",
+        ),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"pareto_front",'
+                '"x_metric":"total_cost","y_metric":"emissions","n_points_feasible":1,'
+                '"points":[{"point_id":1,"route_id":"route_1","total_cost":1000,"emissions":100}],'
+                '"route_reports":[{"route_id":"route_1","status":"solved","polymer_solvent_map":{"PE":"Cyclohexane","EVOH":"Dimethyl sulfoxide"}}],'
+                '"candidate_summary":{"status":"applied","warnings":[]}}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "Recommended separation sequence: LDPE then EVOH. Step 1 uses Cyclohexane and Step 2 uses Methanol.",
+    )
+
+    assert any("route reports and Pareto points" in issue for issue in issues)
+    assert any("does not appear in the validated optimization route reports" in issue for issue in issues)
+
+
+def test_deterministic_verifier_requires_explicit_infeasible_optimization_language():
+    from strap.verifier import _get_deterministic_optimization_issues
+
+    messages = [
+        HumanMessage(content="Optimize the shortlisted routes."),
+        AIMessage(content="", tool_calls=[{
+            "id": "tc_opt",
+            "name": "task",
+            "args": {"subagent_type": "optimization-engineer"},
+        }]),
+        ToolMessage(
+            content=(
+                "<STRUCTURED_RESULT>"
+                '{"agent":"optimization-engineer","schema_version":"1.3","analysis_type":"infeasible",'
+                '"constraint_mode":"hard","fallback_policy":"fail_closed",'
+                '"failure_reason":"no_candidate_pair_overlap",'
+                '"message":"No enforced route could be solved.",'
+                '"requested_candidate_pairs":[],"applied_candidate_pairs":[],'
+                '"suggested_relaxation":"Switch to ranked_soft."}'
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc_opt",
+        ),
+    ]
+
+    issues = _get_deterministic_optimization_issues(
+        messages,
+        "Recommended separation sequence: LDPE then EVOH. Step 1 uses Cyclohexane.",
+    )
+
+    assert any("report the optimization as infeasible" in issue for issue in issues)
+    assert any("explicitly state that the optimization result was infeasible" in issue for issue in issues)

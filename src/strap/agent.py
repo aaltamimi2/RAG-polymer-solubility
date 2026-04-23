@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 import deepagents.graph as deepagents_graph
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # Enable LangSmith tracing if keys are present
 if os.getenv("LANGSMITH_API_KEY"):

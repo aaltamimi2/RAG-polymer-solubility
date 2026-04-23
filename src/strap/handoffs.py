@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 def _consumer_guidance(consumer: str) -> str:
     return {
         "biosteam-analyst": "Translate the upstream context into simulation-ready scenarios and compare TEA/LCA implications.",
+        "optimization-engineer": "Treat typed stage-candidate handoffs as the authoritative optimization decision set. Respect constraint_mode and fallback_policy rather than rebuilding the candidate universe yourself.",
         "patent-researcher": "Use the upstream context to narrow patent search terms or extract the exact patent angles to investigate.",
         "rag-analyst": "Use the upstream context before any new retrieval and only search further if the payload is insufficient.",
         "safety-analyst": "Focus on the solvent/material safety implications contained in the upstream result.",

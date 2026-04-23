@@ -97,3 +97,15 @@ def test_extract_query_context_captures_optimization_request_labels():
     assert context.polymers == ("PE", "PET", "NYLON6", "EVOH")
     assert "optimization.pathway" in context.request_labels
     assert "user.optimization_request" in context.available_inputs
+
+
+def test_extract_query_context_captures_plural_separation_route_phrasing():
+    query = (
+        "For an LDPE/EVOH/PET film, use the top separation routes as candidates, "
+        "run route-constrained optimization, and generate a Pareto front plot."
+    )
+
+    context = extract_query_context(query)
+
+    assert "separation.route" in context.route_labels
+    assert "user.solvents_or_route" in context.available_inputs

@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import asyncio
+import textwrap
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple, Any
 
@@ -51,6 +52,112 @@ logger = logging.getLogger(__name__)
 # ===================================================================
 # Visualization tool functions
 # ===================================================================
+
+
+def _stringify_point_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    text = str(value).strip()
+    return [text] if text else []
+
+
+def _humanize_stage_code(value: str) -> str:
+    mapping = {
+        "lf": "Landfill",
+        "we": "Waste-to-energy",
+        "gas_er": "Gasification",
+        "gas": "Gasification",
+        "py": "Pyrolysis",
+        "st1": "Wash 1",
+        "st2": "Wash 2",
+    }
+    text = str(value).strip()
+    return mapping.get(text, text.replace("_", " ").title())
+
+
+def _extract_point_design(row: pd.Series) -> Dict[str, Any]:
+    equivalent_designs = row.get("equivalent_designs")
+    if isinstance(equivalent_designs, list) and equivalent_designs:
+        first = equivalent_designs[0]
+        if isinstance(first, dict):
+            return first
+    return row.to_dict()
+
+
+def _format_pareto_point_legend_entry(
+    row: pd.Series,
+    *,
+    x_metric: str,
+    y_column: str,
+) -> str:
+    point_id = int(row["point_id"])
+    design = _extract_point_design(row)
+    components: list[str] = []
+
+    wash1 = _stringify_point_values(design.get("wash1_selection"))
+    wash2 = _stringify_point_values(design.get("wash2_selection"))
+    if wash1:
+        components.append(f"W1: {', '.join(wash1)}")
+    if wash2:
+        components.append(f"W2: {', '.join(wash2)}")
+
+    stage1 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage1_tech"))]
+    stage2 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage2_tech"))]
+    stage3 = [_humanize_stage_code(value) for value in _stringify_point_values(row.get("stage3_variants"))]
+    if not stage3:
+        stage3 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage3_tech"))]
+
+    if not wash1 and not wash2:
+        final_stage = next((stage for stage in stage1 + stage2 + stage3 if stage not in {"Wash 1", "Wash 2"}), "")
+        if final_stage:
+            components.append(f"Baseline: {final_stage}")
+    else:
+        final_stage = next((stage for stage in stage3 + stage2 + stage1 if stage not in {"Wash 1", "Wash 2"}), "")
+        if final_stage:
+            components.append(f"End: {final_stage}")
+
+    polymer_solvent_map = design.get("polymer_solvent_map") or row.get("polymer_solvent_map")
+    if polymer_solvent_map and not wash1 and not wash2 and isinstance(polymer_solvent_map, dict):
+        ordered = [f"{polymer}-{solvent}" for polymer, solvent in polymer_solvent_map.items()]
+        if ordered:
+            components.append(f"Route: {', '.join(ordered)}")
+
+    selection_origin = str(row.get("selection_origin") or design.get("selection_origin") or "").strip()
+    if selection_origin and selection_origin != "exact_route":
+        components.append(f"Origin: {selection_origin.replace('_', ' ')}")
+
+    matched_route_id = str(
+        row.get("matched_route_id")
+        or design.get("matched_route_id")
+        or row.get("route_id")
+        or design.get("route_id")
+        or ""
+    ).strip()
+    if matched_route_id:
+        components.append(f"Route: {matched_route_id}")
+
+    x_value = row.get(x_metric)
+    y_value = row.get(y_column)
+    if x_metric == "total_cost":
+        if float(x_value) >= 1_000_000:
+            x_text = f"Cost: ${float(x_value)/1_000_000:.2f}M"
+        elif float(x_value) >= 1_000:
+            x_text = f"Cost: ${float(x_value)/1_000:.0f}k"
+        else:
+            x_text = f"Cost: ${float(x_value):,.0f}"
+    else:
+        x_text = f"{x_metric}: {float(x_value):,.3g}"
+    if y_column == "emissions":
+        y_text = f"Emissions: {float(y_value):,.1f}"
+    else:
+        y_text = f"Circularity: {float(y_value):.3f}"
+    components.append(f"{x_text} | {y_text}")
+
+    body = " | ".join(components)
+    wrapped = textwrap.fill(body, width=28, subsequent_indent="    ")
+    return f"P{point_id}: {wrapped}"
 
 
 @safe_tool_wrapper(structured_output=True)
@@ -130,7 +237,7 @@ def plot_solubility_vs_temperature(
         new_max = temperature_max if temperature_max is not None else current_xlim[1]
         ax.set_xlim(new_min, new_max)
 
-    fig.tight_layout()
+    fig.subplots_adjust(left=0.08, right=0.98, top=0.92, bottom=0.1, wspace=0.32)
     from strap.tools._helpers import descriptive_plot_name
     plot_name = descriptive_plot_name("solubility_vs_temp", polymers=polymer_list, solvents=solvent_list)
     filepath = save_plot(fig, plot_name, "matplotlib")
@@ -1133,3 +1240,197 @@ async def plot_solvent_properties(
     output_lines.append(f"\n{_get_plot_url(filepath)}")
 
     return "\n".join(output_lines)
+
+
+@safe_tool_wrapper(structured_output=True)
+def plot_optimization_pareto_front(
+    pareto_result_json: Dict[str, Any] | str | None = None,
+    color_by: str = "profit",
+    plot_title: Optional[str] = None,
+    source_handoff_id: Optional[str] = None,
+    output_stem: Optional[str] = None,
+) -> str:
+    """Plot a cost-vs-emissions or cost-vs-circularity Pareto front from optimization output."""
+    def _coerce_payload(raw_payload: Dict[str, Any] | str | None) -> Dict[str, Any]:
+        if isinstance(raw_payload, str):
+            parsed = json.loads(raw_payload)
+            if isinstance(parsed, dict) and "data" in parsed and isinstance(parsed["data"], dict):
+                return parsed["data"]
+            if isinstance(parsed, dict):
+                return parsed
+            raise TypeError("pareto_result_json must decode to a mapping")
+        if isinstance(raw_payload, dict):
+            if "data" in raw_payload and isinstance(raw_payload["data"], dict):
+                return raw_payload["data"]
+            return raw_payload
+        raise TypeError("pareto_result_json must be a JSON string or mapping")
+
+    payload: Dict[str, Any]
+    if source_handoff_id:
+        from strap.handoffs import get_handoff
+
+        record = get_handoff(source_handoff_id)
+        if record is None:
+            raise ValueError(f"source_handoff_id '{source_handoff_id}' was not found")
+        raw_payload = record.payload
+        if isinstance(raw_payload, dict) and isinstance(raw_payload.get("pareto_result_json"), dict):
+            payload = raw_payload["pareto_result_json"]
+        elif isinstance(raw_payload, dict) and isinstance(raw_payload.get("source_payload"), dict):
+            payload = raw_payload["source_payload"]
+        elif isinstance(raw_payload, dict):
+            payload = raw_payload
+        else:
+            raise TypeError("source handoff payload must be a mapping")
+    elif pareto_result_json is not None:
+        payload = _coerce_payload(pareto_result_json)
+    else:
+        raise TypeError("Either pareto_result_json or source_handoff_id must be provided")
+
+    if payload.get("analysis_type") != "pareto_front":
+        raise ValueError("pareto_result_json must contain analysis_type='pareto_front'")
+
+    points = payload.get("points") or []
+    if not points:
+        raise ValueError("pareto_result_json does not contain any Pareto points to plot")
+
+    x_metric = str(payload.get("x_metric") or "total_cost")
+    y_metric = str(payload.get("y_metric") or "emissions")
+    if color_by not in {"profit", "emissions", "circularity_score", "total_cost"}:
+        raise ValueError("color_by must be one of: profit, emissions, circularity_score, total_cost")
+
+    frame = pd.DataFrame(points)
+    if "point_id" not in frame.columns:
+        frame["point_id"] = np.arange(1, len(frame) + 1)
+    y_column = "emissions" if y_metric == "emissions" else "circularity_score"
+    if x_metric not in frame.columns:
+        raise ValueError(f"Pareto points do not contain x_metric column '{x_metric}'")
+    if y_column not in frame.columns:
+        raise ValueError(f"Pareto points do not contain y_metric column '{y_column}'")
+    frame = frame.sort_values(by=[x_metric, y_column], ascending=[True, True]).reset_index(drop=True)
+    if color_by not in frame.columns:
+        if y_column in frame.columns:
+            color_by = y_column
+        elif x_metric in frame.columns:
+            color_by = x_metric
+        else:
+            color_by = "point_id"
+    color_label = {
+        "profit": "Profit (USD)",
+        "emissions": "Emissions (tCO2)",
+        "circularity_score": "Circularity (0-1)",
+        "total_cost": "Total Cost (USD)",
+        "point_id": "Point Index",
+    }[color_by]
+
+    legend_entries = [
+        _format_pareto_point_legend_entry(row, x_metric=x_metric, y_column=y_column)
+        for _, row in frame.iterrows()
+    ]
+
+    _apply_pub_style()
+    fig_h = max(4.8, 1.4 + 0.62 * len(frame))
+    fig = plt.figure(figsize=(12.0, fig_h))
+    gs = fig.add_gridspec(1, 2, width_ratios=[5.2, 1.2], wspace=0.12)
+    ax = fig.add_subplot(gs[0, 0])
+    legend_ax = fig.add_subplot(gs[0, 1])
+    scatter = ax.scatter(
+        frame[x_metric],
+        frame[y_column],
+        c=frame[color_by],
+        cmap="viridis",
+        s=70,
+        edgecolors="black",
+        linewidth=0.4,
+        alpha=0.9,
+    )
+    if len(frame) > 1:
+        ax.plot(frame[x_metric], frame[y_column], color="#44617b", linewidth=1.2, alpha=0.7)
+
+    for _, row in frame.iterrows():
+        ax.annotate(
+            f"P{int(row['point_id'])}",
+            (row[x_metric], row[y_column]),
+            xytext=(4, 4),
+            textcoords="offset points",
+            fontsize=_PUB_FONTSIZE - 1,
+        )
+
+    ax.set_xlabel("Total Cost (USD)")
+    ax.set_ylabel("Emissions (tCO2)" if y_metric == "emissions" else "Circularity (0-1)")
+    ax.set_title(plot_title or "Optimization Pareto Front")
+    ax.grid(True, alpha=0.25)
+    if len(frame) > 1 or color_by != "point_id":
+        colorbar = fig.colorbar(scatter, ax=ax, pad=0.02)
+        colorbar.set_label(color_label)
+
+    legend_ax.set_xlim(0, 1)
+    legend_ax.set_ylim(0, 1)
+    legend_ax.axis("off")
+    legend_ax.set_title("Point Key", loc="left", fontsize=_PUB_FONTSIZE, pad=8)
+
+    cmap = scatter.cmap
+    norm = scatter.norm
+    legend_fontsize = max(5.8, min(_PUB_FONTSIZE - 2, 8.0 - 0.06 * max(len(frame) - 6, 0)))
+    y_positions = np.linspace(0.96, 0.08, len(frame))
+    for y_pos, (_, row), entry in zip(y_positions, frame.iterrows(), legend_entries):
+        marker_color = cmap(norm(row[color_by])) if color_by in frame.columns else cmap(0.5)
+        legend_ax.scatter(
+            [0.04],
+            [y_pos],
+            s=55,
+            c=[marker_color],
+            edgecolors="black",
+            linewidth=0.4,
+            clip_on=False,
+        )
+        legend_ax.text(
+            0.12,
+            y_pos,
+            entry,
+            va="center",
+            ha="left",
+            fontsize=legend_fontsize,
+            linespacing=1.15,
+        )
+    fig.subplots_adjust(left=0.08, right=0.985, top=0.92, bottom=0.1, wspace=0.14)
+
+    from strap.tools._helpers import _slugify
+
+    plot_stem = str(output_stem or "").strip()
+    if not plot_stem and plot_title:
+        plot_stem = _slugify(plot_title)
+    if not plot_stem:
+        plot_stem = f"optimization_pareto_{y_metric}"
+
+    filepath = save_plot(fig, plot_stem)
+    if not os.path.exists(filepath) and os.path.exists(f"{filepath}.png"):
+        filepath = f"{filepath}.png"
+    plt.close(fig)
+    gc.collect()
+
+    display = "Optimization Pareto Front Plot Created\n\n"
+    display += f"X metric: {x_metric}\n"
+    display += f"Y metric: {y_metric}\n"
+    display += f"Pareto points plotted: {len(frame)}\n"
+    display += f"Color scale: {color_by}\n"
+    if source_handoff_id:
+        display += f"Source handoff: {source_handoff_id}\n"
+    if output_stem:
+        display += f"Output stem: {output_stem}\n"
+    display += f"\n{_get_plot_url(filepath)}"
+
+    from strap.services.tool_response_service import json_tool_response
+
+    data = {
+        "plot_type": "optimization_pareto_front",
+        "plot_paths": [filepath],
+        "format": "png",
+        "x_metric": x_metric,
+        "y_metric": y_metric,
+        "color_by": color_by,
+        "n_points": int(len(frame)),
+        "point_legend": legend_entries,
+        "source_handoff_id": source_handoff_id,
+        "output_stem": output_stem,
+    }
+    return json_tool_response(display, data, tool_name="plot_optimization_pareto_front")

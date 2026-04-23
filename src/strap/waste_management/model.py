@@ -7,8 +7,12 @@ Translates the Julia/JuMP model from PIW Paper Dec 21 w Transportation.ipynb.
 
 import pyomo.environ as pyo
 from strap.waste_management.data_loader import (
-    I_SET, J_SET, K_SET, OTHERTECH, POLYMERS, ALL_SOLVENTS,
-    S_PE, S_EV1, S_EV2,
+    I_SET, J_SET, K_SET, OTHERTECH,
+    POLYMERS as DEFAULT_POLYMERS,
+    ALL_SOLVENTS as DEFAULT_ALL_SOLVENTS,
+    S_PE as DEFAULT_S_PE,
+    S_EV1 as DEFAULT_S_EV1,
+    S_EV2 as DEFAULT_S_EV2,
 )
 
 
@@ -19,16 +23,30 @@ def _max_strap_metric(strap, metric, wash, polymer, solvents):
     )
 
 
-def estimate_metric_upper_bound(strap, other, metric, feed):
+def estimate_metric_upper_bound(
+    strap,
+    other,
+    metric,
+    feed,
+    *,
+    s_pe=None,
+    s_ev1=None,
+    s_ev2=None,
+    othertech=None,
+):
     """Return a conservative but data-driven upper bound for a process metric."""
+    s_pe = list(s_pe or DEFAULT_S_PE)
+    s_ev1 = list(s_ev1 or DEFAULT_S_EV1)
+    s_ev2 = list(s_ev2 or DEFAULT_S_EV2)
     strap_upper = (
-        _max_strap_metric(strap, metric, "Wash 1", "PE", S_PE)
-        + _max_strap_metric(strap, metric, "Wash 1", "EVOH", S_EV1)
-        + _max_strap_metric(strap, metric, "Wash 2", "PE", S_PE)
-        + _max_strap_metric(strap, metric, "Wash 2", "EVOH", S_EV2)
+        _max_strap_metric(strap, metric, "Wash 1", "PE", s_pe)
+        + _max_strap_metric(strap, metric, "Wash 1", "EVOH", s_ev1)
+        + _max_strap_metric(strap, metric, "Wash 2", "PE", s_pe)
+        + _max_strap_metric(strap, metric, "Wash 2", "EVOH", s_ev2)
     )
+    othertech = list(othertech or OTHERTECH)
     other_upper = 3.0 * float(feed) * max(
-        (float(other[metric].get(tech, 0.0)) for tech in OTHERTECH),
+        (float(other[metric].get(tech, 0.0)) for tech in othertech),
         default=0.0,
     )
     return strap_upper + other_upper
@@ -55,6 +73,17 @@ def build_model(data, config):
     """
     strap = data["strap"]
     other = data["other"]
+    sets = data.get("sets", {})
+
+    POLYMERS = list(sets.get("P", DEFAULT_POLYMERS))
+    ALL_SOLVENTS = list(sets.get("S", DEFAULT_ALL_SOLVENTS))
+    S_PE = list(sets.get("S_PE", DEFAULT_S_PE))
+    S_EV1 = list(sets.get("S_EV1", DEFAULT_S_EV1))
+    S_EV2 = list(sets.get("S_EV2", DEFAULT_S_EV2))
+    I_RUNTIME = list(sets.get("I", I_SET))
+    J_RUNTIME = list(sets.get("J", J_SET))
+    K_RUNTIME = list(sets.get("K", K_SET))
+    OTHERTECH_RUNTIME = list(sets.get("othertech", OTHERTECH))
 
     Feed  = config.get("Feed", 8000)
     PE_f  = config.get("PE_f", 0.6)
@@ -102,11 +131,38 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     m = pyo.ConcreteModel("PIW_WasteManagement")
 
+    def _has_stage1(tech: str) -> bool:
+        return tech in I_RUNTIME
+
+    def _has_stage2(tech: str) -> bool:
+        return tech in J_RUNTIME
+
+    def _has_stage3(tech: str) -> bool:
+        return tech in K_RUNTIME
+
+    def _stage1_var(tech: str):
+        return m.x[tech] if _has_stage1(tech) else 0.0
+
+    def _stage2_var(tech: str):
+        return m.y[tech] if _has_stage2(tech) else 0.0
+
+    def _stage3_var(tech: str):
+        return m.z[tech] if _has_stage3(tech) else 0.0
+
+    def _stage1_flow(tech: str):
+        return m.F[tech] if _has_stage1(tech) else 0.0
+
+    def _stage2_flow(tech: str):
+        return m.L[tech] if _has_stage2(tech) else 0.0
+
+    def _stage3_flow(tech: str):
+        return m.N[tech] if _has_stage3(tech) else 0.0
+
     # --- Index sets ---
-    m.I = pyo.Set(initialize=I_SET)
-    m.J = pyo.Set(initialize=J_SET)
-    m.K = pyo.Set(initialize=K_SET)
-    m.OT = pyo.Set(initialize=OTHERTECH)
+    m.I = pyo.Set(initialize=I_RUNTIME)
+    m.J = pyo.Set(initialize=J_RUNTIME)
+    m.K = pyo.Set(initialize=K_RUNTIME)
+    m.OT = pyo.Set(initialize=OTHERTECH_RUNTIME)
     m.P = pyo.Set(initialize=POLYMERS)
     m.S = pyo.Set(initialize=ALL_SOLVENTS)
     m.S_PE = pyo.Set(initialize=S_PE)
@@ -197,11 +253,39 @@ def build_model(data, config):
     def od(metric, t):
         return other[metric].get(t, 0.0)
 
-    energy_upper = max(UB_energy, estimate_metric_upper_bound(strap, other, "total_energy", Feed))
-    renewable_upper = max(energy_upper, estimate_metric_upper_bound(strap, other, "renewable", Feed))
-    ghg_upper = max(UB_ghg, estimate_metric_upper_bound(strap, other, "direct_ghg", Feed) + estimate_metric_upper_bound(strap, other, "indirect_ghg", Feed))
-    water_upper = max(UB_withdrawal, estimate_metric_upper_bound(strap, other, "water_with", Feed))
-    waste_upper = max(UB_waste, estimate_metric_upper_bound(strap, other, "waste", Feed))
+    ghg_upper = max(
+        UB_ghg,
+        estimate_metric_upper_bound(
+            strap, other, "direct_ghg", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        )
+        + estimate_metric_upper_bound(
+            strap, other, "indirect_ghg", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        ),
+    )
+    water_upper = max(
+        UB_withdrawal,
+        estimate_metric_upper_bound(
+            strap, other, "water_with", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        ),
+    )
+    waste_upper = max(
+        UB_waste,
+        estimate_metric_upper_bound(
+            strap, other, "waste", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        ),
+    )
+    energy_upper = max(
+        UB_energy,
+        estimate_metric_upper_bound(
+            strap, other, "total_energy", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        ),
+    )
+    renewable_upper = max(
+        energy_upper,
+        estimate_metric_upper_bound(
+            strap, other, "renewable", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+        ),
+    )
 
     energy_score_slack = max(1.0, energy_upper / UB_energy)
     ghg_score_slack = max(1.0, ghg_upper / UB_ghg)
@@ -213,7 +297,9 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     m.flow_def = pyo.Constraint(m.I,
         rule=lambda m, i: m.F[i] == Feed * m.x[i])
-    m.no_pyrolysis_stage1 = pyo.Constraint(expr=m.x["py"] == 0)
+    m.no_pyrolysis_stage1 = pyo.Constraint(
+        rule=lambda m: (m.x["py"] == 0) if _has_stage1("py") else pyo.Constraint.Feasible
+    )
     m.one_first_tech = pyo.Constraint(expr=sum(m.x[i] for i in m.I) == 1)
 
     # STRAP 1 polymer removal
@@ -264,7 +350,7 @@ def build_model(data, config):
         rule=lambda m, j: m.L[j] <= m.LF)
 
     m.one_second_tech = pyo.Constraint(expr=
-        sum(m.y[j] for j in J_SET) == m.x["st1"])
+        sum(m.y[j] for j in m.J) == m.x["st1"])
     m.b_links_st2 = pyo.Constraint(expr=
         sum(m.b[p, s] for p in POLYMERS for s in ALL_SOLVENTS) == m.y["st2"])
 
@@ -279,7 +365,7 @@ def build_model(data, config):
 
     # Stage 3
     m.one_third_tech = pyo.Constraint(expr=
-        sum(m.z[k] for k in K_SET) == m.y["st2"])
+        sum(m.z[k] for k in m.K) == m.y["st2"])
 
     m.N_ub = pyo.Constraint(m.K,
         rule=lambda m, k: m.N[k] <= BIG_M * m.z[k])
@@ -287,7 +373,9 @@ def build_model(data, config):
         rule=lambda m, k: m.N[k] >= m.LS - BIG_M * (1 - m.z[k]))
     m.N_ub2 = pyo.Constraint(m.K,
         rule=lambda m, k: m.N[k] <= m.LS)
-    m.no_pyrolysis_stage3 = pyo.Constraint(expr=m.N["py"] == 0)
+    m.no_pyrolysis_stage3 = pyo.Constraint(
+        rule=lambda m: (m.N["py"] == 0) if _has_stage3("py") else pyo.Constraint.Feasible
+    )
 
     # Each polymer removed at most once across all washes
     m.polymer_once = pyo.Constraint(m.P,
@@ -314,7 +402,10 @@ def build_model(data, config):
             + sum(sd(metric, "Wash 1", "EVOH", s) * m.a["EVOH", s] for s in S_EV1)
             + sum(sd(metric, "Wash 2", "PE", s) * m.b["PE", s] for s in S_PE)
             + sum(sd(metric, "Wash 2", "EVOH", s) * m.b["EVOH", s] for s in S_EV2)
-            + sum(od(metric, t) * (m.F[t] + m.L[t] + m.N[t]) for t in OTHERTECH)
+            + sum(
+                od(metric, t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
+                for t in OTHERTECH_RUNTIME
+            )
         )
 
     m.E_def = pyo.Constraint(expr=m.E == _metric_expr(m, "total_energy"))
@@ -438,7 +529,7 @@ def build_model(data, config):
         rule=lambda m, k: m.TC[k] == (m.F[k] + m.L[k] + m.N[k]) * (dist[k] * vc_t + fc_t))
 
     m.TransCost_def = pyo.Constraint(expr=
-        m.TransportationCost == sum(m.TC[k] for k in K_SET)
+        m.TransportationCost == sum(m.TC[k] for k in m.K)
         + (dist["strap"] * vc_t + fc_t) * (
             Feed * sum(m.a[p, s] for p in POLYMERS for s in ALL_SOLVENTS)
             + Cap1 * sum(m.b["PE", s] for s in S_PE)
@@ -448,13 +539,13 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Capital cost
     # -----------------------------------------------------------------------
-    m.p_gas_ub = pyo.Constraint(expr=m.p_gas <= m.y["gas_er"])
-    m.t_gas_ub = pyo.Constraint(expr=m.t_gas <= m.y["gas_er"])
+    m.p_gas_ub = pyo.Constraint(expr=m.p_gas <= _stage2_var("gas_er"))
+    m.t_gas_ub = pyo.Constraint(expr=m.t_gas <= _stage2_var("gas_er"))
     m.pt_excl = pyo.Constraint(expr=m.p_gas + m.t_gas <= 1)
     m.p_gas_lb = pyo.Constraint(expr=
-        m.p_gas >= m.y["gas_er"] + sum(m.a["PE", s] for s in S_PE) - 1)
+        m.p_gas >= _stage2_var("gas_er") + sum(m.a["PE", s] for s in S_PE) - 1)
     m.t_gas_lb = pyo.Constraint(expr=
-        m.t_gas >= m.y["gas_er"] + sum(m.a["EVOH", s] for s in S_EV1) - 1)
+        m.t_gas >= _stage2_var("gas_er") + sum(m.a["EVOH", s] for s in S_EV1) - 1)
 
     m.CapCost_def = pyo.Constraint(expr=
         m.CapitalCost == (
@@ -462,11 +553,11 @@ def build_model(data, config):
             + sum(m.a["EVOH", s] * sd("capex", "Wash 1", "EVOH", s) for s in S_EV1)
             + sum(m.b["PE", s] * sd("capex", "Wash 2", "PE", s) for s in S_PE)
             + sum(m.b["EVOH", s] * sd("capex", "Wash 2", "EVOH", s) for s in S_EV2)
-            + m.x["py"] * od("capex", "py")
-            + m.x["gas_er"] * od("capex", "gas_er")
+            + _stage1_var("py") * od("capex", "py")
+            + _stage1_var("gas_er") * od("capex", "gas_er")
             + m.p_gas * 1.996874495e6
             + m.t_gas * 3.248331031e6
-            + m.z["gas_er"] * 1.680302711e6
+            + _stage3_var("gas_er") * 1.680302711e6
         ))
 
     # -----------------------------------------------------------------------
@@ -476,7 +567,10 @@ def build_model(data, config):
         m.OperationalCost == (
             sum(m.a["PE", s] * sd("opex", "Wash 1", "PE", s) for s in S_PE)
             + sum(m.a["EVOH", s] * sd("opex", "Wash 1", "EVOH", s) for s in S_EV1)
-            + sum(od("opex", t) * (m.F[t] + m.L[t] + m.N[t]) for t in OTHERTECH)
+            + sum(
+                od("opex", t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
+                for t in OTHERTECH_RUNTIME
+            )
             + sum(m.b["PE", s] * sd("opex", "Wash 2", "PE", s) for s in S_PE)
             + sum(m.b["EVOH", s] * sd("opex", "Wash 2", "EVOH", s) for s in S_EV2)
         ))
@@ -488,14 +582,14 @@ def build_model(data, config):
         m.Sales == (
             Feed * PE_f * 0.97 * Cpe * sum(m.a["PE", s] for s in S_PE)
             + Feed * EV_f * Cevoh * 0.97 * sum(m.a["EVOH", s] for s in S_EV1)
-            + Cgas_pw * m.F["we"] + Cgas_er * m.F["gas_er"]
-            + Cgas_pw * m.F["gas_h2"] + Cgas_pw * m.F["gas_h2cc"]
-            + Cgas_pw * m.L["we"] + Cgas_er * m.L["gas_er"]
-            + Cgas_pw * m.L["gas_h2"] + Cgas_pw * m.L["gas_h2cc"]
+            + Cgas_pw * _stage1_flow("we") + Cgas_er * _stage1_flow("gas_er")
+            + Cgas_pw * _stage1_flow("gas_h2") + Cgas_pw * _stage1_flow("gas_h2cc")
+            + Cgas_pw * _stage2_flow("we") + Cgas_er * _stage2_flow("gas_er")
+            + Cgas_pw * _stage2_flow("gas_h2") + Cgas_pw * _stage2_flow("gas_h2cc")
             + Feed * PE_f * Cpe * 0.97 * sum(m.b["PE", s] for s in S_PE)
             + Feed * EV_f * Cevoh * 0.97 * sum(m.b["EVOH", s] for s in S_EV2)
-            + Cgas_pw * m.N["we"] + Cgas_er * m.N["gas_er"]
-            + Cgas_pw * m.N["gas_h2"] + Cgas_pw * m.N["gas_h2cc"]
+            + Cgas_pw * _stage3_flow("we") + Cgas_er * _stage3_flow("gas_er")
+            + Cgas_pw * _stage3_flow("gas_h2") + Cgas_pw * _stage3_flow("gas_h2cc")
         ))
 
     # -----------------------------------------------------------------------
@@ -508,7 +602,10 @@ def build_model(data, config):
         m.TotalEmissions == (
             sum(m.a["PE", s] * sd("gwp", "Wash 1", "PE", s) for s in S_PE)
             + sum(m.a["EVOH", s] * sd("gwp", "Wash 1", "EVOH", s) for s in S_EV1)
-            + sum(od("gwp", t) * (m.F[t] + m.L[t] + m.N[t]) for t in OTHERTECH)
+            + sum(
+                od("gwp", t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
+                for t in OTHERTECH_RUNTIME
+            )
             + sum(m.b["PE", s] * sd("gwp", "Wash 2", "PE", s) for s in S_PE)
             + sum(m.b["EVOH", s] * sd("gwp", "Wash 2", "EVOH", s) for s in S_EV2)
         ))

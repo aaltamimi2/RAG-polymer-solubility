@@ -27,3 +27,11 @@ def test_summarize_subagent_tool_runs_returns_clear_workspace_message(monkeypatc
     result = langsmith_tracing.summarize_subagent_tool_runs("run-123")
     assert result["tool_count"] == 0
     assert "LANGSMITH_WORKSPACE_ID" in result["error"]
+
+
+def test_workspace_id_accepts_tenant_aliases(monkeypatch) -> None:
+    monkeypatch.delenv("LANGSMITH_WORKSPACE_ID", raising=False)
+    monkeypatch.delenv("LANGCHAIN_WORKSPACE_ID", raising=False)
+    monkeypatch.setenv("LANGSMITH_TENANT_ID", "tenant-123")
+
+    assert langsmith_tracing._workspace_id() == "tenant-123"

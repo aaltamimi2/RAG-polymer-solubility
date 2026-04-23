@@ -422,10 +422,24 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
         if contaminant_only and not has_explicit_safety_intent:
             matched_rules = [rule for rule in matched_rules if rule["subagent"] != "safety-analyst"]
             names = {rule["subagent"] for rule in matched_rules}
+    if {"separation-engineer", "optimization-engineer"}.issubset(names):
+        has_separation_route_intent = bool(_SEPARATION_ROUTE_INTENT_RE.search(query_text)) and not bool(_NEGATED_PROCESS_DESIGN_RE.search(query_text))
+        has_optimization_intent = bool(_OPTIMIZATION_INTENT_RE.search(query_text))
+        has_visualization_intent = bool(_VISUALIZATION_INTENT_RE.search(query_text))
+        if has_optimization_intent and has_visualization_intent and not has_separation_route_intent:
+            matched_rules = [rule for rule in matched_rules if rule["subagent"] != "separation-engineer"]
+            names = {rule["subagent"] for rule in matched_rules}
     if {"optimization-engineer", "biosteam-analyst"}.issubset(names):
         has_explicit_biosteam_intent = bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
         has_optimization_intent = bool(_OPTIMIZATION_INTENT_RE.search(query_text))
         if has_optimization_intent and not has_explicit_biosteam_intent:
+            matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
+            names = {rule["subagent"] for rule in matched_rules}
+    if {"optimization-engineer", "visualization-specialist", "biosteam-analyst"}.issubset(names):
+        has_explicit_biosteam_intent = bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
+        has_optimization_intent = bool(_OPTIMIZATION_INTENT_RE.search(query_text))
+        has_visualization_intent = bool(_VISUALIZATION_INTENT_RE.search(query_text))
+        if has_optimization_intent and has_visualization_intent and not has_explicit_biosteam_intent:
             matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
             names = {rule["subagent"] for rule in matched_rules}
     if "contaminant-removal-analyst" in names and "separation-engineer" not in names:
@@ -853,7 +867,8 @@ def plan_workflow_rules(
         )
     ]
     planned_rules = [rules_by_name[name] for name in [*planned_names, *extra_names] if name in selected_names]
-    return order_workflow_rules(query_text, planned_rules)
+    normalized_planned = _normalize_matched_rules(query_text, planned_rules) or []
+    return order_workflow_rules(query_text, normalized_planned)
 
 
 def order_workflow_rules(query_text: str, matched_rules: list[dict] | None) -> list[dict]:

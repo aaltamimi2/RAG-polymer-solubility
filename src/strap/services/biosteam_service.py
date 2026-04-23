@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from strap.paths import get_data_path
-from strap.solvent_registry import resolve_to_biosteam
+from strap.solvent_registry import SOLVENT_REGISTRY, resolve_to_biosteam, resolve_to_interp_key
 from strap.services.tool_response_service import json_tool_error, json_tool_response
 
 # Chlorinated solvents that fail in BioSTEAM (HCl not in property package)
@@ -155,6 +156,39 @@ def _normalize_csv_biosteam_name(row: dict[str, str]) -> str | None:
             return resolved
     raw = (row.get("name_biosteam") or row.get("name_cosmobase") or "").strip()
     return raw or None
+
+
+def _sanitize_biosteam_solvent_name(solvent: str) -> str:
+    """Return a BioSTEAM-safe solvent token for runner configs.
+
+    Some valid catalog names begin with digits or punctuation
+    (for example ``2,3-Dihydropyran``). The downstream BioSTEAM process model
+    can reject those when it tries to construct internal aliases. When that
+    happens, prefer an alphabetic registry alias for the runner config while
+    preserving the original solvent identity elsewhere in the workflow.
+    """
+    text = str(solvent or "").strip()
+    if not text:
+        return text
+    if text[0].isalpha():
+        return text
+
+    registry_key = resolve_to_interp_key(text)
+    if registry_key:
+        info = SOLVENT_REGISTRY.get(registry_key, {})
+        for alias in info.get("aliases", []):
+            alias_text = str(alias or "").strip()
+            if alias_text and alias_text[0].isalpha():
+                return alias_text.title()
+    # Fall back to a generic alphabetic alias when the registry does not carry
+    # one but the solvent is a simple locant-prefixed name like "1-butanol".
+    stripped = re.sub(r"^[^A-Za-z]+", "", text)
+    stripped = re.sub(r"^[A-Za-z]?(?:,\d+)*-", "", stripped) if not stripped[:1].isalpha() else stripped
+    if stripped and stripped[0].isdigit():
+        stripped = re.sub(r"^\d+(?:,\d+)*-?", "", stripped)
+    if stripped and stripped[0].isalpha():
+        return stripped[0].upper() + stripped[1:]
+    return text
 
 
 def _load_csv_solvent_catalog() -> dict[str, list[str]]:
@@ -394,14 +428,17 @@ def build_single_config(
     solvent_price: float | None = None,
 ) -> dict[str, Any]:
     """Build one normalized BioSTEAM runner config."""
+    safe_solvent = _sanitize_biosteam_solvent_name(solvent)
     config: dict[str, Any] = {
-        "solvent": solvent,
+        "solvent": safe_solvent,
         "target_plastic": target_plastic,
         "target_plastic_percent": target_plastic_percent,
         "processing_capacity": processing_capacity,
         "energy_case": energy_case,
         "precipitation_temperature_c": precipitation_temp_c,
     }
+    if safe_solvent != solvent:
+        config["solvent_input_name"] = solvent
     if dissolution_temp_c is not None:
         config["dissolution_temperature_c"] = dissolution_temp_c
     if solvent_price is not None:

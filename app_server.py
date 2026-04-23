@@ -56,7 +56,7 @@ from strap.routing_message_state import (
 from strap.tools import get_all_tools
 from strap.tools._helpers import get_plots_dir
 
-load_dotenv()
+load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 

@@ -53,6 +53,7 @@ def get_visualization_tools() -> list:
         "plot_selectivity_heatmap",
         "plot_multi_panel_analysis",
         "plot_comparison_dashboard",
+        "plot_optimization_pareto_front",
         "plot_solvent_properties",
         "plot_interpolation_vs_sql",
     ])
@@ -235,6 +236,7 @@ def get_contaminant_removal_tools() -> list:
 def get_waste_optimization_tools() -> list:
     return _safe_import("strap.tools.waste_optimization", [
         "run_waste_management_optimization",
+        "run_waste_management_pareto",
     ])
 
 

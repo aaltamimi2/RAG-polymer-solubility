@@ -65,6 +65,99 @@ def _get_latest_validated_task_payload(messages: list, subagent: str) -> dict | 
     )
 
 
+def _format_route_solvent_map(route_map: dict | None) -> str | None:
+    if not isinstance(route_map, dict):
+        return None
+    pairs: list[str] = []
+    for polymer, solvent in route_map.items():
+        polymer_text = str(polymer).strip()
+        solvent_text = str(solvent).strip()
+        if polymer_text and solvent_text:
+            pairs.append(f"{polymer_text}-{solvent_text}")
+    if not pairs:
+        return None
+    return ", ".join(pairs)
+
+
+def _build_optimization_synthesis_anchor(payload: dict) -> str:
+    analysis_type = str(payload.get("analysis_type", "")).strip().lower() or "point_optimum"
+    anchor_parts: list[str] = [
+        "Optimization-engineer returned the latest validated downstream result. Treat that optimization payload as authoritative for the final answer.",
+        "Do not restate upstream separation step numbers, candidate sequences, or solvent rankings as if they were optimized outcomes unless the same route appears in the optimization payload.",
+    ]
+
+    if analysis_type == "infeasible":
+        failure_reason = str(payload.get("failure_reason", "")).strip()
+        message = str(payload.get("message", "")).strip()
+        suggested_relaxation = str(payload.get("suggested_relaxation", "")).strip()
+        anchor_parts.append(
+            "The optimization outcome is infeasible. Report that infeasible status directly instead of reframing upstream separation candidates as a successful optimized route."
+        )
+        if failure_reason:
+            anchor_parts.append(f"Use failure_reason={failure_reason}.")
+        if message:
+            anchor_parts.append(f"Use the validated infeasibility message: {message}")
+        if suggested_relaxation:
+            anchor_parts.append(f"If you mention a next step, use the validated suggested_relaxation: {suggested_relaxation}.")
+        return " ".join(anchor_parts)
+
+    if analysis_type == "pareto_front":
+        route_reports = payload.get("route_reports")
+        points = payload.get("points")
+        n_routes_requested = payload.get("n_routes_requested")
+        n_routes_solved = payload.get("n_routes_solved")
+        n_points_feasible = payload.get("n_points_feasible")
+        if isinstance(route_reports, list) and route_reports:
+            anchor_parts.append(
+                "This is a route-constrained optimization result. Anchor every route claim to the validated route_reports entries and every tradeoff claim to the validated points list."
+            )
+            anchor_parts.append(
+                f"Report {n_routes_solved or 0} solved routes out of {n_routes_requested or len(route_reports)} requested with {n_points_feasible or 0} feasible Pareto points."
+            )
+            for report in route_reports[:3]:
+                if not isinstance(report, dict):
+                    continue
+                route_id = str(report.get('route_id', '')).strip() or "unnamed_route"
+                status = str(report.get('status', '')).strip() or "unknown"
+                route_text = _format_route_solvent_map(report.get("polymer_solvent_map"))
+                reason = str(report.get("reason", "")).strip()
+                if status == "solved":
+                    anchor_parts.append(
+                        f"Validated optimization route {route_id}: {route_text or 'route map unavailable'}."
+                    )
+                else:
+                    detail = f"Validated route status {route_id}: {status}"
+                    if route_text:
+                        detail += f" for {route_text}"
+                    if reason:
+                        detail += f" ({reason})"
+                    detail += "."
+                    anchor_parts.append(detail)
+            if isinstance(points, list) and points:
+                first_point = next((point for point in points if isinstance(point, dict)), None)
+                if isinstance(first_point, dict):
+                    route_id = str(first_point.get("route_id", "")).strip()
+                    x_metric = str(payload.get("x_metric", "")).strip() or "x_metric"
+                    y_metric = str(payload.get("y_metric", "")).strip() or "y_metric"
+                    x_value = first_point.get(x_metric)
+                    y_value = first_point.get(y_metric)
+                    anchor_parts.append(
+                        f"When citing an example frontier point, use point_id={first_point.get('point_id')} "
+                        f"{f'on {route_id} ' if route_id else ''}with {x_metric}={x_value} and {y_metric}={y_value}."
+                    )
+            return " ".join(anchor_parts)
+
+    optimal_washes = payload.get("optimal_washes")
+    if isinstance(optimal_washes, list) and optimal_washes:
+        washes_text = ", ".join(str(item) for item in optimal_washes if str(item).strip())
+        if washes_text:
+            anchor_parts.append(f"Use the validated optimized wash selections: {washes_text}.")
+    anchor_parts.append(
+        f"Use the optimization metrics directly: profit={payload.get('profit')}, emissions={payload.get('emissions')}, total_cost={payload.get('total_cost')}."
+    )
+    return " ".join(anchor_parts)
+
+
 def _build_completion_synthesis_anchor(messages: list, ordered_plan: list[dict]) -> str | None:
     completed_ids = _get_effective_completed_task_ids(messages)
     completed_names = {
@@ -79,6 +172,12 @@ def _build_completion_synthesis_anchor(messages: list, ordered_plan: list[dict])
         "Use only validated subagent outputs in the final answer. "
         "Do not invent new solvents, temperatures, selectivity values, or purity claims."
     ]
+
+    if "optimization-engineer" in completed_names:
+        payload = _get_latest_validated_task_payload(messages, "optimization-engineer")
+        if isinstance(payload, dict):
+            anchor_parts.append(_build_optimization_synthesis_anchor(payload))
+            return " ".join(anchor_parts)
 
     if "separation-engineer" in completed_names:
         payload = _get_latest_validated_task_payload(messages, "separation-engineer")

@@ -6,6 +6,9 @@ Reads STRAP scenario data and other technology data from the Excel file.
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from typing import Any
+import ast
+import re
 
 
 # ---------------------------------------------------------------------------
@@ -14,26 +17,110 @@ from pathlib import Path
 WASHES = ["Wash 1", "Wash 2"]
 POLYMERS = ["PE", "EVOH"]
 
-S_PE = [
+LEGACY_S_PE = [
     "sec-Butyl Acetate", "Isobutyl Acetate", "Tetrachloroethylene",
     "o-Chlorotoluene", "Methylcyclohexane", "Dodecanol", "Heptane",
     "Toluene", "Xylene",
 ]
 
-S_EV1 = ["Ethylene Glycol", "Pyridazine"]
+LEGACY_S_EV1 = ["Ethylene Glycol", "Pyridazine"]
 
-S_EV2 = [
+LEGACY_S_EV2 = [
     "butane-1,4-diol", "Diethanolamine", "Diethylene glycol",
     "Ethylene Glycol", "Propylene Glycol", "Pyridazine",
     "gamma-butyrolactone",
 ]
 
-ALL_SOLVENTS = [
-    *S_PE,
-    "Ethylene Glycol", "Pyridazine",
-    "butane-1,4-diol", "Diethanolamine", "Diethylene glycol",
-    "Propylene Glycol", "gamma-butyrolactone",
-]
+
+def _dedupe_keep_order(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        deduped.append(text)
+    return deduped
+
+
+def get_optimizer_default_sets() -> dict[str, list[str]]:
+    """Return the default optimizer solvent universe.
+
+    This intentionally exposes the full polymer-specific STRAP/BioSTEAM solvent
+    catalogs as the optimizer's starting universe, then lets downstream
+    simulation decide what survives. We still append legacy workbook solvents
+    so existing validated pathways remain available even when they are not
+    present in the current CSV-derived catalog.
+    """
+
+    from strap.services.biosteam_service import EVOH_SOLVENTS, EVOH_SOLVENTS_E2, PE_SOLVENTS
+
+    s_pe = _dedupe_keep_order(list(PE_SOLVENTS) + LEGACY_S_PE)
+    s_ev1 = _dedupe_keep_order(list(EVOH_SOLVENTS) + LEGACY_S_EV1)
+    s_ev2 = _dedupe_keep_order(list(EVOH_SOLVENTS_E2) + LEGACY_S_EV2)
+    return {
+        "S_PE": s_pe,
+        "S_EV1": s_ev1,
+        "S_EV2": s_ev2,
+        "S": _dedupe_keep_order([*s_pe, *s_ev1, *s_ev2]),
+        "P": list(POLYMERS),
+        "W": list(WASHES),
+    }
+
+
+def derive_optimizer_sets_from_df(
+    df: pd.DataFrame | None,
+    *,
+    fallback_defaults: bool = True,
+) -> dict[str, list[str]]:
+    """Derive solver index sets from the actual STRAP sheet rows for this run."""
+
+    defaults = get_optimizer_default_sets() if fallback_defaults else {
+        "S_PE": [],
+        "S_EV1": [],
+        "S_EV2": [],
+        "S": [],
+        "P": list(POLYMERS),
+        "W": list(WASHES),
+    }
+    if df is None or df.empty:
+        return defaults
+
+    def _extract_solvents(wash: str, polymer: str) -> list[str]:
+        mask = df["Wash number"].eq(wash) & df["Polymer"].eq(polymer)
+        values = [
+            str(solvent).strip()
+            for solvent in df.loc[mask, "Solvents"].dropna().astype(str)
+            if str(solvent).strip()
+        ]
+        if values:
+            return _dedupe_keep_order(values)
+        key = "S_PE" if polymer == "PE" else ("S_EV1" if wash == "Wash 1" else "S_EV2")
+        return list(defaults[key])
+
+    s_pe = _extract_solvents("Wash 1", "PE")
+    s_pe_w2 = _extract_solvents("Wash 2", "PE")
+    if s_pe_w2:
+        s_pe = _dedupe_keep_order([*s_pe, *s_pe_w2])
+    s_ev1 = _extract_solvents("Wash 1", "EVOH")
+    s_ev2 = _extract_solvents("Wash 2", "EVOH")
+
+    return {
+        "S_PE": s_pe,
+        "S_EV1": s_ev1,
+        "S_EV2": s_ev2,
+        "S": _dedupe_keep_order([*s_pe, *s_ev1, *s_ev2]),
+        "P": list(POLYMERS),
+        "W": list(WASHES),
+    }
+
+
+_DEFAULT_OPTIMIZER_SETS = get_optimizer_default_sets()
+S_PE = list(_DEFAULT_OPTIMIZER_SETS["S_PE"])
+S_EV1 = list(_DEFAULT_OPTIMIZER_SETS["S_EV1"])
+S_EV2 = list(_DEFAULT_OPTIMIZER_SETS["S_EV2"])
+ALL_SOLVENTS = list(_DEFAULT_OPTIMIZER_SETS["S"])
 
 # Technology sets for three-stage superstructure
 I_SET = ["st1", "lf", "we", "py", "gas_er", "gas_h2", "gas_h2cc"]
@@ -85,8 +172,229 @@ TECH_NAME_MAP = {
     "Gasif. For H2 + CCS": "gas_h2cc",
 }
 
+_OTHERTECH_ROW_BY_TECH = {
+    "lf": 1,
+    "we": 2,
+    "py": 3,
+    "gas_er": 4,
+    "gas_h2": 5,
+    "gas_h2cc": 6,
+}
+_OTHERTECH_TECH_BY_ROW = {row: tech for tech, row in _OTHERTECH_ROW_BY_TECH.items()}
+_OTHERTECH_POSITIONAL_COLS = {
+    "total_energy": 1,
+    "renewable": 2,
+    "direct_ghg": 3,
+    "indirect_ghg": 4,
+    "water_with": 5,
+    "water_recyc": 6,
+    "waste": 7,
+    "disposal": 8,
+    "gwp": 9,
+    "htc": 10,
+    "htnc": 11,
+    "ecot": 12,
+    "capex": 13,
+    "opex": 14,
+}
+_TECH_REQUIRED_METRICS = {
+    "lf": ("gwp", "opex"),
+    "we": ("gwp",),
+    "py": ("gwp", "opex"),
+    "gas_er": ("gwp", "capex"),
+    "gas_h2": ("gwp",),
+    "gas_h2cc": ("gwp",),
+}
 
-def load_strap_data(excel_path, sheet_name="StrapScenario3 Units", p_strap=1.0):
+
+def _coerce_strap_dataframe(
+    *,
+    excel_path=None,
+    sheet_name="StrapScenario3 Units",
+    strap_df: pd.DataFrame | None = None,
+) -> pd.DataFrame:
+    if strap_df is not None:
+        return strap_df.copy()
+    return pd.read_excel(excel_path, sheet_name=sheet_name)
+
+
+def _coerce_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        if pd.isna(value):
+            return None
+        return float(value)
+    try:
+        if pd.isna(value):
+            return None
+    except TypeError:
+        pass
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+_CELL_REF_RE = re.compile(r"\b([A-Z]+)(\d+)\b")
+
+
+def _column_letters_to_index(letters: str) -> int:
+    value = 0
+    for char in letters:
+        value = value * 26 + (ord(char) - ord("A") + 1)
+    return value - 1
+
+
+def _safe_eval_arithmetic(expr: str) -> float | None:
+    try:
+        node = ast.parse(expr, mode="eval")
+    except SyntaxError:
+        return None
+
+    def _eval(node_: ast.AST) -> float:
+        if isinstance(node_, ast.Expression):
+            return _eval(node_.body)
+        if isinstance(node_, ast.Constant) and isinstance(node_.value, (int, float)):
+            return float(node_.value)
+        if isinstance(node_, ast.UnaryOp) and isinstance(node_.op, (ast.UAdd, ast.USub)):
+            operand = _eval(node_.operand)
+            return operand if isinstance(node_.op, ast.UAdd) else -operand
+        if isinstance(node_, ast.BinOp) and isinstance(node_.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            left = _eval(node_.left)
+            right = _eval(node_.right)
+            if isinstance(node_.op, ast.Add):
+                return left + right
+            if isinstance(node_.op, ast.Sub):
+                return left - right
+            if isinstance(node_.op, ast.Mult):
+                return left * right
+            return left / right
+        raise ValueError("unsupported expression")
+
+    try:
+        return float(_eval(node))
+    except Exception:
+        return None
+
+
+def _evaluate_sheet_formula(
+    formula: Any,
+    formulas_df: pd.DataFrame,
+    *,
+    row_idx: int,
+    cache: dict[tuple[int, int], float | None],
+    visiting: set[tuple[int, int]],
+) -> float | None:
+    if not isinstance(formula, str):
+        return _coerce_optional_float(formula)
+    text = formula.strip()
+    if not text.startswith("="):
+        return _coerce_optional_float(text)
+    expression = text[1:].strip()
+    if not expression:
+        return None
+    if "[" in expression or "!" in expression:
+        return None
+
+    def _replace_ref(match: re.Match[str]) -> str:
+        col_letters, row_text = match.groups()
+        ref_row = int(row_text) - 1
+        ref_col = _column_letters_to_index(col_letters)
+        ref_key = (ref_row, ref_col)
+        if ref_key in cache:
+            ref_value = cache[ref_key]
+        else:
+            if ref_key in visiting:
+                raise ValueError("circular formula reference")
+            visiting.add(ref_key)
+            ref_formula = formulas_df.iat[ref_row, ref_col]
+            ref_value = _evaluate_sheet_formula(
+                ref_formula,
+                formulas_df,
+                row_idx=ref_row,
+                cache=cache,
+                visiting=visiting,
+            )
+            visiting.remove(ref_key)
+            cache[ref_key] = ref_value
+        if ref_value is None:
+            raise ValueError("unresolved reference")
+        return str(ref_value)
+
+    try:
+        substituted = _CELL_REF_RE.sub(_replace_ref, expression)
+    except ValueError:
+        return None
+    return _safe_eval_arithmetic(substituted)
+
+
+def _read_othertech_sheet(excel_path, sheet_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    return (
+        pd.read_excel(excel_path, sheet_name=sheet_name, header=None),
+        pd.read_excel(excel_path, sheet_name=sheet_name, header=None, engine="openpyxl"),
+    )
+
+
+def _load_othertech_rows(excel_path, sheet_name: str) -> dict[str, dict[str, float | None]]:
+    values_df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None)
+    formulas_df = pd.read_excel(excel_path, sheet_name=sheet_name, header=None, engine="openpyxl")
+    cache: dict[tuple[int, int], float | None] = {}
+    rows: dict[str, dict[str, float | None]] = {}
+    for row_idx, tech_key in _OTHERTECH_TECH_BY_ROW.items():
+        metric_values: dict[str, float | None] = {}
+        for metric, col_idx in _OTHERTECH_POSITIONAL_COLS.items():
+            numeric_value = _coerce_optional_float(values_df.iat[row_idx, col_idx])
+            if numeric_value is not None:
+                metric_values[metric] = numeric_value
+                cache[(row_idx, col_idx)] = numeric_value
+                continue
+            formula_value = _evaluate_sheet_formula(
+                formulas_df.iat[row_idx, col_idx],
+                formulas_df,
+                row_idx=row_idx,
+                cache=cache,
+                visiting={(row_idx, col_idx)},
+            )
+            metric_values[metric] = formula_value
+            cache[(row_idx, col_idx)] = formula_value
+        rows[tech_key] = metric_values
+    return rows
+
+
+def _merge_othertech_rows(
+    primary_rows: dict[str, dict[str, float | None]],
+    fallback_rows: dict[str, dict[str, float | None]],
+) -> dict[str, dict[str, float | None]]:
+    merged: dict[str, dict[str, float | None]] = {}
+    for tech in _OTHERTECH_ROW_BY_TECH:
+        merged_metrics: dict[str, float | None] = {}
+        for metric in _OTHERTECH_POSITIONAL_COLS:
+            primary = (primary_rows.get(tech) or {}).get(metric)
+            fallback = (fallback_rows.get(tech) or {}).get(metric)
+            merged_metrics[metric] = primary if primary is not None else fallback
+        merged[tech] = merged_metrics
+    return merged
+
+
+def _tech_has_required_metrics(metrics: dict[str, float | None], tech_key: str) -> bool:
+    required = _TECH_REQUIRED_METRICS.get(tech_key, ())
+    return all(metrics.get(metric) is not None for metric in required)
+
+
+def derive_available_othertechs(other_data: dict[str, dict[str, float]]) -> list[str]:
+    available: list[str] = []
+    for tech_key in OTHERTECH:
+        metrics = {metric: values.get(tech_key) for metric, values in other_data.items()}
+        if _tech_has_required_metrics(metrics, tech_key):
+            available.append(tech_key)
+    return available
+
+
+def load_strap_data(excel_path=None, sheet_name="StrapScenario3 Units", p_strap=1.0, strap_df: pd.DataFrame | None = None):
     """
     Load STRAP wash scenario data.
 
@@ -94,7 +402,7 @@ def load_strap_data(excel_path, sheet_name="StrapScenario3 Units", p_strap=1.0):
         strap_data[metric][(wash, polymer, solvent)] = value * p_strap
     where metric is one of the keys in STRAP_UNIT_COLS.
     """
-    df = pd.read_excel(excel_path, sheet_name=sheet_name)
+    df = _coerce_strap_dataframe(excel_path=excel_path, sheet_name=sheet_name, strap_df=strap_df)
 
     strap_data = {key: {} for key in STRAP_UNIT_COLS}
 
@@ -122,20 +430,23 @@ def load_othertech_data(excel_path, sheet_name="Othertech w TransportA"):
         other_data[metric][tech_key] = value
     where tech_key is one of: lf, we, py, gas_er, gas_h2, gas_h2cc.
     """
-    df = pd.read_excel(excel_path, sheet_name=sheet_name)
+    primary_rows = _load_othertech_rows(excel_path, sheet_name)
+    fallback_rows = (
+        primary_rows
+        if sheet_name == "Othertech"
+        else _load_othertech_rows(excel_path, "Othertech")
+    )
+    merged_rows = _merge_othertech_rows(primary_rows, fallback_rows)
 
     other_data = {key: {} for key in OTHER_COLS}
-
-    for _, row in df.iterrows():
-        tech_name = row.iloc[0]  # "Technology" column
-        if pd.isna(tech_name) or tech_name not in TECH_NAME_MAP:
+    for tech_key, metrics in merged_rows.items():
+        if not _tech_has_required_metrics(metrics, tech_key):
             continue
-        tech_key = TECH_NAME_MAP[tech_name]
-        for key, col in OTHER_COLS.items():
-            val = row.get(col, 0.0)
-            if pd.isna(val):
-                val = 0.0
-            other_data[key][tech_key] = float(val)
+        for key in OTHER_COLS:
+            value = metrics.get(key)
+            if value is None:
+                value = 0.0
+            other_data[key][tech_key] = float(value)
 
     return other_data
 
@@ -143,7 +454,8 @@ def load_othertech_data(excel_path, sheet_name="Othertech w TransportA"):
 def load_all_data(excel_path=None,
                   strap_sheet="StrapScenario3 Units",
                   other_sheet="Othertech w TransportA",
-                  p_strap=1.0):
+                  p_strap=1.0,
+                  strap_df: pd.DataFrame | None = None):
     """
     Convenience function to load all model data at once.
 
@@ -158,31 +470,38 @@ def load_all_data(excel_path=None,
         Sheet name for other technologies data.
     p_strap : float
         STRAP capacity fraction (1.0 = dedicated, 0.4 = shared).
+    strap_df : pd.DataFrame | None
+        Explicit in-memory STRAP coefficient table. When provided, this is the
+        authoritative source for wash coefficients and solvent sets.
 
     Returns
     -------
     dict with keys:
         "strap": dict of STRAP data arrays
+        "strap_df": compiled STRAP coefficient table used for this solve
         "other": dict of other-tech data arrays
         "sets": dict of set definitions
     """
     if excel_path is None:
         excel_path = Path(__file__).parent / "Data for model_Scenarios.xlsx"
 
-    strap = load_strap_data(excel_path, strap_sheet, p_strap)
+    strap_source_df = _coerce_strap_dataframe(excel_path=excel_path, sheet_name=strap_sheet, strap_df=strap_df)
+    strap = load_strap_data(excel_path, strap_sheet, p_strap, strap_df=strap_source_df)
     other = load_othertech_data(excel_path, other_sheet)
+    available_othertech = derive_available_othertechs(other)
+    derived_sets = derive_optimizer_sets_from_df(strap_source_df)
 
     sets = {
-        "I": I_SET,
-        "J": J_SET,
-        "K": K_SET,
-        "othertech": OTHERTECH,
-        "P": POLYMERS,
-        "S": ALL_SOLVENTS,
-        "S_PE": S_PE,
-        "S_EV1": S_EV1,
-        "S_EV2": S_EV2,
-        "W": WASHES,
+        "I": ["st1", *available_othertech],
+        "J": ["st2", *available_othertech],
+        "K": list(available_othertech),
+        "othertech": list(available_othertech),
+        "P": derived_sets["P"],
+        "S": derived_sets["S"],
+        "S_PE": derived_sets["S_PE"],
+        "S_EV1": derived_sets["S_EV1"],
+        "S_EV2": derived_sets["S_EV2"],
+        "W": derived_sets["W"],
     }
 
-    return {"strap": strap, "other": other, "sets": sets}
+    return {"strap": strap, "strap_df": strap_source_df.copy(), "other": other, "sets": sets}

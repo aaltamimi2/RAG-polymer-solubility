@@ -35,3 +35,7 @@ sequential:
   - biosteam-analyst
 - - contaminant-removal-analyst
   - separation-engineer
+- - separation-engineer
+  - optimization-engineer
+- - optimization-engineer
+  - visualization-specialist
