@@ -1,4 +1,5 @@
 import json
+import asyncio
 from types import SimpleNamespace
 import pandas as pd
 import pytest
@@ -784,6 +785,51 @@ def test_plan_multiple_separation_schemes_insufficient_polymers_returns_standard
     assert parsed["data"]["tool_name"] == "plan_multiple_separation_schemes"
     assert parsed["data"]["success"] is False
     assert parsed["data"]["error_code"] == "insufficient_polymers"
+
+
+def test_plan_multiple_separation_schemes_preserves_top_six_request(monkeypatch):
+    from strap.tools import sequence_planning_tools
+    import strap.solubility as solubility
+
+    async def fake_property_maps(**kwargs):
+        return {}, {}, {}
+
+    def fake_scheme_variant(**kwargs):
+        index = kwargs["first_step_pick"]
+        return {
+            "name": kwargs["name"],
+            "tag": kwargs["tag"],
+            "seq": list(kwargs["polymer_list"]),
+            "min_sel": 10 + index,
+            "avg_sel": 20 + index,
+            "n_solv": 1,
+            "steps": [
+                {
+                    "step": 1,
+                    "target": kwargs["polymer_list"][0],
+                    "solvent": f"Solvent-{kwargs['tag']}",
+                    "temp": 120,
+                    "sel": 10 + index,
+                }
+            ],
+        }
+
+    monkeypatch.setattr(solubility, "get_available_solvents", lambda: ["Solvent-A", "Solvent-B"])
+    monkeypatch.setattr(solubility, "get_all_solvents_selectivity", lambda *args, **kwargs: [])
+    monkeypatch.setattr(sequence_planning_tools, "get_connection", lambda: object())
+    monkeypatch.setattr(sequence_planning_tools, "load_scheme_property_maps", fake_property_maps)
+    monkeypatch.setattr(sequence_planning_tools, "build_greedy_scheme_variant", fake_scheme_variant)
+
+    raw = asyncio.run(
+        sequence_planning_tools.plan_multiple_separation_schemes.__wrapped__(
+            "LDPE,EVOH",
+            n_variants=6,
+        )
+    )
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["n_variants"] == 6
+    assert len(parsed["data"]["top_k_sequences"]) == 18
 
 
 def test_analyze_integrated_separation_too_many_polymers_returns_standard_error():

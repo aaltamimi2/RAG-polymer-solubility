@@ -23,6 +23,7 @@ dependencies = [
     "plotly",
     "scikit-learn",
     "joblib",
+    "pydantic>=2",
     "openpyxl",
     "python-dotenv",
     "fastapi",

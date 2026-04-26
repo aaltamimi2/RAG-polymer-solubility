@@ -310,6 +310,33 @@ def test_direct_fast_path_safety_compare_plural_cards():
     assert "Dimethylformamide" in result.display
 
 
+def test_direct_fast_path_does_not_route_hsp_handle_query_to_safety():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    result = try_direct_tool_fast_path(
+        "Can the HSP model handle GVL for PET, or is GVL unsupported? Do not substitute another solvent."
+    )
+
+    assert result is None
+
+
+def test_direct_fast_path_does_not_route_hsp_compatibility_query_to_safety():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    result = try_direct_tool_fast_path(
+        "Use HSP to predict LDPE compatibility with dodecane, and flag ambiguity."
+    )
+
+    assert result is None
+
+
+def test_fast_path_domain_conflict_guard_does_not_block_plain_safety():
+    from strap.direct_fast_path import _has_fast_path_domain_conflict
+
+    assert _has_fast_path_domain_conflict("How should I safely heat toluene to 110 C?", "safety_lookup") is False
+    assert _has_fast_path_domain_conflict("Can the HSP model handle GVL for PET?", "safety_lookup") is True
+
+
 def test_direct_fast_path_falls_through_for_complex_routed_request():
     from strap.direct_fast_path import DirectToolFastPathMiddleware
 

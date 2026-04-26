@@ -1909,6 +1909,8 @@ def plot_optimization_pareto_front(
     plot_title: Optional[str] = None,
     source_handoff_id: Optional[str] = None,
     output_stem: Optional[str] = None,
+    output_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
 ) -> str:
     """Plot a cost-vs-emissions or cost-vs-circularity Pareto front from optimization output."""
     def _normalize_plot_mode(value: Any) -> str:
@@ -2158,7 +2160,12 @@ def plot_optimization_pareto_front(
     if not plot_stem:
         plot_stem = f"optimization_pareto_{y_metric}"
 
-    filepath = save_plot(fig, plot_stem)
+    save_kwargs: dict[str, Any] = {}
+    if output_dir is not None:
+        save_kwargs["output_dir"] = output_dir
+    if output_path is not None:
+        save_kwargs["output_path"] = output_path
+    filepath = save_plot(fig, plot_stem, **save_kwargs)
     if not os.path.exists(filepath) and os.path.exists(f"{filepath}.png"):
         filepath = f"{filepath}.png"
     plt.close(fig)
@@ -2195,6 +2202,8 @@ def plot_optimization_pareto_front(
         "pareto_payload_path": payload.get("pareto_payload_path"),
         "source_handoff_id": source_handoff_id,
         "output_stem": output_stem,
+        "output_dir": output_dir,
+        "output_path": output_path,
     }
     return json_tool_response(display, data, tool_name="plot_optimization_pareto_front")
 
@@ -2206,6 +2215,8 @@ def plot_optimization_pareto_slices(
     plot_title: Optional[str] = None,
     source_handoff_id: Optional[str] = None,
     output_stem: Optional[str] = None,
+    output_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
 ) -> str:
     """Plot multiple fixed-composition optimization Pareto slices.
 
@@ -2291,11 +2302,15 @@ def plot_optimization_pareto_slices(
     for index, slice_payload in enumerate(solved_payloads, start=1):
         label = str(slice_payload.get("slice_label") or f"slice_{index}")
         stem = f"{base_stem}_{_slugify(label)}"
+        plot_kwargs: dict[str, Any] = {}
+        if output_dir is not None:
+            plot_kwargs["output_dir"] = output_dir
         raw_plot = plot_optimization_pareto_front(
             pareto_result_json=json.dumps(slice_payload, ensure_ascii=False, default=str),
             plot_mode=plot_mode,
             plot_title=f"{label} Pareto Landscape",
             output_stem=stem,
+            **plot_kwargs,
         )
         try:
             plot_env = json.loads(raw_plot)
@@ -2369,7 +2384,12 @@ def plot_optimization_pareto_slices(
     ax.set_ylabel("Emissions (tCO2)" if y_metric == "emissions" else "Circularity score")
     ax.grid(True, alpha=0.25)
     ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=True, fontsize=8)
-    combined_path = save_plot(fig, base_stem)
+    save_kwargs: dict[str, Any] = {}
+    if output_dir is not None:
+        save_kwargs["output_dir"] = output_dir
+    if output_path is not None:
+        save_kwargs["output_path"] = output_path
+    combined_path = save_plot(fig, base_stem, **save_kwargs)
     if not os.path.exists(combined_path) and os.path.exists(f"{combined_path}.png"):
         combined_path = f"{combined_path}.png"
     plt.close(fig)
@@ -2400,5 +2420,7 @@ def plot_optimization_pareto_slices(
         "pareto_slices_payload_path": payload.get("pareto_slices_payload_path"),
         "source_handoff_id": source_handoff_id,
         "output_stem": output_stem,
+        "output_dir": output_dir,
+        "output_path": output_path,
     }
     return json_tool_response(display, data, tool_name="plot_optimization_pareto_slices")

@@ -18,6 +18,7 @@ from strap.services.sequence_planning_greedy_display_service import (
 from strap.services.sequence_planning_payload_service import (
     build_greedy_planning_payload,
     build_sequential_planning_payload,
+    canonicalize_sequence_solvent_name,
     dumps_tool_payload,
 )
 from strap.services.sequence_runtime_service import (
@@ -56,6 +57,107 @@ def _planning_error(
 
 
 _advanced_error = _planning_error
+
+
+def _build_multi_scheme_planning_payload(
+    *,
+    polymer_list: list[str],
+    temperature: float,
+    n_variants: int,
+    schemes: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Build structured data for multi-scheme planning handoffs."""
+    top_k_sequences: list[dict[str, Any]] = []
+    candidates_by_polymer: dict[str, list[dict[str, Any]]] = {}
+    seen_candidates: dict[str, set[str]] = {}
+    solvents_used: list[str] = []
+    seen_solvents: set[str] = set()
+
+    for rank, scheme in enumerate(schemes, start=1):
+        route_steps: list[dict[str, Any]] = []
+        solvent_mapping: dict[str, str] = {}
+        for step in scheme.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            polymer = str(step.get("target") or "").strip()
+            raw_solvent = str(step.get("solvent") or "").strip()
+            if not polymer or not raw_solvent or raw_solvent == "-":
+                continue
+            solvent = canonicalize_sequence_solvent_name(raw_solvent)
+            solvent_mapping[polymer] = solvent
+            route_step: dict[str, Any] = {
+                "step": step.get("step"),
+                "polymer": polymer,
+                "solvent": solvent,
+            }
+            if raw_solvent != solvent:
+                route_step["source_solvent"] = raw_solvent
+            if step.get("temp") is not None:
+                route_step["temperature_c"] = step.get("temp")
+            if step.get("sel") is not None:
+                route_step["selectivity_pct"] = step.get("sel")
+            if step.get("bp") is not None:
+                route_step["boiling_point_c"] = step.get("bp")
+            if step.get("gsk") is not None:
+                route_step["gsk_score"] = step.get("gsk")
+            if step.get("logp") is not None:
+                route_step["logp"] = step.get("logp")
+            route_steps.append(route_step)
+
+            if solvent not in seen_solvents:
+                seen_solvents.add(solvent)
+                solvents_used.append(solvent)
+            seen_candidates.setdefault(polymer, set())
+            candidates_by_polymer.setdefault(polymer, [])
+            candidate_key = solvent.lower()
+            if candidate_key not in seen_candidates[polymer]:
+                seen_candidates[polymer].add(candidate_key)
+                candidates_by_polymer[polymer].append(
+                    {
+                        "rank": len(candidates_by_polymer[polymer]) + 1,
+                        "solvent": solvent,
+                        "source_sequence_rank": rank,
+                        "source_step": step.get("step"),
+                        "source_scheme_tag": scheme.get("tag"),
+                        "source_reason": "multi-scheme separation planner",
+                        "temperature_c": step.get("temp"),
+                        "selectivity_pct": step.get("sel"),
+                    }
+                )
+
+        top_k_sequences.append(
+            {
+                "rank": rank,
+                "scheme_name": scheme.get("name"),
+                "scheme_tag": scheme.get("tag"),
+                "sequence": list(scheme.get("seq") or []),
+                "min_selectivity": scheme.get("min_sel"),
+                "avg_selectivity": scheme.get("avg_sel"),
+                "n_solvents": scheme.get("n_solv"),
+                "solvent_mapping": solvent_mapping,
+                "steps": route_steps,
+            }
+        )
+
+    best = top_k_sequences[0] if top_k_sequences else {}
+    return {
+        "tool_name": "plan_multiple_separation_schemes",
+        "success": True,
+        "polymers": polymer_list,
+        "polymers_analyzed": polymer_list,
+        "temperature": temperature,
+        "temperature_c": temperature,
+        "algorithm_used": "multi_scheme_greedy_dynamic_planner",
+        "n_variants": n_variants,
+        "n_schemes": len(schemes),
+        "best_sequence": list(best.get("sequence") or []),
+        "steps": list(best.get("steps") or []),
+        "solvent_mapping": dict(best.get("solvent_mapping") or {}),
+        "top_solvents": solvents_used,
+        "polymer_solvent_candidates": candidates_by_polymer,
+        "top_k_sequences": top_k_sequences,
+        "total_sequences_evaluated": len(schemes),
+    }
 
 async def _greedy_separation_planning(
     polymer_list: list,
@@ -204,7 +306,7 @@ async def plan_multiple_separation_schemes(
     )
 
     # ---- Run schemes with variants ----
-    n_variants = max(1, min(n_variants, 5))  # clamp to [1, 5]
+    n_variants = max(1, min(n_variants, 12))  # clamp to a bounded but user-visible candidate request
     scheme_defs = [
         ("Max Selectivity", "SEL", rank_by_selectivity),
         ("Safest Process (GSK)", "SAFE", lambda candidates: rank_by_safety(candidates, min_selectivity=min_selectivity, gscore_map=gscore_map)),
@@ -241,12 +343,19 @@ async def plan_multiple_separation_schemes(
             unique_schemes.append(s)
     schemes = unique_schemes
 
-    return build_multi_scheme_display(
+    display = build_multi_scheme_display(
         polymer_list=polymer_list,
         temperature=temperature,
         n_variants=n_variants,
         schemes=schemes,
     )
+    structured_data = _build_multi_scheme_planning_payload(
+        polymer_list=polymer_list,
+        temperature=temperature,
+        n_variants=n_variants,
+        schemes=schemes,
+    )
+    return dumps_tool_payload(display, structured_data)
 
 
 @safe_tool_wrapper(structured_output=True)

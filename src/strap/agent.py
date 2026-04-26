@@ -38,6 +38,7 @@ from .direct_fast_path import DirectToolFastPathMiddleware  # noqa: E402
 from .prompts import FILE_IO_DIRECTIVE, THINK_DIRECTIVE, build_system_prompt  # noqa: E402
 from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
 from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
+from .planning.typed_runtime_integration import TypedRuntimeMiddleware  # noqa: E402
 from .session_state import (  # noqa: E402
     append_transcript_event,
     build_session_context_block,
@@ -746,6 +747,10 @@ def create_dissolve_agent(
     # render core tool output without spending a model call on synthesis.
     direct_fast_path = DirectToolFastPathMiddleware()
 
+    # Opt-in typed runtime: selected complex workflows compile to a typed plan
+    # and execute through production wrappers before legacy advisory routing.
+    typed_runtime = TypedRuntimeMiddleware()
+
     # Output verifier: single reflection pass on the orchestrator's
     # final synthesis to catch unsupported claims / missing caveats.
     output_verifier = OutputVerifierMiddleware(verifier_model=flash_model)
@@ -772,7 +777,7 @@ def create_dissolve_agent(
     result_extractor = StructuredResultExtractorMiddleware(artifact_root=scratch_dir)
 
     # Middleware order (innermost → outermost):
-    #   direct_fast_path → routing → output_verifier → result_extractor → orchestrator_guard
+    #   direct_fast_path → typed_runtime → routing → output_verifier → result_extractor → orchestrator_guard
     original_subagent_middleware = deepagents_graph.SubAgentMiddleware
     deepagents_graph.SubAgentMiddleware = TracedSubAgentMiddleware
     try:
@@ -784,7 +789,7 @@ def create_dissolve_agent(
             memory=["./AGENTS.md"],
             skills=["./skills/"],
             backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-            middleware=[direct_fast_path, routing, output_verifier, result_extractor, orchestrator_guard],
+            middleware=[direct_fast_path, typed_runtime, routing, output_verifier, result_extractor, orchestrator_guard],
             name="dissolve-agent",
             checkpointer=checkpointer,
         )

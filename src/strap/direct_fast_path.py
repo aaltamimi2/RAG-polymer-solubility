@@ -45,6 +45,13 @@ _SAFETY_CARD_RE = re.compile(
     r"(?:safely\s+)?(?:heat|heating|handle|handling))\b",
     re.IGNORECASE,
 )
+_HSP_DOMAIN_RE = re.compile(
+    r"\b(?:HSP|RED|Hansen(?:\s+(?:model|solubility))?|compatib(?:le|ility))\b",
+    re.IGNORECASE,
+)
+_FAST_PATH_DOMAIN_CONFLICTS = {
+    "safety_lookup": (_HSP_DOMAIN_RE,),
+}
 _POLYMER_LIST_RE = re.compile(r"\b(?:list|show|what|which).{0,80}\bpolymers?\b", re.IGNORECASE | re.DOTALL)
 _SOLVENT_LIST_RE = re.compile(
     r"\b(?:list|show|what|which).{0,80}\bsolvents?\b(?![^.?!]{0,80}\bdissolv)",
@@ -78,6 +85,11 @@ class DirectFastPathResult:
     route_decision: dict[str, Any] = field(default_factory=dict)
     artifacts: list[dict[str, Any]] = field(default_factory=list)
     run_ledger: dict[str, Any] = field(default_factory=dict)
+
+
+def _has_fast_path_domain_conflict(user_request: str, intent: str) -> bool:
+    """Return whether explicit domain markers should block a direct fast path."""
+    return any(pattern.search(user_request) for pattern in _FAST_PATH_DOMAIN_CONFLICTS.get(intent, ()))
 
 
 def _extract_text(content: Any) -> str:
@@ -957,7 +969,9 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
     if is_separation_visualization_request(user_request):
         return None
 
-    if _SAFETY_CARD_RE.search(user_request):
+    if _SAFETY_CARD_RE.search(user_request) and not _has_fast_path_domain_conflict(
+        user_request, "safety_lookup"
+    ):
         solvents = _extract_safety_solvents(user_request)
         if solvents:
             operating_temp = _extract_operating_temperature(user_request)
