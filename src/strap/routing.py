@@ -24,9 +24,14 @@ from langchain_core.messages import ToolMessage
 from .routing_classifier import (
     _build_hint_from_matches,
     _normalize_matched_rules,
+    build_direct_answer_hint,
     classify_query_keywords,
     classify_query_llm,
+    explain_routing_decision,
     generate_routing_table,
+    is_direct_answer_query,
+    is_direct_solubility_plot_query,
+    is_direct_solubility_lookup_query,
     order_workflow_rules,
     plan_workflow_rules,
     select_workflow_rules,
@@ -81,9 +86,24 @@ if TYPE_CHECKING:
     from langchain.agents.middleware.types import ModelCallResult, ModelRequest, ModelResponse
     from langchain_core.language_models import BaseChatModel
     from collections.abc import Callable
+
+_DIRECT_ANSWER_BLOCKED_TOOLS = {
+    "rank_solvents_selectivity",
+    "predict_solubility",
+    "predict_solubility_range",
+    "list_interpolation_coverage",
+}
 # ------------------------------------------------------------------
 # Middleware helpers
 # ------------------------------------------------------------------
+
+def _latest_ai_origin(messages: list) -> str | None:
+    """Return the origin tag on the latest AI message, if present."""
+    for msg in reversed(messages):
+        if getattr(msg, "type", None) == "ai":
+            return getattr(msg, "additional_kwargs", {}).get("strap_origin")
+    return None
+
 
 # ------------------------------------------------------------------
 # Middleware (class-based)
@@ -173,6 +193,8 @@ class RoutingMiddleware(AgentMiddleware):
         return response
 
     def after_model(self, state, runtime) -> dict[str, list[ToolMessage]] | None:
+        if _latest_ai_origin(state.get("messages", [])) == "direct_tool_fast_path":
+            return None
         allowed_rules = self._get_allowed_rules(state["messages"])
         guard_messages = _build_write_todos_guard_messages(state["messages"], allowed_rules)
         guard_messages.extend(_build_workflow_guard_messages(state["messages"], allowed_rules))
@@ -190,8 +212,25 @@ class RoutingMiddleware(AgentMiddleware):
 
     def wrap_tool_call(self, request, handler):
         tool_call = request.tool_call
+        state_messages = (request.state or {}).get("messages", [])
+        query_text = _get_last_human_message(state_messages) or ""
+        if (
+            is_direct_answer_query(query_text)
+            and not is_direct_solubility_lookup_query(query_text)
+            and not is_direct_solubility_plot_query(query_text)
+            and tool_call.get("name") in _DIRECT_ANSWER_BLOCKED_TOOLS
+        ):
+            return ToolMessage(
+                content=(
+                    "Router guard: this is a direct solvent lookup. Do not run "
+                    f"`{tool_call.get('name')}` unless the user explicitly asks for "
+                    "temperature-dependent solubility, selectivity, ranking, or separation. "
+                    "Use `list_available_solvents(polymer=<target polymer>)` and answer from that lookup."
+                ),
+                tool_call_id=tool_call["id"],
+                status="error",
+            )
         if tool_call.get("name") == "write_todos":
-            state_messages = (request.state or {}).get("messages", [])
             allowed_rules = self._get_allowed_rules(state_messages)
             if _should_block_write_todos(state_messages, allowed_rules):
                 allowed_names = sorted(_get_allowed_subagent_names(allowed_rules))
@@ -235,7 +274,10 @@ class RoutingMiddleware(AgentMiddleware):
         allowed_rules = self._get_allowed_rules(request.messages)
 
         if not returned_calls:
-            hint = _build_hint_from_matches(allowed_rules)
+            hint = (
+                build_direct_answer_hint(query_text or "")
+                or _build_hint_from_matches(allowed_rules)
+            )
 
             if hint:
                 logger.info(
@@ -303,17 +345,29 @@ class RoutingMiddleware(AgentMiddleware):
         if cache_key in self._route_cache:
             return self._route_cache[cache_key]
 
-        matched = None
+        llm_matched = None
         keyword_matched = classify_query_keywords(messages)
         if self._classifier_model and cache_key:
-            matched = classify_query_llm(cache_key, self._classifier_model)
+            llm_matched = classify_query_llm(cache_key, self._classifier_model)
 
-        matched = select_workflow_rules(
+        selected = select_workflow_rules(
             cache_key,
-            llm_matched=matched,
+            llm_matched=llm_matched,
             keyword_matched=keyword_matched,
         )
-        matched = plan_workflow_rules(cache_key, matched)
+        matched = plan_workflow_rules(cache_key, selected)
+        decision = explain_routing_decision(
+            cache_key,
+            llm_matched=llm_matched,
+            keyword_matched=keyword_matched,
+        )
+        logger.info(
+            "routing_middleware: route_decision direct=%s keyword=%s planned=%s reason=%s",
+            decision["direct_answer"]["is_direct"],
+            decision["keyword_matched"],
+            decision["planned"],
+            decision["direct_answer"]["reason"],
+        )
         self._route_cache[cache_key] = matched or []
         return self._route_cache[cache_key]
 

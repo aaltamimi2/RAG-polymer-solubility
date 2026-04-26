@@ -126,7 +126,12 @@ def resolve_polymer_entry(polymer_name: str) -> dict[str, Any] | None:
     needle = polymer_name.strip().upper()
     for canonical_name in lookup.get("polymer_names", []):
         if needle and needle in canonical_name.upper():
-            return entries[_normalize_key(canonical_name)]
+            normalized = _normalize_key(canonical_name)
+            if normalized in entries:
+                return entries[normalized]
+            for entry_key, entry in entries.items():
+                if _normalize_key(str(entry.get("polymer", ""))) == normalized:
+                    return entry
     return None
 
 

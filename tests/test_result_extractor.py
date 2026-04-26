@@ -393,6 +393,106 @@ class TestHandoffMiddleware:
         latest = json.loads(get_subagent_result("separation-engineer"))
         assert latest["handoff"]["task_prompt"] == "Find the separation sequence and then create a selectivity heatmap."
 
+    def test_wrap_tool_call_stores_normalized_structured_result_payload(self):
+        from strap.result_extractor import StructuredResultExtractorMiddleware, get_subagent_result
+
+        mw = StructuredResultExtractorMiddleware()
+        mw.before_agent(None, None)
+
+        result = ToolMessage(
+            content=(
+                "Done.\n<STRUCTURED_RESULT>\n"
+                "{"
+                '"agent": "separation-engineer", '
+                '"schema_version": "1.0", '
+                '"polymers": ["LDPE", "EVOH", "PET"], '
+                '"supported_polymers": ["LDPE", "EVOH", "PET"], '
+                '"unsupported_polymers": ["EACHCANDIDATE", "THEOPTIMIZATION-ENGINEER"], '
+                '"best_sequence": ["LDPE", "EVOH", "PET"], '
+                '"steps": [], '
+                '"solvent_mapping": {}, '
+                '"top_k_sequences": [{"rank": 1, "sequence": ["LDPE", "EVOH", "PET"], "solvent_mapping": {}}]'
+                "}\n"
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc-sep-normalize",
+        )
+
+        returned = mw.wrap_tool_call(
+            self._make_request("separation-engineer", "tc-sep-normalize"),
+            MagicMock(return_value=result),
+        )
+
+        assert isinstance(returned, ToolMessage)
+
+        latest = json.loads(get_subagent_result("separation-engineer"))
+        assert latest["handoff"]["payload"]["unsupported_polymers"] == []
+
+    def test_wrap_tool_call_stores_backfilled_separation_candidate_lists(self, monkeypatch):
+        from langchain_core.messages import HumanMessage
+
+        from strap.result_extractor import StructuredResultExtractorMiddleware, get_subagent_result
+
+        def fake_augment(payload, *, scope_user_query=None):
+            assert "top 8 solvent candidates per polymer" in scope_user_query
+            enriched = dict(payload)
+            enriched["polymer_solvent_candidates"] = {
+                "LDPE": [{"rank": i, "solvent": f"s{i}"} for i in range(1, 9)],
+                "EVOH": [{"rank": i, "solvent": f"e{i}"} for i in range(1, 9)],
+                "PET": [{"rank": i, "solvent": f"p{i}"} for i in range(1, 9)],
+            }
+            enriched["candidate_backfill_warnings"] = ["filled"]
+            return enriched
+
+        monkeypatch.setattr("strap.result_extractor._augment_underfilled_polymer_solvent_candidates", fake_augment)
+
+        mw = StructuredResultExtractorMiddleware()
+        mw.before_agent(
+            {
+                "messages": [
+                    HumanMessage(
+                        content="For LDPE/EVOH/PET, propose the top 8 solvent candidates per polymer."
+                    )
+                ]
+            },
+            None,
+        )
+
+        result = ToolMessage(
+            content=(
+                "Done.\n<STRUCTURED_RESULT>\n"
+                "{"
+                '"agent": "separation-engineer", '
+                '"schema_version": "1.0", '
+                '"polymers": ["LDPE", "EVOH", "PET"], '
+                '"supported_polymers": ["LDPE", "EVOH", "PET"], '
+                '"unsupported_polymers": [], '
+                '"best_sequence": ["LDPE", "EVOH", "PET"], '
+                '"steps": [], '
+                '"solvent_mapping": {}, '
+                '"top_k_sequences": [{"rank": 1, "sequence": ["LDPE", "EVOH", "PET"], "solvent_mapping": {}}], '
+                '"polymer_solvent_candidates": {"LDPE": [{"rank": 1, "solvent": "s1"}]}'
+                "}\n"
+                "</STRUCTURED_RESULT>"
+            ),
+            tool_call_id="tc-sep-backfill",
+        )
+
+        returned = mw.wrap_tool_call(
+            self._make_request("separation-engineer", "tc-sep-backfill"),
+            MagicMock(return_value=result),
+        )
+
+        assert isinstance(returned, ToolMessage)
+
+        latest = json.loads(get_subagent_result("separation-engineer"))
+        candidates = latest["handoff"]["payload"]["polymer_solvent_candidates"]
+        assert {polymer: len(entries) for polymer, entries in candidates.items()} == {
+            "LDPE": 8,
+            "EVOH": 8,
+            "PET": 8,
+        }
+
     def test_invalid_payload_is_stored_but_marked_invalid(self):
         from strap.result_extractor import (
             StructuredResultExtractorMiddleware,
@@ -1090,6 +1190,47 @@ class TestHandoffMiddleware:
         assert second["handoff"]["payload"]["source_handoff_id"] == source.handoff_id
         assert latest_result["handoff"]["handoff_id"] == source.handoff_id
         assert latest_result["handoff"]["contract"] == "statistics-ml.result.v1"
+
+    def test_build_handoff_falls_back_to_latest_result_when_explicit_id_is_stale(self):
+        from strap.handoffs import initialize_handoff_scope, store_agent_result
+        from strap.result_extractor import build_handoff
+
+        initialize_handoff_scope(
+            run_id="run-stale-source-id",
+            thread_id="thread-stale-source-id",
+            invocation_id="inv-stale-source-id",
+        )
+        source = store_agent_result(
+            producer="optimization-engineer",
+            payload={
+                "agent": "optimization-engineer",
+                "schema_version": "1.0",
+                "analysis_type": "pareto_slices",
+                "x_metric": "total_cost",
+                "y_metric": "circularity",
+                "n_slices_requested": 2,
+                "n_slices_solved": 2,
+                "n_points_requested_per_slice": 100,
+                "pareto_slices_payload_path": "/tmp/pareto_slices.json",
+                "slices": [],
+            },
+            source_tool_call_id="tc-opt-stale-source-id",
+        )
+
+        derived = json.loads(
+            build_handoff(
+                consumer="visualization-specialist",
+                source_handoff_id="not-a-real-handoff",
+                producer="optimization-engineer",
+                strategy="latest",
+            )
+        )
+
+        assert derived["ok"] is True
+        assert derived["handoff"]["producer"] == "optimization-engineer"
+        assert derived["handoff"]["consumer"] == "visualization-specialist"
+        assert derived["handoff"]["parent_handoff_id"] == source.handoff_id
+        assert derived["handoff"]["payload"]["source_handoff_id"] == source.handoff_id
 
     def test_build_handoff_can_chain_from_derived_handoff(self):
         from strap.handoffs import initialize_handoff_scope, store_agent_result

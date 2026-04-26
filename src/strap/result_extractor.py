@@ -23,11 +23,13 @@ from .handoffs import (
     initialize_handoff_scope,
     list_handoff_records,
     list_result_records,
+    normalize_agent_payload,
     record_to_json_envelope,
     records_to_json_envelope,
     store_agent_failure,
     store_agent_result,
 )
+from .handoff_adapters import _augment_underfilled_polymer_solvent_candidates
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -378,6 +380,7 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
             )
             return
 
+        parsed = self._normalize_storage_payload(subagent_type, parsed)
         record = store_agent_result(
             producer=subagent_type,
             payload=parsed,
@@ -390,6 +393,27 @@ class StructuredResultExtractorMiddleware(AgentMiddleware):
             subagent_type,
             record.status,
         )
+
+    def _normalize_storage_payload(
+        self,
+        producer: str,
+        payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        normalized = normalize_agent_payload(producer, payload)
+        if producer != "separation-engineer":
+            return normalized
+        try:
+            return _augment_underfilled_polymer_solvent_candidates(
+                normalized,
+                scope_user_query=self._user_query,
+            )
+        except Exception as exc:
+            logger.warning(
+                "result_extractor: separation candidate backfill failed; "
+                "storing normalized payload without candidate augmentation: %s",
+                exc,
+            )
+            return normalized
 
     @staticmethod
     def _extract_text_from_result(result) -> str | None:

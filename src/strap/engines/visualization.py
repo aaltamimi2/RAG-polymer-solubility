@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Optional, TYPE_CHECKING
 import os
 
+from strap.tools._helpers import save_plot
+
 # Lazy imports for visualization libraries
 def _get_matplotlib():
     import matplotlib.pyplot as plt
@@ -92,9 +94,12 @@ class SelectivityHeatmap:
         plt.xticks(rotation=45, ha='right')
         plt.tight_layout()
 
-        filepath = os.path.join(self.config.output_dir, "selectivity_heatmap.png")
-        fig.savefig(filepath, dpi=self.config.dpi, bbox_inches='tight')
-        plt.close(fig)
+        filepath = save_plot(
+            fig,
+            "selectivity_heatmap",
+            output_dir=self.config.output_dir,
+            dpi=self.config.dpi,
+        )
 
         return filepath
 
@@ -210,9 +215,11 @@ class ProcessFlowDiagram:
         ax.legend(handles=legend_elements, loc='lower right')
 
         plt.tight_layout()
-        filepath = os.path.join(self.config.output_dir, "process_flow.png")
-        fig.savefig(filepath, dpi=self.config.dpi, bbox_inches='tight')
-        plt.close(fig)
+        filepath = save_plot(
+            fig,
+            "process_flow",
+            output_dir=self.config.output_dir,
+            dpi=self.config.dpi,
+        )
 
         return filepath
-

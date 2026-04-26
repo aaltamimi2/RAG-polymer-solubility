@@ -61,6 +61,46 @@ def test_build_single_config_applies_optional_fields():
     assert config["solvent_price"] == 1.25
 
 
+def test_build_single_config_omits_null_optional_temperatures():
+    from strap.services.biosteam_service import build_single_config
+
+    config = build_single_config(
+        solvent="Cyclohexane",
+        target_plastic="PE",
+        target_plastic_percent=60.0,
+        processing_capacity=1000.0,
+        dissolution_temp_c=None,
+        precipitation_temp_c=None,
+    )
+
+    assert config["solvent"] == "Cyclohexane"
+    assert "dissolution_temperature_c" not in config
+    assert "precipitation_temperature_c" not in config
+
+
+def test_resolve_to_biosteam_maps_gvl_to_canonical_name():
+    from strap.solvent_registry import resolve_to_biosteam
+
+    assert resolve_to_biosteam("gvl") == "gamma-Valerolactone"
+    assert resolve_to_biosteam("gamma-valerolactone") == "gamma-Valerolactone"
+
+
+def test_build_single_config_canonicalizes_gvl_alias_for_biosteam():
+    from strap.services.biosteam_service import build_single_config
+
+    config = build_single_config(
+        solvent="gvl",
+        target_plastic="EVOH",
+        target_plastic_percent=40.0,
+        processing_capacity=1000.0,
+        dissolution_temp_c=100.0,
+    )
+
+    assert config["solvent"] == "gamma-Valerolactone"
+    assert config["solvent_input_name"] == "gvl"
+    assert config["dissolution_temperature_c"] == 100.0
+
+
 def test_parse_json_array_rejects_non_array():
     from strap.services.biosteam_service import parse_json_array
 
@@ -97,3 +137,10 @@ def test_extract_successful_results_handles_multi_polymer_shape():
     results = extract_successful_results(payload)
 
     assert results == [{"success": True, "solvent": "Toluene"}]
+
+
+def test_worker_target_plastic_map_keeps_native_evoh_and_pc():
+    from strap.vendor.biosteam_worker import _TARGET_PLASTIC_MAP
+
+    assert _TARGET_PLASTIC_MAP["EVOH"] == "EVOH"
+    assert _TARGET_PLASTIC_MAP["PC"] == "PC"

@@ -54,14 +54,26 @@ def build_integrated_analysis_display(
     plot_url: str | None,
     visualization_error: str | None,
     used_greedy: bool,
+    temperature_basis_note: str | None = None,
 ) -> str:
     """Render the integrated multi-polymer separation report."""
+    try:
+        from strap.solubility import temperature_use_regime
+
+        sensitivity_only = any(
+            temperature_use_regime(float(temp)) == "sensitivity_extrapolation"
+            for temp in available_temps
+        )
+    except Exception:
+        sensitivity_only = False
     n_polymers = len(polymer_list)
     output = ["# Integrated Multi-Polymer Separation Analysis\n"]
     output.append(f"**Polymers:** {', '.join(polymer_list)}")
     output.append(
         f"**Temperature Range:** {temperature_min} C - {temperature_max} C ({len(available_temps)} temperatures)"
     )
+    if temperature_basis_note:
+        output.append(f"**Temperature Basis:** {temperature_basis_note}")
     output.append(f"**Ranking Criterion:** {rank_by}")
     output.append(f"**Number of Sequences:** {n_polymers}! = {math.factorial(n_polymers)}\n")
 
@@ -75,7 +87,11 @@ def build_integrated_analysis_display(
     else:
         output.append("## Analyzing All Sequences...\n")
 
-    output.append("## Top 3 Recommended Separation Sequences\n")
+    output.append(
+        "## Top 3 Sensitivity Screening Sequences\n"
+        if sensitivity_only
+        else "## Top 3 Recommended Separation Sequences\n"
+    )
     for rank, result in enumerate(all_results[:3], 1):
         sequence = result["sequence"]
         medal = "#1" if rank == 1 else "#2" if rank == 2 else "#3"
@@ -97,15 +113,22 @@ def build_integrated_analysis_display(
             )
 
             solvent_name = best.get("solvent", "N/A")
+            extrapolated = (
+                " *(sensitivity-only extrapolation)*"
+                if best.get("temperature_use_regime") == "sensitivity_extrapolation"
+                else " *(Apelblat extrapolated above 160 C)*"
+                if best.get("temperature_extrapolation") == "above_fit"
+                else ""
+            )
             if best.get("reused_solvent"):
                 output.append(
-                    f"  **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f} C** *(REUSED - limited options)*"
+                    f"  **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f} C**{extrapolated} *(REUSED - limited options)*"
                 )
             elif best.get("note"):
                 output.append(f"  **Solvent:** {solvent_name} - {best.get('note')}")
             else:
                 output.append(
-                    f"  [{symbol}] **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f} C**"
+                    f"  [{symbol}] **Solvent:** {solvent_name} @ **{best.get('temperature', 0):.0f} C**{extrapolated}"
                 )
 
             output.append(
@@ -142,10 +165,15 @@ def build_integrated_analysis_display(
         if visualization_error:
             output.append(f"Could not create visualisation: {visualization_error}\n")
 
-    output.append("## Summary & Recommendations\n")
+    output.append("## Summary & Screening Notes\n" if sensitivity_only else "## Summary & Recommendations\n")
     best = all_results[0]
-    output.append(f"**Best Sequence:** {' -> '.join(best['sequence'])}")
+    best_label = "Best Screening Sequence" if sensitivity_only else "Best Sequence"
+    output.append(f"**{best_label}:** {' -> '.join(best['sequence'])}")
     output.append(f"**Bottleneck Selectivity:** {best['min_selectivity']:.1f}%\n")
+    if sensitivity_only:
+        output.append(
+            "**Use Constraint:** Steps above 180 C are sensitivity-only Apelblat estimates and should not be treated as validated operating recommendations.\n"
+        )
     output.append("**Optimal Conditions per Step:**")
     for step in best["steps"][:-1]:
         best_step = step["best"]

@@ -26,6 +26,26 @@ AUTO = "auto"
 INTERPOLATION = "interpolation"
 SQL = "sql"
 
+# The fitted coefficient tables were trained on the experimental grid up to
+# 160 C.  The modified Apelblat form can be evaluated beyond this range, but
+# runtime tools should label those values as extrapolated estimates.
+FITTED_TEMP_MIN_C = 25.0
+FITTED_TEMP_MAX_C = 160.0
+RECOMMENDED_EXTRAPOLATION_MAX_C = 180.0
+SENSITIVITY_EXTRAPOLATION_MAX_C = 200.0
+
+# Runtime data-quality exclusions.  Keep raw CSV rows intact for provenance,
+# but make agent-facing solubility tools treat these pairs as unavailable.
+EXCLUDED_SOLUBILITY_PAIRS: dict[tuple[str, str], str] = {
+    (
+        "EVOH",
+        "triethylamine",
+    ): (
+        "Quarantined data-quality anomaly: raw rows drop from 100% at 55 C "
+        "to ~7.6% at 60 C and fitted coefficients discard seven capped 100% points."
+    ),
+}
+
 # ==================================================================
 # Coefficient data — lazy-loaded singleton
 # ==================================================================
@@ -142,6 +162,23 @@ def resolve_solvent(name: str, known_solvents: set[str]) -> Optional[str]:
     return None
 
 
+def _normalize_pair_for_exclusion(polymer: str, solvent: str) -> tuple[str, str]:
+    """Normalize a polymer/solvent pair enough for data-quality exclusion checks."""
+    polymer_norm = POLYMER_ALIASES.get(polymer.strip().upper(), polymer.strip().upper())
+    solvent_norm = (resolve_to_interp_key(solvent) or solvent).strip().lower()
+    return polymer_norm, solvent_norm
+
+
+def is_solubility_pair_excluded(polymer: str, solvent: str) -> bool:
+    """Return True when a polymer-solvent pair is quarantined from runtime tools."""
+    return _normalize_pair_for_exclusion(polymer, solvent) in EXCLUDED_SOLUBILITY_PAIRS
+
+
+def get_solubility_pair_exclusion_reason(polymer: str, solvent: str) -> str | None:
+    """Return the exclusion reason for a quarantined pair, if any."""
+    return EXCLUDED_SOLUBILITY_PAIRS.get(_normalize_pair_for_exclusion(polymer, solvent))
+
+
 def _get_known_names(lookup: dict) -> tuple[set[str], set[str]]:
     """Return cached known polymer/solvent name sets (O(1) after first load)."""
     return _KNOWN_POLYMERS, _KNOWN_SOLVENTS
@@ -178,6 +215,55 @@ def predict(entry: dict, temp_c: float) -> dict:
     }
 
 
+def temperature_extrapolation_status(temperature_c: float) -> str:
+    """Classify a temperature against the fitted interpolation range."""
+    if temperature_c < FITTED_TEMP_MIN_C:
+        return "below_fit"
+    if temperature_c > FITTED_TEMP_MAX_C:
+        return "above_fit"
+    return "within_fit"
+
+
+def temperature_use_regime(temperature_c: float) -> str:
+    """Classify how a runtime tool should present a temperature."""
+    if temperature_c < FITTED_TEMP_MIN_C:
+        return "below_fit_extrapolation"
+    if temperature_c <= FITTED_TEMP_MAX_C:
+        return "fitted"
+    if temperature_c <= RECOMMENDED_EXTRAPOLATION_MAX_C:
+        return "exploratory_extrapolation"
+    if temperature_c <= SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return "sensitivity_extrapolation"
+    return "unsupported_extrapolation"
+
+
+def temperature_basis_note(temperature_c: float) -> str | None:
+    """Return a concise reliability note for temperatures outside the fit range."""
+    regime = temperature_use_regime(temperature_c)
+    if regime == "exploratory_extrapolation":
+        return (
+            f"Apelblat extrapolation above fitted range "
+            f"({FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C); lower confidence."
+        )
+    if regime == "sensitivity_extrapolation":
+        return (
+            f"Sensitivity-only Apelblat extrapolation above the recommended "
+            f"{RECOMMENDED_EXTRAPOLATION_MAX_C:.0f} C cap and fitted "
+            f"{FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C range; use as soluble/insoluble screening only."
+        )
+    if regime == "unsupported_extrapolation":
+        return (
+            f"Temperature is above the supported sensitivity limit "
+            f"({SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C); do not use this model prediction."
+        )
+    if regime == "below_fit_extrapolation":
+        return (
+            f"Apelblat extrapolation below fitted range "
+            f"({FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C); lower confidence."
+        )
+    return None
+
+
 # ==================================================================
 # Public API
 # ==================================================================
@@ -200,6 +286,9 @@ def get_solubility(
     Returns:
         Solubility percentage (0–100), or None if no data.
     """
+    if is_solubility_pair_excluded(polymer, solvent):
+        return None
+
     if method in (AUTO, INTERPOLATION):
         result = _interp_get_solubility(polymer, solvent, temperature_c)
         if result is not None:
@@ -238,6 +327,9 @@ def get_solubility_curve(
         List of {"temperature": float, "solubility": float} dicts,
         sorted by temperature.  Empty list if pair not found.
     """
+    if is_solubility_pair_excluded(polymer, solvent):
+        return []
+
     if method in (AUTO, INTERPOLATION):
         result = _interp_get_curve(polymer, solvent, t_start_c, t_end_c, t_step_c)
         if result is not None:
@@ -332,7 +424,9 @@ def get_available_solvents_for_polymer(polymer: str) -> set[str]:
         return set()
     return {
         s for (p, s), entry in lookup.items()
-        if p == resolved and entry["category"] == "fitted"
+        if p == resolved
+        and entry["category"] == "fitted"
+        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
     }
 
 
@@ -342,6 +436,7 @@ def get_available_pairs() -> set[tuple[str, str]]:
     return {
         (p, s) for (p, s), entry in lookup.items()
         if entry["category"] == "fitted"
+        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
     }
 
 
@@ -361,6 +456,8 @@ def get_entry(polymer: str, solvent: str) -> Optional[dict]:
     p = resolve_polymer(polymer, known_p)
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
+        return None
+    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
         return None
     return lookup.get((p, s))
 
@@ -419,6 +516,8 @@ def _interp_get_solubility(
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
         return None
+    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
+        return None
 
     entry = lookup.get((p, s))
     if entry is None:
@@ -444,13 +543,22 @@ def _interp_get_curve(
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
         return None
+    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
+        return None
 
     entry = lookup.get((p, s))
     if entry is None:
         return None
 
     step = max(t_step, 1.0)
-    temps = np.arange(t_start, t_end + step / 2, step)
+    if t_end < t_start:
+        temps = np.array([], dtype=float)
+    else:
+        temps = np.arange(t_start, t_end + 1e-9, step, dtype=float)
+        if temps.size == 0:
+            temps = np.array([t_start], dtype=float)
+        if not np.isclose(float(temps[-1]), float(t_end)):
+            temps = np.append(temps, float(t_end))
 
     if entry["category"] == "insoluble":
         return [{"temperature": float(t), "solubility": 0.0} for t in temps]
@@ -489,7 +597,9 @@ def _interp_get_selectivity(
 
     target_solvents = {
         s for (p, s), entry in lookup.items()
-        if p == target_r and entry["category"] == "fitted"
+        if p == target_r
+        and entry["category"] == "fitted"
+        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
     }
     if not target_solvents:
         return None
@@ -546,7 +656,9 @@ def _interp_all_solvents_selectivity(
 
     target_solvents = {
         s for (p, s), entry in lookup.items()
-        if p == target_r and entry["category"] == "fitted"
+        if p == target_r
+        and entry["category"] == "fitted"
+        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
     }
 
     results: list[dict] = []
@@ -650,6 +762,7 @@ def _sql_get_solubility(
     FROM common_solvents_database
     WHERE UPPER(polymer) = UPPER(?)
       AND LOWER(solvent) = LOWER(?)
+      AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
       AND temperature___c_ BETWEEN ? AND ?
     """
     try:
@@ -673,6 +786,7 @@ def _sql_get_curve(
     FROM common_solvents_database
     WHERE UPPER(polymer) = UPPER(?)
       AND LOWER(solvent) = LOWER(?)
+      AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
       AND temperature___c_ BETWEEN ? AND ?
     GROUP BY temperature___c_
     ORDER BY temperature
@@ -709,6 +823,7 @@ def _sql_get_selectivity(
         SELECT solvent, polymer, AVG(solubility____) as avg_sol
         FROM common_solvents_database
         WHERE polymer IN ('{polymer_filter}')
+          AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
           AND temperature___c_ BETWEEN {temperature_c - temp_tolerance}
                                     AND {temperature_c + temp_tolerance}
         GROUP BY solvent, polymer
@@ -771,6 +886,7 @@ def _sql_all_solvents_selectivity(
         SELECT solvent, polymer, AVG(solubility____) as avg_sol
         FROM common_solvents_database
         WHERE polymer IN ('{polymer_filter}')
+          AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
           AND temperature___c_ BETWEEN {temperature_c - temp_tolerance}
                                     AND {temperature_c + temp_tolerance}
         GROUP BY solvent, polymer

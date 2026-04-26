@@ -15,7 +15,7 @@ import re
 # Sets
 # ---------------------------------------------------------------------------
 WASHES = ["Wash 1", "Wash 2"]
-POLYMERS = ["PE", "EVOH"]
+POLYMERS = ["PE", "EVOH", "PET", "PP", "PS", "PVC", "PC"]
 
 LEGACY_S_PE = [
     "sec-Butyl Acetate", "Isobutyl Acetate", "Tetrachloroethylene",
@@ -54,18 +54,71 @@ def get_optimizer_default_sets() -> dict[str, list[str]]:
     present in the current CSV-derived catalog.
     """
 
-    from strap.services.biosteam_service import EVOH_SOLVENTS, EVOH_SOLVENTS_E2, PE_SOLVENTS
+    from strap.services.biosteam_service import (
+        EVOH_SOLVENTS,
+        EVOH_SOLVENTS_E2,
+        PC_SOLVENTS,
+        PE_SOLVENTS,
+        PET_SOLVENTS,
+        PP_SOLVENTS,
+        PS_SOLVENTS,
+        PVC_SOLVENTS,
+    )
 
     s_pe = _dedupe_keep_order(list(PE_SOLVENTS) + LEGACY_S_PE)
     s_ev1 = _dedupe_keep_order(list(EVOH_SOLVENTS) + LEGACY_S_EV1)
     s_ev2 = _dedupe_keep_order(list(EVOH_SOLVENTS_E2) + LEGACY_S_EV2)
+    s_pet = _dedupe_keep_order(list(PET_SOLVENTS))
+    s_pp = _dedupe_keep_order(list(PP_SOLVENTS))
+    s_ps = _dedupe_keep_order(list(PS_SOLVENTS))
+    s_pvc = _dedupe_keep_order(list(PVC_SOLVENTS))
+    s_pc = _dedupe_keep_order(list(PC_SOLVENTS))
+    solvents_by_stage_polymer = {
+        "Wash 1": {
+            "PE": list(s_pe),
+            "EVOH": list(s_ev1),
+            "PET": list(s_pet),
+            "PP": list(s_pp),
+            "PS": list(s_ps),
+            "PVC": list(s_pvc),
+            "PC": list(s_pc),
+        },
+        "Wash 2": {
+            "PE": list(s_pe),
+            "EVOH": list(s_ev2),
+            "PET": list(s_pet),
+            "PP": list(s_pp),
+            "PS": list(s_ps),
+            "PVC": list(s_pvc),
+            "PC": list(s_pc),
+        },
+    }
+    solvents_by_polymer = {
+        polymer: _dedupe_keep_order(
+            solvent
+            for wash_map in solvents_by_stage_polymer.values()
+            for solvent in wash_map.get(polymer, [])
+        )
+        for polymer in POLYMERS
+    }
     return {
         "S_PE": s_pe,
         "S_EV1": s_ev1,
         "S_EV2": s_ev2,
-        "S": _dedupe_keep_order([*s_pe, *s_ev1, *s_ev2]),
+        "S_PET": s_pet,
+        "S_PP": s_pp,
+        "S_PS": s_ps,
+        "S_PVC": s_pvc,
+        "S_PC": s_pc,
+        "S": _dedupe_keep_order(
+            solvent
+            for polymer in POLYMERS
+            for solvent in solvents_by_polymer.get(polymer, [])
+        ),
         "P": list(POLYMERS),
         "W": list(WASHES),
+        "S_BY_STAGE_POLYMER": solvents_by_stage_polymer,
+        "S_BY_POLYMER": solvents_by_polymer,
     }
 
 
@@ -80,12 +133,27 @@ def derive_optimizer_sets_from_df(
         "S_PE": [],
         "S_EV1": [],
         "S_EV2": [],
+        "S_PET": [],
+        "S_PP": [],
+        "S_PS": [],
+        "S_PVC": [],
+        "S_PC": [],
         "S": [],
         "P": list(POLYMERS),
         "W": list(WASHES),
+        "S_BY_STAGE_POLYMER": {
+            wash: {polymer: [] for polymer in POLYMERS}
+            for wash in WASHES
+        },
+        "S_BY_POLYMER": {polymer: [] for polymer in POLYMERS},
     }
     if df is None or df.empty:
         return defaults
+
+    solvent_defaults = defaults["S_BY_STAGE_POLYMER"]
+    polymers = _dedupe_keep_order(
+        [*POLYMERS, *df["Polymer"].dropna().astype(str).tolist()]
+    )
 
     def _extract_solvents(wash: str, polymer: str) -> list[str]:
         mask = df["Wash number"].eq(wash) & df["Polymer"].eq(polymer)
@@ -96,23 +164,51 @@ def derive_optimizer_sets_from_df(
         ]
         if values:
             return _dedupe_keep_order(values)
-        key = "S_PE" if polymer == "PE" else ("S_EV1" if wash == "Wash 1" else "S_EV2")
-        return list(defaults[key])
+        return list((solvent_defaults.get(wash) or {}).get(polymer, []))
 
-    s_pe = _extract_solvents("Wash 1", "PE")
-    s_pe_w2 = _extract_solvents("Wash 2", "PE")
-    if s_pe_w2:
-        s_pe = _dedupe_keep_order([*s_pe, *s_pe_w2])
-    s_ev1 = _extract_solvents("Wash 1", "EVOH")
-    s_ev2 = _extract_solvents("Wash 2", "EVOH")
+    solvents_by_stage_polymer = {
+        wash: {
+            polymer: _extract_solvents(wash, polymer)
+            for polymer in polymers
+        }
+        for wash in WASHES
+    }
+    solvents_by_polymer = {
+        polymer: _dedupe_keep_order(
+            solvent
+            for wash in WASHES
+            for solvent in solvents_by_stage_polymer[wash].get(polymer, [])
+        )
+        for polymer in polymers
+    }
+    all_solvents = _dedupe_keep_order(
+        solvent
+        for polymer in polymers
+        for solvent in solvents_by_polymer.get(polymer, [])
+    )
+    s_pe = list(solvents_by_polymer.get("PE", defaults["S_PE"]))
+    s_ev1 = list(solvents_by_stage_polymer.get("Wash 1", {}).get("EVOH", defaults["S_EV1"]))
+    s_ev2 = list(solvents_by_stage_polymer.get("Wash 2", {}).get("EVOH", defaults["S_EV2"]))
+    s_pet = list(solvents_by_polymer.get("PET", defaults["S_PET"]))
+    s_pp = list(solvents_by_polymer.get("PP", defaults["S_PP"]))
+    s_ps = list(solvents_by_polymer.get("PS", defaults["S_PS"]))
+    s_pvc = list(solvents_by_polymer.get("PVC", defaults["S_PVC"]))
+    s_pc = list(solvents_by_polymer.get("PC", defaults["S_PC"]))
 
     return {
         "S_PE": s_pe,
         "S_EV1": s_ev1,
         "S_EV2": s_ev2,
-        "S": _dedupe_keep_order([*s_pe, *s_ev1, *s_ev2]),
-        "P": list(POLYMERS),
+        "S_PET": s_pet,
+        "S_PP": s_pp,
+        "S_PS": s_ps,
+        "S_PVC": s_pvc,
+        "S_PC": s_pc,
+        "S": all_solvents,
+        "P": polymers,
         "W": list(WASHES),
+        "S_BY_STAGE_POLYMER": solvents_by_stage_polymer,
+        "S_BY_POLYMER": solvents_by_polymer,
     }
 
 
@@ -120,7 +216,20 @@ _DEFAULT_OPTIMIZER_SETS = get_optimizer_default_sets()
 S_PE = list(_DEFAULT_OPTIMIZER_SETS["S_PE"])
 S_EV1 = list(_DEFAULT_OPTIMIZER_SETS["S_EV1"])
 S_EV2 = list(_DEFAULT_OPTIMIZER_SETS["S_EV2"])
+S_PET = list(_DEFAULT_OPTIMIZER_SETS["S_PET"])
+S_PP = list(_DEFAULT_OPTIMIZER_SETS["S_PP"])
+S_PS = list(_DEFAULT_OPTIMIZER_SETS["S_PS"])
+S_PVC = list(_DEFAULT_OPTIMIZER_SETS["S_PVC"])
+S_PC = list(_DEFAULT_OPTIMIZER_SETS["S_PC"])
 ALL_SOLVENTS = list(_DEFAULT_OPTIMIZER_SETS["S"])
+SOLVENTS_BY_STAGE_POLYMER = {
+    wash: {polymer: list(solvents) for polymer, solvents in polymer_map.items()}
+    for wash, polymer_map in _DEFAULT_OPTIMIZER_SETS["S_BY_STAGE_POLYMER"].items()
+}
+SOLVENTS_BY_POLYMER = {
+    polymer: list(solvents)
+    for polymer, solvents in _DEFAULT_OPTIMIZER_SETS["S_BY_POLYMER"].items()
+}
 
 # Technology sets for three-stage superstructure
 I_SET = ["st1", "lf", "we", "py", "gas_er", "gas_h2", "gas_h2cc"]
@@ -489,7 +598,15 @@ def load_all_data(excel_path=None,
     strap = load_strap_data(excel_path, strap_sheet, p_strap, strap_df=strap_source_df)
     other = load_othertech_data(excel_path, other_sheet)
     available_othertech = derive_available_othertechs(other)
-    derived_sets = derive_optimizer_sets_from_df(strap_source_df)
+    # When a caller supplies an explicit compiled STRAP table, that table is
+    # the authoritative optimization decision space. Falling back to default
+    # solvent catalogs for polymers missing from the compiled table creates
+    # zero-coefficient ghost wash choices, so defaults are only used for the
+    # legacy workbook-only path.
+    derived_sets = derive_optimizer_sets_from_df(
+        strap_source_df,
+        fallback_defaults=strap_df is None,
+    )
 
     sets = {
         "I": ["st1", *available_othertech],
@@ -501,7 +618,14 @@ def load_all_data(excel_path=None,
         "S_PE": derived_sets["S_PE"],
         "S_EV1": derived_sets["S_EV1"],
         "S_EV2": derived_sets["S_EV2"],
+        "S_PET": derived_sets["S_PET"],
+        "S_PP": derived_sets["S_PP"],
+        "S_PS": derived_sets["S_PS"],
+        "S_PVC": derived_sets["S_PVC"],
+        "S_PC": derived_sets["S_PC"],
         "W": derived_sets["W"],
+        "S_BY_STAGE_POLYMER": derived_sets["S_BY_STAGE_POLYMER"],
+        "S_BY_POLYMER": derived_sets["S_BY_POLYMER"],
     }
 
     return {"strap": strap, "strap_df": strap_source_df.copy(), "other": other, "sets": sets}

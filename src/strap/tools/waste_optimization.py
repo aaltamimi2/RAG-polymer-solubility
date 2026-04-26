@@ -3,7 +3,11 @@ Multi-layer Plastic Waste Optimization Tool.
 Integrates BioSTEAM simulations with Pyomo superstructure optimization.
 """
 import json
+import math
 import logging
+import contextlib
+import io
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
@@ -13,7 +17,12 @@ import pyomo.environ as pyo
 
 from strap.solvent_registry import resolve_to_biosteam
 from strap.tools._helpers import safe_tool_wrapper
-from strap.services.biosteam_service import json_tool_response, json_tool_error, build_single_config
+from strap.services.biosteam_service import (
+    POLYMER_MARKET_VALUES,
+    build_single_config,
+    json_tool_error,
+    json_tool_response,
+)
 from strap.vendor.biosteam_runner import run_single_simulation
 from strap.waste_management.data_loader import (
     STRAP_UNIT_COLS,
@@ -22,6 +31,7 @@ from strap.waste_management.data_loader import (
 )
 from strap.waste_management.model import build_model
 from strap.waste_management.solver import (
+    consume_last_solver_debug,
     pareto_cost_vs_ce,
     pareto_cost_vs_emissions,
     solve_single,
@@ -32,12 +42,29 @@ logger = logging.getLogger(__name__)
 _NUMERIC_WORKBOOK_COLUMNS = tuple(STRAP_UNIT_COLS.values())
 _OPTIMIZATION_POLYMER_ALIASES = {
     "PE": "PE",
+    "POLYETHYLENE": "PE",
     "HDPE": "PE",
     "LDPE": "PE",
     "EVOH": "EVOH",
+    "PET": "PET",
+    "POLYETHYLENE TEREPHTHALATE": "PET",
+    "PP": "PP",
+    "POLYPROPYLENE": "PP",
+    "PS": "PS",
+    "POLYSTYRENE": "PS",
+    "PVC": "PVC",
+    "POLYVINYL CHLORIDE": "PVC",
+    "POLY(VINYL CHLORIDE)": "PVC",
+    "PC": "PC",
+    "POLYCARBONATE": "PC",
 }
 _VALID_ROUTE_POOL_MODES = {"exact", "slot_independent"}
 _COEFFICIENT_SOURCE_COLUMN = "coefficient_source"
+_ACTUAL_SOLVENT_COLUMN = "actual_solvent"
+_OPTIMIZER_OPTION_COLUMN = "optimizer_option"
+_DISSOLUTION_TEMP_COLUMN = "dissolution_temperature_c"
+_PRECIPITATION_TEMP_COLUMN = "precipitation_temperature_c"
+_TEMPERATURE_SOURCE_COLUMN = "temperature_source"
 _BIOSTEAM_SIM_CACHE: dict[tuple[Any, ...], dict[str, Any]] = {}
 _BIOSTEAM_BATCH_PARALLEL = 3
 _BIOSTEAM_TIMEOUT_SEC = 45
@@ -55,18 +82,215 @@ _BIOSTEAM_RUNTIME_DENYLIST: dict[tuple[str, str], dict[str, str]] = {
         "reason": "RuntimeError: <System: PE/Tetrahydropyran> <HXutility: H2> Failed to extrapolate vapor pressure method 'LANDOLT'",
     },
 }
+for _polymer in ("PET", "PP", "PS", "PVC", "PC"):
+    _BIOSTEAM_RUNTIME_DENYLIST.setdefault(
+        (_polymer, "hexamethylphosphoramide"),
+        _BIOSTEAM_RUNTIME_DENYLIST[("PE", "hexamethylphosphoramide")],
+    )
+for _polymer in ("PET", "PP", "PS", "PVC"):
+    _BIOSTEAM_RUNTIME_DENYLIST.setdefault(
+        (_polymer, "Tetrahydropyran"),
+        _BIOSTEAM_RUNTIME_DENYLIST[("PE", "Tetrahydropyran")],
+    )
 _SCIP_CONSTRAINED_OPTION_LADDER: tuple[dict[str, Any] | None, ...] = (
     None,
     {"presolving/maxrounds": 0},
     {"presolving/maxrounds": 0, "randomization/randomseedshift": 1},
 )
+_PARETO_SWEEP_SOLVE_TIME_LIMIT_SEC = 30
+_LANDSCAPE_SOLVE_TIME_LIMIT_SEC = 20
+_LANDSCAPE_MAX_FORCED_DESIGNS = 120
+_COMPACT_POINT_FIELDS = (
+    "raw_point_id",
+    "point_id",
+    "landscape_point_id",
+    "point_status",
+    "is_frontier",
+    "selection_origin",
+    "total_cost",
+    "emissions",
+    "circularity_score",
+    "stage1_tech",
+    "stage2_tech",
+    "stage3_tech",
+    "stage3_variants",
+    "wash1_selection",
+    "wash2_selection",
+    "recovered_polymers",
+    "residual_polymers",
+    "residual_destination_stage",
+    "residual_destination_tech",
+    "recovered_mass_tpy_by_polymer",
+    "saleable_recovered_mass_tpy_by_polymer",
+    "residual_mass_tpy_by_polymer",
+)
+
+
+def _with_scip_time_limit(
+    option_ladder: tuple[dict[str, Any] | None, ...],
+    seconds: int,
+) -> tuple[dict[str, Any], ...]:
+    return tuple(
+        {
+            **dict(options or {}),
+            "limits/time": seconds,
+        }
+        for options in option_ladder
+    )
+
+
+_SCIP_PARETO_SWEEP_OPTION_LADDER = _with_scip_time_limit(
+    _SCIP_CONSTRAINED_OPTION_LADDER,
+    _PARETO_SWEEP_SOLVE_TIME_LIMIT_SEC,
+)
+
+
+def _coerce_temperature_c(value: Any) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(numeric):
+        return None
+    if numeric.is_integer():
+        return float(int(numeric))
+    return round(numeric, 4)
+
+
+def _format_optimizer_option(
+    solvent: str,
+    *,
+    dissolution_temp_c: float | None = None,
+    precipitation_temp_c: float | None = None,
+) -> str:
+    solvent_text = str(solvent or "").strip()
+    if not solvent_text:
+        return ""
+    if dissolution_temp_c is None and precipitation_temp_c is None:
+        return solvent_text
+    if dissolution_temp_c is not None and precipitation_temp_c is not None:
+        return f"{solvent_text} @ {dissolution_temp_c:g}C / ppt {precipitation_temp_c:g}C"
+    if dissolution_temp_c is not None:
+        return f"{solvent_text} @ {dissolution_temp_c:g}C"
+    return f"{solvent_text} @ ppt {precipitation_temp_c:g}C"
+
+
+def _extract_base_solvent_name(option_label: Any) -> str:
+    text = str(option_label or "").strip()
+    if not text:
+        return ""
+    return text.split(" @ ", 1)[0].strip()
+
+
+def _is_placeholder_solvent(solvent: Any) -> bool:
+    text = str(solvent or "").strip().lower()
+    if not text:
+        return True
+    placeholder_signals = (
+        "n/a",
+        "solid residue",
+        "residue",
+        "no solvent",
+        "not applicable",
+    )
+    return any(signal in text for signal in placeholder_signals)
+
+
+def _stage_candidate_variants(
+    stage_candidates_json: dict[str, Any] | str | None,
+) -> dict[str, list[dict[str, Any]]]:
+    payload = _parse_stage_candidates(stage_candidates_json)
+    if payload is None:
+        return {}
+    variants: dict[str, list[dict[str, Any]]] = {}
+    seen: set[tuple[str, str, float | None, float | None]] = set()
+    for stage in payload.get("stages") or []:
+        if not isinstance(stage, dict):
+            continue
+        polymer = _normalize_optimization_polymer(stage.get("target_polymer"))
+        if polymer is None:
+            continue
+        for pair in stage.get("candidate_pairs") or []:
+            if not isinstance(pair, dict):
+                continue
+            actual_solvent = str(pair.get("solvent") or "").strip()
+            if not actual_solvent or _is_placeholder_solvent(actual_solvent):
+                continue
+            dissolution_temp = _coerce_temperature_c(pair.get("dissolution_temp_c"))
+            precipitation_temp = _coerce_temperature_c(pair.get("precipitation_temp_c"))
+            key = (polymer, actual_solvent, dissolution_temp, precipitation_temp)
+            if key in seen:
+                continue
+            seen.add(key)
+            option_label = str(pair.get("optimizer_option") or "").strip() or _format_optimizer_option(
+                actual_solvent,
+                dissolution_temp_c=dissolution_temp,
+                precipitation_temp_c=precipitation_temp,
+            )
+            variants.setdefault(polymer, []).append(
+                {
+                    "polymer": polymer,
+                    "solvent": actual_solvent,
+                    "optimizer_option": option_label,
+                    "dissolution_temp_c": dissolution_temp,
+                    "precipitation_temp_c": precipitation_temp,
+                    "temperature_source": str(pair.get("temperature_source") or ("upstream_explicit" if dissolution_temp is not None else "biosteam_default")),
+                }
+            )
+    return variants
+
+
+def _initialize_option_metadata(df: pd.DataFrame) -> pd.DataFrame:
+    initialized = df.copy()
+    if _ACTUAL_SOLVENT_COLUMN not in initialized.columns:
+        initialized[_ACTUAL_SOLVENT_COLUMN] = initialized.get("Solvents")
+    else:
+        missing = initialized[_ACTUAL_SOLVENT_COLUMN].isna() | initialized[_ACTUAL_SOLVENT_COLUMN].astype(str).str.strip().eq("")
+        initialized.loc[missing, _ACTUAL_SOLVENT_COLUMN] = initialized.loc[missing, "Solvents"]
+    initialized[_ACTUAL_SOLVENT_COLUMN] = initialized[_ACTUAL_SOLVENT_COLUMN].astype(str)
+
+    if _OPTIMIZER_OPTION_COLUMN not in initialized.columns:
+        initialized[_OPTIMIZER_OPTION_COLUMN] = initialized.get("Solvents")
+    else:
+        missing = initialized[_OPTIMIZER_OPTION_COLUMN].isna() | initialized[_OPTIMIZER_OPTION_COLUMN].astype(str).str.strip().eq("")
+        initialized.loc[missing, _OPTIMIZER_OPTION_COLUMN] = initialized.loc[missing, "Solvents"]
+    initialized[_OPTIMIZER_OPTION_COLUMN] = initialized[_OPTIMIZER_OPTION_COLUMN].astype(str)
+
+    for column in (_DISSOLUTION_TEMP_COLUMN, _PRECIPITATION_TEMP_COLUMN):
+        if column not in initialized.columns:
+            initialized[column] = pd.NA
+    for column in (_DISSOLUTION_TEMP_COLUMN, _PRECIPITATION_TEMP_COLUMN):
+        initialized[column] = pd.to_numeric(initialized[column], errors="coerce")
+
+    if _TEMPERATURE_SOURCE_COLUMN not in initialized.columns:
+        initialized[_TEMPERATURE_SOURCE_COLUMN] = "biosteam_default"
+    else:
+        initialized[_TEMPERATURE_SOURCE_COLUMN] = initialized[_TEMPERATURE_SOURCE_COLUMN].fillna("biosteam_default").astype(str)
+    return initialized
 
 
 def _parse_csv_list(values: list[str] | str | None) -> list[str]:
     if values is None:
         return []
     if isinstance(values, str):
-        raw_items = values.split(",")
+        stripped = values.strip()
+        if stripped.startswith("{"):
+            try:
+                decoded = json.loads(stripped)
+            except json.JSONDecodeError:
+                decoded = None
+            if isinstance(decoded, dict):
+                raw_items = [
+                    item
+                    for entry in decoded.values()
+                    for item in (entry if isinstance(entry, list) else [entry])
+                ]
+            else:
+                raw_items = values.split(",")
+        else:
+            raw_items = values.split(",")
     elif isinstance(values, list):
         raw_items = values
     else:
@@ -83,10 +307,36 @@ def _parse_csv_list(values: list[str] | str | None) -> list[str]:
     return items
 
 
+def _parse_polymer_solvent_mapping_like(value: Any) -> dict[str, list[str]]:
+    """Parse a polymer->solvent-list mapping that was passed through a loose arg.
+
+    LLM tool calls sometimes put a JSON mapping into `candidate_solvents`
+    instead of `polymer_solvent_filters_json`. Treat that as scoped filters
+    rather than comma-splitting it into invalid solvent fragments such as
+    ``PP": ["Toluene``.
+    """
+    if value in (None, "", {}):
+        return {}
+    if isinstance(value, dict):
+        return _parse_polymer_solvent_filters(value)
+    if not isinstance(value, str):
+        return {}
+    text = value.strip()
+    if not text.startswith("{"):
+        return {}
+    try:
+        decoded = json.loads(text)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(decoded, dict):
+        return {}
+    return _parse_polymer_solvent_filters(decoded)
+
+
 def _normalize_optimization_polymer(polymer: Any) -> str | None:
     if polymer is None:
         return None
-    text = str(polymer).strip().upper()
+    text = str(polymer).strip().strip("\"'").strip().upper()
     if not text:
         return None
     return _OPTIMIZATION_POLYMER_ALIASES.get(text)
@@ -152,13 +402,7 @@ def _normalize_route_pool_mode(value: Any) -> str | None:
 def _extract_route_candidates(
     stage_candidates_json: dict[str, Any] | str | None,
 ) -> list[dict[str, Any]]:
-    """Return the route_candidates field from a typed stage-candidates payload.
-
-    Each route preserves polymer→solvent coupling from the upstream DP
-    separation planner. Unknown or malformed routes are filtered out; the
-    caller treats an empty list as "no route enforcement available, fall back
-    to per-polymer filters."
-    """
+    """Return route_candidates from a typed stage-candidates payload."""
     payload = _parse_stage_candidates(stage_candidates_json)
     if payload is None:
         return []
@@ -179,6 +423,25 @@ def _extract_route_candidates(
             mapping[polymer_key] = solvent_str
         if not mapping:
             continue
+        step_conditions: list[dict[str, Any]] = []
+        for step in entry.get("step_conditions") or []:
+            if not isinstance(step, dict):
+                continue
+            polymer_key = _normalize_optimization_polymer(step.get("polymer"))
+            actual_solvent = str(step.get("solvent") or "").strip()
+            if polymer_key is None or not actual_solvent:
+                continue
+            optimizer_option = str(step.get("optimizer_option") or mapping.get(polymer_key) or actual_solvent).strip()
+            step_conditions.append(
+                {
+                    "polymer": polymer_key,
+                    "solvent": actual_solvent,
+                    "optimizer_option": optimizer_option,
+                    "dissolution_temp_c": _coerce_temperature_c(step.get("dissolution_temp_c") or step.get("temperature_c")),
+                    "precipitation_temp_c": _coerce_temperature_c(step.get("precipitation_temp_c")),
+                    "temperature_source": str(step.get("temperature_source") or ("upstream_explicit" if step.get("temperature_c") is not None or step.get("dissolution_temp_c") is not None else "biosteam_default")),
+                }
+            )
         routes.append(
             {
                 "route_id": str(entry.get("route_id") or f"route_{len(routes) + 1}"),
@@ -186,6 +449,8 @@ def _extract_route_candidates(
                 "sequence": list(entry.get("sequence") or []),
                 "source": str(entry.get("source") or ""),
                 "polymer_solvent_map": mapping,
+                "actual_solvent_map": dict(entry.get("actual_solvent_map") or {}),
+                "step_conditions": step_conditions,
             }
         )
     return routes
@@ -217,21 +482,21 @@ def _derive_filters_from_stage_candidates(
         if polymer is None:
             continue
         stage_candidates = stage.get("candidate_pairs") or []
-        solvents: list[str] = []
-        seen_solvents: set[str] = set()
+        options: list[str] = []
+        seen_options: set[str] = set()
         for pair in stage_candidates:
             if not isinstance(pair, dict):
                 continue
-            solvent = str(pair.get("solvent") or "").strip()
-            if not solvent or solvent in seen_solvents:
+            option_label = str(pair.get("optimizer_option") or pair.get("solvent") or "").strip()
+            if not option_label or option_label in seen_options:
                 continue
-            seen_solvents.add(solvent)
-            solvents.append(solvent)
-            if solvent not in seen_global:
-                seen_global.add(solvent)
-                global_candidates.append(solvent)
-        if solvents:
-            polymer_filters[polymer] = solvents
+            seen_options.add(option_label)
+            options.append(option_label)
+            if option_label not in seen_global:
+                seen_global.add(option_label)
+                global_candidates.append(option_label)
+        if options:
+            polymer_filters[polymer] = options
 
     return (
         polymer_filters,
@@ -252,9 +517,12 @@ def _build_available_solvent_index(available: list[str]) -> dict[str, str]:
         actual = str(solvent).strip()
         if not actual:
             continue
+        base = _extract_base_solvent_name(actual)
         variants = {
             actual,
+            base,
             resolve_to_biosteam(actual) or "",
+            resolve_to_biosteam(base) or "",
             actual.replace("_", " "),
             actual.replace("-", " "),
         }
@@ -265,14 +533,22 @@ def _build_available_solvent_index(available: list[str]) -> dict[str, str]:
     return index
 
 
-def _canonicalize_requested_solvents(requested: list[str], available: list[str]) -> list[str]:
+def _canonicalize_requested_solvents(
+    requested: list[str],
+    available: list[str],
+    *,
+    allow_unmatched_biosteam: bool = False,
+) -> list[str]:
     available_index = _build_available_solvent_index(available)
     allowed: list[str] = []
     seen: set[str] = set()
     for solvent in requested:
+        raw_text = str(solvent or "").strip()
+        if not raw_text:
+            continue
         candidates = [
-            str(solvent or "").strip(),
-            resolve_to_biosteam(str(solvent or "").strip()) or "",
+            raw_text,
+            resolve_to_biosteam(raw_text) or "",
         ]
         matched: str | None = None
         for candidate in candidates:
@@ -280,6 +556,8 @@ def _canonicalize_requested_solvents(requested: list[str], available: list[str])
             if key and key in available_index:
                 matched = available_index[key]
                 break
+        if matched is None and allow_unmatched_biosteam:
+            matched = resolve_to_biosteam(raw_text) or raw_text
         if matched and matched not in seen:
             seen.add(matched)
             allowed.append(matched)
@@ -290,31 +568,73 @@ def _build_materialization_allowlist(
     *,
     candidate_solvents: list[str] | str | None = None,
     polymer_solvent_filters_json: dict[str, Any] | str | None = None,
-) -> dict[tuple[str, str], list[str]] | None:
-    global_candidates = _parse_csv_list(candidate_solvents)
-    polymer_filters = _parse_polymer_solvent_filters(polymer_solvent_filters_json)
-    if not global_candidates and not polymer_filters:
+    stage_candidates_json: dict[str, Any] | str | None = None,
+) -> dict[tuple[str, str], list[Any]] | None:
+    candidate_mapping_filters = _parse_polymer_solvent_mapping_like(candidate_solvents)
+    global_candidates = [] if candidate_mapping_filters else _parse_csv_list(candidate_solvents)
+    polymer_filters = {
+        **candidate_mapping_filters,
+        **_parse_polymer_solvent_filters(polymer_solvent_filters_json),
+    }
+    stage_variants = _stage_candidate_variants(stage_candidates_json)
+    if not global_candidates and not polymer_filters and not stage_variants:
         return None
 
     default_sets = get_optimizer_default_sets()
-    allowlist: dict[tuple[str, str], list[str]] = {}
-
-    pe_requested = polymer_filters.get("PE") or global_candidates
-    if pe_requested:
-        pe_allowed = _canonicalize_requested_solvents(pe_requested, default_sets["S_PE"])
-        allowlist[("Wash 1", "PE")] = list(pe_allowed)
-        allowlist[("Wash 2", "PE")] = list(pe_allowed)
-
-    evoh_requested = polymer_filters.get("EVOH") or global_candidates
-    if evoh_requested:
-        allowlist[("Wash 1", "EVOH")] = _canonicalize_requested_solvents(
-            evoh_requested,
-            default_sets["S_EV1"],
-        )
-        allowlist[("Wash 2", "EVOH")] = _canonicalize_requested_solvents(
-            evoh_requested,
-            default_sets["S_EV2"],
-        )
+    stage_map = default_sets.get("S_BY_STAGE_POLYMER", {})
+    ordered_polymers = list(default_sets.get("P", []))
+    for polymer in list(polymer_filters) + list(stage_variants):
+        if polymer not in ordered_polymers:
+            ordered_polymers.append(polymer)
+    allowlist: dict[tuple[str, str], list[Any]] = {}
+    for polymer in ordered_polymers:
+        requested_variants = stage_variants.get(polymer) or []
+        requested = polymer_filters.get(polymer)
+        if requested is None and not requested_variants:
+            requested = [] if (polymer_filters or stage_variants) else global_candidates
+        if not requested and not requested_variants:
+            continue
+        for wash in ("Wash 1", "Wash 2"):
+            available = list((stage_map.get(wash) or {}).get(polymer, []))
+            allowed: list[Any] = []
+            if requested_variants:
+                for variant in requested_variants:
+                    actual_solvent = str(variant.get("solvent") or "").strip()
+                    matched = _canonicalize_requested_solvents(
+                        [actual_solvent],
+                        available,
+                        allow_unmatched_biosteam=True,
+                    )
+                    canonical_actual = matched[0] if matched else (resolve_to_biosteam(actual_solvent) or actual_solvent)
+                    allowed.append(
+                        {
+                            "polymer": polymer,
+                            "solvent": canonical_actual,
+                            "optimizer_option": str(
+                                variant.get("optimizer_option")
+                                or _format_optimizer_option(
+                                    canonical_actual,
+                                    dissolution_temp_c=_coerce_temperature_c(variant.get("dissolution_temp_c")),
+                                    precipitation_temp_c=_coerce_temperature_c(variant.get("precipitation_temp_c")),
+                                )
+                            ),
+                            "dissolution_temp_c": _coerce_temperature_c(variant.get("dissolution_temp_c")),
+                            "precipitation_temp_c": _coerce_temperature_c(variant.get("precipitation_temp_c")),
+                            "temperature_source": str(
+                                variant.get("temperature_source")
+                                or ("upstream_explicit" if variant.get("dissolution_temp_c") is not None else "biosteam_default")
+                            ),
+                        }
+                    )
+            else:
+                allowed = list(
+                    _canonicalize_requested_solvents(
+                        requested,
+                        available,
+                        allow_unmatched_biosteam=True,
+                    )
+                )
+            allowlist[(wash, polymer)] = allowed
 
     return allowlist
 
@@ -322,11 +642,11 @@ def _build_materialization_allowlist(
 def _materialize_optimizer_workbook_rows(
     df: pd.DataFrame,
     *,
-    allowed_solvents_by_slot: dict[tuple[str, str], list[str]] | None = None,
+    allowed_solvents_by_slot: dict[tuple[str, str], list[Any]] | None = None,
 ) -> pd.DataFrame:
     """Expand the workbook sheet to the shared optimizer solvent catalog."""
 
-    expanded_df = df.copy()
+    expanded_df = _initialize_option_metadata(df)
     if _COEFFICIENT_SOURCE_COLUMN not in expanded_df.columns:
         expanded_df[_COEFFICIENT_SOURCE_COLUMN] = "workbook_baseline"
     else:
@@ -334,28 +654,39 @@ def _materialize_optimizer_workbook_rows(
             expanded_df[_COEFFICIENT_SOURCE_COLUMN].fillna("workbook_baseline").astype(str)
         )
     default_sets = get_optimizer_default_sets()
-    targets = (
-        ("Wash 1", "PE", default_sets["S_PE"]),
-        ("Wash 2", "PE", default_sets["S_PE"]),
-        ("Wash 1", "EVOH", default_sets["S_EV1"]),
-        ("Wash 2", "EVOH", default_sets["S_EV2"]),
-    )
+    stage_map = default_sets.get("S_BY_STAGE_POLYMER", {})
+    target_slots: list[tuple[str, str, list[Any]]] = []
+    seen_slots: set[tuple[str, str]] = set()
+    for wash, polymer_map in stage_map.items():
+        for polymer, solvents in polymer_map.items():
+            slot = (wash, polymer)
+            if slot in seen_slots:
+                continue
+            seen_slots.add(slot)
+            target_slots.append((wash, polymer, list(solvents)))
+    for slot, solvents in (allowed_solvents_by_slot or {}).items():
+        wash, polymer = slot
+        if slot in seen_slots:
+            continue
+        seen_slots.add(slot)
+        target_slots.append((wash, polymer, list(solvents)))
 
     additions: list[pd.Series] = []
-    for wash, polymer, solvents in targets:
+    for wash, polymer, solvents in target_slots:
         mask = expanded_df["Wash number"].eq(wash) & expanded_df["Polymer"].eq(polymer)
-        template_rows = expanded_df.loc[mask]
+        existing_rows = expanded_df.loc[mask]
+        template_rows = existing_rows
         if template_rows.empty:
-            logger.warning(
-                "Unable to materialize optimizer rows for %s/%s because the template row is missing.",
-                wash,
-                polymer,
-            )
+            template_rows = expanded_df.loc[expanded_df["Wash number"].eq(wash)]
+        if template_rows.empty:
+            template_rows = expanded_df
+        if template_rows.empty:
+            logger.warning("Unable to materialize optimizer rows because no workbook template rows are available.")
             continue
         template = template_rows.iloc[0].copy()
         existing = {
             str(solvent).strip()
-            for solvent in template_rows["Solvents"].dropna().astype(str)
+            for solvent in existing_rows["Solvents"].dropna().astype(str)
             if str(solvent).strip()
         }
         candidate_solvents = (
@@ -363,13 +694,40 @@ def _materialize_optimizer_workbook_rows(
             if allowed_solvents_by_slot is not None
             else solvents
         )
-        for solvent in candidate_solvents:
-            if solvent in existing:
+        for candidate in candidate_solvents:
+            if isinstance(candidate, dict):
+                actual_solvent = str(candidate.get("solvent") or "").strip()
+                option_label = str(
+                    candidate.get("optimizer_option")
+                    or _format_optimizer_option(
+                        actual_solvent,
+                        dissolution_temp_c=_coerce_temperature_c(candidate.get("dissolution_temp_c")),
+                        precipitation_temp_c=_coerce_temperature_c(candidate.get("precipitation_temp_c")),
+                    )
+                ).strip()
+                dissolution_temp = _coerce_temperature_c(candidate.get("dissolution_temp_c"))
+                precipitation_temp = _coerce_temperature_c(candidate.get("precipitation_temp_c"))
+                temperature_source = str(
+                    candidate.get("temperature_source")
+                    or ("upstream_explicit" if dissolution_temp is not None else "biosteam_default")
+                )
+            else:
+                actual_solvent = str(candidate).strip()
+                option_label = actual_solvent
+                dissolution_temp = None
+                precipitation_temp = None
+                temperature_source = "biosteam_default"
+            if not option_label or option_label in existing:
                 continue
             new_row = template.copy()
             new_row["Wash number"] = wash
             new_row["Polymer"] = polymer
-            new_row["Solvents"] = solvent
+            new_row["Solvents"] = option_label
+            new_row[_ACTUAL_SOLVENT_COLUMN] = actual_solvent or option_label
+            new_row[_OPTIMIZER_OPTION_COLUMN] = option_label
+            new_row[_DISSOLUTION_TEMP_COLUMN] = dissolution_temp
+            new_row[_PRECIPITATION_TEMP_COLUMN] = precipitation_temp
+            new_row[_TEMPERATURE_SOURCE_COLUMN] = temperature_source
             new_row[_COEFFICIENT_SOURCE_COLUMN] = "materialized_clone"
             for column in _NUMERIC_WORKBOOK_COLUMNS:
                 if column in new_row.index:
@@ -378,7 +736,7 @@ def _materialize_optimizer_workbook_rows(
 
     if additions:
         expanded_df = pd.concat([expanded_df, pd.DataFrame(additions)], ignore_index=True)
-    return expanded_df
+    return _initialize_option_metadata(expanded_df)
 
 
 def _solvent_filter_status(
@@ -439,11 +797,18 @@ def _apply_solvent_filters(
     *,
     candidate_solvents: list[str] | str | None = None,
     polymer_solvent_filters_json: dict[str, Any] | str | None = None,
+    stage_candidates_json: dict[str, Any] | str | None = None,
     constraint_mode: str | None = None,
     fallback_policy: str | None = None,
 ) -> tuple[pd.DataFrame, dict[str, list[str]], list[str], dict[str, list[str]]]:
-    global_candidates = _parse_csv_list(candidate_solvents)
-    polymer_filters = _parse_polymer_solvent_filters(polymer_solvent_filters_json)
+    candidate_mapping_filters = _parse_polymer_solvent_mapping_like(candidate_solvents)
+    global_candidates = [] if candidate_mapping_filters else _parse_csv_list(candidate_solvents)
+    polymer_filters = {
+        **candidate_mapping_filters,
+        **_parse_polymer_solvent_filters(polymer_solvent_filters_json),
+    }
+    has_typed_stage_candidates = _parse_stage_candidates(stage_candidates_json) is not None
+    authoritative_stage_filters = has_typed_stage_candidates and bool(polymer_filters)
     requested_filters = {
         "global": global_candidates,
         **polymer_filters,
@@ -454,11 +819,17 @@ def _apply_solvent_filters(
     filtered_df = df.copy()
     warnings: list[str] = []
     applied_filters: dict[str, list[str]] = {}
-    keep_mask = ~filtered_df["Polymer"].isin(["PE", "EVOH"])
+    optimizer_polymers = list(get_optimizer_default_sets().get("P", []))
+    for polymer in polymer_filters:
+        if polymer not in optimizer_polymers:
+            optimizer_polymers.append(polymer)
+    keep_mask = ~filtered_df["Polymer"].isin(optimizer_polymers)
 
-    for polymer in ("PE", "EVOH"):
+    for polymer in optimizer_polymers:
         polymer_mask = filtered_df["Polymer"].eq(polymer)
         if not polymer_mask.any():
+            continue
+        if authoritative_stage_filters and polymer not in polymer_filters:
             continue
 
         available = list(
@@ -468,7 +839,9 @@ def _apply_solvent_filters(
                 if str(solvent).strip()
             )
         )
-        requested = polymer_filters.get(polymer) or global_candidates
+        requested = polymer_filters.get(polymer)
+        if requested is None:
+            requested = [] if authoritative_stage_filters else global_candidates
         allowed = _canonicalize_requested_solvents(requested, available)
 
         if requested and allowed:
@@ -476,7 +849,7 @@ def _apply_solvent_filters(
             applied_filters[polymer] = allowed
             continue
 
-        if requested and not allowed and constraint_mode in {"fixed", "hard"} and fallback_policy == "fail_closed":
+        if requested and not allowed and constraint_mode in {"fixed", "hard", "ranked_soft"} and fallback_policy == "fail_closed":
             return filtered_df.loc[filtered_df["Polymer"].isin([])].copy(), applied_filters, [
                 f"No {polymer} solvent overlap between upstream shortlist and the shared optimization catalog under fail-closed semantics."
             ], requested_filters
@@ -530,26 +903,161 @@ def _map_biosteam_to_strap_row(strap_data_row, res_json, capacity_tons_yr):
     return strap_data_row
 
 
-def _validate_feed_inputs(
-    feed: float,
-    pe_fraction: float,
-    pet_fraction: float,
-    n6_fraction: float,
-    evoh_fraction: float,
-) -> None:
+def _parse_feed_composition_json(
+    feed_composition_json: dict[str, Any] | str | None,
+) -> dict[str, float]:
+    if feed_composition_json in (None, "", {}):
+        return {}
+    if isinstance(feed_composition_json, str):
+        payload = json.loads(feed_composition_json)
+    elif isinstance(feed_composition_json, dict):
+        payload = dict(feed_composition_json)
+    else:
+        raise TypeError("feed_composition_json must be a JSON string or mapping")
+    if not isinstance(payload, dict):
+        raise TypeError("feed_composition_json must decode to a mapping")
+    fractions: dict[str, float] = {}
+    for polymer, raw in payload.items():
+        polymer_text = str(polymer).strip().strip("\"'").strip()
+        polymer_key = _normalize_optimization_polymer(polymer_text) or polymer_text.upper()
+        if not polymer_key:
+            continue
+        fractions[polymer_key] = float(raw)
+    return fractions
+
+
+def _parse_composition_slices_json(
+    composition_slices_json: dict[str, Any] | list[Any] | str | None,
+) -> list[dict[str, Any]]:
+    """Normalize fixed feed-composition slices for repeated Pareto sweeps."""
+    if composition_slices_json in (None, "", {}, []):
+        return []
+    if isinstance(composition_slices_json, str):
+        payload = json.loads(composition_slices_json)
+    else:
+        payload = composition_slices_json
+
+    if isinstance(payload, dict):
+        if isinstance(payload.get("slices"), list):
+            raw_items = list(payload["slices"])
+        else:
+            raw_items = [
+                {"label": str(label), "feed_composition": composition}
+                for label, composition in payload.items()
+            ]
+    elif isinstance(payload, list):
+        raw_items = list(payload)
+    else:
+        raise TypeError("composition_slices_json must decode to a list or mapping")
+
+    slices: list[dict[str, Any]] = []
+    for index, item in enumerate(raw_items, start=1):
+        label = f"slice_{index}"
+        composition_value: Any = item
+        if isinstance(item, dict) and (
+            "feed_composition" in item
+            or "composition" in item
+            or "feed_composition_json" in item
+        ):
+            label = str(item.get("label") or item.get("name") or label)
+            if "feed_composition" in item:
+                composition_value = item.get("feed_composition")
+            elif "composition" in item:
+                composition_value = item.get("composition")
+            else:
+                composition_value = item.get("feed_composition_json")
+        composition = _parse_feed_composition_json(composition_value)
+        if not composition:
+            raise ValueError(f"Composition slice {index} is missing a feed composition mapping")
+        slices.append(
+            {
+                "slice_id": f"slice_{index}",
+                "label": label,
+                "feed_composition": composition,
+            }
+        )
+    return slices
+
+
+def _build_feed_fraction_map(
+    *,
+    pe_fraction: float | None,
+    pet_fraction: float | None,
+    n6_fraction: float | None,
+    evoh_fraction: float | None,
+    feed_composition_json: dict[str, Any] | str | None = None,
+) -> dict[str, float]:
+    parsed = _parse_feed_composition_json(feed_composition_json)
+    if parsed:
+        return parsed
+    missing = [
+        name
+        for name, value in (
+            ("pe_fraction", pe_fraction),
+            ("pet_fraction", pet_fraction),
+            ("n6_fraction", n6_fraction),
+            ("evoh_fraction", evoh_fraction),
+        )
+        if value is None
+    ]
+    if missing:
+        raise TypeError(
+            "feed_composition_json must be provided when legacy fraction arguments are omitted. "
+            f"Missing: {', '.join(missing)}."
+        )
+    return {
+        "PE": float(pe_fraction),
+        "PET": float(pet_fraction),
+        "N6": float(n6_fraction),
+        "EVOH": float(evoh_fraction),
+    }
+
+
+def _validate_feed_inputs(feed: float, feed_fractions: dict[str, float]) -> None:
     assert feed > 0, "Feed must be greater than 0"
-    total_frac = pe_fraction + pet_fraction + n6_fraction + evoh_fraction
+    total_frac = sum(float(value) for value in feed_fractions.values())
     assert abs(total_frac - 1.0) < 0.01, f"Fractions must sum to 1.0, got {total_frac}"
+    for polymer, value in feed_fractions.items():
+        assert value >= 0.0, f"Feed fraction for {polymer} must be non-negative"
+
+
+def _format_feed_composition(feed_fractions: dict[str, float]) -> str:
+    ordered = []
+    seen: set[str] = set()
+    for polymer in ("PE", "EVOH", "PET", "PP", "PS", "PVC", "PC", "N6"):
+        if polymer in feed_fractions:
+            ordered.append(polymer)
+            seen.add(polymer)
+    for polymer in feed_fractions:
+        if polymer not in seen:
+            ordered.append(polymer)
+    return ", ".join(f"{feed_fractions[polymer] * 100:.1f}% {polymer}" for polymer in ordered)
+
+
+def _composition_slug(feed_fractions: dict[str, float]) -> str:
+    parts: list[str] = []
+    for polymer in sorted(feed_fractions):
+        pct = float(feed_fractions[polymer]) * 100.0
+        pct_text = f"{pct:.0f}" if abs(pct - round(pct)) < 1e-6 else f"{pct:.1f}".replace(".", "p")
+        parts.append(f"{polymer.lower()}{pct_text}")
+    return "_".join(parts)
 
 
 def _get_scenario_config(
     scenario: str,
     feed: float,
-    pe_fraction: float,
-    pet_fraction: float,
-    n6_fraction: float,
-    evoh_fraction: float,
+    feed_fractions: dict[str, float],
 ) -> tuple[str, dict[str, Any]]:
+    configured_polymers = list(get_optimizer_default_sets().get("P", []))
+    active_polymers = list(configured_polymers)
+    for polymer in feed_fractions:
+        if polymer not in active_polymers:
+            active_polymers.append(polymer)
+    polymer_market_values_per_ton = {
+        polymer: float(POLYMER_MARKET_VALUES.get(polymer, 0.0)) * 1000.0
+        for polymer in active_polymers
+    }
+    polymer_recovery_yields = {polymer: 0.97 for polymer in active_polymers}
     scen_keys = {
         "A": {
             "other_sheet": "Othertech w TransportA",
@@ -567,12 +1075,16 @@ def _get_scenario_config(
     normalized_scenario = scenario if scenario in scen_keys else "A"
     config = {
         "Feed": feed,
-        "PE_f": pe_fraction,
-        "PET_f": pet_fraction,
-        "N6_f": n6_fraction,
-        "EV_f": evoh_fraction,
-        "Cpe": 1173,
-        "Cevoh": 8100,
+        "PE_f": float(feed_fractions.get("PE", 0.0)),
+        "PET_f": float(feed_fractions.get("PET", 0.0)),
+        "N6_f": float(feed_fractions.get("N6", 0.0)),
+        "EV_f": float(feed_fractions.get("EVOH", 0.0)),
+        "polymer_fractions": dict(feed_fractions),
+        "polymer_market_values_per_ton": polymer_market_values_per_ton,
+        "polymer_recovery_yields": polymer_recovery_yields,
+        "Cpe": polymer_market_values_per_ton.get("PE", 0.0),
+        "Cpet": polymer_market_values_per_ton.get("PET", 0.0),
+        "Cevoh": polymer_market_values_per_ton.get("EVOH", 0.0),
         "Cwte": 259.57,
         "UB_energy": 6.26e7,
         "UB_ghg": 21303.35985408156,
@@ -585,6 +1097,10 @@ def _get_scenario_config(
         "price_heat": 0.13,
         "price_elec": 0.0996,
         "Cgas_pw": 110,
+        "gas_stage2_addon_capex_by_polymer": {
+            "PE": 1.996874495e6,
+            "EVOH": 3.248331031e6,
+        },
         "ce_weights": {"energy": 0.20, "ghg": 0.20, "water": 0.20, "waste": 0.20, "subs": 0.20},
         "distances": scen_keys[normalized_scenario]["distances"],
     }
@@ -620,6 +1136,8 @@ def _classify_sim_failure(result: dict[str, Any] | None) -> tuple[str, str] | No
         return ("worker_alias_failure", error_text or "alias must start with a letter")
     if "undefinedchemicalalias" in lower_error or "undefinedchemicalalias" in lower_type:
         return ("undefined_chemical_alias", error_text or error_type)
+    if "chemical '" in lower_error and "not recognized" in lower_error:
+        return ("undefined_chemical_alias", error_text or error_type or "chemical alias not recognized")
     if "timed out" in lower_error or "timeoutexpired" in lower_type:
         return ("timeout", error_text or error_type or "simulation timed out")
     if result.get("_sim_exception"):
@@ -736,33 +1254,31 @@ def _row_has_sufficient_baseline_for_skip(row) -> bool:
 
 def _run_biosteam_updates(
     df: pd.DataFrame,
-    capacity_pe: float,
-    capacity_evoh: float,
+    polymer_capacities: dict[str, float] | None = None,
     *,
-    pe_fraction_pct: float,
-    evoh_fraction_pct: float,
+    polymer_fraction_pcts: dict[str, float] | None = None,
+    capacity_pe: float | None = None,
+    capacity_evoh: float | None = None,
+    pe_fraction_pct: float | None = None,
+    evoh_fraction_pct: float | None = None,
     prefer_baseline_when_sufficient: bool = True,
 ) -> tuple[pd.DataFrame, list[dict[str, str]], list[dict[str, str]]]:
-    """Overwrite workbook metrics with BioSTEAM sim outputs.
+    """Overwrite workbook metrics with BioSTEAM sim outputs."""
 
-    Rows whose BioSTEAM sim fails are dropped rather than kept with zeroed or
-    stale metrics, so the MINLP never treats a failed sim as a free, zero-impact
-    pathway. A sim is treated as failed if it raised, returned `success: False`,
-    OR returned `success: True` with missing/zero TEA or GWP (because the
-    MINLP would then see a free option). Returns the updated DataFrame and a
-    list of per-(polymer, solvent) failure records with reasons.
-
-    Workbook-backed rows with positive CAPEX/OPEX/GWP can be left untouched
-    when `prefer_baseline_when_sufficient=True`. Those are reported separately
-    as `simulation_skips` so downstream consumers can distinguish "did not
-    simulate because baseline was already sufficient" from "tried to simulate
-    and failed."
-    """
-
-    unique_simulations = {}
+    unique_simulations: dict[tuple[str, str, float, float | None, float | None], dict[str, Any]] = {}
     simulation_skips: list[dict[str, str]] = []
-    seen_skips: set[tuple[str, str, float]] = set()
-    updated_df = df.copy()
+    seen_skips: set[tuple[str, str, float, float | None, float | None]] = set()
+    updated_df = _initialize_option_metadata(df)
+    if polymer_capacities is None:
+        polymer_capacities = {
+            "PE": float(capacity_pe or 1.0),
+            "EVOH": float(capacity_evoh or 1.0),
+        }
+    if polymer_fraction_pcts is None:
+        polymer_fraction_pcts = {
+            "PE": float(pe_fraction_pct or 0.0),
+            "EVOH": float(evoh_fraction_pct or 0.0),
+        }
     if _COEFFICIENT_SOURCE_COLUMN not in updated_df.columns:
         updated_df[_COEFFICIENT_SOURCE_COLUMN] = "workbook_baseline"
     else:
@@ -770,73 +1286,89 @@ def _run_biosteam_updates(
             updated_df[_COEFFICIENT_SOURCE_COLUMN].fillna("workbook_baseline").astype(str)
         )
 
-    rows_to_simulate: set[tuple[str, str, float]] = set()
-    for idx, row in updated_df.iterrows():
+    rows_to_simulate: set[tuple[str, str, float, float | None, float | None]] = set()
+    row_runtime: dict[tuple[str, str, float, float | None, float | None], dict[str, Any]] = {}
+    for _idx, row in updated_df.iterrows():
         wash_number = row.get("Wash number")
         polymer = row.get("Polymer")
-        solvent = row.get("Solvents")
-        if pd.isna(wash_number) or pd.isna(polymer) or pd.isna(solvent):
+        option_solvent = row.get("Solvents")
+        if pd.isna(wash_number) or pd.isna(polymer) or pd.isna(option_solvent):
             continue
 
-        capacity = capacity_pe if polymer == "PE" else capacity_evoh
-        target_plastic_percent = pe_fraction_pct if polymer == "PE" else evoh_fraction_pct
-        key = (str(polymer), str(solvent), float(capacity))
-        source = str(row.get(_COEFFICIENT_SOURCE_COLUMN) or "workbook_baseline").strip() or "workbook_baseline"
+        polymer_key = str(polymer)
+        capacity = float(polymer_capacities.get(polymer_key, 1.0))
+        option_label = str(option_solvent)
+        actual_solvent = str(row.get(_ACTUAL_SOLVENT_COLUMN) or option_label).strip() or option_label
+        dissolution_temp = _coerce_temperature_c(row.get(_DISSOLUTION_TEMP_COLUMN))
+        precipitation_temp = _coerce_temperature_c(row.get(_PRECIPITATION_TEMP_COLUMN))
+        key = (polymer_key, option_label, float(capacity), dissolution_temp, precipitation_temp)
+        row_runtime[key] = {
+            "actual_solvent": actual_solvent,
+            "source": str(row.get(_COEFFICIENT_SOURCE_COLUMN) or "workbook_baseline").strip() or "workbook_baseline",
+        }
 
         if (
             prefer_baseline_when_sufficient
-            and source == "workbook_baseline"
+            and row_runtime[key]["source"] == "workbook_baseline"
             and _row_has_sufficient_baseline_for_skip(row)
         ):
             if key not in seen_skips:
                 seen_skips.add(key)
                 simulation_skips.append(
                     _skip_record(
-                        polymer=key[0],
-                        solvent=key[1],
+                        polymer=polymer_key,
+                        solvent=option_label,
                         reason="baseline_sufficient",
-                        source=source,
+                        source=row_runtime[key]["source"],
                     )
                 )
             continue
         rows_to_simulate.add(key)
 
-    uncached_items: list[tuple[tuple[str, str, float], dict[str, Any], tuple[Any, ...]]] = []
-    for polymer, solvent, capacity in sorted(rows_to_simulate):
-        target_plastic_percent = pe_fraction_pct if polymer == "PE" else evoh_fraction_pct
+    uncached_items: list[tuple[tuple[str, str, float, float | None, float | None], dict[str, Any], tuple[Any, ...]]] = []
+    for polymer, option_label, capacity, dissolution_temp, precipitation_temp in sorted(rows_to_simulate):
+        runtime = row_runtime[(polymer, option_label, capacity, dissolution_temp, precipitation_temp)]
+        actual_solvent = runtime["actual_solvent"]
+        target_plastic_percent = float(polymer_fraction_pcts.get(polymer, 0.0))
         cache_key = (
             polymer,
-            solvent,
+            actual_solvent,
             round(float(capacity), 6),
             round(float(target_plastic_percent), 6),
             "C1",
+            dissolution_temp,
+            precipitation_temp,
             id(run_single_simulation),
         )
         cached_result = _BIOSTEAM_SIM_CACHE.get(cache_key)
         if cached_result is not None:
-            unique_simulations[(polymer, solvent, capacity)] = cached_result
+            unique_simulations[(polymer, option_label, capacity, dissolution_temp, precipitation_temp)] = cached_result
             continue
-        denylisted_result = _build_runtime_denylist_result(polymer, solvent)
+        denylisted_result = _build_runtime_denylist_result(polymer, actual_solvent)
         if denylisted_result is not None:
             _BIOSTEAM_SIM_CACHE[cache_key] = denylisted_result
-            unique_simulations[(polymer, solvent, capacity)] = denylisted_result
+            unique_simulations[(polymer, option_label, capacity, dissolution_temp, precipitation_temp)] = denylisted_result
             continue
 
-        config = build_single_config(
-            solvent=solvent,
-            target_plastic=polymer,
-            target_plastic_percent=target_plastic_percent,
-            processing_capacity=capacity,
-            energy_case="C1",
-        )
-        uncached_items.append(((polymer, solvent, capacity), config, cache_key))
+        config_kwargs = {
+            "solvent": actual_solvent,
+            "target_plastic": polymer,
+            "target_plastic_percent": target_plastic_percent,
+            "processing_capacity": capacity,
+            "energy_case": "C1",
+        }
+        if dissolution_temp is not None:
+            config_kwargs["dissolution_temp_c"] = dissolution_temp
+        if precipitation_temp is not None:
+            config_kwargs["precipitation_temp_c"] = precipitation_temp
+        config = build_single_config(**config_kwargs)
+        uncached_items.append(((polymer, option_label, capacity, dissolution_temp, precipitation_temp), config, cache_key))
 
     if uncached_items:
         def _call_single_simulation(config: dict[str, Any]) -> dict[str, Any]:
             try:
                 return run_single_simulation(config, _BIOSTEAM_TIMEOUT_SEC)
             except TypeError:
-                # Test doubles often keep the older single-argument signature.
                 return run_single_simulation(config)
 
         max_workers = min(_BIOSTEAM_BATCH_PARALLEL, len(uncached_items))
@@ -865,14 +1397,19 @@ def _run_biosteam_updates(
     seen_failures: set[tuple[str, str]] = set()
     for idx, row in updated_df.iterrows():
         polymer = row.get("Polymer")
-        solvent = row.get("Solvents")
-        if pd.isna(polymer) or pd.isna(solvent):
+        option_solvent = row.get("Solvents")
+        if pd.isna(polymer) or pd.isna(option_solvent):
             keep_indices.append(idx)
             continue
 
-        capacity = capacity_pe if polymer == "PE" else capacity_evoh
-        pair = (str(polymer), str(solvent))
-        key = (pair[0], pair[1], float(capacity))
+        polymer_key = str(polymer)
+        capacity = float(polymer_capacities.get(polymer_key, 1.0))
+        option_label = str(option_solvent)
+        actual_solvent = str(row.get(_ACTUAL_SOLVENT_COLUMN) or option_label).strip() or option_label
+        dissolution_temp = _coerce_temperature_c(row.get(_DISSOLUTION_TEMP_COLUMN))
+        precipitation_temp = _coerce_temperature_c(row.get(_PRECIPITATION_TEMP_COLUMN))
+        pair = (polymer_key, option_label)
+        key = (polymer_key, option_label, float(capacity), dissolution_temp, precipitation_temp)
         source = str(row.get(_COEFFICIENT_SOURCE_COLUMN) or "workbook_baseline").strip() or "workbook_baseline"
 
         if (
@@ -894,17 +1431,18 @@ def _run_biosteam_updates(
                         polymer=pair[0],
                         solvent=pair[1],
                         reason=sim_crash_reason,
-                        source="runtime_denylist" if _runtime_denylist_applies(pair[0], pair[1]) else "biosteam_simulation",
+                        source="runtime_denylist" if _runtime_denylist_applies(pair[0], actual_solvent) else "biosteam_simulation",
                     )
                 )
             continue
 
-        # Successful sim — let _map_biosteam_to_strap_row apply whatever fields it
-        # can. Because that helper guards each overwrite with a positivity check,
-        # a null-TEA sim leaves workbook baseline values intact. The post-update
-        # row is then validated against the MINLP-critical economic fields.
         updated_row = _map_biosteam_to_strap_row(row.copy(), result, capacity)
         updated_row[_COEFFICIENT_SOURCE_COLUMN] = "biosteam_updated"
+        updated_row[_ACTUAL_SOLVENT_COLUMN] = actual_solvent
+        updated_row[_OPTIMIZER_OPTION_COLUMN] = option_label
+        updated_row[_DISSOLUTION_TEMP_COLUMN] = dissolution_temp
+        updated_row[_PRECIPITATION_TEMP_COLUMN] = precipitation_temp
+        updated_row[_TEMPERATURE_SOURCE_COLUMN] = str(row.get(_TEMPERATURE_SOURCE_COLUMN) or "biosteam_default")
         for column, value in updated_row.items():
             updated_df.at[idx, column] = value
 
@@ -923,22 +1461,35 @@ def _run_biosteam_updates(
                     )
                 )
 
-    return updated_df.loc[keep_indices].copy(), failed_sims, simulation_skips
+    return _initialize_option_metadata(updated_df.loc[keep_indices].copy()), failed_sims, simulation_skips
 
 
 def _build_compiled_strap_coefficient_table(
     source_excel_path: Path,
     *,
-    capacity_pe: float,
-    capacity_evoh: float,
-    pe_fraction_pct: float,
-    evoh_fraction_pct: float,
+    polymer_capacities: dict[str, float] | None = None,
+    polymer_fraction_pcts: dict[str, float] | None = None,
+    capacity_pe: float | None = None,
+    capacity_evoh: float | None = None,
+    pe_fraction_pct: float | None = None,
+    evoh_fraction_pct: float | None = None,
     candidate_solvents: list[str] | str | None = None,
     polymer_solvent_filters_json: dict[str, Any] | str | None = None,
+    stage_candidates_json: dict[str, Any] | str | None = None,
     constraint_mode: str | None = None,
     fallback_policy: str | None = None,
     prefer_baseline_when_sufficient: bool = True,
 ) -> tuple[pd.DataFrame, dict[str, list[str]], dict[str, list[str]], list[str], str, list[dict[str, str]], list[dict[str, str]]]:
+    if polymer_capacities is None:
+        polymer_capacities = {
+            "PE": float(capacity_pe or 1.0),
+            "EVOH": float(capacity_evoh or 1.0),
+        }
+    if polymer_fraction_pcts is None:
+        polymer_fraction_pcts = {
+            "PE": float(pe_fraction_pct or 0.0),
+            "EVOH": float(evoh_fraction_pct or 0.0),
+        }
     df = pd.read_excel(source_excel_path, sheet_name="StrapScenario3 Units")
     for column in _NUMERIC_WORKBOOK_COLUMNS:
         if column in df.columns:
@@ -946,15 +1497,29 @@ def _build_compiled_strap_coefficient_table(
     materialization_allowlist = _build_materialization_allowlist(
         candidate_solvents=candidate_solvents,
         polymer_solvent_filters_json=polymer_solvent_filters_json,
+        stage_candidates_json=stage_candidates_json,
     )
     df = _materialize_optimizer_workbook_rows(
         df,
         allowed_solvents_by_slot=materialization_allowlist,
     )
+    active_polymers = {
+        str(polymer).strip()
+        for polymer, fraction in (polymer_fraction_pcts or {}).items()
+        if float(fraction or 0.0) > 0.0
+    }
+    if active_polymers:
+        default_polymers = {
+            str(polymer).strip() for polymer in get_optimizer_default_sets().get("P", [])
+        }
+        inactive_polymers = default_polymers - active_polymers
+        if inactive_polymers and "Polymer" in df.columns:
+            df = df.loc[~df["Polymer"].isin(inactive_polymers)].copy()
     df, applied_filters, filter_warnings, requested_filters = _apply_solvent_filters(
         df,
         candidate_solvents=candidate_solvents,
         polymer_solvent_filters_json=polymer_solvent_filters_json,
+        stage_candidates_json=stage_candidates_json,
         constraint_mode=constraint_mode,
         fallback_policy=fallback_policy,
     )
@@ -968,10 +1533,8 @@ def _build_compiled_strap_coefficient_table(
         }
         df, simulation_failures, simulation_skips = _run_biosteam_updates(
             df,
-            capacity_pe,
-            capacity_evoh,
-            pe_fraction_pct=pe_fraction_pct,
-            evoh_fraction_pct=evoh_fraction_pct,
+            polymer_capacities,
+            polymer_fraction_pcts=polymer_fraction_pcts,
             prefer_baseline_when_sufficient=prefer_baseline_when_sufficient,
         )
         polymers_after = {
@@ -1011,10 +1574,11 @@ def _build_compiled_strap_coefficient_table(
 def _prepare_optimization_context(
     *,
     feed: float,
-    pe_fraction: float,
-    pet_fraction: float,
-    n6_fraction: float,
-    evoh_fraction: float,
+    pe_fraction: float | None,
+    pet_fraction: float | None,
+    n6_fraction: float | None,
+    evoh_fraction: float | None,
+    feed_composition_json: dict[str, Any] | str | None = None,
     scenario: str,
     candidate_solvents: list[str] | str | None = None,
     polymer_solvent_filters_json: dict[str, Any] | str | None = None,
@@ -1024,15 +1588,19 @@ def _prepare_optimization_context(
     route_pool_mode: str | None = None,
     prefer_baseline_when_sufficient: bool = True,
 ) -> dict[str, Any]:
-    _validate_feed_inputs(feed, pe_fraction, pet_fraction, n6_fraction, evoh_fraction)
+    feed_fractions = _build_feed_fraction_map(
+        pe_fraction=pe_fraction,
+        pet_fraction=pet_fraction,
+        n6_fraction=n6_fraction,
+        evoh_fraction=evoh_fraction,
+        feed_composition_json=feed_composition_json,
+    )
+    _validate_feed_inputs(feed, feed_fractions)
 
     base_dir = Path(__file__).resolve().parent.parent / "waste_management"
     source_excel_path = base_dir / "Data for model_Scenarios.xlsx"
     if not source_excel_path.exists():
         raise FileNotFoundError(f"Excel file not found at {source_excel_path}")
-
-    capacity_pe = max(feed * pe_fraction, 1)
-    capacity_evoh = max(feed * evoh_fraction, 1)
 
     stage_candidate_payload = _parse_stage_candidates(stage_candidates_json)
     stage_polymer_filters, stage_global_candidates, stage_constraint_mode, stage_fallback_policy = (
@@ -1040,6 +1608,9 @@ def _prepare_optimization_context(
     )
     stage_route_candidates = _extract_route_candidates(stage_candidates_json)
     stage_route_pool_mode = _derive_route_pool_mode_from_stage_candidates(stage_candidates_json)
+    stage_candidate_pairs = []
+    if isinstance(stage_candidate_payload, dict):
+        stage_candidate_pairs = list(stage_candidate_payload.get("candidate_pairs") or [])
     has_typed_handoff = stage_candidates_json not in (None, "", {})
     precedence_warnings: list[str] = []
     requested_route_pool_mode = _normalize_route_pool_mode(route_pool_mode)
@@ -1083,35 +1654,67 @@ def _prepare_optimization_context(
         effective_candidate_solvents = candidate_solvents
         effective_polymer_filters = polymer_solvent_filters_json
 
+    route_candidates_for_enforcement = stage_route_candidates
+    if has_typed_handoff and effective_route_pool_mode == "slot_independent" and stage_candidate_pairs:
+        route_candidates_for_enforcement = []
+        precedence_warnings.append(
+            "Slot-independent typed handoff uses the full candidate_pairs pool for optimization; "
+            "route_candidates are retained for provenance only."
+        )
+
+    default_optimizer_sets = get_optimizer_default_sets()
+    recoverable_polymers = [
+        polymer for polymer, fraction in feed_fractions.items() if float(fraction or 0.0) > 0.0
+    ]
+    if not recoverable_polymers:
+        recoverable_polymers = list(default_optimizer_sets.get("P", []))
+    if isinstance(effective_polymer_filters, dict):
+        for polymer in effective_polymer_filters:
+            if polymer not in recoverable_polymers:
+                recoverable_polymers.append(polymer)
+    polymer_capacities = {
+        polymer: max(feed * float(feed_fractions.get(polymer, 0.0)), 1.0)
+        for polymer in recoverable_polymers
+    }
+    polymer_fraction_pcts = {
+        polymer: float(feed_fractions.get(polymer, 0.0)) * 100.0
+        for polymer in recoverable_polymers
+    }
+
     compiled_strap_df, requested_filters, applied_filters, filter_warnings, filter_status, simulation_failures, simulation_skips = (
         _build_compiled_strap_coefficient_table(
             source_excel_path,
-            capacity_pe=capacity_pe,
-            capacity_evoh=capacity_evoh,
-            pe_fraction_pct=pe_fraction * 100.0,
-            evoh_fraction_pct=evoh_fraction * 100.0,
+            polymer_capacities=polymer_capacities,
+            polymer_fraction_pcts=polymer_fraction_pcts,
             candidate_solvents=effective_candidate_solvents,
             polymer_solvent_filters_json=effective_polymer_filters,
+            stage_candidates_json=stage_candidate_payload,
             constraint_mode=effective_constraint_mode,
             fallback_policy=effective_fallback_policy,
             prefer_baseline_when_sufficient=prefer_baseline_when_sufficient,
         )
     )
 
-    # fail_closed only short-circuits on actual catalog/simulation-level warnings
-    # (generated inside _build_compiled_strap_coefficient_table). Metadata warnings
-    # such as precedence notes are appended afterwards so they do not spuriously
-    # trigger infeasible outcomes.
+    # Under fail_closed semantics, abort immediately only when the routed shortlist
+    # has no overlap with the optimizer catalog at all. Per-candidate BioSTEAM
+    # failures are tolerated as long as at least one valid candidate survives for
+    # each required polymer; those cases are handled later via per-polymer checks
+    # and surfaced as simulation_failures instead of killing the whole solve.
     fail_closed_active = (
-        effective_constraint_mode in {"fixed", "hard"}
+        effective_constraint_mode in {"fixed", "hard", "ranked_soft"}
         and effective_fallback_policy == "fail_closed"
     )
-    if fail_closed_active and filter_warnings and requested_filters:
+    no_overlap_warnings = [
+        warning
+        for warning in filter_warnings
+        if "solvent overlap" in str(warning).lower()
+    ]
+    if fail_closed_active and requested_filters and compiled_strap_df.empty and no_overlap_warnings:
         return {
             "temp_dir": None,
             "infeasible_response": _build_optimization_infeasible_response(
                 failure_reason="no_candidate_overlap",
-                message=filter_warnings[0],
+                message=no_overlap_warnings[0],
                 constraint_mode=effective_constraint_mode,
                 fallback_policy=effective_fallback_policy,
                 requested_filters=requested_filters,
@@ -1177,10 +1780,7 @@ def _prepare_optimization_context(
     normalized_scenario, scenario_payload = _get_scenario_config(
         scenario,
         feed,
-        pe_fraction,
-        pet_fraction,
-        n6_fraction,
-        evoh_fraction,
+        feed_fractions,
     )
     data = load_all_data(
         excel_path=source_excel_path,
@@ -1198,12 +1798,8 @@ def _prepare_optimization_context(
         "config": scenario_payload["config"],
         "data": data,
         "feed": feed,
-        "fractions": {
-            "PE": pe_fraction,
-            "PET": pet_fraction,
-            "N6": n6_fraction,
-            "EVOH": evoh_fraction,
-        },
+        "fractions": dict(feed_fractions),
+        "recoverable_polymers": recoverable_polymers,
         "requested_filters": requested_filters,
         "applied_filters": applied_filters,
         "filter_warnings": filter_warnings,
@@ -1215,6 +1811,7 @@ def _prepare_optimization_context(
         "fallback_policy": effective_fallback_policy,
         "route_pool_mode": effective_route_pool_mode,
         "route_candidates": stage_route_candidates,
+        "route_candidates_for_enforcement": route_candidates_for_enforcement,
         "has_typed_handoff": has_typed_handoff,
     }
 
@@ -1321,13 +1918,14 @@ def _build_candidate_telemetry(context: dict[str, Any]) -> dict[str, Any]:
             if str(polymer).strip()
         }
 
+    recoverable_polymers = list(context.get("recoverable_polymers") or get_optimizer_default_sets().get("P", []))
     surviving_by_stage: dict[str, dict[str, list[str]]] = {"Wash 1": {}, "Wash 2": {}}
     surviving_counts_by_stage: dict[str, dict[str, int]] = {"Wash 1": {}, "Wash 2": {}}
     surviving_by_polymer: dict[str, list[str]] = {}
     if isinstance(strap_df, pd.DataFrame) and not strap_df.empty:
         for wash in ("Wash 1", "Wash 2"):
             wash_mask = strap_df["Wash number"].eq(wash)
-            for polymer in ("PE", "EVOH"):
+            for polymer in recoverable_polymers:
                 polymer_mask = strap_df["Polymer"].eq(polymer)
                 solvents = _stable_unique(
                     strap_df.loc[wash_mask & polymer_mask, "Solvents"].dropna().astype(str).tolist()
@@ -1399,6 +1997,137 @@ def _build_candidate_telemetry(context: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_source_handoff_summary(context: dict[str, Any]) -> dict[str, Any]:
+    """Summarize the stage-candidate handoff actually consumed by optimization.
+
+    This is intentionally separate from the visible upstream agent prose. The
+    optimizer consumes the normalized/backfilled `stage_candidates_json` object
+    after context preparation; this summary records that object without
+    rewriting deep-agent task messages.
+    """
+
+    def _stable_unique(values: Any) -> list[str]:
+        if not isinstance(values, list):
+            return []
+        seen: set[str] = set()
+        ordered: list[str] = []
+        for value in values:
+            text = str(value or "").strip()
+            if not text or text in seen:
+                continue
+            seen.add(text)
+            ordered.append(text)
+        return ordered
+
+    def _count_list_map(mapping: Any) -> dict[str, int]:
+        if not isinstance(mapping, dict):
+            return {}
+        counts: dict[str, int] = {}
+        for key, values in mapping.items():
+            key_text = str(key or "").strip()
+            if not key_text:
+                continue
+            if isinstance(values, list):
+                counts[key_text] = len(_stable_unique(values))
+        return counts
+
+    def _count_candidate_values(field_name: str) -> dict[str, int]:
+        counts: dict[str, set[str]] = {}
+        for pair in candidate_pairs:
+            if not isinstance(pair, dict):
+                continue
+            polymer = str(pair.get("polymer") or pair.get("target_polymer") or "").strip()
+            if not polymer:
+                continue
+            value = str(pair.get(field_name) or "").strip()
+            if not value:
+                continue
+            counts.setdefault(polymer, set()).add(value)
+        return {polymer: len(values) for polymer, values in sorted(counts.items())}
+
+    def _count_candidate_pairs() -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for pair in candidate_pairs:
+            if not isinstance(pair, dict):
+                continue
+            polymer = str(pair.get("polymer") or pair.get("target_polymer") or "").strip()
+            if not polymer:
+                continue
+            counts[polymer] = counts.get(polymer, 0) + 1
+        return dict(sorted(counts.items()))
+
+    payload = context.get("stage_candidate_payload")
+    if not isinstance(payload, dict) or not payload:
+        return {
+            "summary_kind": "optimizer_consumed_handoff",
+            "status": "none",
+            "typed_handoff": False,
+            "audit_note": (
+                "No stage-candidate handoff was supplied; optimization used direct "
+                "tool arguments and/or the optimizer catalog."
+            ),
+        }
+
+    candidate_pairs = list(payload.get("candidate_pairs") or [])
+    candidate_counts = payload.get("candidate_counts_by_polymer")
+    if not isinstance(candidate_counts, dict):
+        candidate_counts = _count_candidate_pairs()
+    else:
+        candidate_counts = {
+            str(polymer): int(count)
+            for polymer, count in candidate_counts.items()
+            if str(polymer).strip()
+        }
+
+    status = "typed_handoff" if context.get("has_typed_handoff") else "stage_candidates_json"
+    return {
+        "summary_kind": "optimizer_consumed_handoff",
+        "status": status,
+        "typed_handoff": bool(context.get("has_typed_handoff")),
+        "source_handoff_id": payload.get("source_handoff_id"),
+        "route_id": payload.get("route_id"),
+        "schema_version": payload.get("schema_version"),
+        "workflow_scope": payload.get("workflow_scope"),
+        "constraint_mode": context.get("constraint_mode") or payload.get("constraint_mode"),
+        "fallback_policy": context.get("fallback_policy") or payload.get("fallback_policy"),
+        "route_pool_mode": context.get("route_pool_mode") or payload.get("route_pool_mode"),
+        "operating_constraints": payload.get("operating_constraints") or {},
+        "feed_composition": payload.get("feed_composition") or context.get("fractions") or {},
+        "feed_capacity_tpy": payload.get("feed_capacity_tpy"),
+        "polymers": _stable_unique(payload.get("polymers") or []),
+        "stage_count": len(payload.get("stages") or []),
+        "route_candidates_count": len(payload.get("route_candidates") or []),
+        "candidate_pairs_count": len(candidate_pairs),
+        "candidate_counts_by_polymer": candidate_counts,
+        "candidate_pair_counts_by_polymer": _count_candidate_pairs(),
+        "candidate_option_counts_by_polymer": _count_candidate_values("optimizer_option"),
+        "candidate_solvent_counts_by_polymer": _count_candidate_values("solvent"),
+        "polymer_solvent_filter_counts_by_polymer": _count_list_map(payload.get("polymer_solvent_filters")),
+        "polymer_option_filter_counts_by_polymer": _count_list_map(payload.get("polymer_option_filters")),
+        "candidate_backfill_warnings": list(payload.get("candidate_backfill_warnings") or []),
+        "route_candidate_warnings": list(payload.get("route_candidate_warnings") or []),
+        "source_user_query_present": bool(payload.get("source_user_query")),
+        "source_task_prompt_present": bool(payload.get("source_task_prompt")),
+        "audit_note": (
+            "This summary is derived from the normalized stage_candidates_json "
+            "object consumed by the optimizer; it may differ from visible "
+            "upstream separation prose if the handoff was normalized or backfilled."
+        ),
+    }
+
+
+def _format_source_handoff_summary_line(summary: dict[str, Any]) -> str:
+    if not isinstance(summary, dict) or summary.get("status") in {None, "", "none"}:
+        return ""
+    counts = summary.get("candidate_counts_by_polymer") or summary.get("candidate_pair_counts_by_polymer") or {}
+    count_text = ", ".join(f"{polymer}={count}" for polymer, count in sorted(counts.items())) if counts else "none"
+    source_id = summary.get("source_handoff_id") or "direct"
+    return (
+        f"**Optimizer handoff consumed:** {summary.get('status')} "
+        f"(source {source_id}; candidates {count_text})\n"
+    )
+
+
 def _frame_to_pareto_points(frame: pd.DataFrame) -> list[dict[str, Any]]:
     if frame.empty:
         return []
@@ -1439,6 +2168,11 @@ def _frame_to_pareto_points(frame: pd.DataFrame) -> list[dict[str, Any]]:
             return int(numeric) if numeric.is_integer() else numeric
         return None
 
+    def _to_mapping(value: Any) -> dict[str, Any]:
+        if isinstance(value, dict):
+            return {str(key): val for key, val in value.items()}
+        return {}
+
     def _design_signature(row: pd.Series) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
         return (
             tuple(_to_text_list(row.get("stage1"))),
@@ -1455,6 +2189,13 @@ def _frame_to_pareto_points(frame: pd.DataFrame) -> list[dict[str, Any]]:
             "stage3_tech": _to_text_list(row.get("stage3")),
             "wash1_selection": _to_text_list(row.get("wash1")),
             "wash2_selection": _to_text_list(row.get("wash2")),
+            "recovered_polymers": _to_text_list(row.get("recovered_polymers")),
+            "residual_polymers": _to_text_list(row.get("residual_polymers")),
+            "residual_destination_stage": _optional_text(row.get("residual_destination_stage")),
+            "residual_destination_tech": _to_text_list(row.get("residual_destination_tech")),
+            "recovered_mass_tpy_by_polymer": _to_mapping(row.get("recovered_mass_tpy_by_polymer")),
+            "saleable_recovered_mass_tpy_by_polymer": _to_mapping(row.get("saleable_recovered_mass_tpy_by_polymer")),
+            "residual_mass_tpy_by_polymer": _to_mapping(row.get("residual_mass_tpy_by_polymer")),
             "route_id": _optional_text(row.get("route_id")) or "",
             "matched_route_id": _optional_text(row.get("matched_route_id")),
             "rank": _optional_number(row.get("rank")),
@@ -1466,13 +2207,19 @@ def _frame_to_pareto_points(frame: pd.DataFrame) -> list[dict[str, Any]]:
             "wash2_origin_route_ids": list(row.get("wash2_origin_route_ids") or []),
         }
 
+    def _metric_key(value: Any) -> float:
+        try:
+            return round(float(value or 0.0), 6)
+        except (TypeError, ValueError):
+            return 0.0
+
     grouped_rows: dict[tuple[float, float, float], dict[str, Any]] = {}
     row_order: list[tuple[float, float, float]] = []
     for _, row in sorted_frame.iterrows():
         key = (
-            float(row.get("total_cost", 0.0) or 0.0),
-            float(row.get("emissions", 0.0) or 0.0),
-            float(row.get("CE", 0.0) or 0.0),
+            _metric_key(row.get("total_cost")),
+            _metric_key(row.get("emissions")),
+            _metric_key(row.get("CE")),
         )
         signature = _design_signature(row)
         if key not in grouped_rows:
@@ -1517,6 +2264,13 @@ def _frame_to_pareto_points(frame: pd.DataFrame) -> list[dict[str, Any]]:
             "stage3_tech": list(row.get("stage3", []) or []),
             "wash1_selection": list(row.get("wash1", []) or []),
             "wash2_selection": list(row.get("wash2", []) or []),
+            "recovered_polymers": _to_text_list(row.get("recovered_polymers")),
+            "residual_polymers": _to_text_list(row.get("residual_polymers")),
+            "residual_destination_stage": _optional_text(row.get("residual_destination_stage")),
+            "residual_destination_tech": _to_text_list(row.get("residual_destination_tech")),
+            "recovered_mass_tpy_by_polymer": _to_mapping(row.get("recovered_mass_tpy_by_polymer")),
+            "saleable_recovered_mass_tpy_by_polymer": _to_mapping(row.get("saleable_recovered_mass_tpy_by_polymer")),
+            "residual_mass_tpy_by_polymer": _to_mapping(row.get("residual_mass_tpy_by_polymer")),
             "route_id": _optional_text(row.get("route_id")) or "",
             "matched_route_id": _optional_text(row.get("matched_route_id")),
             "rank": _optional_number(row.get("rank")),
@@ -1545,12 +2299,36 @@ def _extract_tool_data(raw_response: str) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+def _sanitize_solver_debug(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _sanitize_solver_debug(val) for key, val in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_solver_debug(item) for item in value]
+    if isinstance(value, tuple):
+        return [_sanitize_solver_debug(item) for item in value]
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return str(value)
+
+
+def _objective_rank_value(objective: str, result: dict[str, Any]) -> float:
+    """Return a sortable value where lower is better for the requested objective."""
+    if objective == "min_total_cost":
+        return float(result.get("total_cost", float("inf")) or float("inf"))
+    if objective == "min_emissions":
+        return float(result.get("emissions", float("inf")) or float("inf"))
+    if objective == "max_circularity":
+        return -float(result.get("CE", 0.0) or 0.0)
+    return -float(result.get("profit", 0.0) or 0.0)
+
+
 def _solve_objective_with_fallback(
     model,
     objective: str,
     *,
     solver_options: dict[str, Any] | None = None,
-) -> dict[str, Any] | None:
+    return_debug: bool = False,
+) -> dict[str, Any] | None | tuple[dict[str, Any] | None, list[dict[str, Any]]]:
     option_ladder: tuple[dict[str, Any] | None, ...]
     if solver_options is not None:
         option_ladder = (solver_options,)
@@ -1560,20 +2338,64 @@ def _solve_objective_with_fallback(
     def _clone_if_supported(candidate):
         return candidate.clone() if hasattr(candidate, "clone") else candidate
 
+    debug_attempts: list[dict[str, Any]] = []
     saw_scip_error = False
-    for attempt_options in option_ladder:
+    saw_prior_failed_attempt = False
+    best_result: dict[str, Any] | None = None
+    best_rank_value = float("inf")
+    for ladder_index, attempt_options in enumerate(option_ladder, start=1):
         candidate_model = _clone_if_supported(model)
         try:
             if attempt_options is not None:
-                return solve_single(
+                result = solve_single(
                     candidate_model,
                     objective,
                     solver_name="scip",
                     solver_options=attempt_options,
                 )
-            return solve_single(candidate_model, objective, solver_name="scip")
+            else:
+                result = solve_single(candidate_model, objective, solver_name="scip")
+            solver_debug = _sanitize_solver_debug(consume_last_solver_debug())
+            debug_attempts.append(
+                {
+                    "attempt_index": ladder_index,
+                    "solver_name": "scip",
+                    "solver_options": dict(attempt_options or {}),
+                    "accepted": result is not None,
+                    **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
+                }
+            )
+            if result is not None:
+                rank_value = _objective_rank_value(objective, result)
+                if best_result is None or rank_value < best_rank_value:
+                    best_result = result
+                    best_rank_value = rank_value
+                # Fast path: when the first SCIP configuration is verified,
+                # keep historical behavior and avoid extra solves. If an
+                # earlier configuration failed, continue through the remaining
+                # ladder so a numerically-weaker retry does not cap the Pareto
+                # anchor at a lower-quality local solution.
+                if not saw_prior_failed_attempt:
+                    return (result, debug_attempts) if return_debug else result
+                continue
+            logger.warning(
+                "SCIP solver for %s with solver_options=%s returned no verified solution; continuing retry ladder.",
+                objective,
+                attempt_options or "default",
+            )
+            saw_prior_failed_attempt = True
         except Exception as exc:
             saw_scip_error = True
+            saw_prior_failed_attempt = True
+            debug_attempts.append(
+                {
+                    "attempt_index": ladder_index,
+                    "solver_name": "scip",
+                    "solver_options": dict(attempt_options or {}),
+                    "accepted": False,
+                    "error": str(exc),
+                }
+            )
             logger.warning(
                 "Failed to run SCIP solver for %s with solver_options=%s: %s",
                 objective,
@@ -1581,23 +2403,47 @@ def _solve_objective_with_fallback(
                 exc,
             )
 
+    if best_result is not None:
+        return (best_result, debug_attempts) if return_debug else best_result
+
     if not saw_scip_error:
-        return None
+        return (None, debug_attempts) if return_debug else None
 
     logger.warning("Falling back to available solvers for %s after exhausting SCIP retry options.", objective)
     try:
         fallback_model = _clone_if_supported(model)
         if solver_options:
-            return solve_single(fallback_model, objective, solver_name=None, solver_options=solver_options)
-        return solve_single(fallback_model, objective, solver_name=None)
+            result = solve_single(fallback_model, objective, solver_name=None, solver_options=solver_options)
+        else:
+            result = solve_single(fallback_model, objective, solver_name=None)
+        solver_debug = _sanitize_solver_debug(consume_last_solver_debug())
+        debug_attempts.append(
+            {
+                "attempt_index": len(debug_attempts) + 1,
+                "solver_name": "fallback",
+                "solver_options": dict(solver_options or {}),
+                "accepted": result is not None,
+                **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
+            }
+        )
+        return (result, debug_attempts) if return_debug else result
     except Exception as fallback_exc:
+        debug_attempts.append(
+            {
+                "attempt_index": len(debug_attempts) + 1,
+                "solver_name": "fallback",
+                "solver_options": dict(solver_options or {}),
+                "accepted": False,
+                "error": str(fallback_exc),
+            }
+        )
         logger.warning(
             "Fallback solver path also failed for %s with solver_options=%s: %s",
             objective,
             solver_options or "default",
             fallback_exc,
         )
-        return None
+        return (None, debug_attempts) if return_debug else None
 
 
 def _retry_constrained_objective(
@@ -1605,7 +2451,8 @@ def _retry_constrained_objective(
     objective: str,
     *,
     max_attempts: int = 3,
-    option_ladder: tuple[dict[str, Any] | None, ...] = _SCIP_CONSTRAINED_OPTION_LADDER,
+    option_ladder: tuple[dict[str, Any] | None, ...] | None = None,
+    debug_attempts: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """Solve an objective against freshly-built constrained models.
 
@@ -1615,15 +2462,52 @@ def _retry_constrained_objective(
     before the caller concludes the constrained route pool is infeasible.
     """
     last_reason: str | None = None
+    effective_ladder = option_ladder or _SCIP_CONSTRAINED_OPTION_LADDER
     for attempt in range(1, max_attempts + 1):
         model, enforced, reason = builder()
         if not enforced:
             return None, reason or "route constraints could not be applied"
-        solver_options = option_ladder[min(attempt - 1, len(option_ladder) - 1)] if option_ladder else None
-        if solver_options:
-            result = _solve_objective_with_fallback(model, objective, solver_options=solver_options)
+        solver_options = effective_ladder[min(attempt - 1, len(effective_ladder) - 1)]
+        try:
+            if solver_options:
+                solve_result = _solve_objective_with_fallback(
+                    model,
+                    objective,
+                    solver_options=solver_options,
+                    return_debug=True,
+                )
+            else:
+                solve_result = _solve_objective_with_fallback(
+                    model,
+                    objective,
+                    return_debug=True,
+                )
+        except TypeError:
+            if solver_options:
+                solve_result = _solve_objective_with_fallback(
+                    model,
+                    objective,
+                    solver_options=solver_options,
+                )
+            else:
+                solve_result = _solve_objective_with_fallback(
+                    model,
+                    objective,
+                )
+        if isinstance(solve_result, tuple) and len(solve_result) == 2:
+            result, solve_debug = solve_result
         else:
-            result = _solve_objective_with_fallback(model, objective)
+            result, solve_debug = solve_result, []
+        if debug_attempts is not None:
+            debug_attempts.append(
+                {
+                    "retry_attempt": attempt,
+                    "objective": objective,
+                    "solver_options": dict(solver_options or {}),
+                    "accepted": result is not None,
+                    "solve_attempts": solve_debug,
+                }
+            )
         if result is not None:
             return result, None
         options_label = (
@@ -1652,7 +2536,8 @@ def _run_constrained_pareto_sweep(
     cost_opt: dict[str, Any],
     y_opt: dict[str, Any],
     n_points: int,
-    option_ladder: tuple[dict[str, Any] | None, ...] = _SCIP_CONSTRAINED_OPTION_LADDER,
+    option_ladder: tuple[dict[str, Any] | None, ...] | None = None,
+    debug_attempts: list[dict[str, Any]] | None = None,
 ) -> tuple[pd.DataFrame, str | None]:
     """Run a Pareto sweep against freshly-built constrained models.
 
@@ -1662,10 +2547,12 @@ def _run_constrained_pareto_sweep(
     solves and retries on a fresh model before giving up.
     """
     last_reason: str | None = None
-    for attempt, solver_options in enumerate(option_ladder or (None,), start=1):
+    effective_ladder = option_ladder or _SCIP_PARETO_SWEEP_OPTION_LADDER
+    for attempt, solver_options in enumerate(effective_ladder, start=1):
         sweep_model, enforced, reason = builder()
         if not enforced:
             return pd.DataFrame(), reason or "route constraints could not be applied"
+        sweep_debug_rows: list[dict[str, Any]] = []
         try:
             if y_metric == "emissions":
                 frontier = pareto_cost_vs_emissions(
@@ -1675,6 +2562,7 @@ def _run_constrained_pareto_sweep(
                     n_points=n_points,
                     solver_name="scip",
                     solver_options=solver_options,
+                    debug_rows=sweep_debug_rows,
                 )
             else:
                 frontier = pareto_cost_vs_ce(
@@ -1684,18 +2572,39 @@ def _run_constrained_pareto_sweep(
                     n_points=n_points,
                     solver_name="scip",
                     solver_options=solver_options,
+                    debug_rows=sweep_debug_rows,
                 )
         except Exception as exc:
+            if debug_attempts is not None:
+                debug_attempts.append(
+                    {
+                        "attempt_index": attempt,
+                        "solver_options": dict(solver_options or {}),
+                        "accepted": False,
+                        "error": str(exc),
+                        "sweep_point_debug": sweep_debug_rows,
+                    }
+                )
             logger.warning(
                 "SCIP constrained Pareto sweep attempt %d/%d failed with solver_options=%s: %s",
                 attempt,
-                len(option_ladder or (None,)),
+                len(effective_ladder),
                 solver_options or "default",
                 exc,
             )
             last_reason = f"pareto sweep errored on attempt {attempt}"
             continue
 
+        if debug_attempts is not None:
+            debug_attempts.append(
+                {
+                    "attempt_index": attempt,
+                    "solver_options": dict(solver_options or {}),
+                    "accepted": not frontier.empty,
+                    "n_rows": int(len(frontier)),
+                    "sweep_point_debug": sweep_debug_rows,
+                }
+            )
         if not frontier.empty:
             return frontier, None
 
@@ -1708,7 +2617,7 @@ def _run_constrained_pareto_sweep(
         logger.warning(
             "Constrained Pareto sweep returned no feasible points on attempt %d/%d with solver_options=%s.",
             attempt,
-            len(option_ladder or (None,)),
+            len(effective_ladder),
             solver_options or "default",
         )
     return pd.DataFrame(), last_reason or "pareto sweep failed"
@@ -1746,7 +2655,7 @@ def _resolve_route_assignments(
     sequence = [_normalize_optimization_polymer(p) for p in route_spec.get("sequence") or []]
     ordered = [p for p in sequence if p is not None and p in mapping and p in polymers_available]
     if not ordered:
-        ordered = [p for p in ("PE", "EVOH") if p in mapping and p in polymers_available]
+        ordered = [p for p in polymers_available if p in mapping]
     if not ordered:
         ordered = [p for p in polymers_available if p in mapping]
     if not ordered:
@@ -2184,8 +3093,8 @@ def _apply_route_constraints(
     sequence = [_normalize_optimization_polymer(p) for p in route_spec.get("sequence") or []]
     ordered = [p for p in sequence if p is not None and p in mapping and p in polymers_available]
     if not ordered:
-        # Fallback: use any polymers in the mapping in a stable order (PE first).
-        ordered = [p for p in ("PE", "EVOH") if p in mapping and p in polymers_available]
+        # Fallback: use any polymers in the mapping in the optimizer's active order.
+        ordered = [p for p in polymers_available if p in mapping]
     if not ordered:
         return False, "route has no polymer-solvent pairs usable by the current optimizer model"
 
@@ -2235,13 +3144,16 @@ def _run_pareto_with_route_pool(
     x_metric: str,
     y_metric: str,
     n_points: int,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
 ) -> str:
     """Solve one Pareto sweep over a shortlist-constrained route pool."""
     sets = context["data"].get("sets") or {}
-    polymers_available = list(sets.get("P") or ["PE", "EVOH"])
+    polymers_available = list(sets.get("P") or get_optimizer_default_sets().get("P", []))
     all_solvents = list(sets.get("S") or [])
     route_pool_mode = str(context.get("route_pool_mode") or "exact")
     candidate_telemetry = _build_candidate_telemetry(context)
+    source_handoff_summary = _build_source_handoff_summary(context)
     normalized_routes, skipped_reports = _normalize_route_pool(
         route_candidates,
         polymers_available=polymers_available,
@@ -2284,6 +3196,7 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
             "success": True,
@@ -2296,6 +3209,14 @@ def _run_pareto_with_route_pool(
 
     def _build_and_constrain():
         model = build_model(context["data"], context["config"])
+        try:
+            _apply_active_wash_constraints(
+                model,
+                min_active_washes=min_active_washes,
+                max_active_washes=max_active_washes,
+            )
+        except AttributeError:
+            pass
         if route_pool_mode == "slot_independent":
             enforced, reason = _apply_slot_independent_constraints(
                 model,
@@ -2367,6 +3288,7 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
             "success": True,
@@ -2430,6 +3352,7 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
             "success": True,
@@ -2503,6 +3426,7 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
             "success": True,
@@ -2520,9 +3444,7 @@ def _run_pareto_with_route_pool(
     )
     points = _frame_to_pareto_points(annotated_frontier)
     y_key = "emissions" if y_metric == "emissions" else "circularity_score"
-    frontier_points = _non_dominated(points, y_key=y_key)
-    for idx, point in enumerate(frontier_points, start=1):
-        point["point_id"] = idx
+    frontier_points, dominated_points = _classify_pareto_points(points, y_key=y_key)
 
     route_reports = list(skipped_reports)
     raw_exact_route_ids = {
@@ -2659,6 +3581,8 @@ def _run_pareto_with_route_pool(
         "strap_table_rows": context.get("strap_table_rows"),
         "ideal_points": ideal_points,
         "points": frontier_points,
+        "all_feasible_points": points,
+        "dominated_points": dominated_points,
         "route_candidates": route_candidates,
         "route_reports": route_reports,
         "n_routes_requested": len(route_candidates),
@@ -2683,6 +3607,7 @@ def _run_pareto_with_route_pool(
         "simulation_failures": context.get("simulation_failures", []),
         "simulation_skips": context.get("simulation_skips", []),
         "candidate_telemetry": candidate_telemetry,
+        "source_handoff_summary": source_handoff_summary,
         "candidate_summary": _build_pareto_candidate_summary(context, frontier_points),
         "tool_name": "run_waste_management_pareto",
         "success": True,
@@ -2690,7 +3615,7 @@ def _run_pareto_with_route_pool(
 
     display = "## Waste Optimization Pareto Front\n\n"
     display += f"**Scenario:** {context['scenario']} | **X metric:** {x_metric} | **Y metric:** {y_metric}\n"
-    display += f"**Feed:** {feed} tonnes/year ({context['fractions']['PE']*100}% PE, {context['fractions']['PET']*100}% PET, {context['fractions']['N6']*100}% N6, {context['fractions']['EVOH']*100}% EVOH)\n"
+    display += f"**Feed:** {feed} tonnes/year ({_format_feed_composition(context['fractions'])})\n"
     display += f"**Feasible Pareto points:** {len(frontier_points)} unique / {len(annotated_frontier)} raw / {n_points} requested\n"
     display += f"**Shortlisted routes:** {len(normalized_routes)} usable of {len(route_candidates)} requested\n"
     display += f"**Routes appearing on frontier:** {len(frontier_exact_route_ids)}\n"
@@ -2698,6 +3623,7 @@ def _run_pareto_with_route_pool(
         f"**Constraint mode:** {context['constraint_mode']} | **Fallback policy:** {context['fallback_policy']} "
         f"| **Route pool mode:** {route_pool_mode}\n"
     )
+    display += _format_source_handoff_summary_line(source_handoff_summary)
     if context.get("strap_table_rows") is not None:
         display += f"**Compiled STRAP rows:** {context['strap_table_rows']}\n"
     requested_counts = candidate_telemetry["requested"]["counts_by_polymer"]
@@ -2740,12 +3666,16 @@ def _run_pareto_with_route_pool(
                 f"Stage 3 {', '.join(point.get('stage3_variants') or point.get('stage3_tech') or ['none'])}; "
                 f"origin {point.get('selection_origin', 'exact_route')}"
             )
+            if point.get("residual_polymers"):
+                destination = ", ".join(point.get("residual_destination_tech") or ["downstream"])
+                display += f"; residual {point['residual_polymers']} -> {destination}"
             if int(point.get("n_equivalent_designs") or 1) > 1:
                 display += f"; equivalent design variants {point['n_equivalent_designs']}"
             display += "\n"
     else:
         display += "\nNo feasible Pareto points were found for the shortlisted pooled route set.\n"
 
+    _write_pareto_payload_sidecar(result_payload)
     return json_tool_response(display, result_payload)
 
 
@@ -2764,7 +3694,7 @@ def _pareto_sweep_one_route(
     so the caller can decide whether to keep or drop the route.
     """
     sets = context["data"].get("sets") or {}
-    polymers_available = list(sets.get("P") or ["PE", "EVOH"])
+    polymers_available = list(sets.get("P") or get_optimizer_default_sets().get("P", []))
     all_solvents = list(sets.get("S") or [])
 
     def _build_and_constrain():
@@ -2933,10 +3863,7 @@ def _run_pareto_per_route(
         route_reports.append(meta)
 
     y_key = "emissions" if y_metric == "emissions" else "circularity_score"
-    frontier_points = _non_dominated(all_points, y_key=y_key)
-    # Re-index point_id to match the aggregated frontier order.
-    for idx, point in enumerate(frontier_points, start=1):
-        point["point_id"] = idx
+    frontier_points, dominated_points = _classify_pareto_points(all_points, y_key=y_key)
 
     solved_routes = [r for r in route_reports if r.get("status") == "solved"]
     frontier_route_ids = {str(point.get("route_id") or "") for point in frontier_points if str(point.get("route_id") or "")}
@@ -2960,6 +3887,7 @@ def _run_pareto_per_route(
                 if stage
             }
         )
+    source_handoff_summary = _build_source_handoff_summary(context)
     result_payload = {
         "analysis_type": "pareto_front",
         "schema_version": "1.1",
@@ -2976,6 +3904,8 @@ def _run_pareto_per_route(
         "strap_table_rows": context.get("strap_table_rows"),
         "ideal_points": {},
         "points": frontier_points,
+        "all_feasible_points": all_points,
+        "dominated_points": dominated_points,
         "route_candidates": route_candidates,
         "route_reports": route_reports,
         "n_routes_requested": len(route_candidates),
@@ -2996,6 +3926,7 @@ def _run_pareto_per_route(
         "solvent_filter_status": context["filter_status"],
         "simulation_failures": context.get("simulation_failures", []),
         "simulation_skips": context.get("simulation_skips", []),
+        "source_handoff_summary": source_handoff_summary,
         "candidate_summary": {
             "status": context["filter_status"],
             "warnings": context["filter_warnings"],
@@ -3009,12 +3940,13 @@ def _run_pareto_per_route(
 
     display = "## Waste Optimization Pareto Front (route-enforced)\n\n"
     display += f"**Scenario:** {context['scenario']} | **X metric:** {x_metric} | **Y metric:** {y_metric}\n"
-    display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100}% PE, {pet_fraction*100}% PET, {n6_fraction*100}% N6, {evoh_fraction*100}% EVOH)\n"
+    display += f"**Feed:** {feed} tonnes/year ({_format_feed_composition(context['fractions'])})\n"
     display += (
         f"**Routes:** {len(solved_routes)} of {len(route_candidates)} solved "
         f"under constraint_mode={context['constraint_mode']} | "
         f"fallback_policy={context['fallback_policy']}\n"
     )
+    display += _format_source_handoff_summary_line(source_handoff_summary)
     display += f"**Non-dominated Pareto points:** {len(frontier_points)}\n"
     display += (
         f"**Stage-3 technologies on frontier:** "
@@ -3049,6 +3981,9 @@ def _run_pareto_per_route(
                 f"Stage 3 {', '.join(point.get('stage3_variants') or point.get('stage3_tech') or ['none'])}; "
                 f"map {point.get('polymer_solvent_map')}"
             )
+            if point.get("residual_polymers"):
+                destination = ", ".join(point.get("residual_destination_tech") or ["downstream"])
+                display += f"; residual {point['residual_polymers']} -> {destination}"
             if int(point.get("n_equivalent_designs") or 1) > 1:
                 display += f"; equivalent design variants {point['n_equivalent_designs']}"
             display += "\n"
@@ -3061,6 +3996,7 @@ def _run_pareto_per_route(
     if context.get("simulation_skips"):
         display += f"- **BioSTEAM note:** Skipped {len(context['simulation_skips'])} baseline-backed candidate simulation(s) because workbook coefficients were already sufficient.\n"
 
+    _write_pareto_payload_sidecar(result_payload)
     return json_tool_response(display, result_payload)
 
 
@@ -3091,13 +4027,575 @@ def _non_dominated(points: list[dict[str, Any]], *, y_key: str) -> list[dict[str
             nondom.append(pi)
     return nondom
 
+
+def _classify_pareto_points(
+    all_points: list[dict[str, Any]],
+    *,
+    y_key: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Return (frontier_points, dominated_points) with status tags applied."""
+    if not all_points:
+        return [], []
+
+    for raw_idx, point in enumerate(all_points, start=1):
+        point["raw_point_id"] = raw_idx
+        point["point_id"] = None
+        point["point_status"] = "dominated"
+        point["is_frontier"] = False
+
+    frontier_points = _non_dominated(all_points, y_key=y_key)
+    for frontier_idx, point in enumerate(frontier_points, start=1):
+        point["point_id"] = frontier_idx
+        point["point_status"] = "frontier"
+        point["is_frontier"] = True
+
+    dominated_points = [point for point in all_points if not point.get("is_frontier")]
+    return frontier_points, dominated_points
+
+
+def _active_landscape_polymers(context: dict[str, Any], polymers_available: list[str]) -> list[str]:
+    fractions = context.get("fractions") or {}
+    active = [
+        polymer
+        for polymer in polymers_available
+        if float(fractions.get(polymer, 0.0) or 0.0) > 1e-9
+    ]
+    for polymer in context.get("recoverable_polymers") or []:
+        polymer_key = _normalize_optimization_polymer(polymer)
+        if polymer_key and polymer_key in polymers_available and polymer_key not in active:
+            active.append(polymer_key)
+    if not active:
+        active = list(polymers_available)
+    return sorted(
+        active,
+        key=lambda polymer: (-float(fractions.get(polymer, 0.0) or 0.0), polymers_available.index(polymer)),
+    )
+
+
+def _candidate_options_by_wash_polymer(
+    context: dict[str, Any],
+    *,
+    polymers_available: list[str],
+    all_solvents: list[str],
+) -> dict[str, dict[str, list[str]]]:
+    """Return candidate optimizer-option labels by wash and polymer.
+
+    The compiled STRAP table preserves separation-derived labels, including
+    temperature-decorated optimizer options. Falling back to the loaded model
+    sets keeps tests and legacy workbook paths usable when no DataFrame is
+    available.
+    """
+    solvent_set = set(all_solvents)
+    options: dict[str, dict[str, list[str]]] = {"Wash 1": {}, "Wash 2": {}}
+
+    def _append(wash: str, polymer: str, solvent: Any) -> None:
+        polymer_key = _normalize_optimization_polymer(polymer)
+        solvent_text = str(solvent or "").strip()
+        if polymer_key not in polymers_available or not solvent_text or solvent_text not in solvent_set:
+            return
+        bucket = options.setdefault(wash, {}).setdefault(polymer_key, [])
+        if solvent_text not in bucket:
+            bucket.append(solvent_text)
+
+    strap_df = context.get("strap_df")
+    if isinstance(strap_df, pd.DataFrame) and not strap_df.empty:
+        required_columns = {"Wash number", "Polymer", "Solvents"}
+        if required_columns.issubset(set(strap_df.columns)):
+            for _, row in strap_df.iterrows():
+                wash = str(row.get("Wash number") or "").strip()
+                if wash in options:
+                    _append(wash, str(row.get("Polymer") or ""), row.get("Solvents"))
+
+    stage_map = ((context.get("data") or {}).get("sets") or {}).get("S_BY_STAGE_POLYMER") or {}
+    for wash in ("Wash 1", "Wash 2"):
+        for polymer, solvents in (stage_map.get(wash) or {}).items():
+            for solvent in solvents or []:
+                _append(wash, polymer, solvent)
+
+    return options
+
+
+def _build_candidate_landscape_route_specs(
+    context: dict[str, Any],
+    *,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
+    max_routes: int = _LANDSCAPE_MAX_FORCED_DESIGNS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Build forced one-wash and two-wash route specs for landscape plotting.
+
+    These specs do not define the Pareto frontier. They are a bounded sample of
+    separation-proposed candidate designs that are solved as inner landscape
+    points so dominated wash options remain visible to the user.
+    """
+    sets = (context.get("data") or {}).get("sets") or {}
+    default_sets = get_optimizer_default_sets()
+    polymers_available = list(sets.get("P") or default_sets.get("P", []))
+    all_solvents = list(sets.get("S") or [])
+    if not polymers_available or not all_solvents:
+        return [], {
+            "status": "skipped",
+            "reason": "optimizer sets are unavailable",
+            "n_candidate_designs_generated": 0,
+            "n_candidate_designs_selected": 0,
+            "max_candidate_designs": int(max_routes),
+            "truncated": False,
+        }
+
+    min_washes = 0 if min_active_washes is None else int(min_active_washes)
+    max_washes = 2 if max_active_washes is None else int(max_active_washes)
+    max_routes = max(int(max_routes), 0)
+    options = _candidate_options_by_wash_polymer(
+        context,
+        polymers_available=polymers_available,
+        all_solvents=all_solvents,
+    )
+    active_polymers = _active_landscape_polymers(context, polymers_available)
+
+    specs: list[dict[str, Any]] = []
+    seen: set[tuple[tuple[str, ...], tuple[tuple[str, str], ...]]] = set()
+    generated = 0
+    truncated = False
+
+    def _add_spec(sequence: list[str], mapping: dict[str, str]) -> None:
+        nonlocal generated, truncated
+        wash_count = len(sequence)
+        if wash_count < min_washes or wash_count > max_washes:
+            return
+        generated += 1
+        key = (tuple(sequence), tuple(sorted(mapping.items())))
+        if key in seen:
+            return
+        if len(specs) >= max_routes:
+            truncated = True
+            return
+        seen.add(key)
+        specs.append(
+            {
+                "route_id": f"landscape_{len(specs) + 1}",
+                "rank": None,
+                "sequence": list(sequence),
+                "source": "candidate_landscape",
+                "polymer_solvent_map": dict(mapping),
+            }
+        )
+
+    if max_routes > 0:
+        for polymer in active_polymers:
+            for solvent in options.get("Wash 1", {}).get(polymer, []):
+                _add_spec([polymer], {polymer: solvent})
+
+        if max_washes >= 2:
+            for wash1_polymer in active_polymers:
+                for wash2_polymer in active_polymers:
+                    if wash1_polymer == wash2_polymer:
+                        continue
+                    for wash1_solvent in options.get("Wash 1", {}).get(wash1_polymer, []):
+                        for wash2_solvent in options.get("Wash 2", {}).get(wash2_polymer, []):
+                            _add_spec(
+                                [wash1_polymer, wash2_polymer],
+                                {
+                                    wash1_polymer: wash1_solvent,
+                                    wash2_polymer: wash2_solvent,
+                                },
+                            )
+
+    summary = {
+        "status": "generated" if specs else "empty",
+        "objective": "min_total_cost",
+        "n_candidate_designs_generated": generated,
+        "n_candidate_designs_selected": len(specs),
+        "max_candidate_designs": int(max_routes),
+        "truncated": bool(truncated),
+        "polymers_considered": active_polymers,
+        "candidate_counts_by_wash_polymer": {
+            wash: {polymer: len(solvents) for polymer, solvents in polymer_map.items()}
+            for wash, polymer_map in options.items()
+        },
+    }
+    return specs, summary
+
+
+def _result_to_landscape_row(result: dict[str, Any], route_spec: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "epsilon": 0.0,
+        "profit": float(result.get("profit", 0.0) or 0.0),
+        "emissions": float(result.get("emissions", 0.0) or 0.0),
+        "CE": float(result.get("CE", 0.0) or 0.0),
+        "total_cost": float(result.get("total_cost", 0.0) or 0.0),
+        "capital_cost": float(result.get("capital_cost", 0.0) or 0.0),
+        "operational_cost": float(result.get("operational_cost", 0.0) or 0.0),
+        "transportation_cost": float(result.get("transportation_cost", 0.0) or 0.0),
+        "stage1": list(result.get("stage1_tech") or result.get("stage1") or []),
+        "stage2": list(result.get("stage2_tech") or result.get("stage2") or []),
+        "stage3": list(result.get("stage3_tech") or result.get("stage3") or []),
+        "wash1": list(result.get("wash1_selection") or result.get("wash1") or []),
+        "wash2": list(result.get("wash2_selection") or result.get("wash2") or []),
+        "recovered_polymers": list(result.get("recovered_polymers") or []),
+        "residual_polymers": list(result.get("residual_polymers") or []),
+        "residual_destination_stage": result.get("residual_destination_stage"),
+        "residual_destination_tech": list(result.get("residual_destination_tech") or []),
+        "recovered_mass_tpy_by_polymer": dict(result.get("recovered_mass_tpy_by_polymer") or {}),
+        "saleable_recovered_mass_tpy_by_polymer": dict(result.get("saleable_recovered_mass_tpy_by_polymer") or {}),
+        "residual_mass_tpy_by_polymer": dict(result.get("residual_mass_tpy_by_polymer") or {}),
+        "route_id": str(route_spec.get("route_id") or ""),
+        "matched_route_id": None,
+        "rank": None,
+        "polymer_solvent_map": dict(route_spec.get("polymer_solvent_map") or {}),
+        "selection_origin": "landscape_sample",
+    }
+
+
+def _sample_candidate_landscape_points(
+    context: dict[str, Any],
+    *,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
+    max_routes: int = _LANDSCAPE_MAX_FORCED_DESIGNS,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    route_specs, summary = _build_candidate_landscape_route_specs(
+        context,
+        min_active_washes=min_active_washes,
+        max_active_washes=max_active_washes,
+        max_routes=max_routes,
+    )
+    if not route_specs:
+        summary.update(
+            {
+                "n_candidate_designs_attempted": 0,
+                "n_candidate_designs_solved": 0,
+                "n_landscape_points": 0,
+                "failures": [],
+            }
+        )
+        return [], summary
+
+    sets = (context.get("data") or {}).get("sets") or {}
+    polymers_available = list(sets.get("P") or get_optimizer_default_sets().get("P", []))
+    all_solvents = list(sets.get("S") or [])
+    rows: list[dict[str, Any]] = []
+    failures: list[dict[str, Any]] = []
+
+    for route_spec in route_specs:
+        try:
+            model = build_model(context["data"], context["config"])
+            _apply_active_wash_constraints(
+                model,
+                min_active_washes=min_active_washes,
+                max_active_washes=max_active_washes,
+            )
+            enforced, reason = _apply_route_constraints(
+                model,
+                route_spec,
+                polymers_available=polymers_available,
+                all_solvents=all_solvents,
+            )
+            if not enforced:
+                failures.append(
+                    {
+                        "route_id": route_spec.get("route_id"),
+                        "reason": reason or "route constraints could not be applied",
+                    }
+                )
+                continue
+            with contextlib.redirect_stdout(io.StringIO()):
+                solve_result = _solve_objective_with_fallback(
+                    model,
+                    "min_total_cost",
+                    solver_options={"limits/time": _LANDSCAPE_SOLVE_TIME_LIMIT_SEC},
+                    return_debug=True,
+                )
+            if isinstance(solve_result, tuple) and len(solve_result) == 2:
+                result, solve_debug = solve_result
+            else:
+                result, solve_debug = solve_result, []
+            if not result:
+                failures.append(
+                    {
+                        "route_id": route_spec.get("route_id"),
+                        "reason": (
+                            "min_total_cost solve returned no verified solution "
+                            f"within {_LANDSCAPE_SOLVE_TIME_LIMIT_SEC}s landscape cap"
+                        ),
+                        "solver_debug": solve_debug[-1:] if solve_debug else [],
+                    }
+                )
+                continue
+            rows.append(_result_to_landscape_row(result, route_spec))
+        except Exception as exc:
+            failures.append(
+                {
+                    "route_id": route_spec.get("route_id"),
+                    "reason": str(exc),
+                }
+            )
+
+    points = _frame_to_pareto_points(pd.DataFrame(rows)) if rows else []
+    for idx, point in enumerate(points, start=1):
+        point["raw_point_id"] = None
+        point["point_id"] = None
+        point["point_status"] = "landscape_sample"
+        point["is_frontier"] = False
+        point["landscape_point_id"] = idx
+
+    summary.update(
+        {
+            "n_candidate_designs_attempted": len(route_specs),
+            "n_candidate_designs_solved": len(rows),
+            "n_landscape_points": len(points),
+            "n_failed_designs": len(failures),
+            "failures": failures[:20],
+        }
+    )
+    return points, summary
+
+
+def _point_design_key(point: dict[str, Any]) -> tuple[Any, ...]:
+    return (
+        round(float(point.get("total_cost", 0.0) or 0.0), 6),
+        round(float(point.get("emissions", 0.0) or 0.0), 6),
+        round(float(point.get("circularity_score", 0.0) or 0.0), 9),
+        tuple(point.get("stage1_tech") or []),
+        tuple(point.get("stage2_tech") or []),
+        tuple(point.get("stage3_tech") or []),
+        tuple(point.get("wash1_selection") or []),
+        tuple(point.get("wash2_selection") or []),
+    )
+
+
+def _merge_feasible_and_landscape_points(
+    feasible_points: list[dict[str, Any]],
+    landscape_points: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen: set[tuple[Any, ...]] = set()
+    for source_point in list(feasible_points) + list(landscape_points):
+        key = _point_design_key(source_point)
+        if key in seen:
+            continue
+        seen.add(key)
+        point = dict(source_point)
+        point["raw_point_id"] = len(merged) + 1
+        merged.append(point)
+    return merged
+
+
+def _compact_plot_point(point: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: point[key]
+        for key in _COMPACT_POINT_FIELDS
+        if key in point and point[key] not in (None, "", [])
+    }
+
+
+def _compact_plot_points(points: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [_compact_plot_point(point) for point in points]
+
+
+def _compact_pareto_solver_debug(
+    anchors: dict[str, list[dict[str, Any]]],
+    sweep_attempts: list[dict[str, Any]],
+) -> dict[str, Any]:
+    compact_sweeps: list[dict[str, Any]] = []
+    for attempt in sweep_attempts:
+        point_debug = attempt.get("sweep_point_debug") or []
+        compact_sweeps.append(
+            {
+                key: attempt[key]
+                for key in ("attempt_index", "solver_options", "accepted", "n_rows", "error")
+                if key in attempt
+            }
+            | {
+                "n_sweep_point_debug_rows": len(point_debug),
+                "n_rejected_sweep_points": sum(
+                    1
+                    for point in point_debug
+                    if isinstance(point, dict) and not point.get("accepted")
+                ),
+            }
+        )
+    return {
+        "anchors": anchors,
+        "sweep_attempts": compact_sweeps,
+    }
+
+
+def _write_pareto_payload_sidecar(payload: dict[str, Any]) -> str:
+    sidecar_dir = Path.cwd() / "plots" / "optimization_payloads"
+    sidecar_dir.mkdir(parents=True, exist_ok=True)
+    sidecar_path = sidecar_dir / f"pareto_payload_{uuid.uuid4().hex[:12]}.json"
+    payload["pareto_payload_path"] = str(sidecar_path)
+    sidecar_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    return str(sidecar_path)
+
+
+def _write_pareto_slices_payload_sidecar(payload: dict[str, Any]) -> str:
+    sidecar_dir = Path.cwd() / "plots" / "optimization_payloads"
+    sidecar_dir.mkdir(parents=True, exist_ok=True)
+    sidecar_path = sidecar_dir / f"pareto_slices_payload_{uuid.uuid4().hex[:12]}.json"
+    payload["pareto_slices_payload_path"] = str(sidecar_path)
+    sidecar_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False, default=str))
+    return str(sidecar_path)
+
+
+def _apply_active_wash_constraints(
+    model,
+    *,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
+) -> None:
+    active_washes = model.x["st1"] + model.y["st2"]
+    if min_active_washes is not None:
+        model.min_active_washes_con = pyo.Constraint(expr=active_washes >= int(min_active_washes))
+    if max_active_washes is not None:
+        model.max_active_washes_con = pyo.Constraint(expr=active_washes <= int(max_active_washes))
+
+
+def _parse_composition_constraints_json(
+    composition_constraints_json: dict[str, Any] | str | None,
+) -> dict[str, dict[str, float]]:
+    if composition_constraints_json in (None, "", {}):
+        return {}
+    if isinstance(composition_constraints_json, str):
+        payload = json.loads(composition_constraints_json)
+    elif isinstance(composition_constraints_json, dict):
+        payload = dict(composition_constraints_json)
+    else:
+        raise TypeError("composition_constraints_json must be a JSON string or mapping")
+    if not isinstance(payload, dict):
+        raise TypeError("composition_constraints_json must decode to a mapping")
+
+    constraints: dict[str, dict[str, float]] = {}
+    for polymer, raw in payload.items():
+        polymer_key = _normalize_optimization_polymer(polymer) or str(polymer).strip().upper()
+        if not polymer_key:
+            continue
+        if isinstance(raw, (int, float)):
+            constraints[polymer_key] = {"min": float(raw), "max": float(raw)}
+            continue
+        if not isinstance(raw, dict):
+            continue
+        entry: dict[str, float] = {}
+        if "min" in raw:
+            entry["min"] = float(raw["min"])
+        if "max" in raw:
+            entry["max"] = float(raw["max"])
+        if "fixed" in raw:
+            fixed = float(raw["fixed"])
+            entry["min"] = fixed
+            entry["max"] = fixed
+        constraints[polymer_key] = entry
+    return constraints
+
+
+def _build_composition_bounds(
+    base_fractions: dict[str, float],
+    composition_constraints: dict[str, dict[str, float]],
+) -> tuple[list[str], dict[str, tuple[float, float]]]:
+    polymers: list[str] = []
+    seen: set[str] = set()
+    for polymer in base_fractions:
+        if polymer not in seen:
+            seen.add(polymer)
+            polymers.append(polymer)
+    for polymer in composition_constraints:
+        if polymer not in seen:
+            seen.add(polymer)
+            polymers.append(polymer)
+
+    bounds: dict[str, tuple[float, float]] = {}
+    for polymer in polymers:
+        raw = composition_constraints.get(polymer, {})
+        base_value = float(base_fractions.get(polymer, 0.0))
+        if "min" in raw or "max" in raw or "fixed" in raw:
+            lower = float(raw.get("min", 0.0))
+            upper = float(raw.get("max", 1.0))
+        elif base_value > 0:
+            lower = 0.0
+            upper = 1.0
+        else:
+            lower = 0.0
+            upper = 0.0
+        bounds[polymer] = (lower, upper)
+    return polymers, bounds
+
+
+def _generate_feasible_compositions(
+    polymers: list[str],
+    bounds: dict[str, tuple[float, float]],
+    *,
+    step: float,
+) -> list[dict[str, float]]:
+    if step <= 0 or step > 1:
+        raise ValueError("composition_step must be > 0 and <= 1")
+    units = round(1.0 / step)
+    if abs(units * step - 1.0) > 1e-8:
+        raise ValueError("composition_step must evenly divide 1.0")
+
+    min_units = {polymer: int(round(bounds[polymer][0] * units)) for polymer in polymers}
+    max_units = {polymer: int(round(bounds[polymer][1] * units)) for polymer in polymers}
+    compositions: list[dict[str, float]] = []
+
+    def _recurse(index: int, remaining: int, current: dict[str, int]) -> None:
+        polymer = polymers[index]
+        lower = min_units[polymer]
+        upper = min(max_units[polymer], remaining)
+        if index == len(polymers) - 1:
+            if lower <= remaining <= upper:
+                final_units = dict(current)
+                final_units[polymer] = remaining
+                compositions.append({
+                    key: value / units
+                    for key, value in final_units.items()
+                })
+            return
+
+        remaining_min_rest = sum(min_units[p] for p in polymers[index + 1 :])
+        remaining_max_rest = sum(max_units[p] for p in polymers[index + 1 :])
+        start = max(lower, remaining - remaining_max_rest)
+        stop = min(upper, remaining - remaining_min_rest)
+        for value in range(start, stop + 1):
+            current[polymer] = value
+            _recurse(index + 1, remaining - value, current)
+        current.pop(polymer, None)
+
+    _recurse(0, units, {})
+    return compositions
+
+
+def _solve_point_optimum_for_context(
+    context: dict[str, Any],
+    *,
+    objective: str,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
+) -> dict[str, Any] | None:
+    if "infeasible_response" in context:
+        return None
+    model = build_model(context["data"], context["config"])
+    _apply_active_wash_constraints(
+        model,
+        min_active_washes=min_active_washes,
+        max_active_washes=max_active_washes,
+    )
+    return _solve_objective_with_fallback(model, objective)
+
+
+def _objective_sort_key(objective: str, result: dict[str, Any]) -> float:
+    if objective == "min_emissions":
+        return float(result.get("emissions", float("inf")) or float("inf"))
+    if objective == "max_circularity":
+        return -float(result.get("CE", 0.0) or 0.0)
+    return -float(result.get("profit", 0.0) or 0.0)
+
 @safe_tool_wrapper(structured_output=True)
 def run_waste_management_optimization(
     feed: float,
-    pe_fraction: float,
-    pet_fraction: float,
-    n6_fraction: float,
-    evoh_fraction: float,
+    pe_fraction: float | None = None,
+    pet_fraction: float | None = None,
+    n6_fraction: float | None = None,
+    evoh_fraction: float | None = None,
+    feed_composition_json: dict[str, Any] | str | None = None,
     scenario: str = 'A',
     objective: str = 'max_profit',
     candidate_solvents: list[str] | str | None = None,
@@ -3105,6 +4603,11 @@ def run_waste_management_optimization(
     stage_candidates_json: dict[str, Any] | str | None = None,
     constraint_mode: str | None = None,
     fallback_policy: str | None = None,
+    feed_mode: str = "fixed",
+    composition_constraints_json: dict[str, Any] | str | None = None,
+    composition_step: float = 0.1,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = 2,
 ) -> str:
     """Run the PIW multi-layer plastic waste optimization model.
     This tools recalculates costs and operational parameters using BioSTEAM based on the specified input 
@@ -3113,13 +4616,25 @@ def run_waste_management_optimization(
     
     Args:
         feed: Total mixed plastic feed in tonnes/year (e.g. 8000).
-        pe_fraction: Fraction of Polyethylene (PE) in the feed (0.0 to 1.0).
-        pet_fraction: Fraction of Polyethylene terephthalate (PET) in the feed.
-        n6_fraction: Fraction of Nylon-6 (N6) in the feed.
-        evoh_fraction: Fraction of Ethylene vinyl alcohol (EVOH) in the feed.
-            (Note: fractions must sum to 1.0)
+        pe_fraction: Legacy fraction of Polyethylene (PE) in the feed (0.0 to 1.0).
+        pet_fraction: Legacy fraction of Polyethylene terephthalate (PET) in the feed.
+        n6_fraction: Legacy fraction of Nylon-6 (N6) in the feed.
+        evoh_fraction: Legacy fraction of Ethylene vinyl alcohol (EVOH) in the feed.
+            (Note: legacy fractions must sum to 1.0 when feed_composition_json is omitted)
+        feed_composition_json: Optional explicit composition mapping. When provided,
+            it overrides the legacy per-polymer fraction arguments and can include
+            arbitrary polymer keys.
         scenario: Location scenario 'A', 'B', or 'C'. Default is 'A'.
         objective: 'max_profit', 'min_emissions', or 'max_circularity'. Default 'max_profit'.
+        feed_mode: 'fixed' solves the supplied composition, 'sweep' evaluates a
+            grid of feasible compositions, and 'optimize' returns the best composition
+            from the evaluated grid.
+        composition_constraints_json: Optional per-polymer min/max/fixed bounds for
+            feed_mode='sweep' or 'optimize'.
+        composition_step: Grid step for composition sweep/optimization. Must evenly
+            divide 1.0 (for example 0.2, 0.1, 0.05).
+        min_active_washes: Optional minimum number of active STRAP wash stages.
+        max_active_washes: Optional maximum number of active STRAP wash stages.
     
     WHEN TO USE:
     - "Optimize waste management for a plant with 8000 feed composed of 60% PE, 20% PET..."
@@ -3127,12 +4642,18 @@ def run_waste_management_optimization(
     """
     temp_dir: Path | None = None
     try:
+        if feed_mode not in {"fixed", "sweep", "optimize"}:
+            return json_tool_error(
+                f"Unsupported feed_mode '{feed_mode}'. Supported values: fixed, sweep, optimize.",
+                tool_name="run_waste_management_optimization",
+            )
         context = _prepare_optimization_context(
             feed=feed,
             pe_fraction=pe_fraction,
             pet_fraction=pet_fraction,
             n6_fraction=n6_fraction,
             evoh_fraction=evoh_fraction,
+            feed_composition_json=feed_composition_json,
             scenario=scenario,
             candidate_solvents=candidate_solvents,
             polymer_solvent_filters_json=polymer_solvent_filters_json,
@@ -3141,16 +4662,144 @@ def run_waste_management_optimization(
             fallback_policy=fallback_policy,
         )
         temp_dir = context["temp_dir"]
+        source_handoff_summary = _build_source_handoff_summary(context)
         if "infeasible_response" in context:
             return context["infeasible_response"]
 
-        m = build_model(context["data"], context["config"])
-        results = _solve_objective_with_fallback(m, objective)
-        if not results:
-            return json_tool_error(
-                "Optimization model did not return a feasible solution.",
-                tool_name="run_waste_management_optimization",
+        if feed_mode == "fixed":
+            results = _solve_point_optimum_for_context(
+                context,
+                objective=objective,
+                min_active_washes=min_active_washes,
+                max_active_washes=max_active_washes,
             )
+            if not results:
+                return json_tool_error(
+                    "Optimization model did not return a feasible solution.",
+                    tool_name="run_waste_management_optimization",
+                )
+        else:
+            base_fractions = dict(context["fractions"])
+            composition_constraints = _parse_composition_constraints_json(composition_constraints_json)
+            polymers, bounds = _build_composition_bounds(base_fractions, composition_constraints)
+            compositions = _generate_feasible_compositions(
+                polymers,
+                bounds,
+                step=composition_step,
+            )
+            sweep_results: list[dict[str, Any]] = []
+            for composition in compositions:
+                sweep_context = _prepare_optimization_context(
+                    feed=feed,
+                    pe_fraction=pe_fraction,
+                    pet_fraction=pet_fraction,
+                    n6_fraction=n6_fraction,
+                    evoh_fraction=evoh_fraction,
+                    feed_composition_json=composition,
+                    scenario=scenario,
+                    candidate_solvents=candidate_solvents,
+                    polymer_solvent_filters_json=polymer_solvent_filters_json,
+                    stage_candidates_json=stage_candidates_json,
+                    constraint_mode=constraint_mode,
+                    fallback_policy=fallback_policy,
+                )
+                if "infeasible_response" in sweep_context:
+                    continue
+                sweep_solution = _solve_point_optimum_for_context(
+                    sweep_context,
+                    objective=objective,
+                    min_active_washes=min_active_washes,
+                    max_active_washes=max_active_washes,
+                )
+                if not sweep_solution:
+                    continue
+                sweep_results.append(
+                    {
+                        "feed_composition": dict(sweep_context["fractions"]),
+                        "profit": float(sweep_solution.get("profit", 0.0) or 0.0),
+                        "emissions": float(sweep_solution.get("emissions", 0.0) or 0.0),
+                        "raw_circularity_score": float(sweep_solution.get("CE", 0.0) or 0.0),
+                        "circularity_score": max(0.0, min(float(sweep_solution.get("CE", 0.0) or 0.0) / 1_000_000.0, 1.0)),
+                        "total_cost": float(sweep_solution.get("total_cost", 0.0) or 0.0),
+                        "wash1_selection": list(sweep_solution.get("wash1_selection", []) or []),
+                        "wash2_selection": list(sweep_solution.get("wash2_selection", []) or []),
+                        "stage1_tech": list(sweep_solution.get("stage1_tech", []) or []),
+                        "stage2_tech": list(sweep_solution.get("stage2_tech", []) or []),
+                        "stage3_tech": list(sweep_solution.get("stage3_tech", []) or []),
+                    }
+                )
+            if not sweep_results:
+                return json_tool_error(
+                    "No feasible compositions satisfied the requested composition search.",
+                    tool_name="run_waste_management_optimization",
+                )
+            sweep_results.sort(key=lambda item: _objective_sort_key(objective, item))
+            best = sweep_results[0]
+            if feed_mode == "optimize":
+                display = "## Waste Composition Optimization\n\n"
+                display += f"**Objective:** {objective} | **Scenario:** {context['scenario']}\n"
+                display += f"**Feed:** {feed} tonnes/year\n"
+                display += f"**Search step:** {composition_step:.4f}\n"
+                if min_active_washes is not None:
+                    display += f"**Minimum active washes:** {min_active_washes}\n"
+                if max_active_washes is not None:
+                    display += f"**Maximum active washes:** {max_active_washes}\n"
+                display += f"**Best composition:** {_format_feed_composition(best['feed_composition'])}\n"
+                display += f"- **Profit:** ${best['profit']:,.2f}\n"
+                display += f"- **Emissions:** {best['emissions']:,.2f} tCO2\n"
+                display += f"- **Circularity:** {best['circularity_score']:.4f}\n"
+                display += f"- **Total cost:** ${best['total_cost']:,.2f}\n"
+                display += f"- **Wash 1:** {best['wash1_selection']}\n"
+                display += f"- **Wash 2:** {best['wash2_selection']}\n"
+                payload = {
+                    "analysis_type": "composition_optimum",
+                    "schema_version": "1.0",
+                    "objective": objective,
+                    "feed": feed,
+                    "scenario": context["scenario"],
+                    "feed_mode": feed_mode,
+                    "composition_step": composition_step,
+                    "min_active_washes": min_active_washes,
+                    "max_active_washes": max_active_washes,
+                    "n_compositions_evaluated": len(sweep_results),
+                    "best_result": best,
+                    "top_results": sweep_results[:10],
+                    "source_handoff_summary": source_handoff_summary,
+                    "success": True,
+                    "tool_name": "run_waste_management_optimization",
+                }
+                return json_tool_response(display, payload)
+
+            display = "## Waste Composition Sweep\n\n"
+            display += f"**Objective:** {objective} | **Scenario:** {context['scenario']}\n"
+            display += f"**Feed:** {feed} tonnes/year\n"
+            display += f"**Search step:** {composition_step:.4f}\n"
+            display += f"**Feasible compositions:** {len(sweep_results)}\n"
+            for idx, item in enumerate(sweep_results[:20], start=1):
+                display += (
+                    f"- **Point {idx}:** {_format_feed_composition(item['feed_composition'])}; "
+                    f"profit ${item['profit']:,.2f}; emissions {item['emissions']:,.2f} tCO2; "
+                    f"circularity {item['circularity_score']:.4f}; "
+                    f"washes {item['wash1_selection']} / {item['wash2_selection']}\n"
+                )
+            payload = {
+                "analysis_type": "composition_sweep",
+                "schema_version": "1.0",
+                "objective": objective,
+                "feed": feed,
+                "scenario": context["scenario"],
+                "feed_mode": feed_mode,
+                "composition_step": composition_step,
+                "min_active_washes": min_active_washes,
+                "max_active_washes": max_active_washes,
+                "n_compositions_evaluated": len(sweep_results),
+                "best_result": best,
+                "results": sweep_results,
+                "source_handoff_summary": source_handoff_summary,
+                "success": True,
+                "tool_name": "run_waste_management_optimization",
+            }
+            return json_tool_response(display, payload)
         candidate_telemetry = _build_candidate_telemetry(context)
         # Normalize circularity score (CE) to 0‑1 range as per paper
         raw_ce = results.get("CE", 0)
@@ -3167,6 +4816,7 @@ def run_waste_management_optimization(
         results["simulation_failures"] = context.get("simulation_failures", [])
         results["simulation_skips"] = context.get("simulation_skips", [])
         results["candidate_telemetry"] = candidate_telemetry
+        results["source_handoff_summary"] = source_handoff_summary
         results["constraint_mode"] = context["constraint_mode"]
         results["fallback_policy"] = context["fallback_policy"]
         results["scenario"] = context["scenario"]
@@ -3175,7 +4825,7 @@ def run_waste_management_optimization(
 
         display = f"## Multi-layer Plastic Optimization Results\n\n"
         display += f"**Objective:** {objective} | **Scenario:** {context['scenario']}\n"
-        display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100}% PE, {pet_fraction*100}% PET, {n6_fraction*100}% N6, {evoh_fraction*100}% EVOH)\n\n"
+        display += f"**Feed:** {feed} tonnes/year ({_format_feed_composition(context['fractions'])})\n\n"
         
         display += "### Optimal Technology Pathways Selected\n"
         display += f"- **Stage 1 (Separation):** {results.get('stage1_tech', [])}\n"
@@ -3183,8 +4833,8 @@ def run_waste_management_optimization(
         display += f"- **Stage 3 (End of Life):** {results.get('stage3_tech', [])}\n"
         
         display += "\n### Chosen STRAP Solvents\n"
-        display += f"- **Wash 1 (PE Target):** {results.get('wash1_selection', [])}\n"
-        display += f"- **Wash 2 (EVOH Target):** {results.get('wash2_selection', [])}\n"
+        display += f"- **Wash 1:** {results.get('wash1_selection', [])}\n"
+        display += f"- **Wash 2:** {results.get('wash2_selection', [])}\n"
         
         display += "\n### Economic and Environmental Impact\n"
         display += f"- **Total Profit:** ${results.get('profit', 0):,.2f}\n"
@@ -3196,6 +4846,9 @@ def run_waste_management_optimization(
         display += f"- **Constraint mode:** {context['constraint_mode']}\n"
         display += f"- **Fallback policy:** {context['fallback_policy']}\n"
         display += f"- **Solvent shortlist status:** {context['filter_status']}\n"
+        handoff_line = _format_source_handoff_summary_line(source_handoff_summary)
+        if handoff_line:
+            display += f"- {handoff_line}"
         if context.get("strap_table_rows") is not None:
             display += f"- **Compiled STRAP rows:** {context['strap_table_rows']}\n"
         requested_counts = candidate_telemetry["requested"]["counts_by_polymer"]
@@ -3242,10 +4895,11 @@ def run_waste_management_optimization(
 @safe_tool_wrapper(structured_output=True)
 def run_waste_management_pareto(
     feed: float,
-    pe_fraction: float,
-    pet_fraction: float,
-    n6_fraction: float,
-    evoh_fraction: float,
+    pe_fraction: float | None = None,
+    pet_fraction: float | None = None,
+    n6_fraction: float | None = None,
+    evoh_fraction: float | None = None,
+    feed_composition_json: dict[str, Any] | str | None = None,
     scenario: str = "A",
     x_metric: str = "total_cost",
     y_metric: str = "emissions",
@@ -3256,15 +4910,19 @@ def run_waste_management_pareto(
     constraint_mode: str | None = None,
     fallback_policy: str | None = None,
     route_pool_mode: str | None = None,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
 ) -> str:
     """Run an optimization Pareto sweep on top of the staged solvent-candidate path.
 
     Args:
         feed: Total mixed plastic feed in tonnes/year.
-        pe_fraction: Fraction of PE in the feed.
-        pet_fraction: Fraction of PET in the feed.
-        n6_fraction: Fraction of N6 in the feed.
-        evoh_fraction: Fraction of EVOH in the feed.
+        pe_fraction: Legacy fraction of PE in the feed.
+        pet_fraction: Legacy fraction of PET in the feed.
+        n6_fraction: Legacy fraction of N6 in the feed.
+        evoh_fraction: Legacy fraction of EVOH in the feed.
+        feed_composition_json: Optional explicit feed composition mapping overriding
+            the legacy PE/PET/N6/EVOH fraction arguments.
         scenario: Location scenario 'A', 'B', or 'C'.
         x_metric: Supported value: 'total_cost'.
         y_metric: Supported values: 'emissions' or 'circularity'.
@@ -3272,6 +4930,8 @@ def run_waste_management_pareto(
             100 when the caller does not specify a value.
         route_pool_mode: 'exact' keeps upstream route tuples intact; 'slot_independent'
             allows Wash 1 and Wash 2 to be combined independently from the shortlisted pool.
+        min_active_washes: Optional minimum number of active STRAP wash stages.
+        max_active_washes: Optional maximum number of active STRAP wash stages.
     """
     temp_dir: Path | None = None
     try:
@@ -3297,6 +4957,7 @@ def run_waste_management_pareto(
             pet_fraction=pet_fraction,
             n6_fraction=n6_fraction,
             evoh_fraction=evoh_fraction,
+            feed_composition_json=feed_composition_json,
             scenario=scenario,
             candidate_solvents=candidate_solvents,
             polymer_solvent_filters_json=polymer_solvent_filters_json,
@@ -3306,6 +4967,7 @@ def run_waste_management_pareto(
             route_pool_mode=route_pool_mode,
         )
         temp_dir = context["temp_dir"]
+        route_pool_mode = str(context.get("route_pool_mode") or route_pool_mode or "exact")
         if "infeasible_response" in context:
             return context["infeasible_response"]
 
@@ -3314,7 +4976,12 @@ def run_waste_management_pareto(
         # one pooled Pareto sweep over the shortlisted route set. This keeps
         # polymer↔solvent coupling intact without collapsing the entire front
         # to one exact-route solve per candidate.
-        route_candidates = context.get("route_candidates") or []
+        route_candidates = (
+            context.get("route_candidates_for_enforcement")
+            if context.get("route_candidates_for_enforcement") is not None
+            else context.get("route_candidates")
+            or []
+        )
         route_enforcing_modes = {"fixed", "hard", "ranked_soft"}
         route_enforcement_active = (
             bool(route_candidates)
@@ -3328,6 +4995,8 @@ def run_waste_management_pareto(
                 x_metric=x_metric,
                 y_metric=y_metric,
                 n_points=n_points,
+                min_active_washes=min_active_washes,
+                max_active_washes=max_active_washes,
             )
             route_payload = _extract_tool_data(route_response)
             n_routes_solved = int(route_payload.get("n_routes_solved") or 0)
@@ -3363,41 +5032,60 @@ def run_waste_management_pareto(
             )
             context["filter_status"] = "broadened_after_route_infeasible"
 
-        cost_model = build_model(context["data"], context["config"])
-        cost_opt = _solve_objective_with_fallback(cost_model, "min_total_cost")
+        def _build_unconstrained_model():
+            model = build_model(context["data"], context["config"])
+            try:
+                _apply_active_wash_constraints(
+                    model,
+                    min_active_washes=min_active_washes,
+                    max_active_washes=max_active_washes,
+                )
+            except AttributeError:
+                pass
+            return model, True, None
+
+        anchor_solver_debug: dict[str, list[dict[str, Any]]] = {"min_total_cost": []}
+        sweep_solver_debug: list[dict[str, Any]] = []
+        cost_opt, cost_failure_reason = _retry_constrained_objective(
+            _build_unconstrained_model,
+            "min_total_cost",
+            debug_attempts=anchor_solver_debug["min_total_cost"],
+        )
         if not cost_opt:
             return json_tool_error(
-                "Cost-optimal Pareto anchor could not be solved.",
+                f"Cost-optimal Pareto anchor could not be solved. {cost_failure_reason or ''}".strip(),
+                tool_name="run_waste_management_pareto",
+            )
+
+        y_objective = "min_emissions" if y_metric == "emissions" else "max_circularity"
+        anchor_solver_debug[y_objective] = []
+        y_opt, y_failure_reason = _retry_constrained_objective(
+            _build_unconstrained_model,
+            y_objective,
+            debug_attempts=anchor_solver_debug[y_objective],
+        )
+        if not y_opt:
+            label = "Emissions-optimal" if y_metric == "emissions" else "Circularity-optimal"
+            return json_tool_error(
+                f"{label} Pareto anchor could not be solved. {y_failure_reason or ''}".strip(),
+                tool_name="run_waste_management_pareto",
+            )
+
+        frontier, sweep_failure_reason = _run_constrained_pareto_sweep(
+            _build_unconstrained_model,
+            y_metric=y_metric,
+            cost_opt=cost_opt,
+            y_opt=y_opt,
+            n_points=n_points,
+            debug_attempts=sweep_solver_debug,
+        )
+        if frontier.empty:
+            return json_tool_error(
+                f"Pareto sweep returned no feasible verified points. {sweep_failure_reason or ''}".strip(),
                 tool_name="run_waste_management_pareto",
             )
 
         if y_metric == "emissions":
-            y_model = build_model(context["data"], context["config"])
-            y_opt = _solve_objective_with_fallback(y_model, "min_emissions")
-            if not y_opt:
-                return json_tool_error(
-                    "Emissions-optimal Pareto anchor could not be solved.",
-                    tool_name="run_waste_management_pareto",
-                )
-            sweep_model = build_model(context["data"], context["config"])
-            try:
-                frontier = pareto_cost_vs_emissions(
-                    sweep_model,
-                    emission_ideal=float(y_opt["emissions"]),
-                    emission_nonideal=float(cost_opt["emissions"]),
-                    n_points=n_points,
-                    solver_name="scip",
-                )
-            except Exception as exc:
-                logger.warning("Failed to run SCIP Pareto sweep for emissions: %s. Falling back to available solvers.", exc)
-                sweep_model = build_model(context["data"], context["config"])
-                frontier = pareto_cost_vs_emissions(
-                    sweep_model,
-                    emission_ideal=float(y_opt["emissions"]),
-                    emission_nonideal=float(cost_opt["emissions"]),
-                    n_points=n_points,
-                    solver_name=None,
-                )
             ideal_points = {
                 "min_total_cost": {
                     "total_cost": float(cost_opt["total_cost"]),
@@ -3409,32 +5097,6 @@ def run_waste_management_pareto(
                 },
             }
         else:
-            y_model = build_model(context["data"], context["config"])
-            y_opt = _solve_objective_with_fallback(y_model, "max_circularity")
-            if not y_opt:
-                return json_tool_error(
-                    "Circularity-optimal Pareto anchor could not be solved.",
-                    tool_name="run_waste_management_pareto",
-                )
-            sweep_model = build_model(context["data"], context["config"])
-            try:
-                frontier = pareto_cost_vs_ce(
-                    sweep_model,
-                    ce_nonideal=float(cost_opt["CE"]),
-                    ce_ideal=float(y_opt["CE"]),
-                    n_points=n_points,
-                    solver_name="scip",
-                )
-            except Exception as exc:
-                logger.warning("Failed to run SCIP Pareto sweep for circularity: %s. Falling back to available solvers.", exc)
-                sweep_model = build_model(context["data"], context["config"])
-                frontier = pareto_cost_vs_ce(
-                    sweep_model,
-                    ce_nonideal=float(cost_opt["CE"]),
-                    ce_ideal=float(y_opt["CE"]),
-                    n_points=n_points,
-                    solver_name=None,
-                )
             ideal_points = {
                 "min_total_cost": {
                     "total_cost": float(cost_opt["total_cost"]),
@@ -3447,17 +5109,29 @@ def run_waste_management_pareto(
             }
 
         raw_points = _frame_to_pareto_points(frontier)
+        if route_pool_mode == "slot_independent":
+            for point in raw_points:
+                if point.get("selection_origin") == "exact_route" and not point.get("matched_route_id"):
+                    point["selection_origin"] = "candidate_pool"
         y_key = "emissions" if y_metric == "emissions" else "circularity_score"
-        points = _non_dominated(raw_points, y_key=y_key)
-        for idx, point in enumerate(points, start=1):
-            point["point_id"] = idx
+        points, dominated_points = _classify_pareto_points(raw_points, y_key=y_key)
+        landscape_points, landscape_summary = _sample_candidate_landscape_points(
+            context,
+            min_active_washes=min_active_washes,
+            max_active_washes=max_active_washes,
+        )
+        compact_all_feasible_points = _compact_plot_points(raw_points)
+        compact_landscape_points = _compact_plot_points(landscape_points)
+        compact_epsilon_sweep_points = _compact_plot_points(raw_points)
+        compact_dominated_points = _compact_plot_points(dominated_points)
         # Flat filter fields are emitted alongside the nested candidate_summary so the
         # deterministic verifier and any downstream consumers can read the same field
         # names on point_optimum and pareto_front without path-specific branching.
         candidate_telemetry = _build_candidate_telemetry(context)
+        source_handoff_summary = _build_source_handoff_summary(context)
         result_payload = {
             "analysis_type": "pareto_front",
-            "schema_version": "1.1",
+            "schema_version": "1.5",
             "x_metric": x_metric,
             "y_metric": y_metric,
             "scenario": context["scenario"],
@@ -3465,12 +5139,18 @@ def run_waste_management_pareto(
             "feed_composition": context["fractions"],
             "constraint_mode": context["constraint_mode"],
             "fallback_policy": context["fallback_policy"],
+            "route_pool_mode": route_pool_mode,
             "n_points_requested": n_points,
             "n_points_raw_feasible": int(len(frontier)),
             "n_points_feasible": len(points),
             "strap_table_rows": context.get("strap_table_rows"),
             "ideal_points": ideal_points,
             "points": points,
+            "all_feasible_points": compact_all_feasible_points,
+            "epsilon_sweep_points": compact_epsilon_sweep_points,
+            "landscape_points": compact_landscape_points,
+            "dominated_points": compact_dominated_points,
+            "landscape_summary": landscape_summary,
             "frontier_summary": {
                 "n_routes_on_frontier": 0,
                 "route_ids_on_frontier": [],
@@ -3502,17 +5182,43 @@ def run_waste_management_pareto(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, points),
+            "solver_debug": _compact_pareto_solver_debug(anchor_solver_debug, sweep_solver_debug),
             "tool_name": "run_waste_management_pareto",
             "success": True,
         }
+        _write_pareto_payload_sidecar(result_payload)
 
         display = "## Waste Optimization Pareto Front\n\n"
         display += f"**Scenario:** {context['scenario']} | **X metric:** {x_metric} | **Y metric:** {y_metric}\n"
-        display += f"**Feed:** {feed} tonnes/year ({pe_fraction*100}% PE, {pet_fraction*100}% PET, {n6_fraction*100}% N6, {evoh_fraction*100}% EVOH)\n"
+        display += f"**Feed:** {feed} tonnes/year ({_format_feed_composition(context['fractions'])})\n"
         display += f"**Feasible Pareto points:** {len(points)} unique / {len(frontier)} raw / {n_points} requested\n"
         display += f"**Constraint mode:** {context['constraint_mode']} | **Fallback policy:** {context['fallback_policy']}\n"
         display += f"**Solvent shortlist status:** {context['filter_status']}\n"
+        display += _format_source_handoff_summary_line(source_handoff_summary)
+        rejected_anchor_attempts = sum(
+            1
+            for attempts in anchor_solver_debug.values()
+            for attempt in attempts
+            if not attempt.get("accepted")
+        )
+        rejected_sweep_points = sum(
+            1
+            for attempt in sweep_solver_debug
+            for point in attempt.get("sweep_point_debug", [])
+            if not point.get("accepted")
+        )
+        display += (
+            f"**Solver debug:** rejected anchor attempts {rejected_anchor_attempts}; "
+            f"rejected sweep points {rejected_sweep_points}\n"
+        )
+        if landscape_summary:
+            display += (
+                f"**Landscape samples:** {landscape_summary.get('n_landscape_points', 0)} unique / "
+                f"{landscape_summary.get('n_candidate_designs_solved', 0)} solved / "
+                f"{landscape_summary.get('n_candidate_designs_attempted', 0)} attempted forced candidate designs\n"
+            )
         if context.get("strap_table_rows") is not None:
             display += f"**Compiled STRAP rows:** {context['strap_table_rows']}\n"
         requested_counts = candidate_telemetry["requested"]["counts_by_polymer"]
@@ -3552,6 +5258,11 @@ def run_waste_management_pareto(
                     f"Washes {point['wash1_selection']} / {point['wash2_selection']}; "
                     f"Stage 3 {', '.join(point.get('stage3_variants') or point.get('stage3_tech') or ['none'])}"
                 )
+                if point.get("residual_polymers"):
+                    destination = ", ".join(point.get("residual_destination_tech") or ["downstream"])
+                    display += (
+                        f"; Residual polymers {point['residual_polymers']} -> {destination}"
+                    )
                 if int(point.get("n_equivalent_designs") or 1) > 1:
                     display += f"; equivalent design variants {point['n_equivalent_designs']}"
                 display += "\n"
@@ -3567,3 +5278,184 @@ def run_waste_management_pareto(
         # isolated workbook copy; the current pipeline threads data via a
         # compiled DataFrame and never populates it.
         pass
+
+
+@safe_tool_wrapper(structured_output=True)
+def run_waste_management_pareto_slices(
+    feed: float,
+    composition_slices_json: dict[str, Any] | list[dict[str, Any]] | str,
+    scenario: str = "A",
+    x_metric: str = "total_cost",
+    y_metric: str = "circularity",
+    n_points: int = 100,
+    candidate_solvents: list[str] | str | None = None,
+    polymer_solvent_filters_json: dict[str, Any] | str | None = None,
+    stage_candidates_json: dict[str, Any] | str | None = None,
+    constraint_mode: str | None = None,
+    fallback_policy: str | None = None,
+    route_pool_mode: str | None = None,
+    min_active_washes: int | None = None,
+    max_active_washes: int | None = None,
+) -> str:
+    """Run one Pareto sweep per fixed feed-composition slice.
+
+    This is the agent-facing orchestration primitive for prompts like
+    "compare 20/60/20, 34/33/33, and 5/5/90". It deliberately runs slices
+    sequentially and emits progress lines so long CLI runs remain auditable.
+    """
+    try:
+        slices = _parse_composition_slices_json(composition_slices_json)
+        if not slices:
+            return json_tool_error(
+                "composition_slices_json must contain at least one fixed feed-composition slice.",
+                tool_name="run_waste_management_pareto_slices",
+            )
+        if n_points < 2:
+            return json_tool_error(
+                "n_points must be at least 2 for a Pareto sweep.",
+                tool_name="run_waste_management_pareto_slices",
+            )
+
+        slice_summaries: list[dict[str, Any]] = []
+        slice_payloads: list[dict[str, Any]] = []
+        display_lines = [
+            "## Waste Optimization Pareto Composition Slices",
+            "",
+            f"**Scenario:** {scenario} | **X metric:** {x_metric} | **Y metric:** {y_metric}",
+            f"**Feed:** {feed} tonnes/year",
+            f"**Slices requested:** {len(slices)} | **Pareto samples per slice:** {n_points}",
+            "",
+        ]
+
+        for index, slice_spec in enumerate(slices, start=1):
+            composition = dict(slice_spec["feed_composition"])
+            label = str(slice_spec.get("label") or f"slice_{index}")
+            if label.startswith("slice_"):
+                label = _composition_slug(composition) or label
+            composition_text = _format_feed_composition(composition)
+            print(
+                f"[pareto-slices] Starting slice {index}/{len(slices)}: {label} ({composition_text})",
+                flush=True,
+            )
+            raw_response = run_waste_management_pareto(
+                feed=feed,
+                feed_composition_json=composition,
+                scenario=scenario,
+                x_metric=x_metric,
+                y_metric=y_metric,
+                n_points=n_points,
+                candidate_solvents=candidate_solvents,
+                polymer_solvent_filters_json=polymer_solvent_filters_json,
+                stage_candidates_json=stage_candidates_json,
+                constraint_mode=constraint_mode,
+                fallback_policy=fallback_policy,
+                route_pool_mode=route_pool_mode,
+                min_active_washes=min_active_washes,
+                max_active_washes=max_active_washes,
+            )
+            parsed_data = _extract_tool_data(raw_response)
+            full_payload = dict(parsed_data)
+            sidecar_path = str(parsed_data.get("pareto_payload_path") or "").strip()
+            if sidecar_path:
+                candidate_path = Path(sidecar_path)
+                if not candidate_path.is_absolute():
+                    candidate_path = Path.cwd() / candidate_path
+                if candidate_path.exists():
+                    try:
+                        loaded = json.loads(candidate_path.read_text(encoding="utf-8"))
+                        if isinstance(loaded, dict):
+                            full_payload = loaded.get("data") if isinstance(loaded.get("data"), dict) else loaded
+                    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                        full_payload = dict(parsed_data)
+
+            points = full_payload.get("points") or []
+            status = "solved" if full_payload.get("success") and full_payload.get("analysis_type") == "pareto_front" else "failed"
+            circularities = [
+                float(point.get("circularity_score", 0.0) or 0.0)
+                for point in points
+            ]
+            costs = [
+                float(point.get("total_cost", 0.0) or 0.0)
+                for point in points
+            ]
+            summary = {
+                "slice_id": slice_spec["slice_id"],
+                "label": label,
+                "feed_composition": composition,
+                "feed_composition_text": composition_text,
+                "status": status,
+                "n_points_feasible": int(full_payload.get("n_points_feasible") or len(points) or 0),
+                "n_points_raw_feasible": int(full_payload.get("n_points_raw_feasible") or 0),
+                "n_landscape_points": len(full_payload.get("landscape_points") or []),
+                "max_circularity": max(circularities) if circularities else None,
+                "min_frontier_cost": min(costs) if costs else None,
+                "max_frontier_cost": max(costs) if costs else None,
+                "pareto_payload_path": full_payload.get("pareto_payload_path") or parsed_data.get("pareto_payload_path"),
+                "error": parsed_data.get("error"),
+            }
+            slice_summaries.append(summary)
+            full_payload["slice_id"] = slice_spec["slice_id"]
+            full_payload["slice_label"] = label
+            full_payload["slice_feed_composition"] = composition
+            slice_payloads.append(full_payload)
+
+            print(
+                f"[pareto-slices] Finished slice {index}/{len(slices)}: {label}; "
+                f"status={status}; frontier_points={summary['n_points_feasible']}; "
+                f"payload={summary.get('pareto_payload_path') or 'none'}",
+                flush=True,
+            )
+            if status == "solved":
+                display_lines.append(
+                    f"- **{label}:** {composition_text}; frontier points {summary['n_points_feasible']}; "
+                    f"max circularity {summary['max_circularity']:.4f}; "
+                    f"cost range ${summary['min_frontier_cost']:,.0f}-${summary['max_frontier_cost']:,.0f}"
+                )
+            else:
+                display_lines.append(
+                    f"- **{label}:** {composition_text}; failed ({summary.get('error') or 'no Pareto frontier returned'})"
+                )
+
+        n_solved = sum(1 for item in slice_summaries if item["status"] == "solved")
+        result_payload = {
+            "analysis_type": "pareto_slices",
+            "schema_version": "1.0",
+            "scenario": scenario,
+            "feed": feed,
+            "x_metric": x_metric,
+            "y_metric": y_metric,
+            "n_points_requested_per_slice": n_points,
+            "n_slices_requested": len(slice_summaries),
+            "n_slices_solved": n_solved,
+            "min_active_washes": min_active_washes,
+            "max_active_washes": max_active_washes,
+            "constraint_mode": constraint_mode,
+            "fallback_policy": fallback_policy,
+            "route_pool_mode": route_pool_mode,
+            "slices": slice_summaries,
+            "tool_name": "run_waste_management_pareto_slices",
+            "success": n_solved > 0,
+        }
+        full_result_payload = {
+            **result_payload,
+            "slice_payloads": slice_payloads,
+        }
+        sidecar_path = _write_pareto_slices_payload_sidecar(full_result_payload)
+        result_payload["pareto_slices_payload_path"] = sidecar_path
+
+        display_lines.extend(
+            [
+                "",
+                f"**Solved slices:** {n_solved}/{len(slice_summaries)}",
+                f"**Authoritative multi-slice payload:** {sidecar_path}",
+            ]
+        )
+        return json_tool_response(
+            "\n".join(display_lines),
+            result_payload,
+            tool_name="run_waste_management_pareto_slices",
+            success=n_solved > 0,
+        )
+    except Exception as e:
+        logger.exception("Error in run_waste_management_pareto_slices")
+        return json_tool_error(str(e), tool_name="run_waste_management_pareto_slices")

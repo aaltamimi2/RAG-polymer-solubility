@@ -257,6 +257,51 @@ def _default_rag_payload() -> dict[str, Any]:
     }
 
 
+def _default_optimization_payload() -> dict[str, Any]:
+    return {
+        "agent": "optimization-engineer",
+        "schema_version": "1.5",
+        "analysis_type": "pareto_front",
+        "x_metric": "total_cost",
+        "y_metric": "circularity_score",
+        "n_points_feasible": 3,
+        "points": [
+            {
+                "point_id": 1,
+                "total_cost": 100_000.0,
+                "circularity_score": 0.25,
+                "emissions": 12_000.0,
+                "wash1_selection": [],
+                "wash2_selection": [],
+                "stage3_tech": ["lf"],
+            },
+            {
+                "point_id": 2,
+                "total_cost": 240_000.0,
+                "circularity_score": 0.58,
+                "emissions": 8_200.0,
+                "wash1_selection": ["PE-Cyclohexane"],
+                "wash2_selection": [],
+                "stage3_tech": ["WtE"],
+            },
+            {
+                "point_id": 3,
+                "total_cost": 410_000.0,
+                "circularity_score": 0.82,
+                "emissions": 6_700.0,
+                "wash1_selection": ["PE-Cyclohexane"],
+                "wash2_selection": ["EVOH-Dimethyl sulfoxide"],
+                "stage3_tech": ["Gasification"],
+            },
+        ],
+        "frontier_summary": {
+            "n_frontier_points": 3,
+            "n_distinct_stage3_techs": 3,
+            "n_cross_product_points": 0,
+        },
+    }
+
+
 def _default_visualization_payload(plot_type: str = "comparison_dashboard") -> dict[str, Any]:
     return {
         "agent": "visualization-specialist",
@@ -295,6 +340,7 @@ _DEFAULT_PAYLOADS: dict[str, Any] = {
         contaminants=["Phthalates"],
         solvents=["toluene", "xylene"],
     ),
+    "optimization-engineer": _default_optimization_payload,
     "patent-researcher": lambda: _default_patent_payload("graph-derived replay case"),
     "rag-analyst": _default_rag_payload,
     "safety-analyst": _default_safety_payload,
@@ -308,10 +354,12 @@ _TYPED_CONTRACTS: dict[tuple[str, str], str] = {
     ("biosteam-analyst", "visualization-specialist"): "biosteam_plot.v1",
     ("contaminant-removal-analyst", "biosteam-analyst"): "contaminant_biosteam.v1",
     ("contaminant-removal-analyst", "separation-engineer"): "contaminant_guided_separation.v1",
+    ("optimization-engineer", "visualization-specialist"): "optimization_plot_context.v1",
     ("patent-researcher", "rag-analyst"): "patent_context.v1",
     ("scholar-researcher", "rag-analyst"): "literature_context.v1",
     ("separation-engineer", "biosteam-analyst"): "sequence_batch.v1",
     ("separation-engineer", "contaminant-removal-analyst"): "contaminant_screen.v1",
+    ("separation-engineer", "optimization-engineer"): "optimization.stage_candidates.v1",
     ("separation-engineer", "visualization-specialist"): "separation_plot.v1",
     ("statistics-ml", "visualization-specialist"): "analysis_plot.v1",
 }

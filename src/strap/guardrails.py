@@ -4,7 +4,9 @@ limit + synthesis injection + old tool-result truncation."""
 from __future__ import annotations
 
 import contextvars
+import json
 import logging
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -27,6 +29,7 @@ from .guardrail_messages import (
     token_budget_message,
     tool_budget_repair_message,
     tool_budget_suffix,
+    visualization_required_tool_repair_message,
 )
 from .guardrail_policy import (
     inject_separation_support_directive,
@@ -38,7 +41,13 @@ from .guardrail_policy import (
     maybe_enforce_visualization_tool_directive,
     restrict_visualization_tools,
 )
-from .guardrail_utils import extract_completed_tool_names
+from .guardrail_utils import (
+    coerce_message_text,
+    extract_completed_tool_names,
+    extract_required_visualization_tool,
+)
+from .handoff_store import get_handoff
+from .query_context import extract_query_context
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -58,6 +67,7 @@ class _GuardState:
     structured_result_repairs: int = 0
     tool_budget_repairs: int = 0
     separation_analysis_repairs: int = 0
+    visualization_required_tool_repairs: int = 0
 
 
 _guard_state: contextvars.ContextVar[_GuardState] = contextvars.ContextVar(
@@ -71,6 +81,12 @@ _SEPARATION_NON_ANALYSIS_TOOLS = {
     "list_available_solvents",
     "get_supported_polymers_and_solvents",
 }
+_SEPARATION_TOP_K_TOOL_ARGS = {
+    "plan_sequential_separation": "top_k_solvents",
+    "view_alternative_separation_sequence": "top_k_solvents",
+    "analyze_integrated_separation": "top_k",
+}
+_BLOCKED_SUBAGENT_FILESYSTEM_TOOLS = {"grep", "glob", "execute", "edit_file"}
 
 
 class SubagentGuardMiddleware(AgentMiddleware):
@@ -257,6 +273,17 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 ],
                 "jump_to": "model",
             }
+        missing_visualization_tool = self._missing_required_visualization_tool(messages, last_ai)
+        if missing_visualization_tool is not None:
+            self._state.visualization_required_tool_repairs += 1
+            return {
+                "messages": [
+                    HumanMessage(
+                        content=visualization_required_tool_repair_message(missing_visualization_tool)
+                    )
+                ],
+                "jump_to": "model",
+            }
         structured_errors = get_structured_result_errors(last_ai, self._agent_name)
         if self._should_repair_structured_result(messages, structured_errors):
             self._state.structured_result_repairs += 1
@@ -300,6 +327,9 @@ class SubagentGuardMiddleware(AgentMiddleware):
         return self.after_model(state, runtime)
 
     def wrap_tool_call(self, request, handler):
+        blocked = self._maybe_block_subagent_filesystem_tool(request)
+        if blocked is not None:
+            return blocked
         blocked = self._maybe_enforce_visualization_tool_directive(request)
         if blocked is not None:
             return blocked
@@ -309,9 +339,18 @@ class SubagentGuardMiddleware(AgentMiddleware):
         blocked = self._maybe_block_duplicate_biosteam_batch(request)
         if blocked is not None:
             return blocked
-        return handler(request)
+        prepared = self._maybe_prepare_separation_tool_call(request)
+        if prepared is not request:
+            return handler(prepared)
+        prepared = self._maybe_prepare_optimization_tool_call(request)
+        if isinstance(prepared, ToolMessage):
+            return prepared
+        return handler(prepared)
 
     async def awrap_tool_call(self, request, handler):
+        blocked = self._maybe_block_subagent_filesystem_tool(request)
+        if blocked is not None:
+            return blocked
         blocked = self._maybe_enforce_visualization_tool_directive(request)
         if blocked is not None:
             return blocked
@@ -321,7 +360,362 @@ class SubagentGuardMiddleware(AgentMiddleware):
         blocked = self._maybe_block_duplicate_biosteam_batch(request)
         if blocked is not None:
             return blocked
-        return await handler(request)
+        prepared = self._maybe_prepare_separation_tool_call(request)
+        if prepared is not request:
+            return await handler(prepared)
+        prepared = self._maybe_prepare_optimization_tool_call(request)
+        if isinstance(prepared, ToolMessage):
+            return prepared
+        return await handler(prepared)
+
+    def _maybe_block_subagent_filesystem_tool(self, request):
+        if not self._agent_name:
+            return None
+        tool_call = request.tool_call or {}
+        tool_name = tool_call.get("name")
+        if tool_name not in _BLOCKED_SUBAGENT_FILESYSTEM_TOOLS:
+            return None
+        return ToolMessage(
+            content=(
+                f"Subagent guard: `{tool_name}` is disabled for `{self._agent_name}`. "
+                "Use the attached handoff payload, handoff/domain tools, or read_file only "
+                "when an exact returned file path was provided."
+            ),
+            tool_call_id=tool_call.get("id"),
+            status="error",
+        )
+
+    def _maybe_prepare_separation_tool_call(self, request):
+        if self._agent_name != "separation-engineer":
+            return request
+        tool_call = request.tool_call or {}
+        tool_name = tool_call.get("name")
+        arg_name = _SEPARATION_TOP_K_TOOL_ARGS.get(str(tool_name or ""))
+        if not arg_name:
+            return request
+        args = tool_call.get("args")
+        if not isinstance(args, dict):
+            return request
+
+        state_map = self._state_mapping(request.state)
+        requested_top_k = self._infer_requested_separation_top_k(state_map)
+        if requested_top_k is None:
+            return request
+        try:
+            current_top_k = int(args.get(arg_name) or 0)
+        except (TypeError, ValueError):
+            current_top_k = 0
+        if current_top_k >= requested_top_k:
+            return request
+
+        repaired_args = dict(args)
+        repaired_args[arg_name] = requested_top_k
+        new_tool_call = {**tool_call, "args": repaired_args}
+        return request.override(tool_call=new_tool_call)
+
+    def _infer_requested_separation_top_k(self, state_map: dict) -> int | None:
+        text_parts: list[str] = []
+        for message in state_map.get("messages") or []:
+            if isinstance(message, HumanMessage):
+                text = coerce_message_text(message.content)
+                if text:
+                    text_parts.append(text)
+        text = "\n".join(text_parts).lower()
+        if not text:
+            return None
+        patterns = (
+            r"top\s+(\d+)\s+(?:unique\s+)?solvent\s+candidates?\s+per\s+polymer",
+            r"top\s+(\d+)\s+(?:unique\s+)?solvent\s+choices?\s+per\s+polymer",
+            r"top\s+(\d+)\s+(?:unique\s+)?(?:polymer-)?solvent\s+pairs?",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if not match:
+                continue
+            try:
+                value = int(match.group(1))
+            except (TypeError, ValueError):
+                continue
+            if value > 0:
+                return min(value, 50)
+        return None
+
+    def _maybe_prepare_optimization_tool_call(self, request):
+        if self._agent_name != "optimization-engineer":
+            return request
+        tool_call = request.tool_call or {}
+        tool_name = tool_call.get("name")
+        if tool_name not in {
+            "run_waste_management_optimization",
+            "run_waste_management_pareto",
+            "run_waste_management_pareto_slices",
+        }:
+            return request
+        args = tool_call.get("args")
+        if not isinstance(args, dict):
+            return ToolMessage(
+                content="Optimization guard: tool arguments must be a JSON object.",
+                tool_call_id=tool_call.get("id"),
+                status="error",
+            )
+
+        state_map = self._state_mapping(request.state)
+        handoff_payload = self._get_optimization_handoff_payload(state_map, args)
+        feed_composition, feed_capacity = self._infer_optimization_feed_inputs(state_map, handoff_payload)
+        composition_slices = self._infer_optimization_composition_slices(state_map)
+        if tool_name == "run_waste_management_pareto" and len(composition_slices) > 1:
+            return ToolMessage(
+                content=(
+                    "Optimization guard: this is a multi-composition Pareto request. "
+                    "Use `run_waste_management_pareto_slices` with "
+                    f"`composition_slices_json={json.dumps(composition_slices)}` instead of solving only one slice."
+                ),
+                tool_call_id=tool_call.get("id"),
+                status="error",
+            )
+        repaired: list[str] = []
+        repaired_args = dict(args)
+
+        stage_value = repaired_args.get("stage_candidates_json")
+        stage_payload, stage_error = self._coerce_mapping_arg(stage_value, "stage_candidates_json")
+        if stage_error:
+            if handoff_payload is not None:
+                repaired_args["stage_candidates_json"] = handoff_payload
+                repaired.append("replaced malformed stage_candidates_json with attached typed handoff payload")
+            else:
+                return ToolMessage(
+                    content=f"Optimization guard: {stage_error}. Retry using the exact attached typed handoff payload only.",
+                    tool_call_id=tool_call.get("id"),
+                    status="error",
+                )
+        elif stage_payload is None and handoff_payload is not None:
+            repaired_args["stage_candidates_json"] = handoff_payload
+            repaired.append("injected attached typed handoff payload as stage_candidates_json")
+
+        feed_value = repaired_args.get("feed_composition_json")
+        feed_payload, feed_error = self._coerce_mapping_arg(feed_value, "feed_composition_json")
+        if feed_error:
+            if feed_composition:
+                repaired_args["feed_composition_json"] = feed_composition
+                repaired.append("replaced malformed feed_composition_json with inferred feed composition")
+            else:
+                return ToolMessage(
+                    content=f"Optimization guard: {feed_error}. Retry with an explicit feed_composition_json mapping or legacy fractions.",
+                    tool_call_id=tool_call.get("id"),
+                    status="error",
+                )
+        elif feed_payload is None and feed_composition:
+            repaired_args["feed_composition_json"] = feed_composition
+            repaired.append("injected inferred feed_composition_json")
+
+        if repaired_args.get("feed") in (None, ""):
+            if feed_capacity is not None:
+                repaired_args["feed"] = feed_capacity
+                repaired.append("injected inferred feed tonnes/year")
+            else:
+                return ToolMessage(
+                    content="Optimization guard: missing `feed` in tonnes/year. Provide the total feed or include it in the routed handoff.",
+                    tool_call_id=tool_call.get("id"),
+                    status="error",
+                )
+
+        if tool_name == "run_waste_management_pareto_slices":
+            slices_value = repaired_args.get("composition_slices_json")
+            slices_payload, slices_error = self._coerce_sequence_or_mapping_arg(
+                slices_value,
+                "composition_slices_json",
+            )
+            if composition_slices:
+                if slices_payload != composition_slices:
+                    repaired_args["composition_slices_json"] = composition_slices
+                    repaired.append("replaced composition_slices_json with inferred composition slices")
+            elif slices_error:
+                if composition_slices:
+                    repaired_args["composition_slices_json"] = composition_slices
+                    repaired.append("replaced malformed composition_slices_json with inferred composition slices")
+                else:
+                    return ToolMessage(
+                        content=f"Optimization guard: {slices_error}. Retry with a list of fixed feed-composition mappings.",
+                        tool_call_id=tool_call.get("id"),
+                        status="error",
+                    )
+            elif slices_payload is None:
+                if composition_slices:
+                    repaired_args["composition_slices_json"] = composition_slices
+                    repaired.append("injected inferred composition_slices_json")
+                else:
+                    return ToolMessage(
+                        content="Optimization guard: missing `composition_slices_json` for the multi-slice Pareto tool.",
+                        tool_call_id=tool_call.get("id"),
+                        status="error",
+                    )
+
+            if not repaired:
+                return request
+
+            logger.info(
+                "optimization_preflight: repaired %s with steps=%s",
+                tool_name,
+                repaired,
+            )
+            new_state = self._append_preflight_notes(state_map, repaired)
+            new_tool_call = {**tool_call, "args": repaired_args}
+            if new_state is not None:
+                return request.override(tool_call=new_tool_call, state=new_state)
+            return request.override(tool_call=new_tool_call)
+
+        if repaired_args.get("feed_composition_json") in (None, "", {}):
+            missing_legacy = [
+                name
+                for name in ("pe_fraction", "pet_fraction", "n6_fraction", "evoh_fraction")
+                if repaired_args.get(name) is None
+            ]
+            if missing_legacy:
+                return ToolMessage(
+                    content=(
+                        "Optimization guard: feed_composition_json is missing and the legacy feed fractions are incomplete. "
+                        f"Missing: {', '.join(missing_legacy)}."
+                    ),
+                    tool_call_id=tool_call.get("id"),
+                    status="error",
+                )
+
+        if not repaired:
+            return request
+
+        logger.info(
+            "optimization_preflight: repaired %s with steps=%s",
+            tool_name,
+            repaired,
+        )
+        new_state = self._append_preflight_notes(state_map, repaired)
+        new_tool_call = {**tool_call, "args": repaired_args}
+        if new_state is not None:
+            return request.override(tool_call=new_tool_call, state=new_state)
+        return request.override(tool_call=new_tool_call)
+
+    def _state_mapping(self, state) -> dict:
+        if isinstance(state, dict):
+            return dict(state)
+        if hasattr(state, "model_dump"):
+            dumped = state.model_dump()
+            if isinstance(dumped, dict):
+                return dict(dumped)
+        return {}
+
+    def _append_preflight_notes(self, state_map: dict, repaired: list[str]) -> dict | None:
+        if not state_map:
+            return None
+        notes = list(state_map.get("strap_optimization_preflight") or [])
+        notes.append({"repairs": list(repaired)})
+        new_state = dict(state_map)
+        new_state["strap_optimization_preflight"] = notes
+        return new_state
+
+    def _coerce_mapping_arg(self, value, field_name: str) -> tuple[dict | None, str | None]:
+        if value in (None, "", {}):
+            return None, None
+        if isinstance(value, dict):
+            return dict(value), None
+        if isinstance(value, str):
+            try:
+                payload = json.loads(value)
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                return None, f"{field_name} is not valid JSON ({exc})"
+            if not isinstance(payload, dict):
+                return None, f"{field_name} must decode to a JSON object"
+            return dict(payload), None
+        return None, f"{field_name} must be a JSON object or JSON string"
+
+    def _coerce_sequence_or_mapping_arg(self, value, field_name: str) -> tuple[list | dict | None, str | None]:
+        if value in (None, "", {}, []):
+            return None, None
+        if isinstance(value, (list, dict)):
+            return value, None
+        if isinstance(value, str):
+            try:
+                payload = json.loads(value)
+            except (json.JSONDecodeError, TypeError, ValueError) as exc:
+                return None, f"{field_name} is not valid JSON ({exc})"
+            if not isinstance(payload, (list, dict)):
+                return None, f"{field_name} must decode to a list or JSON object"
+            return payload, None
+        return None, f"{field_name} must be a JSON list, JSON object, or JSON string"
+
+    def _iter_message_handoff_candidates(self, messages) -> list[tuple[str, str]]:
+        candidates: list[tuple[str, str]] = []
+        for message in messages or []:
+            additional_kwargs = getattr(message, "additional_kwargs", None)
+            if not isinstance(additional_kwargs, dict):
+                continue
+            handoff_id = str(additional_kwargs.get("strap_handoff_id") or "").strip()
+            contract = str(additional_kwargs.get("strap_handoff_contract") or "").strip()
+            if handoff_id:
+                candidates.append((handoff_id, contract))
+        return candidates
+
+    def _get_optimization_handoff_payload(self, state_map: dict, args: dict) -> dict | None:
+        payload = state_map.get("strap_handoff_payload")
+        contract = str(state_map.get("strap_handoff_contract") or "").strip()
+        if isinstance(payload, dict) and contract == "optimization.stage_candidates.v1":
+            return dict(payload)
+
+        messages = state_map.get("messages") or []
+        for handoff_id, message_contract in self._iter_message_handoff_candidates(messages):
+            record = get_handoff(handoff_id)
+            if record is None:
+                continue
+            if message_contract and record.contract != message_contract:
+                continue
+            if record.contract == "optimization.stage_candidates.v1":
+                return dict(record.payload)
+
+        handoff_id = str(args.get("handoff_id") or state_map.get("strap_handoff_id") or "").strip()
+        if not handoff_id:
+            return None
+        record = get_handoff(handoff_id)
+        if record is None or record.contract != "optimization.stage_candidates.v1":
+            return None
+        return dict(record.payload)
+
+    def _infer_optimization_feed_inputs(self, state_map: dict, handoff_payload: dict | None) -> tuple[dict | None, float | None]:
+        if isinstance(handoff_payload, dict):
+            composition = handoff_payload.get("feed_composition")
+            capacity = handoff_payload.get("feed_capacity_tpy")
+            if isinstance(composition, dict) and composition:
+                parsed_capacity = self._coerce_float(capacity)
+                return dict(composition), parsed_capacity
+            parsed_capacity = self._coerce_float(capacity)
+            if parsed_capacity is not None:
+                return None, parsed_capacity
+
+        query_text = self._latest_human_text(state_map.get("messages") or [])
+        if not query_text:
+            return None, None
+        context = extract_query_context(query_text)
+        composition = context.feed_composition or None
+        return composition, context.feed_capacity_tpy
+
+    def _infer_optimization_composition_slices(self, state_map: dict) -> list[dict[str, float]]:
+        query_text = self._latest_human_text(state_map.get("messages") or [])
+        if not query_text:
+            return []
+        context = extract_query_context(query_text)
+        return [dict(item) for item in context.feed_composition_slices]
+
+    def _latest_human_text(self, messages: list) -> str:
+        for message in reversed(messages):
+            if isinstance(message, HumanMessage):
+                return coerce_message_text(message.content)
+        return ""
+
+    def _coerce_float(self, value) -> float | None:
+        try:
+            if value in (None, ""):
+                return None
+            return float(value)
+        except (TypeError, ValueError):
+            return None
 
     # -- helpers -------------------------------------------------------------
 
@@ -408,6 +802,20 @@ class SubagentGuardMiddleware(AgentMiddleware):
                     parts.append(item)
             content = "\n".join(parts)
         return "[LIMIT] Tool call budget exhausted" in str(content)
+
+    def _missing_required_visualization_tool(self, messages: list, last_ai: AIMessage) -> str | None:
+        if self._agent_name != "visualization-specialist":
+            return None
+        if self._state.visualization_required_tool_repairs >= 1:
+            return None
+        if getattr(last_ai, "tool_calls", None):
+            return None
+        required_tool = extract_required_visualization_tool(messages)
+        if not required_tool:
+            return None
+        if required_tool in extract_completed_tool_names(messages):
+            return None
+        return required_tool
 
     def _inject_synthesis_directive(
         self, request: ModelRequest

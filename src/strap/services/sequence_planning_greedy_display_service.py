@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from strap.services.sequence_planning_payload_service import canonicalize_sequence_solvent_name
+
 
 def build_greedy_planning_display(
     *,
@@ -29,6 +31,17 @@ def build_greedy_planning_display(
         "sequence efficiently.\n",
         "## Step-by-Step Greedy Selection\n",
     ]
+    try:
+        from strap.solubility import temperature_basis_note, temperature_use_regime
+
+        note = temperature_basis_note(float(temperature))
+        use_regime = temperature_use_regime(float(temperature))
+    except Exception:
+        note = None
+        use_regime = "unknown"
+    sensitivity_only = use_regime == "sensitivity_extrapolation"
+    if note:
+        output.insert(6, f"**Temperature Basis:** {note}")
 
     for snapshot in evaluations:
         output.append(
@@ -43,15 +56,17 @@ def build_greedy_planning_display(
                 if candidate["selectivity"] > -900
                 else "N/A"
             )
+            solvent_name = canonicalize_sequence_solvent_name(candidate["solvent"])
             output.append(
-                f"| {candidate['polymer']} | {candidate['solvent']} | {sel_str} |"
+                f"| {candidate['polymer']} | {solvent_name} | {sel_str} |"
             )
         output.append("")
 
         selected = snapshot["selected"]
         if selected["selectivity"] > -900:
+            solvent_name = canonicalize_sequence_solvent_name(selected["solvent"])
             output.append(
-                f"**Selected: {selected['polymer']}** with {selected['solvent']} "
+                f"**Selected: {selected['polymer']}** with {solvent_name} "
                 f"(selectivity: {selected['selectivity']:.1f}%)\n"
             )
         else:
@@ -61,8 +76,10 @@ def build_greedy_planning_display(
 
     output.append(f"### Step {len(steps) + 1}: {sequence[-1]} is isolated\n")
     output.append("---\n")
-    output.append("## Greedy Separation Sequence Summary\n")
-    output.append(f"**Optimized Sequence:** {' -> '.join(sequence)}\n")
+    summary_heading = "Greedy Sensitivity Screening Sequence Summary" if sensitivity_only else "Greedy Separation Sequence Summary"
+    sequence_label = "Best screening sequence" if sensitivity_only else "Optimized Sequence"
+    output.append(f"## {summary_heading}\n")
+    output.append(f"**{sequence_label}:** {' -> '.join(sequence)}\n")
     output.append("### Step-by-Step Protocol\n")
     output.append("| Step | Separate | Using Solvent | Selectivity |")
     output.append("|------|----------|---------------|-------------|")
@@ -70,8 +87,9 @@ def build_greedy_planning_display(
     valid_steps = [step for step in steps if step["selectivity"] > -900]
     for step in steps:
         sel_str = f"{step['selectivity']:.1f}%" if step["selectivity"] > -900 else "N/A"
+        solvent_name = canonicalize_sequence_solvent_name(step["solvent"])
         output.append(
-            f"| {step['step']} | {step['target']} | {step['solvent']} | {sel_str} |"
+            f"| {step['step']} | {step['target']} | {solvent_name} | {sel_str} |"
         )
     output.append(f"| {len(steps) + 1} | {sequence[-1]} | (isolated) | done |")
     output.append("")
@@ -80,7 +98,11 @@ def build_greedy_planning_display(
         min_sel = min(step["selectivity"] for step in valid_steps)
         avg_sel = sum(step["selectivity"] for step in valid_steps) / len(valid_steps)
         unique_solvents = len(
-            {step["solvent"] for step in valid_steps if step["solvent"] != "N/A"}
+            {
+                canonicalize_sequence_solvent_name(step["solvent"])
+                for step in valid_steps
+                if step["solvent"] != "N/A"
+            }
         )
 
         output.append("### Metrics\n")
@@ -113,6 +135,18 @@ def build_multi_scheme_display(
         f"MULTI-SCHEME SEPARATION: {','.join(polymer_list)} @ {temperature}C",
         f"Polymers: {len(polymer_list)} | Greedy O(n^2) | {len(schemes)} schemes ({n_variants} variants/type)\n",
     ]
+    try:
+        from strap.solubility import temperature_basis_note, temperature_use_regime
+
+        note = temperature_basis_note(float(temperature))
+        use_regime = temperature_use_regime(float(temperature))
+    except Exception:
+        note = None
+        use_regime = "unknown"
+    if note:
+        output.append(f"Temperature basis: {note}\n")
+    if use_regime == "sensitivity_extrapolation":
+        output.append("180-200 C results are sensitivity-only screening data, not validated process recommendations.\n")
 
     for scheme in schemes:
         output.append(f"== {scheme['tag']}: {scheme['name']} ==")
@@ -137,8 +171,9 @@ def build_multi_scheme_display(
             t_s = f"{step['temp']:.0f}" if step.get("temp") is not None else "-"
             gs_s = f"{step['gsk']:.1f}" if step.get("gsk") is not None else "-"
             lp_s = f"{step['logp']:.1f}" if step.get("logp") is not None else "-"
+            solvent_name = canonicalize_sequence_solvent_name(step["solvent"])
             output.append(
-                f" {step['step']} |{step['target']:<8}|{step['solvent']:<14}|"
+                f" {step['step']} |{step['target']:<8}|{solvent_name:<14}|"
                 f"{sel_s:>5}|{t_s:>5}|{gs_s:>4}|{lp_s:>4}"
             )
         output.append("")

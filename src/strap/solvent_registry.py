@@ -91,7 +91,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "biosteam": "Dichloromethane",
         "bp_db_key": "methylene dichloride (dichloromethane)",
         "cas": "75-09-2",
-        "aliases": ["dichloromethane", "dcm", "methylene chloride"],
+        "aliases": ["dichloromethane", "dcm", "methylene chloride", "ch₂cl₂"],
     },
     "chcl3": {
         "interp_key": "chcl3",
@@ -421,7 +421,7 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "interp_key": "gvl",
         "property_db": "gamma-Valerolactone",
         "gsk_db": None,
-        "biosteam": None,
+        "biosteam": "gamma-Valerolactone",
         "bp_db_key": "gvl",
         "cas": "108-29-2",
         "aliases": ["gamma-valerolactone", "γ-valerolactone"],

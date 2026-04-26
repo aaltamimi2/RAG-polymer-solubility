@@ -34,13 +34,14 @@ from strap.services.biosteam_service import (
     prioritize_batch_solvents,
     runner_unavailable_error,
 )
-from strap.tools._helpers import safe_tool_wrapper
+from strap.tools._helpers import normalize_wsl_path, safe_tool_wrapper, save_plot
 try:
     from strap.vendor.biosteam_runner import (
         run_single_simulation,
         run_batch_simulations,
         build_batch_configs,
         get_supported_solvents,
+        _csv_lookup,
         _get_default_parameter_ranges,
         _build_monte_carlo_configs,
         _build_sweep_configs,
@@ -51,6 +52,7 @@ except ImportError:
     run_batch_simulations = None
     build_batch_configs = None
     get_supported_solvents = None
+    _csv_lookup = None
     _get_default_parameter_ranges = None
     _build_monte_carlo_configs = None
     _build_sweep_configs = None
@@ -61,6 +63,67 @@ _LARGE_BATCH_CONFIG_THRESHOLD = 12
 _LARGE_BATCH_PER_SIM_TIMEOUT_S = 45
 _LARGE_BATCH_WALL_BUDGET_S = 95
 _LARGE_BATCH_MIN_SUCCESS_TARGET = 5
+
+
+def _temperature_margin_metadata(solvent: str, dissolution_temp_c: float | None) -> dict:
+    """Return atmospheric boiling-point margin metadata for a BioSTEAM case."""
+    if dissolution_temp_c is None:
+        return {}
+    try:
+        dissolution_temp = float(dissolution_temp_c)
+    except (TypeError, ValueError):
+        return {}
+
+    metadata: dict = {"dissolution_temp_c": dissolution_temp}
+    if _csv_lookup is None:
+        return metadata
+    try:
+        solvent_data = _csv_lookup(solvent) or {}
+    except Exception:
+        solvent_data = {}
+    bp_c = solvent_data.get("bp_c") if isinstance(solvent_data, dict) else None
+    try:
+        boiling_point_c = float(bp_c) if bp_c is not None else None
+    except (TypeError, ValueError):
+        boiling_point_c = None
+    if boiling_point_c is None:
+        return metadata
+
+    margin_c = boiling_point_c - dissolution_temp
+    metadata.update(
+        {
+            "boiling_point_c": boiling_point_c,
+            "boiling_margin_c": margin_c,
+            "operates_below_normal_boiling_point": margin_c > 0,
+            "near_boiling_point": 0 <= margin_c < 5,
+            "requires_pressurization_at_1atm": margin_c <= 0,
+        }
+    )
+    return metadata
+
+
+def _format_temperature_margin(metadata: dict) -> str:
+    temp = metadata.get("dissolution_temp_c")
+    if temp is None:
+        return ""
+    text = f"**Dissolution temperature:** {float(temp):.1f} C"
+    bp = metadata.get("boiling_point_c")
+    margin = metadata.get("boiling_margin_c")
+    if bp is None or margin is None:
+        return text
+    text += f" | **Normal BP:** {float(bp):.1f} C | **1 atm margin:** {float(margin):.1f} C"
+    if metadata.get("requires_pressurization_at_1atm"):
+        text += (
+            "\n\n**Feasibility caveat:** this setpoint is at or above the normal "
+            "boiling point, so atmospheric operation is not valid without "
+            "pressurization or a changed setpoint."
+        )
+    elif metadata.get("near_boiling_point"):
+        text += (
+            "\n\n**Feasibility caveat:** this is a narrow atmospheric-pressure "
+            "margin and needs tight temperature control or pressure-rated operation."
+        )
+    return text
 # ------------------------------------------------------------------
 # Tool 1: Single simulation
 # ------------------------------------------------------------------
@@ -129,9 +192,15 @@ def run_biosteam_simulation(
     tea = result.get("tea", {})
     lca = result.get("lca", {})
     ops = result.get("operations", {})
+    process_conditions = _temperature_margin_metadata(solvent, dissolution_temp_c)
+    if process_conditions:
+        result["process_conditions"] = process_conditions
     display = f"## BioSTEAM Simulation: {solvent} ({target_plastic}, {energy_case})\n\n"
     display += f"**Capacity:** {processing_capacity:,.0f} MT/yr | "
     display += f"**Feed:** {target_plastic_percent:.0f}% {target_plastic}\n\n"
+    temperature_line = _format_temperature_margin(process_conditions)
+    if temperature_line:
+        display += temperature_line + "\n\n"
     display += "### TEA Results\n"
     display += f"| Metric | Value |\n|--------|-------|\n"
     msp = tea.get("msp_usd_per_kg")
@@ -616,6 +685,7 @@ def visualize_biosteam_results(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import os
+    output_dir = normalize_wsl_path(output_dir)
     os.makedirs(output_dir, exist_ok=True)
     try:
         data = json.loads(results_json) if isinstance(results_json, str) else results_json
@@ -660,9 +730,7 @@ def visualize_biosteam_results(
         ax.set_title("Cost Breakdown", fontsize=12, fontweight="bold")
         ax.set_ylabel("Value")
         plt.tight_layout()
-        path = os.path.join(output_dir, "biosteam_cost_breakdown.png")
-        fig.savefig(path, dpi=200, bbox_inches="tight")
-        plt.close(fig)
+        path = save_plot(fig, "biosteam_cost_breakdown", output_dir=output_dir, dpi=200)
         saved_files.append(path)
     # --- GWP breakdown bar chart ---
     if "gwp_breakdown" in requested and results_list:
@@ -686,9 +754,7 @@ def visualize_biosteam_results(
         ax.set_title("GWP Comparison", fontsize=12, fontweight="bold")
         ax.set_ylabel("GWP (kg CO₂e/kg product)")
         plt.tight_layout()
-        path = os.path.join(output_dir, "biosteam_gwp_breakdown.png")
-        fig.savefig(path, dpi=200, bbox_inches="tight")
-        plt.close(fig)
+        path = save_plot(fig, "biosteam_gwp_breakdown", output_dir=output_dir, dpi=200)
         saved_files.append(path)
     # --- Scenario comparison (MSP vs GWP scatter) ---
     if "scenario_comparison" in requested and len(results_list) >= 2:
@@ -708,9 +774,7 @@ def visualize_biosteam_results(
         ax.set_title("Scenario Comparison: MSP vs GWP", fontsize=12, fontweight="bold")
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-        path = os.path.join(output_dir, "biosteam_scenario_comparison.png")
-        fig.savefig(path, dpi=200, bbox_inches="tight")
-        plt.close(fig)
+        path = save_plot(fig, "biosteam_scenario_comparison", output_dir=output_dir, dpi=200)
         saved_files.append(path)
     display = f"Generated {len(saved_files)} chart(s):\n"
     for p in saved_files:

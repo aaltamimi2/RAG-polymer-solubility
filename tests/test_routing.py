@@ -66,6 +66,270 @@ def test_classify_query_applies_runtime_normalization_for_hsp_process_design():
     assert "statistics-ml" not in hint
 
 
+def test_classify_query_keeps_temperature_range_solubility_on_core_tools():
+    from strap.routing_classifier import classify_query, explain_routing_decision
+
+    query = "What is the solubility of LDPE in dodecane from room temperature up to 140C?"
+    hint = classify_query([HumanMessage(content=query)])
+    decision = explain_routing_decision(query)
+
+    assert hint is None
+    assert decision["direct_answer"]["is_direct"] is True
+    assert decision["planned"] == []
+
+
+def test_simple_solvent_lookup_stays_on_orchestrator_fast_path():
+    from strap.routing_classifier import classify_query, explain_routing_decision, build_direct_answer_hint
+    from strap.routing import RoutingMiddleware
+
+    query = "i have an LDPE/EVOH/PET feedstock. what are good solvents for dissolving LDPE"
+
+    hint = classify_query([HumanMessage(content=query)])
+    direct_hint = build_direct_answer_hint(query)
+    decision = explain_routing_decision(query)
+    middleware = RoutingMiddleware(classifier_model=None)
+    allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+
+    assert hint is None
+    assert direct_hint is not None
+    assert "Do not delegate" in direct_hint
+    assert "Do not invent temperature" in direct_hint
+    assert decision["direct_answer"]["is_direct"] is True
+    assert decision["planned"] == []
+    assert allowed == []
+
+
+def test_simple_solvent_lookup_overrides_overeager_llm_router():
+    from strap.routing import RoutingMiddleware
+
+    query = "what are good solvents for dissolving LDPE"
+    model = _classifier_for("statistics-ml", "separation-engineer")
+    middleware = RoutingMiddleware(classifier_model=model)
+
+    allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+
+    assert allowed == []
+    model.invoke.assert_not_called()
+
+
+def test_direct_solvent_lookup_injects_fast_path_system_hint():
+    from strap.routing import RoutingMiddleware
+
+    class _Request:
+        def __init__(self, messages, system_message):
+            self.messages = messages
+            self.system_message = system_message
+
+        def override(self, *, system_message):
+            return _Request(self.messages, system_message)
+
+    request = _Request(
+        [HumanMessage(content="what are good solvents for dissolving LDPE")],
+        SystemMessage(content="base system"),
+    )
+    middleware = RoutingMiddleware(classifier_model=None)
+
+    patched = middleware._inject_hint(request)
+
+    assert patched.system_message.content != "base system"
+    system_text = str(patched.system_message.content)
+    assert "DIRECT_ANSWER" in system_text
+    assert "do not run separation/selectivity ranking" in system_text
+
+
+def test_direct_solvent_lookup_blocks_temperature_range_tool():
+    from strap.routing import RoutingMiddleware
+
+    middleware = RoutingMiddleware(classifier_model=None)
+    request = ToolCallRequest(
+        tool_call={
+            "id": "range1",
+            "name": "predict_solubility_range",
+            "args": {"polymer": "LDPE", "solvent": "toluene"},
+        },
+        tool=None,
+        state={"messages": [HumanMessage(content="what are good solvents for dissolving LDPE")]},
+        runtime=MagicMock(),
+    )
+    handler = MagicMock()
+
+    result = middleware.wrap_tool_call(request, handler)
+
+    handler.assert_not_called()
+    assert isinstance(result, ToolMessage)
+    assert result.tool_call_id == "range1"
+    assert result.status == "error"
+    assert "direct solvent lookup" in result.content
+
+
+def test_direct_solubility_lookup_allows_temperature_range_tool():
+    from strap.routing import RoutingMiddleware
+
+    middleware = RoutingMiddleware(classifier_model=None)
+    request = ToolCallRequest(
+        tool_call={
+            "id": "range_ok",
+            "name": "predict_solubility_range",
+            "args": {"polymer_name": "LDPE", "solvent_name": "dodecane", "t_end_c": 80},
+        },
+        tool=None,
+        state={
+            "messages": [
+                HumanMessage(
+                    content="what is the solubility of LDPE in each of these solvents up to 80C"
+                )
+            ]
+        },
+        runtime=MagicMock(),
+    )
+    handler = MagicMock(return_value="ok")
+
+    result = middleware.wrap_tool_call(request, handler)
+
+    handler.assert_called_once()
+    assert result == "ok"
+
+
+def test_followup_solubility_lookup_with_session_context_stays_direct():
+    from strap.routing_classifier import build_direct_answer_hint, explain_routing_decision
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: polymers=LDPE, EVOH, PET\n"
+        "- Process: solvent_candidates=Cyclohexane, Hexane, n-Heptane, Dodecane\n\n"
+        "User request:\n"
+        "what is the solubility of LDPE in each of these solvents up to 80C"
+    )
+
+    decision = explain_routing_decision(query)
+    hint = build_direct_answer_hint(query)
+
+    assert decision["direct_answer"]["is_direct"] is True
+    assert decision["planned"] == []
+    assert hint is not None
+    assert "predict_solubility_range" in hint
+
+
+def test_followup_solubility_plot_with_session_context_stays_direct():
+    from strap.routing_classifier import build_direct_answer_hint, explain_routing_decision
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Last solubility lookup: polymer=EVOH; solvents=N,N-Dimethylformamide; temperature_range=25-80 C\n\n"
+        "User request:\n"
+        "plot it"
+    )
+
+    decision = explain_routing_decision(query)
+    hint = build_direct_answer_hint(query)
+    allowed = RoutingMiddleware(classifier_model=None)._get_allowed_rules([HumanMessage(content=query)])
+
+    assert decision["direct_answer"]["is_direct"] is True
+    assert decision["planned"] == []
+    assert allowed == []
+    assert hint is not None
+    assert "plot_solubility_vs_temperature" in hint
+    assert "Do not delegate" in hint
+
+
+def test_plot_range_correction_with_session_context_stays_direct():
+    from strap.routing_classifier import build_direct_answer_hint, explain_routing_decision
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: polymers=LDPE, EVOH, PET\n"
+        "- Last solubility lookup: polymer=EVOH; solvents=N,N-Dimethylformamide; temperature_range=25-153 C\n\n"
+        "User request:\n"
+        "no just plot from 25C to 90C"
+    )
+
+    decision = explain_routing_decision(query)
+    hint = build_direct_answer_hint(query)
+    allowed = RoutingMiddleware(classifier_model=None)._get_allowed_rules([HumanMessage(content=query)])
+
+    assert decision["direct_answer"]["is_direct"] is True
+    assert decision["planned"] == []
+    assert allowed == []
+    assert hint is not None
+    assert "plot_solubility_vs_temperature" in hint
+    assert "current user request override the stored range" in hint
+
+
+def test_dp_state_map_request_routes_to_visualization_not_solubility_direct(tmp_path):
+    from strap.routing_classifier import build_direct_answer_hint, explain_routing_decision
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Last plot artifact: plot_type=solubility_vs_temperature; polymers=LDPE, EVOH, PET; "
+        "solvents=dodecane, 1,2-dimethylbenzene, toluene; temperature_range=25-100 C; "
+        f"path={tmp_path / 'prior.png'}; output_dir={tmp_path}\n\n"
+        "User request:\n"
+        f'Generate a dynamic-programming separation state map for LDPE/EVOH/PET at 100C and save it to "{tmp_path}". '
+        "Only include separation/selectivity visuals, not cost, greenness, or optimization plots."
+    )
+
+    decision = explain_routing_decision(query)
+    hint = build_direct_answer_hint(query)
+    allowed = RoutingMiddleware(classifier_model=None)._get_allowed_rules([HumanMessage(content=query)])
+
+    assert decision["direct_answer"]["is_direct"] is False
+    assert hint is None
+    assert [rule["subagent"] for rule in allowed] == ["visualization-specialist"]
+
+
+def test_routing_after_model_skips_classifier_after_direct_fast_path():
+    from strap.routing import RoutingMiddleware
+
+    classifier = MagicMock()
+    middleware = RoutingMiddleware(classifier_model=classifier)
+    state = {
+        "messages": [
+            HumanMessage(content="plot the solubility of each of these solvents in EVOH"),
+            AIMessage(
+                content="Solubility vs Temperature Plot Created",
+                additional_kwargs={"strap_origin": "direct_tool_fast_path"},
+            ),
+        ]
+    }
+
+    assert middleware.after_model(state, runtime=MagicMock()) is None
+    classifier.invoke.assert_not_called()
+
+
+def test_simple_solvent_lookup_examples_do_not_route_to_specialists():
+    from strap.routing_classifier import explain_routing_decision
+
+    queries = [
+        "what are good solvents for dissolving LDPE",
+        "list available solvents for LDPE",
+        "what solvents dissolve PET",
+    ]
+
+    for query in queries:
+        decision = explain_routing_decision(query)
+        assert decision["direct_answer"]["is_direct"] is True
+        assert decision["planned"] == []
+
+
+def test_complex_solvent_queries_still_route_to_specialists():
+    from strap.routing_classifier import classify_query_keywords, plan_workflow_rules
+
+    cases = {
+        "rank solvents for separating LDPE from EVOH/PET": ["separation-engineer"],
+        "plan a separation sequence for LDPE/EVOH/PET": ["separation-engineer"],
+        "Use Hansen solubility parameters to screen LDPE solvents": ["statistics-ml"],
+        "Estimate CAPEX/OPEX/GWP for LDPE recovered with Cyclohexane under energy case C1.": ["biosteam-analyst"],
+    }
+
+    for query, expected in cases.items():
+        keyword_rules = classify_query_keywords([HumanMessage(content=query)])
+        planned = plan_workflow_rules(query, keyword_rules)
+        assert [rule["subagent"] for rule in planned] == expected
+
+
 def test_classify_query_prefers_separation_then_contaminant_for_route_screen_query():
     from strap.routing_classifier import classify_query
 
@@ -255,6 +519,74 @@ def test_infer_requested_goals_ignores_negated_solvent_screening_for_biosteam_on
     )
 
     assert goals == {"tea.economics", "lca.environmental"}
+
+
+def test_infer_requested_goals_ignores_negated_optimization_for_biosteam_only_query():
+    from strap.routing_classifier import infer_requested_goals
+
+    goals = infer_requested_goals(
+        (
+            "Only do BioSTEAM TEA/LCA. Estimate CAPEX/OPEX/GWP for LDPE recovered "
+            "with Cyclohexane under energy case C1. Do not do separation planning, "
+            "waste optimization, or Pareto optimization."
+        )
+    )
+
+    assert goals == {"tea.economics", "lca.environmental"}
+
+
+def test_plan_workflow_excludes_negated_separation_and_optimization_for_tea_lca_query():
+    from langchain_core.messages import HumanMessage
+
+    from strap.routing_classifier import classify_query_keywords, plan_workflow_rules
+
+    query = (
+        "Only do BioSTEAM TEA/LCA. Estimate CAPEX/OPEX/GWP for a STRAP process case: "
+        "LDPE recovered with Cyclohexane at 79.7 C, 8000 tonnes/year total feed capacity, "
+        "60 wt% LDPE in the feed, energy case C1. Use the BioSTEAM TEA/LCA simulation tool. "
+        "Report MSP, TCI/CAPEX, AOC/OPEX, and GWP with units. Do not do separation planning, "
+        "waste optimization, or Pareto optimization."
+    )
+
+    keyword_rules = classify_query_keywords([HumanMessage(content=query)])
+    planned = plan_workflow_rules(query, keyword_rules)
+
+    assert [rule["subagent"] for rule in planned] == ["biosteam-analyst"]
+
+
+def test_plan_workflow_routes_natural_capex_opex_gwp_query_to_biosteam_only():
+    from langchain_core.messages import HumanMessage
+
+    from strap.routing_classifier import classify_query_keywords, plan_workflow_rules
+
+    query = (
+        "Estimate CAPEX/OPEX/GWP for a STRAP process case: LDPE recovered with "
+        "Cyclohexane at 79.7 C, 8000 tonnes/year total feed capacity, 60 wt% "
+        "LDPE in the feed, energy case C1. Report MSP, TCI/CAPEX, AOC/OPEX, "
+        "and GWP with units."
+    )
+
+    keyword_rules = classify_query_keywords([HumanMessage(content=query)])
+    planned = plan_workflow_rules(query, keyword_rules)
+
+    assert [rule["subagent"] for rule in planned] == ["biosteam-analyst"]
+
+
+def test_plan_workflow_routes_fixed_process_temperature_caveat_query_to_biosteam_only():
+    from langchain_core.messages import HumanMessage
+
+    from strap.routing_classifier import classify_query_keywords, plan_workflow_rules
+
+    query = (
+        "Estimate CAPEX/OPEX/GWP for recovering EVOH with Dimethyl sulfoxide "
+        "at 140 C in a STRAP process at 5000 tonnes/year under energy case C3. "
+        "Report MSP, CAPEX, OPEX, GWP, and any boiling-point feasibility caveat."
+    )
+
+    keyword_rules = classify_query_keywords([HumanMessage(content=query)])
+    planned = plan_workflow_rules(query, keyword_rules)
+
+    assert [rule["subagent"] for rule in planned] == ["biosteam-analyst"]
 
 
 def test_infer_requested_goals_uses_query_context_for_research_workflow():
@@ -1131,6 +1463,76 @@ class TestRoutingProgress:
         assert "Do not restate upstream separation step numbers" in progress
         assert "Preserve validated Step 1" not in progress
 
+    def test_completion_progress_anchor_uses_multi_slice_optimization_summary(self):
+        from strap.routing import _build_progress_directive
+
+        messages = [
+            HumanMessage(content="Run Pareto slices for 20/60/20 and 60/20/20."),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt_slices", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.0","analysis_type":"pareto_slices",'
+                    '"x_metric":"total_cost","y_metric":"circularity","n_slices_requested":2,"n_slices_solved":2,'
+                    '"n_points_requested_per_slice":100,"pareto_slices_payload_path":"/tmp/pareto_slices.json",'
+                    '"slices":[{"slice_id":"slice_1","label":"ldpe20_evoh60_pet20","status":"solved","n_points_feasible":7,"max_circularity":0.82},'
+                    '{"slice_id":"slice_2","label":"ldpe60_evoh20_pet20","status":"solved","n_points_feasible":5,"max_circularity":0.78}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt_slices",
+            ),
+        ]
+        ordered_plan = [
+            {"subagent": "optimization-engineer", "description": "opt", "step_id": "tc_opt_slices"},
+        ]
+
+        progress = _build_progress_directive(messages, {"tc_opt_slices"}, ordered_plan)
+
+        assert "multi-composition Pareto-slice optimization result" in progress
+        assert "Report 2 solved slices out of 2 requested" in progress
+        assert "/tmp/pareto_slices.json" in progress
+        assert "Validated slice ldpe20_evoh60_pet20: status=solved, frontier_points=7" in progress
+
+    def test_completion_progress_anchor_includes_visualization_artifacts_after_optimization(self):
+        from strap.routing import _build_progress_directive
+
+        messages = [
+            HumanMessage(content="Run Pareto slices and plot them."),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt_slices", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.0","analysis_type":"pareto_slices",'
+                    '"x_metric":"total_cost","y_metric":"circularity","n_slices_requested":2,"n_slices_solved":2,'
+                    '"n_points_requested_per_slice":100,"pareto_slices_payload_path":"/tmp/pareto_slices.json",'
+                    '"slices":[{"slice_id":"slice_1","label":"ldpe20_evoh60_pet20","status":"solved","n_points_feasible":7,"max_circularity":0.82}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt_slices",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz_slices", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0","plot_type":"optimization_pareto_slices",'
+                    '"plot_paths":["/tmp/combined.png","/tmp/slice1.png"],"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz_slices",
+            ),
+        ]
+        ordered_plan = [
+            {"subagent": "optimization-engineer", "description": "opt", "step_id": "tc_opt_slices"},
+            {"subagent": "visualization-specialist", "description": "viz", "step_id": "tc_viz_slices"},
+        ]
+
+        progress = _build_progress_directive(messages, {"tc_opt_slices", "tc_viz_slices"}, ordered_plan)
+
+        assert "multi-composition Pareto-slice optimization result" in progress
+        assert "Visualization-specialist returned validated optimization_pareto_slices artifacts" in progress
+        assert "Validated plot artifact: /tmp/combined.png." in progress
+        assert "Validated plot artifact: /tmp/slice1.png." in progress
+
     def test_invalid_handoff_without_scope_counts_as_failed(self):
         from strap.routing import (
             _build_progress_directive,
@@ -1414,6 +1816,27 @@ class TestRoutingProgress:
         assert "grep" not in _ALWAYS_FREE_TOOLS
         assert "edit_file" not in _ALWAYS_FREE_TOOLS
         assert "execute" not in _ALWAYS_FREE_TOOLS
+
+    def test_subagent_guard_blocks_grep_for_handoff_search(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        middleware = SubagentGuardMiddleware(agent_name="separation-engineer")
+        request = ToolCallRequest(
+            tool_call=_fs_call("grep_handoff", "grep", pattern="h_123", path="/home/aaltamimi2"),
+            tool=None,
+            state={"messages": [HumanMessage(content="Use the upstream handoff.")]},
+            runtime=MagicMock(),
+        )
+        handler = MagicMock()
+
+        result = middleware.wrap_tool_call(request, handler)
+
+        handler.assert_not_called()
+        assert isinstance(result, ToolMessage)
+        assert result.tool_call_id == "grep_handoff"
+        assert result.status == "error"
+        assert "Subagent guard" in result.content
+        assert "handoff payload" in result.content
 
     def test_ls_blocked_without_user_request_or_path_context(self):
         from strap.routing import RoutingMiddleware
@@ -1934,6 +2357,7 @@ class TestRoutingProgress:
 
         assert call_count == 1
         assert response.result[0].tool_calls[0]["args"]["subagent_type"] == "visualization-specialist"
+        assert response.result[0].tool_calls[0]["args"]["handoff_id"] == "h_stats_viz"
         assert (
             response.result[0].tool_calls[0]["args"]["description"]
             == "Create a visualization for this statistics/ML result using the provided analysis summary."
@@ -1980,6 +2404,7 @@ class TestRoutingProgress:
 
         assert response.result[0].tool_calls[0]["name"] == "task"
         assert response.result[0].tool_calls[0]["args"]["subagent_type"] == "visualization-specialist"
+        assert response.result[0].tool_calls[0]["args"]["handoff_id"] == "h_stats_viz"
         assert response.result[0].tool_calls[0]["id"].startswith("route_task_h_stats_viz_")
 
     def test_wrap_model_call_autobuilds_pending_handoff(self):
@@ -2710,6 +3135,167 @@ class TestSeparationRoutePurityAndFallback:
         assert "Filter warnings:" in content
         assert "Step 1" not in content
         assert "Cyclohexane at 76.0C" not in content
+        assert (
+            response.result[0].additional_kwargs["strap_origin"]
+            == "routing_multi_specialist_optimization_visualization_fallback"
+        )
+
+    def test_wrap_model_call_optimization_visualization_fallback_handles_pareto_slices(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(content="Run multi-composition optimization and plot all Pareto slices."),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.0","analysis_type":"pareto_slices",'
+                    '"x_metric":"total_cost","y_metric":"circularity","n_slices_requested":2,"n_slices_solved":2,'
+                    '"n_points_requested_per_slice":100,"pareto_slices_payload_path":"/tmp/pareto_slices.json",'
+                    '"slices":[{"slice_id":"slice_1","label":"ldpe20_evoh60_pet20","status":"solved","n_points_feasible":3,"max_circularity":0.5233},'
+                    '{"slice_id":"slice_2","label":"ldpe34_evoh33_pet33","status":"solved","n_points_feasible":8,"max_circularity":0.6714}]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0",'
+                    '"plot_type":"optimization_pareto_slices","plot_paths":["./plots/optimization_pareto_slices.png","./plots/optimization_pareto_slices_ldpe20.png"],'
+                    '"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("optimization-engineer", "visualization-specialist")
+        )
+        handler = MagicMock()
+
+        response = middleware.wrap_model_call(request, handler)
+
+        handler.assert_not_called()
+        content = response.result[0].content
+        assert "Optimization Pareto slice plots created." in content
+        assert "./plots/optimization_pareto_slices.png" in content
+        assert "Validated multi-slice Pareto result: 2 of 2 composition slice(s) solved" in content
+        assert "ldpe34_evoh33_pet33: solved; frontier points 8; max circularity 0.67" in content
+
+    def test_wrap_model_call_optimization_visualization_fallback_formats_circularity_alias(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(content="Run optimization and generate a Pareto front plot for total cost vs circularity."),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.5","analysis_type":"pareto_front",'
+                    '"x_metric":"total_cost","y_metric":"circularity","n_points_feasible":1,'
+                    '"points":[{"point_id":1,"total_cost":1432919.96,"circularity_score":0.4808}],'
+                    '"pareto_payload_path":"/tmp/pareto_payload.json"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0",'
+                    '"plot_type":"optimization_pareto_front","plot_paths":["./plots/optimization_pareto_circularity.png"],'
+                    '"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("optimization-engineer", "visualization-specialist")
+        )
+        response = middleware.wrap_model_call(request, MagicMock())
+
+        content = response.result[0].content
+        assert "circularity 0.48" in content
+        assert "circularity N/A" not in content
+
+    def test_wrap_model_call_optimization_point_visualization_fallback(self):
+        from strap.routing import RoutingMiddleware
+
+        class _Request:
+            def __init__(self, messages, system_message):
+                self.messages = messages
+                self.system_message = system_message
+
+            def override(self, *, system_message):
+                return _Request(self.messages, system_message)
+
+        messages = [
+            HumanMessage(
+                content="Run optimization and generate a plot for the selected point-optimum design."
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_opt", "optimization-engineer")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"optimization-engineer","schema_version":"1.5","analysis_type":"point_optimum",'
+                    '"total_cost":7014529.18,"emissions":8700.71,"profit":12075070.82,'
+                    '"circularity_score":0.6469,'
+                    '"optimal_washes":["PE-Cyclohexane @ 120C","EVOH-Dimethyl sulfoxide @ 120C"]}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_opt",
+            ),
+            AIMessage(content="", tool_calls=[_task_call("tc_viz", "visualization-specialist")]),
+            ToolMessage(
+                content=(
+                    "<STRUCTURED_RESULT>"
+                    '{"agent":"visualization-specialist","schema_version":"1.0",'
+                    '"plot_type":"optimization_point_result","plot_paths":["./plots/optimization_point_result.png"],'
+                    '"format":"png"}'
+                    "</STRUCTURED_RESULT>"
+                ),
+                tool_call_id="tc_viz",
+            ),
+        ]
+
+        request = _Request(messages, SystemMessage(content="base system"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("optimization-engineer", "visualization-specialist")
+        )
+        handler = MagicMock()
+
+        response = middleware.wrap_model_call(request, handler)
+
+        handler.assert_not_called()
+        content = response.result[0].content
+        assert "Optimization plot created." in content
+        assert "./plots/optimization_point_result.png" in content
+        assert "Selected washes: PE-Cyclohexane @ 120C, EVOH-Dimethyl sulfoxide @ 120C." in content
+        assert "Validated point result:" in content
         assert (
             response.result[0].additional_kwargs["strap_origin"]
             == "routing_multi_specialist_optimization_visualization_fallback"

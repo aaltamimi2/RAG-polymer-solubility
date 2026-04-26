@@ -20,6 +20,13 @@ _SELECTIVITY_LEGEND = [
 ]
 
 
+def _temperature_basis_suffix(temperature: float) -> str:
+    from strap.solubility import temperature_basis_note
+
+    note = temperature_basis_note(float(temperature))
+    return f" ({note})" if note else ""
+
+
 def parse_polymer_list(polymers: str) -> list[str]:
     """Parse a comma-separated polymer string."""
     return [polymer.strip().upper() for polymer in polymers.split(",") if polymer.strip()]
@@ -63,6 +70,11 @@ def format_separation_result(result: Any) -> str:
     output.append(f"**Minimum Selectivity:** {seq.min_selectivity:.1f}%")
     output.append(f"**Average Selectivity:** {seq.avg_selectivity:.1f}%")
     output.append(f"**Unique Solvents:** {len(seq.unique_solvents)}\n")
+    first_real_step = next((step for step in seq.steps if step.remaining_polymers), None)
+    if first_real_step is not None:
+        temp_suffix = _temperature_basis_suffix(first_real_step.temperature)
+        if temp_suffix:
+            output.append(f"**Temperature Basis:**{temp_suffix}\n")
 
     output.append("## Step-by-Step Breakdown\n")
     for step in seq.steps:
@@ -71,7 +83,7 @@ def format_separation_result(result: Any) -> str:
             output.append(
                 f"**Step {step.step_number}: Separate {step.target_polymer}**\n"
                 f"  - Solvent: {step.solvent}\n"
-                f"  - Temperature: {step.temperature}C\n"
+                f"  - Temperature: {step.temperature}C{_temperature_basis_suffix(step.temperature)}\n"
                 f"  - Selectivity: {step.selectivity:.1f}% [{status}]\n"
                 f"  - Target Solubility: {step.target_solubility:.1f}%\n"
                 f"  - Max Other Solubility: {step.max_other_solubility:.1f}%\n"
@@ -99,6 +111,11 @@ def format_safety_result(result: Any) -> str:
     output.append(f"**Status:** {seq.status.value}")
     output.append(f"**Minimum Selectivity:** {seq.min_selectivity:.1f}%")
     output.append(f"**Average Selectivity:** {seq.avg_selectivity:.1f}%")
+    first_real_step = next((step for step in seq.steps if step.remaining_polymers), None)
+    if first_real_step is not None:
+        temp_suffix = _temperature_basis_suffix(first_real_step.temperature)
+        if temp_suffix:
+            output.append(f"**Temperature Basis:**{temp_suffix}")
 
     safety_scores = [step.safety_score for step in seq.steps if step.safety_score is not None]
     if safety_scores:
@@ -116,7 +133,7 @@ def format_safety_result(result: Any) -> str:
             output.append(
                 f"**Step {step.step_number}: Separate {step.target_polymer}**\n"
                 f"  - Solvent: {step.solvent}\n"
-                f"  - Temperature: {step.temperature}C\n"
+                f"  - Temperature: {step.temperature}C{_temperature_basis_suffix(step.temperature)}\n"
                 f"  - Selectivity: {step.selectivity:.1f}% [{status}]\n"
                 f"  - {gs_str}\n"
                 f"  - Remaining: {', '.join(step.remaining_polymers)}\n"
@@ -202,21 +219,32 @@ def format_top_k_results(result: Any, polymers_str: str) -> str:
 
 def format_optimization_result(result: Any) -> str:
     """Format a temperature optimization result as markdown."""
+    from strap.solubility import temperature_use_regime
+
+    sensitivity_only = temperature_use_regime(result.optimal_temperature) == "sensitivity_extrapolation"
+    temp_label = "Sensitivity-only Best Temperature" if sensitivity_only else "Optimal Temperature"
     output = [
         "# Temperature Optimization Result\n",
-        f"**Optimal Temperature:** {result.optimal_temperature}C",
+        f"**{temp_label}:** {result.optimal_temperature}C",
         f"**Overall Selectivity:** {result.overall_selectivity:.1f}%",
         f"**Energy Score:** {result.energy_score:.2f} (lower is better)",
         f"**Feasibility Score:** {result.feasibility_score:.1%}\n",
     ]
+    if sensitivity_only:
+        output.append(
+            "**Use Constraint:** 180-200 C values are Apelblat sensitivity estimates for screening only, not validated process recommendations.\n"
+        )
 
     if result.temperature_windows:
         output.append("## Viable Temperature Windows\n")
         for window in result.temperature_windows:
-            output.append(
+            line = (
                 f"- {window.temp_min:.0f}C - {window.temp_max:.0f}C "
                 f"(best: {window.optimal_temp:.0f}C, selectivity: {window.selectivity_at_optimal:.1f}%)"
             )
+            if getattr(window, "notes", ""):
+                line += f" -- {window.notes}"
+            output.append(line)
         output.append("")
 
     if result.recommendations:
@@ -266,6 +294,9 @@ def build_solvent_ranking_report(
         "| Rank | Solvent | Overall | Selectivity | BP | LogP | Cp | Energy |",
         "|------|---------|---------|-------------|-----|------|-----|--------|",
     ]
+    temp_suffix = _temperature_basis_suffix(temperature)
+    if temp_suffix:
+        output.insert(4, f"**Temperature Basis:**{temp_suffix}\n")
 
     for index, score in enumerate(scores, 1):
         output.append(
@@ -552,6 +583,7 @@ def plot_separation_sequence(
     total_sequences: int,
     rank: int = 1,
     filename: Optional[str] = None,
+    output_dir: Optional[str] = None,
 ) -> str:
     """Plot a single ranked separation sequence."""
     sequence = sequence_data["sequence"]
@@ -707,7 +739,7 @@ def plot_separation_sequence(
     )
 
     plt.tight_layout(rect=[0, 0.08, 1, 0.95])
-    filepath = save_plot(fig, filename or f"separation_sequence_rank{rank}")
+    filepath = save_plot(fig, filename or f"separation_sequence_rank{rank}", output_dir=output_dir)
     plt.close(fig)
     return filepath
 
@@ -718,6 +750,7 @@ def plot_topk_comparison(
     temperature: float,
     top_k: int = 3,
     filename: str = "separation_topk_comparison",
+    output_dir: Optional[str] = None,
 ) -> str:
     """Plot a side-by-side comparison of top-k separation sequences."""
     top_k = min(top_k, len(sequence_scores))
@@ -859,7 +892,7 @@ def plot_topk_comparison(
     ax.legend(handles=legend_elements, loc="lower right", fontsize=9, frameon=True, fancybox=True, title="Selectivity", title_fontsize=10)
 
     plt.tight_layout()
-    filepath = save_plot(fig, filename)
+    filepath = save_plot(fig, filename, output_dir=output_dir)
     plt.close(fig)
     return filepath
 

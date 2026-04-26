@@ -2,6 +2,7 @@
 from __future__ import annotations
 import logging
 import asyncio
+import re
 from typing import Dict, Any, Optional, List
 from strap.database import get_connection
 from strap.services.tool_response_service import json_tool_error, json_tool_success
@@ -47,18 +48,86 @@ def _get_solvent_table_name() -> Optional[str]:
         logger.debug(f"Could not detect solvent table: {e}")
     return None
 @safe_tool_wrapper(structured_output=True)
-async def list_available_solvents(include_properties: bool = False) -> str:
+async def list_available_solvents(
+    include_properties: bool = False,
+    polymer: str | None = None,
+    limit: int = 12,
+) -> str:
     """List available solvents across all databases with counts and examples.
     Args:
         include_properties: If True, also display physical properties (BP, LogP,
             Cp, energy) from the solvent_data table.
+        polymer: Optional polymer name such as LDPE, PET, or EVOH. When provided,
+            returns solvents with solubility data for that polymer.
+        limit: Maximum number of polymer-specific solvents to return.
     WHEN TO USE:
     - "What solvents are in the database?"
     - "Show me available solvents"
     - "List all solvents"
     - "Show me all available solvent properties"
+    - "What solvents dissolve LDPE?"
     """
     try:
+        if polymer:
+            polymer_clean = str(polymer).strip().upper()
+            if not re.fullmatch(r"[A-Z0-9-]{1,24}", polymer_clean):
+                return _listing_error(
+                    "list_available_solvents",
+                    f"Invalid polymer name: {polymer}",
+                    error_code="invalid_polymer",
+                    polymer=polymer,
+                )
+            try:
+                limit_int = max(1, min(int(limit), 50))
+            except (TypeError, ValueError):
+                limit_int = 12
+            conn = get_connection()
+            df = conn.execute(
+                """
+                SELECT
+                    solvent,
+                    COUNT(*) AS n_points,
+                    MIN(temperature___c_) AS min_temp_c,
+                    MAX(temperature___c_) AS max_temp_c,
+                    MAX(solubility____) AS max_solubility_pct,
+                    AVG(solubility____) AS avg_solubility_pct
+                FROM common_solvents_database
+                WHERE UPPER(polymer) = ?
+                  AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+                GROUP BY solvent
+                ORDER BY max_solubility_pct DESC, solvent
+                LIMIT ?
+                """,
+                [polymer_clean, limit_int],
+            ).fetchdf()
+            if df.empty:
+                return _listing_error(
+                    "list_available_solvents",
+                    f"No solvent solubility entries found for {polymer_clean}.",
+                    error_code="polymer_not_found",
+                    polymer=polymer_clean,
+                )
+
+            output = [f"**Solvents with solubility data for {polymer_clean}**\n"]
+            output.append(
+                df.to_markdown(
+                    index=False,
+                    floatfmt=".2f",
+                )
+            )
+            output.append(
+                "\nNote: This is a polymer-specific solvent lookup, not a selectivity "
+                "or process-design ranking against other polymers."
+            )
+            return json_tool_success(
+                "\n".join(output),
+                tool_name="list_available_solvents",
+                include_properties=include_properties,
+                polymer=polymer_clean,
+                limit=limit_int,
+                solvents=df.to_dict(orient="records"),
+            )
+
         output = ["**Available Solvents Summary**\n"]
         summary_counts: dict[str, int] = {}
         sample_groups: dict[str, list[str]] = {}

@@ -57,8 +57,8 @@ _TARGET_PLASTIC_MAP = {
     "PS":   "PE",   # polystyrene — no native oligomer; PE flowsheet used
     "PP":   "PE",   # polypropylene — no native oligomer; PE flowsheet used
     "PVC":  "PE",   # poly(vinyl chloride) — no native oligomer; PE flowsheet used
-    "PC":   "PE",   # polycarbonate — PE flowsheet proxy
-    "EVOH": "PE",   # ethylene vinyl alcohol — PE flowsheet proxy
+    "PC":   "PC",   # polycarbonate — native PC flowsheet
+    "EVOH": "EVOH", # ethylene vinyl alcohol — native EVOH flowsheet
     # ── PE-proxy polymers (approximate economics / LCA) ────────────────
     "NYLON6":  "PE",   # polyamide 6
     "NYLON66": "PE",   # polyamide 66
@@ -196,13 +196,26 @@ def _run(config: dict) -> dict:
     # BioSTEAM expects a fraction, so divide by 100.
     pm.set_solvent_loss(config.get("solvent_loss_pct", 0.01) / 100)
 
-    if "dissolution_temperature_c" in config:
+    def _optional_celsius(value, default=None):
+        if value is None:
+            return default
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    dissolution_temperature_c = _optional_celsius(config.get("dissolution_temperature_c"))
+    if dissolution_temperature_c is not None:
         pm.set_dissolution_temperature(
-            config["dissolution_temperature_c"] + 273.15
+            dissolution_temperature_c + 273.15
         )
 
+    precipitation_temperature_c = _optional_celsius(
+        config.get("precipitation_temperature_c"),
+        default=25.0,
+    )
     pm.set_precipitation_temperature(
-        config.get("precipitation_temperature_c", 25) + 273.15
+        precipitation_temperature_c + 273.15
     )
 
     pm.set_dissolution_capacity(config.get("dissolution_capacity", 3))

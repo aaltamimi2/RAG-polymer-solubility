@@ -83,12 +83,40 @@ class TemperatureOptimizer:
 
         Scans temperature range and finds point with maximum selectivity.
         """
-        from strap.solubility import get_solubility
+        from strap.solubility import (
+            FITTED_TEMP_MAX_C,
+            FITTED_TEMP_MIN_C,
+            RECOMMENDED_EXTRAPOLATION_MAX_C,
+            SENSITIVITY_EXTRAPOLATION_MAX_C,
+            get_boiling_point,
+            get_solubility,
+            temperature_basis_note,
+            temperature_use_regime,
+        )
 
         temp_min, temp_max = temp_range
+        requested_temp_max = temp_max
+        recommendations = []
+
+        if temp_max > SENSITIVITY_EXTRAPOLATION_MAX_C:
+            temp_max = SENSITIVITY_EXTRAPOLATION_MAX_C
+            recommendations.append(
+                f"Requested upper temperature {requested_temp_max:.0f} C exceeds the supported "
+                f"Apelblat sensitivity limit; capped scan at {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C."
+            )
+
+        bp = get_boiling_point(solvent)
+        if bp is not None:
+            atmospheric_max = bp - 5.0
+            if atmospheric_max < temp_max:
+                temp_max = atmospheric_max
+                recommendations.append(
+                    f"Temperature scan capped at {temp_max:.0f} C to keep a 5 C atmospheric boiling-point margin "
+                    f"for {solvent} (BP {bp:.1f} C)."
+                )
+
         temperatures = np.arange(temp_min, temp_max + step_size, step_size)
-        # Clamp to interpolation model range (25–160 °C)
-        temperatures = [float(t) for t in temperatures if 25 <= t <= 160]
+        temperatures = [float(t) for t in temperatures if t >= FITTED_TEMP_MIN_C]
 
         if not temperatures:
             return OptimizationResult(
@@ -97,7 +125,8 @@ class TemperatureOptimizer:
                 overall_selectivity=0.0,
                 energy_score=1.0,
                 feasibility_score=0.0,
-                recommendations=["No solubility data found for this combination"]
+                recommendations=recommendations
+                + ["No feasible temperatures found within the requested range and atmospheric constraints"]
             )
 
         # Find selectivity at each temperature
@@ -124,6 +153,7 @@ class TemperatureOptimizer:
 
             # Record if this is a viable window
             if selectivity >= 5.0:
+                notes = temperature_basis_note(temp) or ""
                 windows.append(TemperatureWindow(
                     polymer=target_polymer,
                     solvent=solvent,
@@ -131,6 +161,7 @@ class TemperatureOptimizer:
                     temp_max=temp + step_size/2,
                     optimal_temp=temp,
                     selectivity_at_optimal=selectivity,
+                    notes=notes,
                 ))
 
         # Merge adjacent windows
@@ -140,12 +171,29 @@ class TemperatureOptimizer:
         energy_score = best_temp / 100.0  # Higher temp = more energy
         feasibility_score = min(1.0, best_selectivity / 50.0) if best_selectivity > 0 else 0.0
 
-        # Generate recommendations
-        recommendations = []
         if best_selectivity < 5.0:
             recommendations.append("Warning: Low selectivity - consider alternative solvent")
         if best_temp > 150:
             recommendations.append("High temperature required - check polymer degradation limits")
+        if temperature_use_regime(best_temp) == "sensitivity_extrapolation":
+            recommendations.append(
+                f"Best temperature is in the 180-{SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C sensitivity-only range; "
+                "use this as soluble/insoluble screening data, not as a validated process recommendation."
+            )
+        elif best_temp > FITTED_TEMP_MAX_C:
+            recommendations.append(
+                f"Best temperature is above the fitted {FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C data range; "
+                "reported solubilities are Apelblat extrapolations with lower confidence."
+            )
+        elif any(temp > FITTED_TEMP_MAX_C for temp in temperatures):
+            recommendations.append(
+                f"Temperatures above {FITTED_TEMP_MAX_C:.0f} C were evaluated as Apelblat extrapolations; "
+                "prefer in-range candidates unless the higher-temperature gain is meaningful."
+            )
+        if any(temp > RECOMMENDED_EXTRAPOLATION_MAX_C for temp in temperatures):
+            recommendations.append(
+                f"Temperatures above {RECOMMENDED_EXTRAPOLATION_MAX_C:.0f} C are reported for sensitivity screening only."
+            )
         if len(merged_windows) > 1:
             recommendations.append(f"Multiple viable temperature windows found: {len(merged_windows)}")
 
@@ -178,6 +226,7 @@ class TemperatureOptimizer:
                     optimal_temp=(last.optimal_temp if last.selectivity_at_optimal >= window.selectivity_at_optimal
                                   else window.optimal_temp),
                     selectivity_at_optimal=max(last.selectivity_at_optimal, window.selectivity_at_optimal),
+                    notes=last.notes or window.notes,
                 )
             else:
                 merged.append(window)

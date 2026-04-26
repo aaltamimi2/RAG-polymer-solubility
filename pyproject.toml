@@ -9,6 +9,7 @@ description = "DISSOLVE: Data Integrated Solubility Solver via LLM Evaluation"
 requires-python = ">=3.10"
 dependencies = [
     "deepagents==0.3.10",
+    "langgraph-checkpoint-sqlite",
     "langchain-anthropic",
     "langchain-google-genai",
     "langsmith",
@@ -32,6 +33,7 @@ dependencies = [
     "requests",
     "pyyaml",
     "rich>=13.0",
+    "prompt_toolkit>=3.0",
 ]
 
 [project.optional-dependencies]

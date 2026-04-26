@@ -331,18 +331,35 @@ def get_separation_support_scope_errors(
     if not supported_polymers:
         return []
 
+    requested_polymers = set(payload_polymers)
+    declared_unsupported = {
+        str(polymer).strip().upper()
+        for polymer in payload.get("unsupported_polymers", [])
+        if str(polymer).strip()
+    }
+    findings: list[str] = []
+    invalid_declared = sorted(declared_unsupported - requested_polymers)
+    if invalid_declared:
+        findings.append(
+            "`unsupported_polymers` must only contain polymers from the requested "
+            f"`polymers` array; remove non-polymer/task tokens: {', '.join(invalid_declared)}"
+        )
+
     unsupported = sorted(
         polymer for polymer in payload_polymers if polymer not in supported_polymers
     )
     if not unsupported:
-        return []
+        if declared_unsupported:
+            findings.append(
+                "All requested polymers are supported, so `unsupported_polymers` must be an empty array."
+            )
+        return findings
 
     full_text = extract_text_content(message)
     match = _STRUCTURED_RESULT_RE.search(full_text)
     prose_text = full_text[:match.start()] if match else full_text
     prose_lower = prose_text.lower()
 
-    findings: list[str] = []
     mentions_support_scope = any(
         phrase in prose_lower
         for phrase in (

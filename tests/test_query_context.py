@@ -109,3 +109,37 @@ def test_extract_query_context_captures_plural_separation_route_phrasing():
 
     assert "separation.route" in context.route_labels
     assert "user.solvents_or_route" in context.available_inputs
+
+
+def test_extract_query_context_captures_feed_composition_and_capacity():
+    query = (
+        "Optimize waste management for a mixed plastic feedstock of 8000 tonnes/year composed of "
+        "5% LDPE, 5% EVOH, and 90% PET."
+    )
+
+    context = extract_query_context(query)
+
+    assert context.feed_capacity_tpy == 8000.0
+    assert context.feed_composition == {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9}
+    assert "user.feed_composition" in context.available_inputs
+    assert "user.feed_capacity" in context.available_inputs
+
+
+def test_extract_query_context_captures_slash_delimited_composition_slices():
+    query = (
+        "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year, run Pareto slices "
+        "for five fixed feed compositions: 20/60/20, 34/33/33, 60/20/20, "
+        "20/20/60, and 5/5/90."
+    )
+
+    context = extract_query_context(query)
+
+    assert context.feed_capacity_tpy == 8000.0
+    assert context.feed_composition_slices == (
+        {"LDPE": 0.2, "EVOH": 0.6, "PET": 0.2},
+        {"LDPE": 0.34, "EVOH": 0.33, "PET": 0.33},
+        {"LDPE": 0.6, "EVOH": 0.2, "PET": 0.2},
+        {"LDPE": 0.2, "EVOH": 0.2, "PET": 0.6},
+        {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9},
+    )
+    assert "user.feed_composition" in context.available_inputs

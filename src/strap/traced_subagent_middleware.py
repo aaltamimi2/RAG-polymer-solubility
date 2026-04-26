@@ -27,6 +27,7 @@ from deepagents.middleware.subagents import (
 )
 
 from .langsmith_tracing import langsmith_trace, record_subagent_trace, tracing_enabled
+from .handoff_store import get_handoff
 
 
 def _create_traced_task_tool(
@@ -66,10 +67,35 @@ def _create_traced_task_tool(
             }
         )
 
-    def _validate_and_prepare_state(subagent_type: str, description: str, runtime: ToolRuntime) -> tuple[Runnable, dict]:
+    def _validate_and_prepare_state(
+        subagent_type: str,
+        description: str,
+        runtime: ToolRuntime,
+        handoff_id: str | None = None,
+    ) -> tuple[Runnable, dict]:
         subagent = subagent_graphs[subagent_type]
         subagent_state = {k: v for k, v in runtime.state.items() if k not in _EXCLUDED_STATE_KEYS}
-        subagent_state["messages"] = [HumanMessage(content=description)]
+        handoff_additional_kwargs: dict[str, Any] = {}
+        handoff_text = str(handoff_id or "").strip()
+        if handoff_text:
+            record = get_handoff(handoff_text)
+            if record is not None:
+                subagent_state["strap_handoff_id"] = record.handoff_id
+                subagent_state["strap_handoff_contract"] = record.contract
+                subagent_state["strap_handoff_payload"] = dict(record.payload)
+                subagent_state["strap_handoff_task_prompt"] = record.task_prompt
+                subagent_state["strap_handoff_producer"] = record.producer
+                subagent_state["strap_handoff_consumer"] = record.consumer
+                handoff_additional_kwargs = {
+                    "strap_handoff_id": record.handoff_id,
+                    "strap_handoff_contract": record.contract,
+                    "strap_handoff_task_prompt": record.task_prompt or "",
+                    "strap_handoff_producer": record.producer,
+                    "strap_handoff_consumer": record.consumer,
+                }
+        subagent_state["messages"] = [
+            HumanMessage(content=description, additional_kwargs=handoff_additional_kwargs)
+        ]
         return subagent, subagent_state
 
     if task_description is None:
@@ -151,12 +177,13 @@ def _create_traced_task_tool(
             "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",
         ],
         subagent_type: Annotated[str, "The type of subagent to use. Must be one of the available agent types listed in the tool description."],
-        runtime: ToolRuntime,
+        handoff_id: Annotated[str | None, "Optional validated upstream handoff ID to attach structurally to the subagent runtime state."] = None,
+        runtime: ToolRuntime = None,
     ) -> str | Command:
         if subagent_type not in subagent_graphs:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
             return f"We cannot invoke subagent {subagent_type} because it does not exist, the only allowed types are {allowed_types}"
-        subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime)
+        subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime, handoff_id)
         result = _trace_subagent_sync(subagent_type, description, runtime, subagent, subagent_state)
         if not runtime.tool_call_id:
             raise ValueError("Tool call ID is required for subagent invocation")
@@ -168,12 +195,13 @@ def _create_traced_task_tool(
             "A detailed description of the task for the subagent to perform autonomously. Include all necessary context and specify the expected output format.",
         ],
         subagent_type: Annotated[str, "The type of subagent to use. Must be one of the available agent types listed in the tool description."],
-        runtime: ToolRuntime,
+        handoff_id: Annotated[str | None, "Optional validated upstream handoff ID to attach structurally to the subagent runtime state."] = None,
+        runtime: ToolRuntime = None,
     ) -> str | Command:
         if subagent_type not in subagent_graphs:
             allowed_types = ", ".join([f"`{k}`" for k in subagent_graphs])
             return f"We cannot invoke subagent {subagent_type} because it does not exist, the only allowed types are {allowed_types}"
-        subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime)
+        subagent, subagent_state = _validate_and_prepare_state(subagent_type, description, runtime, handoff_id)
         result = await _trace_subagent_async(subagent_type, description, runtime, subagent, subagent_state)
         if not runtime.tool_call_id:
             raise ValueError("Tool call ID is required for subagent invocation")

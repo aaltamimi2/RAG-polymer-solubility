@@ -53,7 +53,9 @@ def get_visualization_tools() -> list:
         "plot_selectivity_heatmap",
         "plot_multi_panel_analysis",
         "plot_comparison_dashboard",
+        "plot_optimization_point_result",
         "plot_optimization_pareto_front",
+        "plot_optimization_pareto_slices",
         "plot_solvent_properties",
         "plot_interpolation_vs_sql",
     ])
@@ -80,6 +82,12 @@ def get_safety_pubchem_tools() -> list:
     ])
 
 
+def get_safety_card_tools() -> list:
+    return _safe_import("strap.tools.safety_card", [
+        "get_solvent_safety_card", "compare_solvent_safety_cards",
+    ])
+
+
 def get_listing_tools() -> list:
     return _safe_import("strap.tools.listing", [
         "list_available_solvents", "list_available_polymers",
@@ -98,6 +106,9 @@ def get_interpolation_tools() -> list:
 def get_ml_prediction_tools() -> list:
     return _safe_import("strap.tools.ml_prediction", [
         "predict_solubility_ml",
+        "list_hsp_supported_polymers",
+        "list_hsp_supported_solvents",
+        "screen_hsp_solubility_matrix",
     ])
 
 
@@ -237,6 +248,7 @@ def get_waste_optimization_tools() -> list:
     return _safe_import("strap.tools.waste_optimization", [
         "run_waste_management_optimization",
         "run_waste_management_pareto",
+        "run_waste_management_pareto_slices",
     ])
 
 
@@ -277,6 +289,7 @@ def get_separation_plot_tools() -> list:
     """Separation visualization tools (for visualization-specialist)."""
     return _safe_import("strap.tools.advanced_separation", [
         "create_separation_tree_plot",
+        "plot_dynamic_programming_separation_options",
         "create_selectivity_heatmap",
         "create_process_flow_diagram",
         "plot_precipitation_curves",
@@ -302,6 +315,7 @@ def get_core_tools() -> list:
         + get_listing_tools()
         + get_solvent_property_tools()
         + get_interpolation_tools()
+        + _safe_import("strap.tools.visualization", ["plot_solubility_vs_temperature"])
     )
 
 
@@ -313,6 +327,7 @@ def get_all_tools() -> list:
         get_statistical_tools,
         get_visualization_tools,
         get_solvent_property_tools,
+        get_safety_card_tools,
         get_safety_gsk_tools,
         get_safety_pubchem_tools,
         get_listing_tools,

@@ -2,6 +2,7 @@
 import json
 import pytest
 from unittest.mock import MagicMock
+from langchain.agents.middleware.types import ToolCallRequest
 from langchain_core.messages import AIMessage, ToolMessage, HumanMessage, SystemMessage
 
 
@@ -1117,3 +1118,421 @@ class TestVisualizationToolDirectiveGuard:
 
         assert result.content == "ok"
         handler.assert_called_once()
+
+    def test_repairs_visualization_final_answer_that_skips_required_tool(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="visualization-specialist")
+        mw.before_agent(None, None)
+        messages = [
+            HumanMessage(
+                content=(
+                    "Plot the Pareto slices. Required tool: plot_optimization_pareto_slices. "
+                    "Call `plot_optimization_pareto_slices(source_handoff_id=\"h_plot\")`."
+                )
+            ),
+            AIMessage(
+                content=(
+                    "Plots created.\n<STRUCTURED_RESULT>{\"agent\":\"visualization-specialist\","
+                    "\"schema_version\":\"1.0\",\"plot_type\":\"optimization_pareto_slices\","
+                    "\"plot_paths\":[\"plots/fake.png\"],\"format\":\"png\"}</STRUCTURED_RESULT>"
+                )
+            ),
+        ]
+
+        result = mw.after_model({"messages": messages}, None)
+
+        assert result is not None
+        assert result["jump_to"] == "model"
+        assert "plot_optimization_pareto_slices" in result["messages"][0].content
+        assert "Do not invent plot paths" in result["messages"][0].content
+
+    def test_does_not_repair_visualization_after_required_tool_completed(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="visualization-specialist")
+        mw.before_agent(None, None)
+        messages = [
+            HumanMessage(content="Plot slices. Required tool: plot_optimization_pareto_slices"),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "id": "viz_tool",
+                        "name": "plot_optimization_pareto_slices",
+                        "args": {"source_handoff_id": "h_plot"},
+                    }
+                ],
+            ),
+            ToolMessage(content="ok", tool_call_id="viz_tool", name="plot_optimization_pareto_slices"),
+            AIMessage(
+                content=(
+                    "Plots created.\n<STRUCTURED_RESULT>{\"agent\":\"visualization-specialist\","
+                    "\"schema_version\":\"1.0\",\"plot_type\":\"optimization_pareto_slices\","
+                    "\"plot_paths\":[\"/tmp/plot.png\"],\"format\":\"png\"}</STRUCTURED_RESULT>"
+                )
+            ),
+        ]
+
+        assert mw.after_model({"messages": messages}, None) is None
+
+
+class TestOptimizationPreflight:
+    def test_wrap_tool_call_repairs_optimization_args_from_attached_handoff(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        handoff_payload = {
+            "schema_version": "1.1",
+            "workflow_scope": "multi_stage",
+            "stages": [{"stage_id": "candidate_pool_pe", "candidate_pairs": []}],
+            "feed_composition": {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9},
+            "feed_capacity_tpy": 8000.0,
+        }
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_fix",
+                "name": "run_waste_management_pareto",
+                "args": {
+                    "x_metric": "total_cost",
+                    "y_metric": "circularity",
+                    "stage_candidates_json": '{"broken": true} trailing prose',
+                },
+            },
+            tool=None,
+            state={
+                "strap_handoff_contract": "optimization.stage_candidates.v1",
+                "strap_handoff_payload": handoff_payload,
+                "messages": [HumanMessage(content="Optimize this routed feed.")],
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="opt_fix"))
+        result = mw.wrap_tool_call(request, handler)
+
+        assert result.content == "ok"
+        handler.assert_called_once()
+
+        repaired_request = handler.call_args.args[0]
+        repaired_args = repaired_request.tool_call["args"]
+        assert repaired_args["stage_candidates_json"] == handoff_payload
+        assert repaired_args["feed_composition_json"] == {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9}
+        assert repaired_args["feed"] == 8000.0
+        assert repaired_request.state["strap_optimization_preflight"][-1]["repairs"]
+
+    def test_wrap_tool_call_recovers_handoff_from_message_additional_kwargs(self):
+        from strap.guardrails import SubagentGuardMiddleware
+        from strap.handoff_store import cleanup_handoff_scope, initialize_handoff_scope, store_agent_result, store_derived_handoff
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        handoff_payload = {
+            "schema_version": "1.1",
+            "workflow_scope": "multi_stage",
+            "route_id": "h_test_route",
+            "constraint_mode": "hard",
+            "fallback_policy": "fail_closed",
+            "operating_constraints": {"temperature_max_c": 80.0, "pressure": "unspecified"},
+            "stages": [{"stage_id": "candidate_pool_pe", "candidate_pairs": []}],
+            "candidate_pairs": [],
+            "polymer_solvent_filters": {"PE": ["Cyclohexane"]},
+            "candidate_solvents": ["Cyclohexane"],
+            "feed_composition": {"PE": 0.6, "EVOH": 0.4},
+            "feed_capacity_tpy": 8000.0,
+        }
+        initialize_handoff_scope(run_id="guardrail-msg-handoff", invocation_id="guardrail-msg-handoff")
+        parent = store_agent_result(
+            producer="separation-engineer",
+            payload={
+                "agent": "separation-engineer",
+                "schema_version": "1.0",
+                "polymers": ["PE", "EVOH"],
+                "best_sequence": ["PE", "EVOH"],
+                "steps": [],
+                "solvent_mapping": {"PE": "Cyclohexane"},
+                "top_k_sequences": [],
+            },
+            task_prompt="Upstream separation.",
+        )
+        record = store_derived_handoff(
+            producer="separation-engineer",
+            consumer="optimization-engineer",
+            contract="optimization.stage_candidates.v1",
+            payload=handoff_payload,
+            parent_handoff_id=parent.handoff_id,
+            task_prompt="Use the attached handoff.",
+        )
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_msg_fix",
+                "name": "run_waste_management_optimization",
+                "args": {"objective": "max_profit"},
+            },
+            tool=None,
+            state={
+                "messages": [
+                    HumanMessage(
+                        content="Run the routed optimization.",
+                        additional_kwargs={
+                            "strap_handoff_id": record.handoff_id,
+                            "strap_handoff_contract": "optimization.stage_candidates.v1",
+                        },
+                    )
+                ],
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="opt_msg_fix"))
+        try:
+            result = mw.wrap_tool_call(request, handler)
+        finally:
+            cleanup_handoff_scope()
+
+        assert result.content == "ok"
+        handler.assert_called_once()
+        repaired_request = handler.call_args.args[0]
+        repaired_args = repaired_request.tool_call["args"]
+        assert repaired_args["stage_candidates_json"] == handoff_payload
+        assert repaired_args["feed_composition_json"] == {"PE": 0.6, "EVOH": 0.4}
+        assert repaired_args["feed"] == 8000.0
+
+    def test_wrap_tool_call_infers_feed_inputs_from_query_text(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_infer",
+                "name": "run_waste_management_optimization",
+                "args": {"objective": "max_profit"},
+            },
+            tool=None,
+            state={
+                "messages": [
+                    HumanMessage(
+                        content=(
+                            "Optimize waste management for an 8000 t/y multilayer feed composed of "
+                            "40% PE, 40% PET, and 20% EVOH."
+                        )
+                    )
+                ]
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="opt_infer"))
+        result = mw.wrap_tool_call(request, handler)
+
+        assert result.content == "ok"
+        handler.assert_called_once()
+        repaired_request = handler.call_args.args[0]
+        repaired_args = repaired_request.tool_call["args"]
+        assert repaired_args["feed"] == 8000.0
+        assert repaired_args["feed_composition_json"] == {"PE": 0.4, "PET": 0.4, "EVOH": 0.2}
+
+    def test_wrap_tool_call_blocks_optimization_without_feed_inputs(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_missing",
+                "name": "run_waste_management_optimization",
+                "args": {"objective": "max_profit"},
+            },
+            tool=None,
+            state={"messages": [HumanMessage(content="Optimize waste management for this feed.")]},
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock()
+        result = mw.wrap_tool_call(request, handler)
+
+        assert isinstance(result, ToolMessage)
+        assert result.status == "error"
+        assert "missing `feed`" in result.content
+        handler.assert_not_called()
+
+    def test_wrap_tool_call_blocks_single_pareto_for_multi_slice_query(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_single_wrong",
+                "name": "run_waste_management_pareto",
+                "args": {
+                    "feed": 8000,
+                    "feed_composition_json": {"LDPE": 0.2, "EVOH": 0.6, "PET": 0.2},
+                    "x_metric": "total_cost",
+                    "y_metric": "circularity",
+                },
+            },
+            tool=None,
+            state={
+                "messages": [
+                    HumanMessage(
+                        content=(
+                            "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year, "
+                            "run Pareto slices for fixed feed compositions: 20/60/20, "
+                            "34/33/33, and 5/5/90."
+                        )
+                    )
+                ]
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock()
+        result = mw.wrap_tool_call(request, handler)
+
+        assert isinstance(result, ToolMessage)
+        assert result.status == "error"
+        assert "run_waste_management_pareto_slices" in result.content
+        handler.assert_not_called()
+
+    def test_wrap_tool_call_injects_composition_slices_for_multi_slice_tool(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_slices",
+                "name": "run_waste_management_pareto_slices",
+                "args": {"x_metric": "total_cost", "y_metric": "circularity"},
+            },
+            tool=None,
+            state={
+                "messages": [
+                    HumanMessage(
+                        content=(
+                            "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year, "
+                            "run Pareto slices for fixed feed compositions: 20/60/20 and 5/5/90."
+                        )
+                    )
+                ]
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="opt_slices"))
+        result = mw.wrap_tool_call(request, handler)
+
+        assert result.content == "ok"
+        handler.assert_called_once()
+        repaired_args = handler.call_args.args[0].tool_call["args"]
+        assert repaired_args["feed"] == 8000.0
+        assert repaired_args["composition_slices_json"] == [
+            {"LDPE": 0.2, "EVOH": 0.6, "PET": 0.2},
+            {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9},
+        ]
+
+    def test_wrap_tool_call_replaces_model_quoted_composition_slice_keys(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(agent_name="optimization-engineer")
+        mw.before_agent(None, None)
+
+        request = ToolCallRequest(
+            tool_call={
+                "id": "opt_slices_quoted",
+                "name": "run_waste_management_pareto_slices",
+                "args": {
+                    "feed": 8000,
+                    "composition_slices_json": [
+                        {"feed_composition": {'"PE"': 0.2, '"EVOH"': 0.6, '"PET"': 0.2}},
+                        {"feed_composition": {'"PE"': 0.05, '"EVOH"': 0.05, '"PET"': 0.9}},
+                    ],
+                },
+            },
+            tool=None,
+            state={
+                "messages": [
+                    HumanMessage(
+                        content=(
+                            "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year, "
+                            "run Pareto slices for fixed feed compositions: 20/60/20 and 5/5/90."
+                        )
+                    )
+                ]
+            },
+            runtime=MagicMock(),
+        )
+
+        handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="opt_slices_quoted"))
+        result = mw.wrap_tool_call(request, handler)
+
+        assert result.content == "ok"
+        repaired_args = handler.call_args.args[0].tool_call["args"]
+        assert repaired_args["composition_slices_json"] == [
+            {"LDPE": 0.2, "EVOH": 0.6, "PET": 0.2},
+            {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9},
+        ]
+
+
+def test_separation_support_scope_rejects_non_polymer_unsupported_tokens():
+    from strap.guardrail_checks import get_separation_support_scope_errors
+
+    message = AIMessage(
+        content=(
+            "<STRUCTURED_RESULT>"
+            '{"agent":"separation-engineer","schema_version":"1.0",'
+            '"polymers":["LDPE","EVOH","PET"],'
+            '"supported_polymers":["LDPE","EVOH","PET"],'
+            '"unsupported_polymers":["EACHCANDIDATE"],'
+            '"best_sequence":["LDPE","EVOH","PET"],'
+            '"steps":[],"solvent_mapping":{},"top_k_sequences":[{"rank":1}]}'
+            "</STRUCTURED_RESULT>"
+        )
+    )
+
+    errors = get_separation_support_scope_errors([], message, "separation-engineer")
+
+    assert any("unsupported_polymers" in error and "EACHCANDIDATE" in error for error in errors)
+
+
+def test_wrap_tool_call_repairs_separation_top_k_solvents_from_user_query():
+    from strap.guardrails import SubagentGuardMiddleware
+
+    mw = SubagentGuardMiddleware(agent_name="separation-engineer")
+    mw.before_agent(None, None)
+    request = ToolCallRequest(
+        tool_call={
+            "id": "sep_topk",
+            "name": "plan_sequential_separation",
+            "args": {"polymers": "LDPE,EVOH,PET", "top_k_solvents": 5},
+        },
+        tool=None,
+        state={
+            "messages": [
+                HumanMessage(
+                    content=(
+                        "Have the separation engineer propose the top 8 solvent candidates per polymer "
+                        "for LDPE/EVOH/PET."
+                    )
+                )
+            ]
+        },
+        runtime=MagicMock(),
+    )
+
+    handler = MagicMock(return_value=ToolMessage(content="ok", tool_call_id="sep_topk"))
+    result = mw.wrap_tool_call(request, handler)
+
+    assert result.content == "ok"
+    repaired_request = handler.call_args.args[0]
+    assert repaired_request.tool_call["args"]["top_k_solvents"] == 8

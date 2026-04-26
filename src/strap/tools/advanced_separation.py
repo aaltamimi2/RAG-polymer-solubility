@@ -83,6 +83,7 @@ from strap.tools.separation_visualization_tools import (
     create_process_flow_diagram,
     create_selectivity_heatmap,
     create_separation_tree_plot,
+    plot_dynamic_programming_separation_options,
 )
 from strap.analysis import SelectivityCalculator, SolventRanker, PolymerCompatibilityMatrix
 from strap.solvent_registry import ABBREVIATION_MAP as _ABBREVIATION_MAP
@@ -170,12 +171,19 @@ def find_optimal_separation_sequence(
     - "Optimize for safety with at least 7% selectivity"
     """
     polymer_list = parse_polymer_list(polymers)
+    from strap.solubility import SENSITIVITY_EXTRAPOLATION_MAX_C
 
     if len(polymer_list) < 2:
         return "Error: Need at least 2 polymers for separation planning."
 
     if len(polymer_list) > 12:
         return f"Error: Too many polymers ({len(polymer_list)}). Maximum 12 for computational feasibility."
+
+    if temperature > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return (
+            "Error: Temperature exceeds the supported Apelblat sensitivity limit "
+            f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C."
+        )
 
     conn = get_connection()
 
@@ -263,7 +271,7 @@ def optimize_separation_temperature(
         other_polymers: Polymers to NOT dissolve, comma-separated (e.g., "HDPE,PP")
         solvent: Solvent to analyze (e.g., "xylene")
         temp_min: Minimum temperature to scan (default: 25)
-        temp_max: Maximum temperature to scan (default: 180)
+        temp_max: Maximum temperature to scan (default: 180). Values from 180-200 C are reported as sensitivity-only extrapolation data.
 
     WHEN TO USE:
     - "What temperature should I use to dissolve LDPE but not HDPE in xylene?"
@@ -458,7 +466,14 @@ def get_supported_polymers_and_solvents() -> str:
     - "What solvents are available for HDPE?"
     - "List all supported polymer-solvent combinations"
     """
-    from strap.solubility import _load_coefficients, _get_known_names
+    from strap.solubility import (
+        FITTED_TEMP_MAX_C,
+        FITTED_TEMP_MIN_C,
+        RECOMMENDED_EXTRAPOLATION_MAX_C,
+        SENSITIVITY_EXTRAPOLATION_MAX_C,
+        _load_coefficients,
+        _get_known_names,
+    )
 
     _, lookup = _load_coefficients()
     known_polymers, _ = _get_known_names(lookup)
@@ -478,7 +493,9 @@ def get_supported_polymers_and_solvents() -> str:
 
     output = [
         "# Interpolation Coefficient Database — Supported Polymers & Solvents\n",
-        f"**Temperature range:** 25–160 °C (extrapolation flagged outside fitted range)\n",
+        f"**Fitted temperature range:** {FITTED_TEMP_MIN_C:.0f}–{FITTED_TEMP_MAX_C:.0f} °C\n",
+        f"**Exploratory extrapolation:** up to {RECOMMENDED_EXTRAPOLATION_MAX_C:.0f} °C as lower-confidence Apelblat estimates when explicitly requested\n",
+        f"**Sensitivity-only extrapolation:** {RECOMMENDED_EXTRAPOLATION_MAX_C:.0f}–{SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} °C for high-boiling-solvent screening only\n",
         f"**Total polymers:** {len(polymer_solvents)}\n",
     ]
 
@@ -498,7 +515,9 @@ def get_supported_polymers_and_solvents() -> str:
         polymers=sorted(polymer_solvents.keys()),
         polymer_count=len(polymer_solvents),
         supported_pairs=sum(len(solvents) for solvents in polymer_solvents.values()),
-        temperature_range_c=[25, 160],
+        fitted_temperature_range_c=[FITTED_TEMP_MIN_C, FITTED_TEMP_MAX_C],
+        recommended_extrapolation_max_c=RECOMMENDED_EXTRAPOLATION_MAX_C,
+        sensitivity_extrapolation_max_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
         polymer_solvents={polymer: sorted(solvents) for polymer, solvents in polymer_solvents.items()},
     )
 
@@ -515,6 +534,7 @@ ADVANCED_SEPARATION_TOOLS = [
     build_compatibility_matrix,
     find_challenging_polymer_pairs,
     create_separation_tree_plot,
+    plot_dynamic_programming_separation_options,
     create_selectivity_heatmap,
     create_process_flow_diagram,
     # Differential precipitation tools
@@ -546,6 +566,7 @@ __all__ = [
     "build_compatibility_matrix",
     "find_challenging_polymer_pairs",
     "create_separation_tree_plot",
+    "plot_dynamic_programming_separation_options",
     "create_selectivity_heatmap",
     "create_process_flow_diagram",
     "find_differential_precipitation_solvents",

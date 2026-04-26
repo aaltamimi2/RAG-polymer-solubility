@@ -31,12 +31,13 @@ MAX_TOOL_OUTPUT_LENGTH = 50_000
 PLOTS_DIR = os.environ.get("STRAP_PLOTS_DIR", "./plots")
 
 def get_plots_dir() -> str:
-    return PLOTS_DIR
+    return os.environ.get("STRAP_PLOTS_DIR", PLOTS_DIR)
 
 def set_plots_dir(new_dir: str) -> str:
     global PLOTS_DIR
-    old = PLOTS_DIR
+    old = get_plots_dir()
     PLOTS_DIR = new_dir
+    os.environ["STRAP_PLOTS_DIR"] = new_dir
     os.makedirs(PLOTS_DIR, exist_ok=True)
     return old
 
@@ -129,9 +130,9 @@ def _wrap_structured_result(tool_name: str, result) -> str:
     from strap.services.tool_response_service import json_tool_error, json_tool_response
 
     if isinstance(result, str):
+        if _is_tool_envelope(result):
+            return _normalize_tool_envelope(tool_name, result)
         result_str = truncate_output(result)
-        if _is_tool_envelope(result_str):
-            return _normalize_tool_envelope(tool_name, result_str)
         try:
             parsed = json.loads(result_str)
         except (json.JSONDecodeError, TypeError, ValueError):
@@ -329,14 +330,83 @@ def descriptive_plot_name(
     return "_".join(parts)
 
 
-def save_plot(fig, plot_name: str, plot_type: str = "matplotlib") -> str:
+def normalize_wsl_path(path: str | os.PathLike[str]) -> str:
+    """Normalize Windows WSL UNC paths to paths usable inside WSL/Linux."""
+    raw = os.fspath(path).strip().strip('"').strip("'")
+    if not raw:
+        return raw
+    raw = re.sub(r"\r?\n[ \t]*", "", raw)
+
+    normalized = raw.replace("\\", "/")
+    lowered = normalized.lower()
+    for prefix in ("//wsl.localhost/", "//wsl$/"):
+        if lowered.startswith(prefix):
+            remainder = normalized[len(prefix):]
+            parts = remainder.split("/", 1)
+            return "/" + parts[1] if len(parts) == 2 else "/"
+
+    if re.match(r"^[A-Za-z]:/", normalized):
+        drive = normalized[0].lower()
+        return f"/mnt/{drive}{normalized[2:]}"
+
+    return normalized
+
+
+def _default_plot_extension(plot_type: str) -> str:
+    return ".html" if plot_type == "plotly" else ".png"
+
+
+def resolve_plot_output_path(
+    plot_name: str,
+    plot_type: str = "matplotlib",
+    *,
+    output_dir: str | os.PathLike[str] | None = None,
+    output_path: str | os.PathLike[str] | None = None,
+) -> str:
+    """Resolve a plot stem/name plus optional user destination to a file path."""
+    extension = _default_plot_extension(plot_type)
+    plot_path = Path(normalize_wsl_path(plot_name))
+    filename = plot_path.name
+    if not Path(filename).suffix:
+        filename = f"{filename}{extension}"
+
+    if output_path:
+        candidate = Path(normalize_wsl_path(output_path))
+        output_text = os.fspath(output_path).strip()
+        if output_text.endswith(("\\", "/")) or not candidate.suffix or candidate.is_dir():
+            return str(candidate / filename)
+        if not candidate.suffix:
+            candidate = candidate.with_suffix(extension)
+        return str(candidate)
+
+    base_dir = Path(normalize_wsl_path(output_dir)) if output_dir else Path(normalize_wsl_path(get_plots_dir()))
+    return str(base_dir / filename)
+
+
+def save_plot(
+    fig,
+    plot_name: str,
+    plot_type: str = "matplotlib",
+    *,
+    output_dir: str | os.PathLike[str] | None = None,
+    output_path: str | os.PathLike[str] | None = None,
+    dpi: int = 300,
+    write_html_kwargs: dict[str, Any] | None = None,
+    **savefig_kwargs,
+) -> str:
     """Save a matplotlib/plotly figure and return the file path."""
-    os.makedirs(PLOTS_DIR, exist_ok=True)
-    filepath = os.path.join(PLOTS_DIR, plot_name)
+    filepath = resolve_plot_output_path(
+        plot_name,
+        plot_type,
+        output_dir=output_dir,
+        output_path=output_path,
+    )
+    os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
     if plot_type == "plotly":
-        fig.write_html(filepath)
+        fig.write_html(filepath, **(write_html_kwargs or {}))
     else:
-        fig.savefig(filepath, dpi=300, bbox_inches="tight")
+        savefig_kwargs.setdefault("bbox_inches", "tight")
+        fig.savefig(filepath, dpi=dpi, **savefig_kwargs)
         import matplotlib.pyplot as plt
         plt.close(fig)
     return filepath
@@ -609,7 +679,8 @@ class AdaptiveAnalyzer:
                                   solubility_column: str, target_polymer: str,
                                   comparison_polymers: List[str],
                                   start_temp: float = 25,
-                                  min_selectivity: float = 10.0) -> Dict[str, Any]:
+                                  min_selectivity: float = 10.0,
+                                  max_temp: float = 160.0) -> Dict[str, Any]:
         results = {
             'optimal_conditions': None,
             'all_conditions': [],
@@ -624,10 +695,27 @@ class AdaptiveAnalyzer:
             results['recommendation'] = "No comparison polymers provided"
             return results
 
-        from strap.solubility import get_solubility, get_available_solvents
+        from strap.solubility import (
+            FITTED_TEMP_MAX_C,
+            FITTED_TEMP_MIN_C,
+            RECOMMENDED_EXTRAPOLATION_MAX_C,
+            SENSITIVITY_EXTRAPOLATION_MAX_C,
+            get_solubility,
+            get_available_solvents,
+            temperature_extrapolation_status,
+        )
 
-        # Temperature bins from interpolation model range (25–160 °C, step 10)
-        temp_bins = [float(t) for t in range(max(int(start_temp), 25), 161, 10)]
+        effective_max_temp = min(float(max_temp), SENSITIVITY_EXTRAPOLATION_MAX_C)
+        # Temperature bins from interpolation model range, with optional
+        # Apelblat extrapolation to 200 C when requested.
+        temp_bins = [
+            float(t)
+            for t in range(
+                max(int(start_temp), int(FITTED_TEMP_MIN_C)),
+                int(effective_max_temp) + 1,
+                10,
+            )
+        ]
         if not temp_bins:
             temp_bins = [float(t) for t in self.TEMPERATURE_STEPS if t >= start_temp]
 
@@ -656,6 +744,7 @@ class AdaptiveAnalyzer:
 
             condition = {
                 'temperature': temp,
+                'temperature_extrapolation': temperature_extrapolation_status(temp),
                 'selectivity': selectivity,
                 'target_solubility': target_sol,
                 'max_other_solubility': max_other,
@@ -680,6 +769,16 @@ class AdaptiveAnalyzer:
                 )
         else:
             results['recommendation'] = "No data found for specified conditions"
+
+        if any(t > FITTED_TEMP_MAX_C for t in temp_bins):
+            results['recommendation'] += (
+                f" Temperatures above {FITTED_TEMP_MAX_C:.0f}°C are Apelblat extrapolations "
+                "outside the fitted range and should be treated as lower-confidence estimates."
+            )
+        if any(t > RECOMMENDED_EXTRAPOLATION_MAX_C for t in temp_bins):
+            results['recommendation'] += (
+                f" Temperatures above {RECOMMENDED_EXTRAPOLATION_MAX_C:.0f}°C are sensitivity-only screening data."
+            )
 
         return results
 

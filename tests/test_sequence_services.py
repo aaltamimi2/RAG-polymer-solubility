@@ -18,6 +18,155 @@ def test_build_greedy_planning_payload_includes_top_k_sequences():
     assert payload["top_k_sequences"][0]["solvent_mapping"] == {"A": "S1"}
 
 
+def test_build_sequential_planning_payload_aggregates_candidates_for_final_residue():
+    from strap.services.sequence_planning_payload_service import build_sequential_planning_payload
+
+    payload = build_sequential_planning_payload(
+        polymer_list=["LDPE", "EVOH", "PET"],
+        temperature=120.0,
+        excluded_set=set(),
+        sequence_scores=[
+            {
+                "sequence": ("LDPE", "EVOH", "PET"),
+                "min_selectivity": 20.0,
+                "steps": [
+                    {
+                        "step": 1,
+                        "target": "LDPE",
+                        "solvents": [
+                            {"solvent": "Cyclohexane", "selectivity": 40.0, "optimal_temp": 81.0}
+                        ],
+                    },
+                    {
+                        "step": 2,
+                        "target": "EVOH",
+                        "solvents": [
+                            {"solvent": "Methanol", "selectivity": 20.0, "optimal_temp": 65.0}
+                        ],
+                    },
+                ],
+            },
+            {
+                "sequence": ("PET", "LDPE", "EVOH"),
+                "min_selectivity": 10.0,
+                "steps": [
+                    {
+                        "step": 1,
+                        "target": "PET",
+                        "solvents": [
+                            {"solvent": "N,N-Dimethylformamide", "selectivity": 18.0, "optimal_temp": 153.0},
+                            {"solvent": "Dimethyl sulfoxide", "selectivity": 16.0, "optimal_temp": 160.0},
+                        ],
+                    }
+                ],
+            },
+        ],
+    )
+
+    candidates = payload["polymer_solvent_candidates"]
+    assert candidates["LDPE"][0]["solvent"] == "Cyclohexane"
+    assert candidates["EVOH"][0]["temperature_c"] == 65.0
+    assert [entry["solvent"] for entry in candidates["PET"]] == [
+        "N,N-Dimethylformamide",
+        "Dimethyl sulfoxide",
+    ]
+    assert payload["top_k_sequences"][1]["steps"][0]["temperature_c"] == 153.0
+
+
+def test_sequential_planning_payload_canonicalizes_solvent_aliases():
+    from strap.services.sequence_planning_payload_service import build_sequential_planning_payload
+
+    payload = build_sequential_planning_payload(
+        polymer_list=["LDPE", "EVOH", "PET"],
+        temperature=120.0,
+        excluded_set=set(),
+        sequence_scores=[
+            {
+                "sequence": ("LDPE", "EVOH", "PET"),
+                "min_selectivity": 20.0,
+                "steps": [
+                    {
+                        "step": 1,
+                        "target": "LDPE",
+                        "solvents": [
+                            {"solvent": "THP", "selectivity": 40.0, "optimal_temp": 87.0},
+                            {"solvent": "GVL", "selectivity": 32.0, "optimal_temp": 25.0},
+                        ],
+                    },
+                    {
+                        "step": 2,
+                        "target": "EVOH",
+                        "solvents": [
+                            {"solvent": "Glycol", "selectivity": 20.0, "optimal_temp": 160.0},
+                            {"solvent": "Propyleneglycol", "selectivity": 18.0, "optimal_temp": 160.0},
+                        ],
+                    },
+                ],
+            },
+            {
+                "sequence": ("PET", "LDPE", "EVOH"),
+                "min_selectivity": 10.0,
+                "steps": [
+                    {
+                        "step": 1,
+                        "target": "PET",
+                        "solvents": [
+                            {"solvent": "CH\u2082Cl\u2082", "selectivity": 18.0, "optimal_temp": 39.0},
+                        ],
+                    }
+                ],
+            },
+        ],
+    )
+
+    candidates = payload["polymer_solvent_candidates"]
+    assert candidates["LDPE"][0]["solvent"] == "Tetrahydropyran"
+    assert candidates["LDPE"][1]["solvent"] == "gamma-Valerolactone"
+    assert candidates["EVOH"][0]["solvent"] == "Ethylene glycol"
+    assert candidates["EVOH"][1]["solvent"] == "Propylene glycol"
+    assert candidates["PET"][0]["solvent"] == "Dichloromethane"
+    assert payload["steps"][0]["solvent"] == "Tetrahydropyran"
+    assert payload["top_k_sequences"][1]["solvent_mapping"]["PET"] == "Dichloromethane"
+    assert payload["top_k_sequences"][1]["steps"][0]["source_solvent"] == "CH\u2082Cl\u2082"
+
+
+def test_sequence_analysis_display_canonicalizes_solvent_aliases():
+    from strap.services.sequence_planning_exhaustive_display_service import build_sequence_analysis_output
+
+    rendered = "\n".join(
+        build_sequence_analysis_output(
+            sequence=("LDPE", "PET"),
+            seq_idx=1,
+            seq_steps=[
+                {
+                    "step": 1,
+                    "target": "LDPE",
+                    "remaining": ["PET"],
+                    "solvents": [
+                        {
+                            "solvent": "THP",
+                            "selectivity": 25.0,
+                            "target_sol": 30.0,
+                            "max_other": 5.0,
+                        },
+                        {
+                            "solvent": "CH\u2082Cl\u2082",
+                            "selectivity": 20.0,
+                            "target_sol": 28.0,
+                            "max_other": 8.0,
+                        },
+                    ],
+                }
+            ],
+        )
+    )
+
+    assert "Tetrahydropyran" in rendered
+    assert "Dichloromethane" in rendered
+    assert "**THP**" not in rendered
+    assert "CH\u2082Cl\u2082" not in rendered
+
+
 def test_build_multi_scheme_display_renders_scheme_table():
     from strap.services.sequence_planning_greedy_display_service import build_multi_scheme_display
 

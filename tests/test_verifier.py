@@ -356,6 +356,75 @@ def test_single_specialist_separation_skips_model_verifier_when_no_deterministic
     assert result is response
 
 
+def test_direct_solvent_lookup_skips_model_verifier_without_specialists():
+    from strap.verifier import OutputVerifierMiddleware
+
+    verifier_model = MagicMock()
+    middleware = OutputVerifierMiddleware(verifier_model=verifier_model)
+    middleware.before_agent(None, None)
+
+    request = MagicMock()
+    request.messages = [
+        HumanMessage(content="i have an LDPE/EVOH/PET feedstock. what are good solvents for dissolving LDPE?"),
+        AIMessage(content="", tool_calls=[{"id": "solv", "name": "list_available_solvents", "args": {}}]),
+        ToolMessage(content="LDPE solvents include cyclohexane and dodecane.", tool_call_id="solv"),
+    ]
+    request.system_message = SystemMessage(content="system")
+    request.override = MagicMock(side_effect=lambda **kwargs: request)
+
+    response = MagicMock()
+    response.result = [
+        AIMessage(
+            content=(
+                "Good LDPE solvent candidates from the available data include cyclohexane "
+                "and dodecane; validate experimentally before process design."
+            )
+        )
+    ]
+    handler = MagicMock(return_value=response)
+
+    result = middleware._maybe_verify(request, response, handler)
+
+    verifier_model.invoke.assert_not_called()
+    handler.assert_not_called()
+    assert result is response
+
+
+def test_direct_route_metadata_skips_verifier():
+    from strap.verifier import OutputVerifierMiddleware
+
+    verifier_model = MagicMock()
+    middleware = OutputVerifierMiddleware(verifier_model=verifier_model)
+    middleware.before_agent(None, None)
+
+    request = MagicMock()
+    request.messages = [HumanMessage(content="plot the top 4 of those solvents up to 100C")]
+    request.system_message = SystemMessage(content="system")
+    request.override = MagicMock(side_effect=lambda **kwargs: request)
+
+    response = MagicMock()
+    response.result = [
+        AIMessage(
+            content="The solubility plot has been generated and saved to /tmp/evoh.png.",
+            additional_kwargs={
+                "strap_origin": "direct_tool_fast_path",
+                "strap_route_decision": {
+                    "mode": "artifact_transform",
+                    "intent": "solubility_plot",
+                    "model_call_budget": 0,
+                },
+            },
+        )
+    ]
+    handler = MagicMock(return_value=response)
+
+    result = middleware._maybe_verify(request, response, handler)
+
+    verifier_model.invoke.assert_not_called()
+    handler.assert_not_called()
+    assert result is response
+
+
 def test_maybe_verify_uses_deterministic_separation_issues_before_model():
     from strap.verifier import OutputVerifierMiddleware
 

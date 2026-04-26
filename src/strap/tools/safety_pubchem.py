@@ -512,13 +512,9 @@ async def visualize_pubchem_safety(
     ax.grid(True, alpha=0.3, axis='x')
     plt.tight_layout()
     # Save
-    plots_dir = get_plots_dir()
-    os.makedirs(plots_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"pubchem_hazards_{timestamp}.png"
-    filepath = os.path.join(plots_dir, filename)
-    fig.savefig(filepath, dpi=150, bbox_inches='tight', facecolor='white')
-    plt.close(fig)
+    filepath = save_plot(fig, filename, dpi=150, facecolor="white")
     # Build output
     output = ["**PubChem GHS Hazard Chart**\n"]
     # Summary for each compound

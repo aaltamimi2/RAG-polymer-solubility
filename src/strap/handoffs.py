@@ -293,9 +293,19 @@ def build_handoff_for_consumer(
     """Create a derived handoff for a downstream consumer."""
     if source_handoff_id:
         source = get_handoff(source_handoff_id)
+        if source is None and producer and strategy in {"latest", "default"}:
+            logger.warning(
+                "handoffs: source_handoff_id %s not found; falling back to latest result from producer=%s for consumer=%s",
+                source_handoff_id,
+                producer,
+                consumer,
+            )
+            source = get_latest_result_handoff(producer=producer)
     else:
         if not producer:
             raise ValueError("producer is required when source_handoff_id is not provided")
+        if strategy == "default":
+            strategy = "latest"
         if strategy != "latest":
             raise ValueError(f"unsupported strategy '{strategy}'")
         source = get_latest_result_handoff(producer=producer)

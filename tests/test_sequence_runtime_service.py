@@ -103,6 +103,43 @@ async def test_find_top_solvents_for_target_applies_filters_and_properties():
 
 
 @pytest.mark.asyncio
+async def test_find_top_solvents_for_target_labels_above_range_temperature():
+    from strap.services.sequence_runtime_service import find_top_solvents_for_target
+
+    def fake_get_solubility(polymer, solvent, temperature):
+        if solvent != "S1":
+            return None
+        if polymer == "A":
+            return 100.0 if temperature == 170.0 else 10.0
+        if polymer == "B":
+            return 1.0
+        return None
+
+    async def fake_lookup(solvents, table):
+        return {"S1": {"bp": 220.0}}
+
+    results = await find_top_solvents_for_target(
+        target="A",
+        remaining=["B"],
+        temperature=170.0,
+        top_k=1,
+        used_solvents=None,
+        excluded_solvents=None,
+        min_selectivity=5.0,
+        solvent_column="solvent",
+        polymer_column="polymer",
+        get_solubility=fake_get_solubility,
+        get_available_solvents_for_polymer=lambda polymer: ["S1"],
+        solvent_table="demo_table",
+        lookup_solvent_properties=fake_lookup,
+    )
+
+    assert results[0]["temperature_extrapolation"] == "above_fit"
+    assert results[0]["optimal_temp"] == 170.0
+    assert results[0]["optimal_temp_extrapolation"] == "above_fit"
+
+
+@pytest.mark.asyncio
 async def test_load_scheme_property_maps_matches_abbreviations():
     from strap.services.sequence_runtime_service import load_scheme_property_maps
 

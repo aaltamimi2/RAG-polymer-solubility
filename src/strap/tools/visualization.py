@@ -77,6 +77,26 @@ def _humanize_stage_code(value: str) -> str:
     return mapping.get(text, text.replace("_", " ").title())
 
 
+def _display_solvent_label(solvent: str) -> str:
+    mapping = {
+        "1,2-dimethylbenzene": "o-Xylene",
+        "1,3-dimethylbenzene": "m-Xylene",
+        "1,4-dimethylbenzene": "p-Xylene",
+        "ch2cl2": "Dichloromethane",
+        "chcl3": "Chloroform",
+        "dimethylformamide": "DMF",
+        "dimethylsulfoxide": "DMSO",
+        "thf": "THF",
+        "thp": "THP",
+    }
+    normalized = str(solvent).strip().lower()
+    if normalized in mapping:
+        return mapping[normalized]
+    if "-" in normalized or "," in normalized:
+        return normalized
+    return normalized[:1].upper() + normalized[1:]
+
+
 def _extract_point_design(row: pd.Series) -> Dict[str, Any]:
     equivalent_designs = row.get("equivalent_designs")
     if isinstance(equivalent_designs, list) and equivalent_designs:
@@ -84,6 +104,15 @@ def _extract_point_design(row: pd.Series) -> Dict[str, Any]:
         if isinstance(first, dict):
             return first
     return row.to_dict()
+
+
+def _design_or_row_value(design: Dict[str, Any], row: pd.Series, key: str) -> Any:
+    value = design.get(key)
+    if value not in (None, "", []):
+        return value
+    if key in row.index:
+        return row.get(key)
+    return value
 
 
 def _format_pareto_point_legend_entry(
@@ -103,20 +132,38 @@ def _format_pareto_point_legend_entry(
     if wash2:
         components.append(f"W2: {', '.join(wash2)}")
 
+    residual_polymers = _stringify_point_values(_design_or_row_value(design, row, "residual_polymers"))
+    residual_destination = [
+        _humanize_stage_code(value)
+        for value in _stringify_point_values(_design_or_row_value(design, row, "residual_destination_tech"))
+    ]
+    has_residual_metadata = (
+        "residual_polymers" in design
+        or "residual_polymers" in row.index
+        or "residual_destination_tech" in design
+        or "residual_destination_tech" in row.index
+    )
+    if residual_polymers:
+        destination = ", ".join(residual_destination) if residual_destination else "Downstream waste"
+        components.append(f"Waste: {', '.join(residual_polymers)} -> {destination}")
+    elif has_residual_metadata and (wash1 or wash2):
+        components.append("Waste: none")
+
     stage1 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage1_tech"))]
     stage2 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage2_tech"))]
     stage3 = [_humanize_stage_code(value) for value in _stringify_point_values(row.get("stage3_variants"))]
     if not stage3:
         stage3 = [_humanize_stage_code(value) for value in _stringify_point_values(design.get("stage3_tech"))]
 
-    if not wash1 and not wash2:
-        final_stage = next((stage for stage in stage1 + stage2 + stage3 if stage not in {"Wash 1", "Wash 2"}), "")
-        if final_stage:
-            components.append(f"Baseline: {final_stage}")
-    else:
-        final_stage = next((stage for stage in stage3 + stage2 + stage1 if stage not in {"Wash 1", "Wash 2"}), "")
-        if final_stage:
-            components.append(f"End: {final_stage}")
+    if not has_residual_metadata:
+        if not wash1 and not wash2:
+            final_stage = next((stage for stage in stage1 + stage2 + stage3 if stage not in {"Wash 1", "Wash 2"}), "")
+            if final_stage:
+                components.append(f"Baseline: {final_stage}")
+        else:
+            final_stage = next((stage for stage in stage3 + stage2 + stage1 if stage not in {"Wash 1", "Wash 2"}), "")
+            if final_stage:
+                components.append(f"End: {final_stage}")
 
     polymer_solvent_map = design.get("polymer_solvent_map") or row.get("polymer_solvent_map")
     if polymer_solvent_map and not wash1 and not wash2 and isinstance(polymer_solvent_map, dict):
@@ -160,6 +207,39 @@ def _format_pareto_point_legend_entry(
     return f"P{point_id}: {wrapped}"
 
 
+def _coerce_optimization_payload(raw_payload: Dict[str, Any] | str | None) -> Dict[str, Any]:
+    if isinstance(raw_payload, str):
+        parsed = json.loads(raw_payload)
+        if isinstance(parsed, dict) and "data" in parsed and isinstance(parsed["data"], dict):
+            return parsed["data"]
+        if isinstance(parsed, dict):
+            return parsed
+        raise TypeError("optimization_result_json must decode to a mapping")
+    if isinstance(raw_payload, dict):
+        if "data" in raw_payload and isinstance(raw_payload["data"], dict):
+            return raw_payload["data"]
+        return raw_payload
+    raise TypeError("optimization_result_json must be a JSON string or mapping")
+
+
+def _load_optimization_payload_from_handoff(source_handoff_id: str) -> Dict[str, Any]:
+    from strap.handoffs import get_handoff
+
+    record = get_handoff(source_handoff_id)
+    if record is None:
+        raise ValueError(f"source_handoff_id '{source_handoff_id}' was not found")
+    raw_payload = record.payload
+    if isinstance(raw_payload, dict) and isinstance(raw_payload.get("pareto_result_json"), dict):
+        return raw_payload["pareto_result_json"]
+    if isinstance(raw_payload, dict) and isinstance(raw_payload.get("optimization_result_json"), dict):
+        return raw_payload["optimization_result_json"]
+    if isinstance(raw_payload, dict) and isinstance(raw_payload.get("source_payload"), dict):
+        return raw_payload["source_payload"]
+    if isinstance(raw_payload, dict):
+        return raw_payload
+    raise TypeError("source handoff payload must be a mapping")
+
+
 @safe_tool_wrapper(structured_output=True)
 def plot_solubility_vs_temperature(
     table_name: str,
@@ -171,8 +251,13 @@ def plot_solubility_vs_temperature(
     solvents: str,
     plot_title: Optional[str] = None,
     include_confidence_bands: bool = True,
+    annotate_model_limits: bool = False,
     temperature_min: Optional[float] = None,
     temperature_max: Optional[float] = None,
+    y_axis_max: Optional[float] = 100.0,
+    y_axis_ranges_json: Optional[str] = None,
+    output_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
 ) -> str:
     """Plot solubility vs temperature curves using the interpolation model.
 
@@ -183,80 +268,359 @@ def plot_solubility_vs_temperature(
         solvents: Comma-separated solvent names
         plot_title: Custom plot title
         include_confidence_bands: Unused (interpolation produces smooth curves)
+        annotate_model_limits: If true, mark extrapolated/sensitivity regions on the plot.
+            Defaults false so saved PNGs are clean enough for slides/publication drafts.
         temperature_min/temperature_max: Temperature range filter
+        y_axis_max: Default shared y-axis maximum. Defaults to 100 for normalized solubility panels.
+        y_axis_ranges_json: Optional JSON mapping of polymer -> max, [min, max], or
+            {"min": value, "max": value} for explicit panel-specific ranges.
+        output_dir: Directory to save the PNG. Accepts Linux paths and WSL UNC paths.
+        output_path: Full PNG path, or a directory path, for the saved plot.
 
     WHEN TO USE:
     - "Plot solubility of PS in toluene vs temperature"
     - "Show how solubility changes with temperature for PET"
+    - "Plot EVOH in DMSO up to 170C"
+    - For "at 170C" curve requests, use temperature_max=170 unless the user explicitly asks for a single-point lookup.
     """
-    from strap.solubility import get_solubility_curve
+    from strap.services.tool_response_service import json_tool_error, json_tool_success
+    from strap.solubility import (
+        FITTED_TEMP_MAX_C,
+        SENSITIVITY_EXTRAPOLATION_MAX_C,
+        get_entry,
+        get_solubility_curve,
+        get_solubility_pair_exclusion_reason,
+        temperature_basis_note,
+        temperature_use_regime,
+    )
 
     polymer_list = [p.strip() for p in polymers.split(",")]
     solvent_list = [s.strip() for s in solvents.split(",")]
     solvent_list = _normalize_solvent_names(solvent_list)
 
     t_start = max(temperature_min or 25.0, 25.0)
-    t_end = min(temperature_max or 160.0, 250.0)
+    requested_t_end = temperature_max or FITTED_TEMP_MAX_C
+    if t_start > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return json_tool_error(
+            (
+                f"Start temperature {t_start} C is above the supported sensitivity limit "
+                f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C for Apelblat extrapolation."
+            ),
+            tool_name="plot_solubility_vs_temperature",
+            error_code="temperature_above_supported_extrapolation",
+            temperature_c=t_start,
+            max_temperature_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
+    range_was_capped = requested_t_end > SENSITIVITY_EXTRAPOLATION_MAX_C
+    t_end = min(requested_t_end, SENSITIVITY_EXTRAPOLATION_MAX_C)
+    y_axis_ranges: dict[str, tuple[float, float]] = {}
+    if y_axis_ranges_json:
+        raw_ranges = json.loads(y_axis_ranges_json)
+        if not isinstance(raw_ranges, dict):
+            raise TypeError("y_axis_ranges_json must decode to a mapping")
+        for raw_polymer, raw_range in raw_ranges.items():
+            key = str(raw_polymer).strip().lower()
+            if isinstance(raw_range, dict):
+                bottom = float(raw_range.get("min", 0.0))
+                top = float(raw_range["max"])
+            elif isinstance(raw_range, (list, tuple)) and len(raw_range) == 2:
+                bottom = float(raw_range[0])
+                top = float(raw_range[1])
+            else:
+                bottom = 0.0
+                top = float(raw_range)
+            if top <= bottom:
+                raise ValueError(f"Invalid y-axis range for {raw_polymer}: max must be greater than min")
+            y_axis_ranges[key] = (bottom, top)
 
-    _apply_pub_style()
-    n_curves = len(polymer_list) * len(solvent_list)
-    fig_w = 3.5 if n_curves <= 3 else 7.0
-    fig_h = fig_w * 0.7
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    color_idx = 0
+    series_records: list[dict[str, Any]] = []
     total_points = 0
+    extrapolated_points = 0
+    sensitivity_points = 0
+    min_pair_t_max: float | None = None
+    excluded_pairs: list[str] = []
+    plotted_polymers: list[str] = []
+    plotted_solvents: list[str] = []
 
     for polymer in polymer_list:
         for solvent in solvent_list:
+            if get_solubility_pair_exclusion_reason(polymer, solvent):
+                excluded_pairs.append(f"{polymer}/{solvent}")
+                continue
             curve = get_solubility_curve(polymer, solvent, t_start, t_end, 5.0)
             if curve:
+                if polymer not in plotted_polymers:
+                    plotted_polymers.append(polymer)
+                if solvent not in plotted_solvents:
+                    plotted_solvents.append(solvent)
+                entry = get_entry(polymer, solvent)
+                pair_t_max = float(entry.get("t_max_c", FITTED_TEMP_MAX_C)) if entry else FITTED_TEMP_MAX_C
+                min_pair_t_max = pair_t_max if min_pair_t_max is None else min(min_pair_t_max, pair_t_max)
                 temps = [pt["temperature"] for pt in curve]
                 sols = [pt["solubility"] for pt in curve]
                 total_points += len(curve)
-
-                c = _PUB_COLORS[color_idx % len(_PUB_COLORS)]
-                ax.plot(
-                    temps, sols, marker="o", linewidth=1.2, markersize=3,
-                    label=f"{polymer} in {solvent}", color=c,
+                extrapolated_points += sum(1 for temp in temps if temp > pair_t_max)
+                sensitivity_points += sum(
+                    1 for temp in temps if temperature_use_regime(float(temp)) == "sensitivity_extrapolation"
                 )
-                color_idx += 1
+                series_records.append(
+                    {
+                        "polymer": polymer,
+                        "solvent": solvent,
+                        "temps": temps,
+                        "solubilities": sols,
+                        "pair_t_max": pair_t_max,
+                    }
+                )
 
     if total_points == 0:
-        plt.close(fig)
         return "No data found for the specified polymer-solvent combinations."
 
-    ax.set_xlabel("Temperature (\u00b0C)")
-    ax.set_ylabel("Solubility (%)")
-    if plot_title:
-        ax.set_title(plot_title)
-    ax.legend(frameon=True, edgecolor="none", facecolor="white", framealpha=0.8)
+    _apply_pub_style()
+    plt.rcParams.update(
+        {
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "axes.grid": True,
+            "grid.alpha": 0.18,
+            "grid.linewidth": 0.45,
+            "legend.frameon": False,
+        }
+    )
+    solvent_colors = {
+        solvent: _PUB_COLORS[index % len(_PUB_COLORS)]
+        for index, solvent in enumerate(plotted_solvents)
+    }
+    solvent_markers = {
+        solvent: marker
+        for solvent, marker in zip(plotted_solvents, ["o", "s", "^", "D", "v", "P", "X", "*"])
+    }
 
-    if temperature_min is not None or temperature_max is not None:
-        current_xlim = ax.get_xlim()
-        new_min = temperature_min if temperature_min is not None else current_xlim[0]
-        new_max = temperature_max if temperature_max is not None else current_xlim[1]
-        ax.set_xlim(new_min, new_max)
+    def _plot_curve(
+        ax,
+        record: dict[str, Any],
+        *,
+        label: str,
+        color_override: str | None = None,
+        marker_override: str | None = None,
+    ) -> None:
+        temps = record["temps"]
+        sols = record["solubilities"]
+        pair_t_max = record["pair_t_max"]
+        solvent = record["solvent"]
+        markevery = max(1, len(temps) // 7)
+        line_kwargs = {
+            "color": color_override or solvent_colors[solvent],
+            "linewidth": 1.55,
+            "marker": marker_override or solvent_markers.get(solvent, "o"),
+            "markersize": 3.0,
+            "markeredgewidth": 0.0,
+            "markevery": markevery,
+            "label": label,
+        }
+        if annotate_model_limits:
+            solid = [(temp, sol) for temp, sol in zip(temps, sols) if temp <= pair_t_max]
+            dashed = [(temp, sol) for temp, sol in zip(temps, sols) if temp > pair_t_max]
+            if solid:
+                ax.plot([temp for temp, _ in solid], [sol for _, sol in solid], **line_kwargs)
+            if dashed:
+                bridge = []
+                if solid:
+                    bridge.append(solid[-1])
+                bridge.extend(dashed)
+                dashed_kwargs = dict(line_kwargs)
+                dashed_kwargs["linestyle"] = "--"
+                dashed_kwargs["label"] = f"{label} extrapolated" if not solid else None
+                ax.plot([temp for temp, _ in bridge], [sol for _, sol in bridge], **dashed_kwargs)
+        else:
+            ax.plot(temps, sols, **line_kwargs)
 
-    fig.subplots_adjust(left=0.08, right=0.98, top=0.92, bottom=0.1, wspace=0.32)
+    def _format_axis(ax, values: list[float], *, polymer: str | None = None) -> None:
+        ymax = max(values) if values else 1.0
+        override = y_axis_ranges.get(str(polymer or "").strip().lower())
+        if override is not None:
+            bottom, top = override
+        elif y_axis_max is not None:
+            bottom = 0.0
+            top = max(float(y_axis_max), ymax)
+        elif ymax >= 80:
+            top = 105
+            bottom = -0.02 * top
+        elif ymax >= 20:
+            top = min(105, np.ceil(ymax / 5.0) * 5.0 + 5.0)
+            bottom = -0.02 * top
+        elif ymax >= 5:
+            top = np.ceil(ymax / 2.0) * 2.0 + 2.0
+            bottom = -0.02 * top
+        else:
+            top = max(1.0, np.ceil(max(ymax, 0.1) * 10.0) / 10.0 + 0.2)
+            bottom = -0.02 * top
+        ax.set_ylim(bottom=bottom, top=top)
+        ax.set_xlim(t_start, t_end)
+        ax.grid(True, axis="y")
+        ax.grid(False, axis="x")
+        ax.tick_params(
+            axis="both",
+            which="major",
+            length=3,
+            width=0.6,
+            direction="out",
+            top=False,
+            right=False,
+        )
+
+    use_facets = len(plotted_polymers) > 1 and (len(plotted_solvents) > 1 or bool(y_axis_ranges))
+    if use_facets:
+        n_panels = len(plotted_polymers)
+        ncols = min(3, n_panels)
+        nrows = int(np.ceil(n_panels / ncols))
+        fig_w = max(5.2, 2.35 * ncols)
+        fig_h = 2.45 * nrows + 0.45
+        fig, axes = plt.subplots(nrows, ncols, figsize=(fig_w, fig_h), sharex=True, squeeze=False)
+        flat_axes = list(axes.ravel())
+        for ax, polymer in zip(flat_axes, plotted_polymers):
+            panel_records = [record for record in series_records if record["polymer"] == polymer]
+            for record in panel_records:
+                _plot_curve(ax, record, label=_display_solvent_label(record["solvent"]))
+            panel_values = [value for record in panel_records for value in record["solubilities"]]
+            _format_axis(ax, panel_values, polymer=polymer)
+            ax.set_title(polymer, loc="left", fontweight="bold", pad=4)
+        for ax in flat_axes[len(plotted_polymers):]:
+            ax.axis("off")
+        handles = [
+            plt.Line2D(
+                [0],
+                [0],
+                color=solvent_colors[solvent],
+                marker=solvent_markers.get(solvent, "o"),
+                linewidth=1.55,
+                markersize=3.5,
+                label=_display_solvent_label(solvent),
+            )
+            for solvent in plotted_solvents
+        ]
+        fig.legend(handles=handles, loc="upper center", ncol=min(len(handles), 4), bbox_to_anchor=(0.5, 1.0))
+        fig.supxlabel("Temperature (\u00b0C)", y=0.02)
+        fig.supylabel("Solubility (%)", x=0.01)
+        if plot_title:
+            fig.suptitle(plot_title, y=1.08, fontweight="bold")
+        fig.subplots_adjust(left=0.09, right=0.99, top=0.82, bottom=0.18, wspace=0.34, hspace=0.42)
+    else:
+        n_curves = len(series_records)
+        fig_w = 3.5 if n_curves <= 3 else 6.4
+        fig_h = 3.0 if n_curves <= 3 else 4.0
+        fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+        all_values: list[float] = []
+        for index, record in enumerate(series_records):
+            label = f"{record['polymer']} in {_display_solvent_label(record['solvent'])}"
+            color_override = _PUB_COLORS[index % len(_PUB_COLORS)] if len(plotted_solvents) == 1 else None
+            marker_override = ["o", "s", "^", "D", "v", "P", "X", "*"][index % 8] if len(plotted_solvents) == 1 else None
+            _plot_curve(
+                ax,
+                record,
+                label=label,
+                color_override=color_override,
+                marker_override=marker_override,
+            )
+            all_values.extend(record["solubilities"])
+        single_polymer = plotted_polymers[0] if len(plotted_polymers) == 1 else None
+        _format_axis(ax, all_values, polymer=single_polymer)
+        ax.set_xlabel("Temperature (\u00b0C)")
+        ax.set_ylabel("Solubility (%)")
+        if plot_title:
+            ax.set_title(plot_title)
+        ax.legend(loc="best", fontsize=max(_PUB_FONTSIZE - 1, 6))
+        fig.subplots_adjust(left=0.12, right=0.98, top=0.92, bottom=0.14)
+
+    if annotate_model_limits and extrapolated_points and min_pair_t_max is not None and t_end > min_pair_t_max:
+        for axis in fig.axes:
+            axis.axvspan(min_pair_t_max, t_end, color="#f1c40f", alpha=0.08)
+            axis.axvline(min_pair_t_max, color="#a66f00", linestyle=":", linewidth=0.8)
+    if annotate_model_limits and sensitivity_points:
+        sensitivity_start = max(180.0, t_start)
+        if t_end > sensitivity_start:
+            for axis in fig.axes:
+                axis.axvspan(sensitivity_start, t_end, color="#e67e22", alpha=0.08)
+
     from strap.tools._helpers import descriptive_plot_name
-    plot_name = descriptive_plot_name("solubility_vs_temp", polymers=polymer_list, solvents=solvent_list)
-    filepath = save_plot(fig, plot_name, "matplotlib")
+    plot_name = descriptive_plot_name(
+        "solubility_vs_temp",
+        polymers=plotted_polymers or polymer_list,
+        solvents=plotted_solvents or solvent_list,
+    )
+    filepath = save_plot(
+        fig,
+        plot_name,
+        "matplotlib",
+        output_dir=output_dir,
+        output_path=output_path,
+    )
     plt.close(fig)
 
     output = "Solubility vs Temperature Plot Created\n\n"
-    output += f"Polymers: {', '.join(polymer_list)}\n"
-    output += f"Solvents: {', '.join(solvent_list)}\n"
+    output += f"Polymers: {', '.join(plotted_polymers or polymer_list)}\n"
+    output += f"Solvents: {', '.join(_display_solvent_label(s) for s in (plotted_solvents or solvent_list))}\n"
+    if excluded_pairs:
+        output += (
+            "Excluded data-quality pair(s): "
+            + ", ".join(excluded_pairs)
+            + "\n"
+        )
     if temperature_min is not None and temperature_max is not None:
         output += f"Temperature range: {temperature_min}C - {temperature_max}C\n"
     elif temperature_min is not None:
         output += f"Temperature range: {temperature_min}C and above\n"
     elif temperature_max is not None:
         output += f"Temperature range: up to {temperature_max}C\n"
+    if range_was_capped:
+        output += f"Requested upper temperature {requested_t_end}C was capped at {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f}C.\n"
+    if y_axis_ranges:
+        output += "Y-axis ranges: custom per-polymer override(s)\n"
+    elif y_axis_max is not None:
+        output += f"Y-axis range: 0-{float(y_axis_max):g}%\n"
+    basis_note = temperature_basis_note(t_end)
+    if basis_note:
+        output += f"Temperature basis: {basis_note}\n"
+    if extrapolated_points:
+        if annotate_model_limits:
+            output += f"Extrapolated points: {extrapolated_points} (annotated on plot)\n"
+        else:
+            output += (
+                f"Model-limit note: {extrapolated_points} point(s) are outside the fitted range; "
+                "this caveat is reported in text only so the saved plot remains presentation-ready.\n"
+            )
+    if sensitivity_points:
+        output += "180-200C points are sensitivity-only screening data, not validated operating recommendations.\n"
+    output += (
+        "Exact SQL/database grid-point values can also be provided on request; "
+        "they should be similar to the fitted curve near measured temperatures.\n"
+    )
     output += f"Data points: {total_points}\n"
     output += f"\n{_get_plot_url(filepath)}"
 
     gc.collect()
-    return output
+    return json_tool_success(
+        output,
+        tool_name="plot_solubility_vs_temperature",
+        polymers=plotted_polymers or polymer_list,
+        solvents=plotted_solvents or solvent_list,
+        excluded_pairs=excluded_pairs,
+        temperature_min_c=t_start,
+        temperature_max_c=t_end,
+        requested_temperature_max_c=requested_t_end,
+        range_was_capped=range_was_capped,
+        data_points=total_points,
+        extrapolated_points=extrapolated_points,
+        sensitivity_points=sensitivity_points,
+        model_limit_annotations_on_plot=annotate_model_limits,
+        y_axis_max=y_axis_max,
+        y_axis_ranges=y_axis_ranges,
+        exact_sql_values_available=True,
+        plot_filepath=filepath,
+        output_dir=output_dir,
+        output_path=output_path,
+        plot_url=_get_plot_url(filepath),
+    )
 
 
 @safe_tool_wrapper(structured_output=True)
@@ -271,6 +635,9 @@ def plot_solubility_vs_temperature_interactive(
     plot_title: Optional[str] = None,
     temperature_min: Optional[float] = None,
     temperature_max: Optional[float] = None,
+    y_axis_max: Optional[float] = 100.0,
+    output_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
 ) -> str:
     """Generate an interactive Plotly HTML plot of solubility vs temperature.
 
@@ -281,44 +648,88 @@ def plot_solubility_vs_temperature_interactive(
         solvents: Comma-separated solvent names
         plot_title: Custom plot title
         temperature_min/temperature_max: Temperature range filter
+        y_axis_max: Default y-axis maximum. Defaults to 100 for normalized solubility.
+        output_dir: Directory to save the HTML. Accepts Linux paths and WSL UNC paths.
+        output_path: Full HTML path, or a directory path, for the saved plot.
 
     WHEN TO USE:
     - "Create an interactive solubility vs temperature chart"
     - "I want a zoomable plot of PET solubility curves"
+    - For "at 170C" curve requests, use temperature_max=170 unless the user explicitly asks for a single-point lookup.
     """
-    from strap.solubility import get_solubility_curve
+    from strap.services.tool_response_service import json_tool_error, json_tool_success
+    from strap.solubility import (
+        FITTED_TEMP_MAX_C,
+        SENSITIVITY_EXTRAPOLATION_MAX_C,
+        get_entry,
+        get_solubility_curve,
+        temperature_basis_note,
+        temperature_use_regime,
+    )
 
     polymer_list = [p.strip() for p in polymers.split(",")]
     solvent_list = [s.strip() for s in solvents.split(",")]
     solvent_list = _normalize_solvent_names(solvent_list)
 
     t_start = max(temperature_min or 25.0, 25.0)
-    t_end = min(temperature_max or 160.0, 250.0)
+    requested_t_end = temperature_max or FITTED_TEMP_MAX_C
+    if t_start > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return json_tool_error(
+            (
+                f"Start temperature {t_start} C is above the supported sensitivity limit "
+                f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C for Apelblat extrapolation."
+            ),
+            tool_name="plot_solubility_vs_temperature_interactive",
+            error_code="temperature_above_supported_extrapolation",
+            temperature_c=t_start,
+            max_temperature_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
+    range_was_capped = requested_t_end > SENSITIVITY_EXTRAPOLATION_MAX_C
+    t_end = min(requested_t_end, SENSITIVITY_EXTRAPOLATION_MAX_C)
 
     fig = go.Figure()
     colors = px.colors.qualitative.Plotly
     color_idx = 0
     total_points = 0
+    extrapolated_points = 0
+    sensitivity_points = 0
+    min_pair_t_max: float | None = None
 
     for polymer in polymer_list:
         for solvent in solvent_list:
             curve = get_solubility_curve(polymer, solvent, t_start, t_end, 5.0)
             if curve:
+                entry = get_entry(polymer, solvent)
+                pair_t_max = float(entry.get("t_max_c", FITTED_TEMP_MAX_C)) if entry else FITTED_TEMP_MAX_C
+                min_pair_t_max = pair_t_max if min_pair_t_max is None else min(min_pair_t_max, pair_t_max)
                 temps = [pt["temperature"] for pt in curve]
                 sols = [pt["solubility"] for pt in curve]
                 total_points += len(curve)
+                extrapolated_points += sum(1 for temp in temps if temp > pair_t_max)
+                sensitivity_points += sum(
+                    1 for temp in temps if temperature_use_regime(float(temp)) == "sensitivity_extrapolation"
+                )
 
+                c = colors[color_idx % len(colors)]
+                customdata = [
+                    "sensitivity-only" if temperature_use_regime(float(temp)) == "sensitivity_extrapolation"
+                    else "extrapolated" if temp > pair_t_max
+                    else "fitted"
+                    for temp in temps
+                ]
                 fig.add_trace(go.Scatter(
                     x=temps,
                     y=sols,
                     mode="lines+markers",
                     name=f"{polymer} in {solvent}",
-                    line=dict(width=3, color=colors[color_idx % len(colors)]),
+                    line=dict(width=3, color=c),
                     marker=dict(size=8, symbol="circle"),
+                    customdata=customdata,
                     hovertemplate=(
                         f"<b>{polymer} in {solvent}</b><br>"
                         + "Temperature: %{x:.1f}C<br>"
                         + "Solubility: %{y:.2f}%<br>"
+                        + "Basis: %{customdata}<br>"
                         + "<extra></extra>"
                     ),
                 ))
@@ -328,6 +739,82 @@ def plot_solubility_vs_temperature_interactive(
         return "No data found for the specified polymer-solvent combinations."
 
     title = plot_title or "Interactive Solubility vs Temperature"
+    shapes = []
+    annotations = []
+    if extrapolated_points and min_pair_t_max is not None and t_end > min_pair_t_max:
+        shapes.append(
+            dict(
+                type="rect",
+                xref="x",
+                yref="paper",
+                x0=min_pair_t_max,
+                x1=t_end,
+                y0=0,
+                y1=1,
+                fillcolor="rgba(241,196,15,0.12)",
+                line_width=0,
+                layer="below",
+            )
+        )
+        shapes.append(
+            dict(
+                type="line",
+                xref="x",
+                yref="paper",
+                x0=min_pair_t_max,
+                x1=min_pair_t_max,
+                y0=0,
+                y1=1,
+                line=dict(color="rgba(166,111,0,0.8)", width=1, dash="dot"),
+            )
+        )
+        annotations.append(
+            dict(
+                x=min_pair_t_max,
+                y=1.02,
+                xref="x",
+                yref="paper",
+                text="extrapolated",
+                showarrow=False,
+                font=dict(size=11),
+            )
+        )
+    if sensitivity_points:
+        sensitivity_start = max(180.0, t_start)
+        if t_end > sensitivity_start:
+            shapes.append(
+                dict(
+                    type="rect",
+                    xref="x",
+                    yref="paper",
+                    x0=sensitivity_start,
+                    x1=t_end,
+                    y0=0,
+                    y1=1,
+                    fillcolor="rgba(230,126,34,0.14)",
+                    line_width=0,
+                    layer="below",
+                )
+            )
+            annotations.append(
+                dict(
+                    x=sensitivity_start,
+                    y=0.93,
+                    xref="x",
+                    yref="paper",
+                    text="sensitivity only",
+                    showarrow=False,
+                    font=dict(size=11),
+                )
+            )
+    yaxis_config = dict(
+        title=dict(text="Solubility (%)", font=dict(size=16, family="Arial")),
+        showgrid=True,
+        gridcolor="lightgray",
+    )
+    if y_axis_max is not None:
+        yaxis_config["range"] = [0, float(y_axis_max)]
+
     fig.update_layout(
         title=dict(
             text=title,
@@ -339,13 +826,12 @@ def plot_solubility_vs_temperature_interactive(
             rangeslider=dict(visible=True, thickness=0.05),
             showgrid=True, gridcolor="lightgray",
         ),
-        yaxis=dict(
-            title=dict(text="Solubility (%)", font=dict(size=16, family="Arial")),
-            showgrid=True, gridcolor="lightgray",
-        ),
+        yaxis=yaxis_config,
         hovermode="closest",
         height=700,
         template="plotly_white",
+        shapes=shapes,
+        annotations=annotations,
         legend=dict(
             orientation="v", yanchor="top", y=1,
             xanchor="left", x=1.02, font=dict(size=12),
@@ -364,13 +850,16 @@ def plot_solubility_vs_temperature_interactive(
         "displaylogo": False,
     }
 
-    plots_dir = get_plots_dir()
-    os.makedirs(plots_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"interactive_solubility_temp_{timestamp}.html"
-    filepath = os.path.join(plots_dir, filename)
-
-    fig.write_html(filepath, config=config)
+    filepath = save_plot(
+        fig,
+        filename,
+        "plotly",
+        output_dir=output_dir,
+        output_path=output_path,
+        write_html_kwargs={"config": config},
+    )
 
     output = "Interactive Solubility vs Temperature Visualization Created\n\n"
     output += f"Polymers: {', '.join(polymer_list)}\n"
@@ -381,6 +870,17 @@ def plot_solubility_vs_temperature_interactive(
         output += f"Temperature range: {temperature_min}C and above\n"
     elif temperature_max is not None:
         output += f"Temperature range: up to {temperature_max}C\n"
+    if range_was_capped:
+        output += f"Requested upper temperature {requested_t_end}C was capped at {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f}C.\n"
+    if y_axis_max is not None:
+        output += f"Y-axis range: 0-{float(y_axis_max):g}%\n"
+    basis_note = temperature_basis_note(t_end)
+    if basis_note:
+        output += f"Temperature basis: {basis_note}\n"
+    if extrapolated_points:
+        output += f"Extrapolated points: {extrapolated_points}\n"
+    if sensitivity_points:
+        output += "180-200C points are sensitivity-only screening data, not validated operating recommendations.\n"
     output += f"Data points: {total_points}\n\n"
 
     output += "## Interactive Features:\n"
@@ -390,12 +890,27 @@ def plot_solubility_vs_temperature_interactive(
     output += "- **Use toolbar** to zoom, pan, reset, or download as PNG\n"
     output += "- **Double-click legend** to isolate a single curve\n\n"
 
-    html_url = f"/plots/{filename}"
-    output += f"**[Click here to open the interactive plot]({html_url})**\n"
-    output += "(Opens in a new tab with full interactivity)\n"
+    output += f"{_get_plot_url(filepath)}\n"
 
     gc.collect()
-    return output
+    return json_tool_success(
+        output,
+        tool_name="plot_solubility_vs_temperature_interactive",
+        polymers=polymer_list,
+        solvents=solvent_list,
+        temperature_min_c=t_start,
+        temperature_max_c=t_end,
+        requested_temperature_max_c=requested_t_end,
+        range_was_capped=range_was_capped,
+        data_points=total_points,
+        extrapolated_points=extrapolated_points,
+        sensitivity_points=sensitivity_points,
+        y_axis_max=y_axis_max,
+        plot_filepath=filepath,
+        output_dir=output_dir,
+        output_path=output_path,
+        plot_url=_get_plot_url(filepath),
+    )
 
 
 @safe_tool_wrapper(structured_output=True)
@@ -698,7 +1213,21 @@ def plot_multi_panel_analysis(
 
     output += f"\n{_get_plot_url(filepath)}"
 
-    return output
+    return json_tool_success(
+        output,
+        tool_name="plot_solubility_vs_temperature_interactive",
+        polymers=polymer_list,
+        solvents=solvent_list,
+        temperature_min_c=t_start,
+        temperature_max_c=t_end,
+        requested_temperature_max_c=requested_t_end,
+        range_was_capped=range_was_capped,
+        data_points=total_points,
+        extrapolated_points=extrapolated_points,
+        sensitivity_points=sensitivity_points,
+        plot_filepath=filepath,
+        plot_url=_get_plot_url(filepath),
+    )
 
 
 @safe_tool_wrapper(structured_output=True)
@@ -1243,14 +1772,157 @@ async def plot_solvent_properties(
 
 
 @safe_tool_wrapper(structured_output=True)
+def plot_optimization_point_result(
+    optimization_result_json: Dict[str, Any] | str | None = None,
+    plot_title: Optional[str] = None,
+    source_handoff_id: Optional[str] = None,
+    output_stem: Optional[str] = None,
+) -> str:
+    """Plot a single-point optimization result as a compact optimization dashboard."""
+    if source_handoff_id:
+        payload = _load_optimization_payload_from_handoff(source_handoff_id)
+    elif optimization_result_json is not None:
+        payload = _coerce_optimization_payload(optimization_result_json)
+    else:
+        raise TypeError("Either optimization_result_json or source_handoff_id must be provided")
+
+    if payload.get("analysis_type") != "point_optimum":
+        raise ValueError("optimization_result_json must contain analysis_type='point_optimum'")
+
+    washes = list(payload.get("optimal_washes") or [])
+    if not washes:
+        wash1 = _stringify_point_values(payload.get("wash1_selection"))
+        wash2 = _stringify_point_values(payload.get("wash2_selection"))
+        washes = wash1 + wash2
+    stage1 = ", ".join(_stringify_point_values(payload.get("stage1_tech"))) or "n/a"
+    stage2 = ", ".join(_stringify_point_values(payload.get("stage2_tech"))) or "n/a"
+    stage3 = ", ".join(_stringify_point_values(payload.get("stage3_tech"))) or "n/a"
+    feed_comp = payload.get("feed_composition") or {}
+    feed_comp_text = ", ".join(
+        f"{polymer} {float(frac) * 100:.1f}%"
+        for polymer, frac in feed_comp.items()
+        if frac is not None
+    ) or "n/a"
+    scenario = str(payload.get("scenario") or "n/a")
+    circularity = payload.get("circularity_score", payload.get("ce_score"))
+    profit = float(payload.get("profit") or 0.0)
+    total_cost = float(payload.get("total_cost") or 0.0)
+    emissions = float(payload.get("emissions") or 0.0)
+
+    _apply_pub_style()
+    fig = plt.figure(figsize=(12.0, 7.0))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1.0, 1.15], width_ratios=[1.2, 1.0], hspace=0.26, wspace=0.24)
+    metrics_ax = fig.add_subplot(gs[0, 0])
+    env_ax = fig.add_subplot(gs[0, 1])
+    process_ax = fig.add_subplot(gs[1, :])
+
+    money_labels = ["Profit", "Total Cost"]
+    money_values = [profit, total_cost]
+    metrics_ax.bar(money_labels, money_values, color=[_PUB_COLORS[0], _PUB_COLORS[2]], edgecolor="black", linewidth=0.5)
+    metrics_ax.set_ylabel("USD")
+    metrics_ax.set_title("Economic Metrics")
+    metrics_ax.grid(True, axis="y", alpha=0.25)
+    for idx, value in enumerate(money_values):
+        metrics_ax.text(idx, value, f"${value/1_000_000:.2f}M", ha="center", va="bottom", fontsize=_PUB_FONTSIZE - 1)
+
+    env_labels = ["Emissions", "Circularity"]
+    env_values = [emissions, float(circularity or 0.0)]
+    env_colors = [_PUB_COLORS[3], _PUB_COLORS[1]]
+    env_ax.bar(env_labels, env_values, color=env_colors, edgecolor="black", linewidth=0.5)
+    env_ax.set_title("Environmental Metrics")
+    env_ax.grid(True, axis="y", alpha=0.25)
+    env_ax.set_ylabel("tCO2 / score")
+    env_ax.text(0, env_values[0], f"{emissions:,.1f}", ha="center", va="bottom", fontsize=_PUB_FONTSIZE - 1)
+    env_ax.text(1, env_values[1], f"{float(circularity or 0.0):.3f}", ha="center", va="bottom", fontsize=_PUB_FONTSIZE - 1)
+
+    process_ax.axis("off")
+    summary_lines = [
+        f"Scenario: {scenario}",
+        f"Feed composition: {feed_comp_text}",
+        f"Stage 1: {stage1}",
+        f"Stage 2: {stage2}",
+        f"Stage 3: {stage3}",
+        "Selected washes: " + (", ".join(washes) if washes else "none"),
+    ]
+    process_ax.text(
+        0.01,
+        0.98,
+        "\n".join(summary_lines),
+        va="top",
+        ha="left",
+        fontsize=_PUB_FONTSIZE,
+        bbox={"boxstyle": "round,pad=0.5", "facecolor": "#f7f7f7", "edgecolor": "#c5cdd7"},
+    )
+
+    fig.suptitle(plot_title or "Optimization Point Result", fontsize=_PUB_FONTSIZE + 1)
+    fig.subplots_adjust(left=0.07, right=0.97, top=0.9, bottom=0.08)
+
+    from strap.tools._helpers import _slugify
+
+    plot_stem = str(output_stem or "").strip()
+    if not plot_stem and plot_title:
+        plot_stem = _slugify(plot_title)
+    if not plot_stem:
+        plot_stem = "optimization_point_result"
+
+    filepath = save_plot(fig, plot_stem)
+    if not os.path.exists(filepath) and os.path.exists(f"{filepath}.png"):
+        filepath = f"{filepath}.png"
+    plt.close(fig)
+    gc.collect()
+
+    display = "Optimization Point Result Plot Created\n\n"
+    display += f"Scenario: {scenario}\n"
+    display += f"Selected washes: {', '.join(washes) if washes else 'none'}\n"
+    display += f"Profit: ${profit:,.2f}\n"
+    display += f"Total cost: ${total_cost:,.2f}\n"
+    display += f"Emissions: {emissions:,.2f}\n"
+    display += f"Circularity: {float(circularity or 0.0):.4f}\n"
+    if source_handoff_id:
+        display += f"Source handoff: {source_handoff_id}\n"
+    if output_stem:
+        display += f"Output stem: {output_stem}\n"
+    display += f"\n{_get_plot_url(filepath)}"
+
+    from strap.services.tool_response_service import json_tool_response
+
+    data = {
+        "plot_type": "optimization_point_result",
+        "plot_paths": [filepath],
+        "format": "png",
+        "profit": profit,
+        "total_cost": total_cost,
+        "emissions": emissions,
+        "circularity_score": float(circularity or 0.0),
+        "optimal_washes": washes,
+        "source_handoff_id": source_handoff_id,
+        "output_stem": output_stem,
+    }
+    return json_tool_response(display, data, tool_name="plot_optimization_point_result")
+
+
+@safe_tool_wrapper(structured_output=True)
 def plot_optimization_pareto_front(
     pareto_result_json: Dict[str, Any] | str | None = None,
-    color_by: str = "profit",
+    color_by: str = "auto",
+    plot_mode: str = "frontier_only",
     plot_title: Optional[str] = None,
     source_handoff_id: Optional[str] = None,
     output_stem: Optional[str] = None,
 ) -> str:
     """Plot a cost-vs-emissions or cost-vs-circularity Pareto front from optimization output."""
+    def _normalize_plot_mode(value: Any) -> str:
+        text = str(value or "").strip().lower()
+        if not text:
+            return "frontier_only"
+        if text in {"frontier_only", "landscape"}:
+            return text
+        if "landscape" in text or "all feasible" in text or "all points" in text:
+            return "landscape"
+        if "frontier" in text:
+            return "frontier_only"
+        raise ValueError("plot_mode must be one of: frontier_only, landscape")
+
     def _coerce_payload(raw_payload: Dict[str, Any] | str | None) -> Dict[str, Any]:
         if isinstance(raw_payload, str):
             parsed = json.loads(raw_payload)
@@ -1265,7 +1937,27 @@ def plot_optimization_pareto_front(
             return raw_payload
         raise TypeError("pareto_result_json must be a JSON string or mapping")
 
+    def _load_sidecar_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+        sidecar_path = str(payload.get("pareto_payload_path") or "").strip()
+        if not sidecar_path:
+            return payload
+        candidate_paths = [sidecar_path]
+        if not os.path.isabs(sidecar_path):
+            candidate_paths.append(os.path.join(os.getcwd(), sidecar_path))
+        for candidate_path in candidate_paths:
+            if not os.path.exists(candidate_path):
+                continue
+            with open(candidate_path, "r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+            if isinstance(loaded, dict) and isinstance(loaded.get("data"), dict):
+                loaded = loaded["data"]
+            if isinstance(loaded, dict):
+                return loaded
+        return payload
+
     payload: Dict[str, Any]
+    requested_plot_mode: Any = None
+    requested_output_stem: Any = None
     if source_handoff_id:
         from strap.handoffs import get_handoff
 
@@ -1273,6 +1965,9 @@ def plot_optimization_pareto_front(
         if record is None:
             raise ValueError(f"source_handoff_id '{source_handoff_id}' was not found")
         raw_payload = record.payload
+        if isinstance(raw_payload, dict):
+            requested_plot_mode = raw_payload.get("requested_plot_mode")
+            requested_output_stem = raw_payload.get("requested_output_stem")
         if isinstance(raw_payload, dict) and isinstance(raw_payload.get("pareto_result_json"), dict):
             payload = raw_payload["pareto_result_json"]
         elif isinstance(raw_payload, dict) and isinstance(raw_payload.get("source_payload"), dict):
@@ -1286,6 +1981,8 @@ def plot_optimization_pareto_front(
     else:
         raise TypeError("Either pareto_result_json or source_handoff_id must be provided")
 
+    payload = _load_sidecar_payload(payload)
+
     if payload.get("analysis_type") != "pareto_front":
         raise ValueError("pareto_result_json must contain analysis_type='pareto_front'")
 
@@ -1293,27 +1990,69 @@ def plot_optimization_pareto_front(
     if not points:
         raise ValueError("pareto_result_json does not contain any Pareto points to plot")
 
+    if requested_plot_mode is not None and plot_mode == "frontier_only":
+        plot_mode = requested_plot_mode
+    plot_mode = _normalize_plot_mode(plot_mode)
+    if not output_stem and requested_output_stem:
+        output_stem = str(requested_output_stem).strip() or None
+
     x_metric = str(payload.get("x_metric") or "total_cost")
     y_metric = str(payload.get("y_metric") or "emissions")
-    if color_by not in {"profit", "emissions", "circularity_score", "total_cost"}:
-        raise ValueError("color_by must be one of: profit, emissions, circularity_score, total_cost")
-
-    frame = pd.DataFrame(points)
-    if "point_id" not in frame.columns:
-        frame["point_id"] = np.arange(1, len(frame) + 1)
     y_column = "emissions" if y_metric == "emissions" else "circularity_score"
-    if x_metric not in frame.columns:
+    if color_by in {"", "auto", None}:
+        color_by = y_column
+    if color_by not in {"profit", "emissions", "circularity_score", "total_cost"}:
+        raise ValueError("color_by must be one of: auto, profit, emissions, circularity_score, total_cost")
+
+    frontier_frame = pd.DataFrame(points)
+    if "point_id" not in frontier_frame.columns:
+        frontier_frame["point_id"] = np.arange(1, len(frontier_frame) + 1)
+    if x_metric not in frontier_frame.columns:
         raise ValueError(f"Pareto points do not contain x_metric column '{x_metric}'")
-    if y_column not in frame.columns:
+    if y_column not in frontier_frame.columns:
         raise ValueError(f"Pareto points do not contain y_metric column '{y_column}'")
-    frame = frame.sort_values(by=[x_metric, y_column], ascending=[True, True]).reset_index(drop=True)
-    if color_by not in frame.columns:
-        if y_column in frame.columns:
+    frontier_frame = frontier_frame.sort_values(by=[x_metric, y_column], ascending=[True, True]).reset_index(drop=True)
+    if color_by not in frontier_frame.columns:
+        if y_column in frontier_frame.columns:
             color_by = y_column
-        elif x_metric in frame.columns:
+        elif x_metric in frontier_frame.columns:
             color_by = x_metric
         else:
             color_by = "point_id"
+
+    landscape_points = payload.get("landscape_points") or []
+    if plot_mode == "landscape":
+        all_points = payload.get("all_feasible_points") or []
+        if landscape_points:
+            seen = set()
+            merged_points = []
+            for source_point in list(all_points) + list(landscape_points):
+                key = (
+                    round(float(source_point.get(x_metric, 0.0) or 0.0), 6),
+                    round(float(source_point.get(y_column, 0.0) or 0.0), 9),
+                    tuple(source_point.get("stage1_tech") or []),
+                    tuple(source_point.get("stage2_tech") or []),
+                    tuple(source_point.get("stage3_tech") or []),
+                    tuple(source_point.get("wash1_selection") or []),
+                    tuple(source_point.get("wash2_selection") or []),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                merged_points.append(source_point)
+            all_points = merged_points
+        if not all_points:
+            all_points = points
+    else:
+        all_points = payload.get("all_feasible_points") or points
+    all_frame = pd.DataFrame(all_points)
+    if not all_frame.empty and "raw_point_id" not in all_frame.columns:
+        all_frame["raw_point_id"] = np.arange(1, len(all_frame) + 1)
+    if not all_frame.empty:
+        if x_metric not in all_frame.columns or y_column not in all_frame.columns:
+            all_frame = frontier_frame.copy()
+        else:
+            all_frame = all_frame.sort_values(by=[x_metric, y_column], ascending=[True, True]).reset_index(drop=True)
     color_label = {
         "profit": "Profit (USD)",
         "emissions": "Emissions (tCO2)",
@@ -1324,29 +2063,46 @@ def plot_optimization_pareto_front(
 
     legend_entries = [
         _format_pareto_point_legend_entry(row, x_metric=x_metric, y_column=y_column)
-        for _, row in frame.iterrows()
+        for _, row in frontier_frame.iterrows()
     ]
 
     _apply_pub_style()
-    fig_h = max(4.8, 1.4 + 0.62 * len(frame))
+    fig_h = max(4.8, 1.4 + 0.62 * len(frontier_frame))
     fig = plt.figure(figsize=(12.0, fig_h))
     gs = fig.add_gridspec(1, 2, width_ratios=[5.2, 1.2], wspace=0.12)
     ax = fig.add_subplot(gs[0, 0])
     legend_ax = fig.add_subplot(gs[0, 1])
+    if plot_mode == "landscape" and not all_frame.empty:
+        dominated_frame = all_frame.copy()
+        if "point_status" in dominated_frame.columns:
+            dominated_frame = dominated_frame[dominated_frame["point_status"] != "frontier"]
+        if not dominated_frame.empty:
+            ax.scatter(
+                dominated_frame[x_metric],
+                dominated_frame[y_column],
+                c="#c7cdd4",
+                s=26,
+                edgecolors="#7a8896",
+                linewidth=0.25,
+                alpha=0.45,
+                zorder=1,
+            )
+
     scatter = ax.scatter(
-        frame[x_metric],
-        frame[y_column],
-        c=frame[color_by],
+        frontier_frame[x_metric],
+        frontier_frame[y_column],
+        c=frontier_frame[color_by],
         cmap="viridis",
         s=70,
         edgecolors="black",
         linewidth=0.4,
         alpha=0.9,
+        zorder=3,
     )
-    if len(frame) > 1:
-        ax.plot(frame[x_metric], frame[y_column], color="#44617b", linewidth=1.2, alpha=0.7)
+    if len(frontier_frame) > 1:
+        ax.plot(frontier_frame[x_metric], frontier_frame[y_column], color="#44617b", linewidth=1.2, alpha=0.7, zorder=2)
 
-    for _, row in frame.iterrows():
+    for _, row in frontier_frame.iterrows():
         ax.annotate(
             f"P{int(row['point_id'])}",
             (row[x_metric], row[y_column]),
@@ -1359,7 +2115,7 @@ def plot_optimization_pareto_front(
     ax.set_ylabel("Emissions (tCO2)" if y_metric == "emissions" else "Circularity (0-1)")
     ax.set_title(plot_title or "Optimization Pareto Front")
     ax.grid(True, alpha=0.25)
-    if len(frame) > 1 or color_by != "point_id":
+    if len(frontier_frame) > 1 or color_by != "point_id":
         colorbar = fig.colorbar(scatter, ax=ax, pad=0.02)
         colorbar.set_label(color_label)
 
@@ -1370,10 +2126,10 @@ def plot_optimization_pareto_front(
 
     cmap = scatter.cmap
     norm = scatter.norm
-    legend_fontsize = max(5.8, min(_PUB_FONTSIZE - 2, 8.0 - 0.06 * max(len(frame) - 6, 0)))
-    y_positions = np.linspace(0.96, 0.08, len(frame))
-    for y_pos, (_, row), entry in zip(y_positions, frame.iterrows(), legend_entries):
-        marker_color = cmap(norm(row[color_by])) if color_by in frame.columns else cmap(0.5)
+    legend_fontsize = max(5.8, min(_PUB_FONTSIZE - 2, 8.0 - 0.06 * max(len(frontier_frame) - 6, 0)))
+    y_positions = np.linspace(0.96, 0.08, len(frontier_frame))
+    for y_pos, (_, row), entry in zip(y_positions, frontier_frame.iterrows(), legend_entries):
+        marker_color = cmap(norm(row[color_by])) if color_by in frontier_frame.columns else cmap(0.5)
         legend_ax.scatter(
             [0.04],
             [y_pos],
@@ -1411,7 +2167,9 @@ def plot_optimization_pareto_front(
     display = "Optimization Pareto Front Plot Created\n\n"
     display += f"X metric: {x_metric}\n"
     display += f"Y metric: {y_metric}\n"
-    display += f"Pareto points plotted: {len(frame)}\n"
+    display += f"Plot mode: {plot_mode}\n"
+    display += f"Frontier points plotted: {len(frontier_frame)}\n"
+    display += f"All feasible points available: {len(all_frame)}\n"
     display += f"Color scale: {color_by}\n"
     if source_handoff_id:
         display += f"Source handoff: {source_handoff_id}\n"
@@ -1428,9 +2186,219 @@ def plot_optimization_pareto_front(
         "x_metric": x_metric,
         "y_metric": y_metric,
         "color_by": color_by,
-        "n_points": int(len(frame)),
+        "plot_mode": plot_mode,
+        "n_points": int(len(frontier_frame)),
+        "n_frontier_points": int(len(frontier_frame)),
+        "n_all_feasible_points": int(len(all_frame)),
+        "n_landscape_points": int(len(landscape_points)),
         "point_legend": legend_entries,
+        "pareto_payload_path": payload.get("pareto_payload_path"),
         "source_handoff_id": source_handoff_id,
         "output_stem": output_stem,
     }
     return json_tool_response(display, data, tool_name="plot_optimization_pareto_front")
+
+
+@safe_tool_wrapper(structured_output=True)
+def plot_optimization_pareto_slices(
+    pareto_slices_json: Dict[str, Any] | str | None = None,
+    plot_mode: str = "landscape",
+    plot_title: Optional[str] = None,
+    source_handoff_id: Optional[str] = None,
+    output_stem: Optional[str] = None,
+) -> str:
+    """Plot multiple fixed-composition optimization Pareto slices.
+
+    Creates one standard Pareto PNG per slice and one combined comparison PNG
+    with feasible landscape points faintly shown and each frontier highlighted.
+    """
+
+    def _coerce_payload(raw_payload: Dict[str, Any] | str | None) -> Dict[str, Any]:
+        if isinstance(raw_payload, str):
+            parsed = json.loads(raw_payload)
+            if isinstance(parsed, dict) and isinstance(parsed.get("data"), dict):
+                return parsed["data"]
+            if isinstance(parsed, dict):
+                return parsed
+            raise TypeError("pareto_slices_json must decode to a mapping")
+        if isinstance(raw_payload, dict):
+            if isinstance(raw_payload.get("data"), dict):
+                return raw_payload["data"]
+            return raw_payload
+        raise TypeError("pareto_slices_json must be a JSON string or mapping")
+
+    def _load_sidecar(payload: Dict[str, Any]) -> Dict[str, Any]:
+        path_text = str(payload.get("pareto_slices_payload_path") or "").strip()
+        if not path_text:
+            return payload
+        candidate_paths = [path_text]
+        if not os.path.isabs(path_text):
+            candidate_paths.append(os.path.join(os.getcwd(), path_text))
+        for candidate_path in candidate_paths:
+            if not os.path.exists(candidate_path):
+                continue
+            with open(candidate_path, "r", encoding="utf-8") as handle:
+                loaded = json.load(handle)
+            if isinstance(loaded, dict) and isinstance(loaded.get("data"), dict):
+                loaded = loaded["data"]
+            if isinstance(loaded, dict):
+                return loaded
+        return payload
+
+    if source_handoff_id:
+        from strap.handoffs import get_handoff
+
+        record = get_handoff(source_handoff_id)
+        if record is None:
+            raise ValueError(f"source_handoff_id '{source_handoff_id}' was not found")
+        raw_payload = record.payload
+        if isinstance(raw_payload, dict) and isinstance(raw_payload.get("pareto_slices_json"), dict):
+            payload = raw_payload["pareto_slices_json"]
+        elif isinstance(raw_payload, dict) and isinstance(raw_payload.get("source_payload"), dict):
+            payload = raw_payload["source_payload"]
+        elif isinstance(raw_payload, dict):
+            payload = raw_payload
+        else:
+            raise TypeError("source handoff payload must be a mapping")
+    elif pareto_slices_json is not None:
+        payload = _coerce_payload(pareto_slices_json)
+    else:
+        raise TypeError("Either pareto_slices_json or source_handoff_id must be provided")
+
+    payload = _load_sidecar(_coerce_payload(payload))
+    if payload.get("analysis_type") != "pareto_slices":
+        raise ValueError("pareto_slices_json must contain analysis_type='pareto_slices'")
+
+    slice_payloads = payload.get("slice_payloads") or []
+    if not isinstance(slice_payloads, list):
+        raise TypeError("pareto_slices payload must include a list `slice_payloads`")
+    solved_payloads = [
+        item
+        for item in slice_payloads
+        if isinstance(item, dict) and item.get("analysis_type") == "pareto_front" and item.get("points")
+    ]
+    if not solved_payloads:
+        raise ValueError("No solved Pareto slice payloads were available to plot")
+
+    x_metric = str(payload.get("x_metric") or solved_payloads[0].get("x_metric") or "total_cost")
+    y_metric = str(payload.get("y_metric") or solved_payloads[0].get("y_metric") or "emissions")
+    y_column = "emissions" if y_metric == "emissions" else "circularity_score"
+
+    from strap.tools._helpers import _slugify
+
+    base_stem = str(output_stem or "").strip() or "optimization_pareto_slices"
+    per_slice_plot_paths: list[str] = []
+    for index, slice_payload in enumerate(solved_payloads, start=1):
+        label = str(slice_payload.get("slice_label") or f"slice_{index}")
+        stem = f"{base_stem}_{_slugify(label)}"
+        raw_plot = plot_optimization_pareto_front(
+            pareto_result_json=json.dumps(slice_payload, ensure_ascii=False, default=str),
+            plot_mode=plot_mode,
+            plot_title=f"{label} Pareto Landscape",
+            output_stem=stem,
+        )
+        try:
+            plot_env = json.loads(raw_plot)
+            for path in (plot_env.get("data") or {}).get("plot_paths") or []:
+                if path:
+                    per_slice_plot_paths.append(str(path))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+
+    _apply_pub_style()
+    fig, ax = plt.subplots(figsize=(10.5, 6.2), constrained_layout=True)
+    colors = plt.get_cmap("tab10")
+    for index, slice_payload in enumerate(solved_payloads):
+        color = colors(index % 10)
+        label = str(slice_payload.get("slice_label") or f"slice_{index + 1}")
+        points = slice_payload.get("points") or []
+        landscape_points = slice_payload.get("landscape_points") or []
+        all_points = list(slice_payload.get("all_feasible_points") or [])
+        if landscape_points:
+            seen: set[tuple[float, float, str]] = set()
+            merged: list[dict[str, Any]] = []
+            for point in all_points + list(landscape_points):
+                key = (
+                    round(float(point.get(x_metric, 0.0) or 0.0), 6),
+                    round(float(point.get(y_column, 0.0) or 0.0), 9),
+                    "|".join(str(item) for item in point.get("wash1_selection") or []),
+                )
+                if key in seen:
+                    continue
+                seen.add(key)
+                merged.append(point)
+            all_points = merged
+        if not all_points:
+            all_points = points
+        all_frame = pd.DataFrame(all_points)
+        if not all_frame.empty and x_metric in all_frame.columns and y_column in all_frame.columns:
+            ax.scatter(
+                all_frame[x_metric] / 1_000_000.0,
+                all_frame[y_column],
+                s=22,
+                color=color,
+                alpha=0.16,
+                edgecolors="none",
+                zorder=1,
+            )
+        frontier_frame = pd.DataFrame(points)
+        if frontier_frame.empty or x_metric not in frontier_frame.columns or y_column not in frontier_frame.columns:
+            continue
+        frontier_frame = frontier_frame.sort_values(by=[x_metric, y_column], ascending=[True, True])
+        ax.plot(
+            frontier_frame[x_metric] / 1_000_000.0,
+            frontier_frame[y_column],
+            color=color,
+            linewidth=2.0,
+            alpha=0.95,
+            zorder=2,
+        )
+        ax.scatter(
+            frontier_frame[x_metric] / 1_000_000.0,
+            frontier_frame[y_column],
+            s=55,
+            color=color,
+            edgecolors="black",
+            linewidth=0.5,
+            zorder=3,
+            label=f"{label} frontier ({len(frontier_frame)})",
+        )
+
+    ax.set_title(plot_title or "Cost vs Circularity Pareto Landscapes Across Feed Compositions")
+    ax.set_xlabel("Annualized total cost (million USD/yr)")
+    ax.set_ylabel("Emissions (tCO2)" if y_metric == "emissions" else "Circularity score")
+    ax.grid(True, alpha=0.25)
+    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=True, fontsize=8)
+    combined_path = save_plot(fig, base_stem)
+    if not os.path.exists(combined_path) and os.path.exists(f"{combined_path}.png"):
+        combined_path = f"{combined_path}.png"
+    plt.close(fig)
+    gc.collect()
+
+    plot_paths = [combined_path] + per_slice_plot_paths
+    display = "Optimization Pareto Slice Plots Created\n\n"
+    display += f"Slices plotted: {len(solved_payloads)}\n"
+    display += f"Combined comparison: {_get_plot_url(combined_path)}\n"
+    display += f"Per-slice plots: {len(per_slice_plot_paths)}\n"
+    if source_handoff_id:
+        display += f"Source handoff: {source_handoff_id}\n"
+    if output_stem:
+        display += f"Output stem: {output_stem}\n"
+
+    from strap.services.tool_response_service import json_tool_response
+
+    data = {
+        "plot_type": "optimization_pareto_slices",
+        "plot_paths": plot_paths,
+        "combined_plot_path": combined_path,
+        "per_slice_plot_paths": per_slice_plot_paths,
+        "format": "png",
+        "x_metric": x_metric,
+        "y_metric": y_metric,
+        "plot_mode": plot_mode,
+        "n_slices": len(solved_payloads),
+        "pareto_slices_payload_path": payload.get("pareto_slices_payload_path"),
+        "source_handoff_id": source_handoff_id,
+        "output_stem": output_stem,
+    }
+    return json_tool_response(display, data, tool_name="plot_optimization_pareto_slices")

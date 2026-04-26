@@ -703,6 +703,26 @@ def _format_metric_value(value, *, money: bool = False) -> str:
     return f"{number:.2f}"
 
 
+_POINT_METRIC_ALIASES = {
+    "circularity": ("circularity_score", "CE", "raw_circularity_score"),
+    "circularity_score": ("circularity", "CE", "raw_circularity_score"),
+    "ce": ("circularity_score", "raw_circularity_score"),
+    "cost": ("total_cost",),
+    "emission": ("emissions",),
+    "ghg": ("emissions",),
+}
+
+
+def _get_point_metric_value(point: dict, metric: str):
+    candidates = [metric]
+    normalized = str(metric or "").strip().lower()
+    candidates.extend(_POINT_METRIC_ALIASES.get(normalized, ()))
+    for candidate in candidates:
+        if candidate in point and point.get(candidate) is not None:
+            return point.get(candidate)
+    return None
+
+
 def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage | None:
     dispatch, payload, _, status = _get_latest_task_payload_bundle(messages, "optimization-engineer")
     if dispatch is None or not isinstance(payload, dict):
@@ -762,8 +782,14 @@ def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage
                     continue
                 point_id = point.get("point_id")
                 route_id = str(point.get("route_id") or "").strip()
-                x_value = _format_metric_value(point.get(x_metric), money=(x_metric == "total_cost"))
-                y_value = _format_metric_value(point.get(y_metric), money=(y_metric == "total_cost"))
+                x_value = _format_metric_value(
+                    _get_point_metric_value(point, x_metric),
+                    money=(x_metric == "total_cost"),
+                )
+                y_value = _format_metric_value(
+                    _get_point_metric_value(point, y_metric),
+                    money=(y_metric == "total_cost"),
+                )
                 line = f"- Point {point_id}: {x_metric} {x_value}; {y_metric} {y_value}"
                 if route_id:
                     line += f"; route {route_id}"
@@ -820,16 +846,71 @@ def _build_optimization_visualization_payload_fallback(messages: list) -> AIMess
         return None
 
     plot_type = str(viz_payload.get("plot_type") or "").strip()
-    if plot_type != "optimization_pareto_front":
+    if plot_type not in {
+        "optimization_pareto_front",
+        "optimization_pareto_slices",
+        "optimization_point_result",
+    }:
         return None
 
-    lines: list[str] = ["Optimization Pareto plot created."]
+    if plot_type == "optimization_point_result":
+        heading = "Optimization plot created."
+    elif plot_type == "optimization_pareto_slices":
+        heading = "Optimization Pareto slice plots created."
+    else:
+        heading = "Optimization Pareto plot created."
+    lines: list[str] = [heading]
     plot_paths = viz_payload.get("plot_paths") or []
     if isinstance(plot_paths, list) and plot_paths:
         lines.append("Plot path: " + ", ".join(str(path) for path in plot_paths if str(path).strip()) + ".")
 
     analysis_type = str(opt_payload.get("analysis_type") or "").strip().lower()
-    if analysis_type == "pareto_front":
+    if plot_type == "optimization_point_result":
+        selected_washes = opt_payload.get("optimal_washes") or []
+        if selected_washes:
+            lines.append("Selected washes: " + ", ".join(str(item) for item in selected_washes if str(item).strip()) + ".")
+        lines.append(
+            f"Validated point result: total cost {_format_metric_value(opt_payload.get('total_cost'), money=True)}; "
+            f"emissions {_format_metric_value(opt_payload.get('emissions'))}; "
+            f"profit {_format_metric_value(opt_payload.get('profit'), money=True)}."
+        )
+        circularity = opt_payload.get("circularity_score")
+        if circularity is not None:
+            lines.append(f"Circularity: {_format_metric_value(circularity)}.")
+        return _build_origin_tagged_ai_message(
+            "\n".join(lines).strip(),
+            origin="routing_multi_specialist_optimization_visualization_fallback",
+            subagent="visualization-specialist",
+            tool_call_id=viz_dispatch["tool_call_id"],
+            status=viz_status,
+        )
+
+    if analysis_type == "pareto_slices":
+        x_metric = str(opt_payload.get("x_metric") or "total_cost")
+        y_metric = str(opt_payload.get("y_metric") or "circularity")
+        n_slices_requested = int(opt_payload.get("n_slices_requested") or 0)
+        n_slices_solved = int(opt_payload.get("n_slices_solved") or 0)
+        lines.append(
+            f"Validated multi-slice Pareto result: {n_slices_solved} of {n_slices_requested} composition slice(s) solved on {x_metric} vs {y_metric}."
+        )
+        payload_path = str(opt_payload.get("pareto_slices_payload_path") or "").strip()
+        if payload_path:
+            lines.append(f"Authoritative multi-slice payload: {payload_path}.")
+        slices = opt_payload.get("slices") or []
+        if isinstance(slices, list) and slices:
+            lines.append("Slice summaries:")
+            for item in slices[:8]:
+                if not isinstance(item, dict):
+                    continue
+                label = str(item.get("label") or item.get("slice_id") or "slice")
+                status_text = str(item.get("status") or "unknown")
+                n_points = item.get("n_points_feasible")
+                max_circularity = item.get("max_circularity")
+                line = f"- {label}: {status_text}; frontier points {n_points}"
+                if max_circularity is not None:
+                    line += f"; max circularity {_format_metric_value(max_circularity)}"
+                lines.append(line)
+    elif analysis_type == "pareto_front":
         x_metric = str(opt_payload.get("x_metric") or "total_cost")
         y_metric = str(opt_payload.get("y_metric") or "emissions")
         n_points = int(opt_payload.get("n_points_feasible") or 0)
@@ -848,8 +929,14 @@ def _build_optimization_visualization_payload_fallback(messages: list) -> AIMess
                     continue
                 point_id = point.get("point_id")
                 route_id = str(point.get("route_id") or "").strip()
-                x_value = _format_metric_value(point.get(x_metric), money=(x_metric == "total_cost"))
-                y_value = _format_metric_value(point.get(y_metric), money=(y_metric == "total_cost"))
+                x_value = _format_metric_value(
+                    _get_point_metric_value(point, x_metric),
+                    money=(x_metric == "total_cost"),
+                )
+                y_value = _format_metric_value(
+                    _get_point_metric_value(point, y_metric),
+                    money=(y_metric == "total_cost"),
+                )
                 line = f"- Point {point_id}: {x_metric} {x_value}; {y_metric} {y_value}"
                 if route_id:
                     line += f"; route {route_id}"
@@ -1502,6 +1589,13 @@ def _validate_task_tool_call(
                 f"`{ready_consumer}` must use the handoff-provided task prompt. "
                 f'Use description="{ready_handoff.get("task_prompt", "")}".'
             )
+        expected_handoff_id = ready_handoff.get("handoff_id")
+        current_handoff_id = tool_call.get("args", {}).get("handoff_id")
+        if expected_handoff_id and current_handoff_id != expected_handoff_id:
+            return (
+                f"`{ready_consumer}` must use the validated handoff ID. "
+                f'Use handoff_id="{expected_handoff_id}".'
+            )
 
     ordered_plan = _get_ordered_plan(messages, allowed_rules=allowed_rules)
     downstream_pending = [
@@ -1757,6 +1851,8 @@ def _build_ready_handoff_task_call(ready_handoff: dict) -> dict:
     args = {"subagent_type": consumer}
     if task_prompt:
         args["description"] = task_prompt
+    if handoff_id:
+        args["handoff_id"] = handoff_id
 
     safe_id = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(handoff_id))
     return {
@@ -1832,6 +1928,10 @@ def _response_matches_ready_handoff(response, ready_handoff: dict) -> bool:
 
     expected_prompt = _normalize_task_description(ready_handoff.get("task_prompt", ""))
     actual_prompt = _normalize_task_description(tool_call.get("args", {}).get("description", ""))
+    expected_handoff_id = ready_handoff.get("handoff_id")
+    actual_handoff_id = tool_call.get("args", {}).get("handoff_id")
+    if expected_handoff_id and actual_handoff_id != expected_handoff_id:
+        return False
     return not expected_prompt or actual_prompt == expected_prompt
 
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from strap.services.sequence_planning_payload_service import canonicalize_sequence_solvent_name
+
 
 def _format_solvent_detail_lines(solvents: list[dict[str, Any]]) -> list[str]:
     lines: list[str] = []
@@ -20,10 +22,15 @@ def _format_solvent_detail_lines(solvents: list[dict[str, Any]]) -> list[str]:
         reused_marker = " *(REUSED)*" if sol_info.get("reused") else ""
         target_sol = sol_info.get("target_sol", 0)
         max_other = sol_info.get("max_other", 0)
+        solvent_name = canonicalize_sequence_solvent_name(sol_info.get("solvent"))
         line = (
-            f"  {rank}. [{symbol}] **{sol_info['solvent']}**{reused_marker}: "
+            f"  {rank}. [{symbol}] **{solvent_name}**{reused_marker}: "
             f"selectivity={sel:.1f}% (target={target_sol:.1f}%, max_other={max_other:.1f}%)"
         )
+        if sol_info.get("temperature_use_regime") == "sensitivity_extrapolation":
+            line += " | sensitivity-only extrapolation"
+        elif sol_info.get("temperature_extrapolation") == "above_fit":
+            line += " | Apelblat extrapolated above 160 C"
 
         props = []
         if sol_info.get("logp") is not None:
@@ -65,7 +72,7 @@ def build_sequence_analysis_output(
 
     output.append(f"**Step {len(sequence)}: {sequence[-1]} is isolated**\n")
     best_solvents = [
-        step["solvents"][0]["solvent"]
+        canonicalize_sequence_solvent_name(step["solvents"][0]["solvent"])
         for step in seq_steps
         if step["solvents"]
         and step["solvents"][0].get("solvent") not in ["N/A", "No data", "None found", "Error"]
@@ -104,6 +111,17 @@ def build_sequential_planning_display(
         f"**Temperature:** {temperature} C",
         f"**Top solvents per step:** {top_k_solvents}",
     ]
+    try:
+        from strap.solubility import temperature_basis_note, temperature_use_regime
+
+        note = temperature_basis_note(float(temperature))
+        use_regime = temperature_use_regime(float(temperature))
+    except Exception:
+        note = None
+        use_regime = "unknown"
+    sensitivity_only = use_regime == "sensitivity_extrapolation"
+    if note:
+        output.append(f"**Temperature Basis:** {note}")
     if excluded_set:
         output.append(
             f"**Excluded solvents (cost constraint):** {', '.join(sorted(excluded_set))}"
@@ -127,7 +145,10 @@ def build_sequential_planning_display(
     output.append("")
 
     if sequence_scores:
-        output.append("## Top Recommended Separation Sequence\n")
+        if sensitivity_only:
+            output.append("## Top Sensitivity Screening Sequence\n")
+        else:
+            output.append("## Top Recommended Separation Sequence\n")
         if rank1_plot_url:
             output.append(f"Visualisation saved: {rank1_plot_url}\n")
             if len(sequence_scores) > 1:
@@ -142,12 +163,15 @@ def build_sequential_planning_display(
         for error in visualization_errors:
             output.append(f"Could not create visualisation: {error}")
 
-    output.append("\n## Recommendations\n")
+    output.append("\n## Screening Notes\n" if sensitivity_only else "\n## Recommendations\n")
     if sequence_scores and sequence_scores[0]["min_selectivity"] > 10:
         best = sequence_scores[0]
-        output.append(f"**Best sequence:** {' -> '.join(best['sequence'])}")
+        label = "Best screening sequence" if sensitivity_only else "Best sequence"
+        output.append(f"**{label}:** {' -> '.join(best['sequence'])}")
         output.append(f"   - Minimum selectivity: {best['min_selectivity']:.1f}%")
-        output.append("   - All steps have positive selectivity")
+        output.append("   - All steps have positive predicted selectivity")
+        if sensitivity_only:
+            output.append("   - Sensitivity-only result: use for soluble/insoluble screening, not a validated operating recommendation")
         if len(sequence_scores) > 1:
             output.append(
                 f"\n**Alternative sequences available:** {len(sequence_scores) - 1} more options"

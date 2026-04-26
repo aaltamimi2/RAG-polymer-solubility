@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from typing import Any, Awaitable, Callable
 
+from strap.solubility import (
+    FITTED_TEMP_MAX_C,
+    FITTED_TEMP_MIN_C,
+    SENSITIVITY_EXTRAPOLATION_MAX_C,
+    temperature_extrapolation_status,
+    temperature_use_regime,
+)
+
 
 def rank_by_selectivity(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(candidates, key=lambda candidate: candidate.get("selectivity", -999), reverse=True)
@@ -217,10 +225,27 @@ async def find_top_solvents_for_target(
     get_available_solvents_for_polymer: Callable[[str], list[str]],
     solvent_table: str | None,
     lookup_solvent_properties: Callable[[list[str], str], Awaitable[dict[str, dict[str, Any]]]],
+    temperature_scan_min: float = FITTED_TEMP_MIN_C,
+    temperature_scan_max: float | None = None,
 ) -> list[dict[str, Any]]:
     """Find the top-K solvents for one sequential separation step."""
     used_solvents = used_solvents or set()
     excluded_solvents = excluded_solvents or set()
+    if temperature > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return [
+            {
+                "solvent": "None found",
+                "selectivity": 0,
+                "target_sol": 0,
+                "max_other": 0,
+                "note": f"Temperature exceeds supported sensitivity limit of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C",
+            }
+        ]
+    if temperature_scan_max is None:
+        temperature_scan_max = max(FITTED_TEMP_MAX_C, float(temperature))
+    temperature_scan_max = min(float(temperature_scan_max), SENSITIVITY_EXTRAPOLATION_MAX_C)
+    temperature_scan_min = max(float(temperature_scan_min), FITTED_TEMP_MIN_C)
+    high_temperature_screening = temperature_use_regime(float(temperature)) == "sensitivity_extrapolation"
 
     if not remaining:
         return [
@@ -245,7 +270,9 @@ async def find_top_solvents_for_target(
             current_solubility = get_solubility(polymer, solvent, temperature)
             if current_solubility is not None:
                 current_rows.append({solvent_column: solvent, polymer_column: polymer, "avg_sol": current_solubility})
-            for temp in range(25, 161, 5):
+            start_temp = int(round(temperature_scan_min))
+            stop_temp = int(round(temperature_scan_max))
+            for temp in range(start_temp, stop_temp + 1, 5):
                 solubility = get_solubility(polymer, solvent, float(temp))
                 if solubility is not None and solubility > 0:
                     all_temp_rows.append(
@@ -305,6 +332,10 @@ async def find_top_solvents_for_target(
                 "temperature": temperature,
                 "optimal_temp": optimal["temp"],
                 "optimal_selectivity": optimal["selectivity"],
+                "temperature_extrapolation": temperature_extrapolation_status(float(temperature)),
+                "optimal_temp_extrapolation": temperature_extrapolation_status(float(optimal["temp"])),
+                "temperature_use_regime": temperature_use_regime(float(temperature)),
+                "high_temperature_screening": high_temperature_screening,
             }
         )
 
@@ -331,6 +362,44 @@ async def find_top_solvents_for_target(
             for result in results:
                 if result["solvent"].lower() in excluded_lower:
                     result["excluded_expensive"] = True
+
+    if solvent_table and results:
+        try:
+            solvent_names = sorted({result["solvent"] for result in results})
+            property_lookup = await lookup_solvent_properties(solvent_names, solvent_table)
+            for result in results:
+                if result["solvent"] in property_lookup:
+                    result.update(
+                        {
+                            key: value
+                            for key, value in property_lookup[result["solvent"]].items()
+                            if value is not None
+                        }
+                    )
+            atmospheric_results = []
+            for result in results:
+                bp = result.get("bp")
+                if bp is None:
+                    if high_temperature_screening:
+                        result["missing_boiling_point"] = True
+                        continue
+                    atmospheric_results.append(result)
+                    continue
+                try:
+                    bp_value = float(bp)
+                except (TypeError, ValueError):
+                    atmospheric_results.append(result)
+                    continue
+                if float(result.get("temperature", temperature)) <= bp_value - 5.0:
+                    atmospheric_results.append(result)
+                else:
+                    result["atmospheric_infeasible"] = True
+            if atmospheric_results:
+                results = atmospheric_results
+            else:
+                results = []
+        except Exception:
+            pass
 
     viable_results = [result for result in results if result.get("selectivity", 0) >= min_selectivity]
     if viable_results:

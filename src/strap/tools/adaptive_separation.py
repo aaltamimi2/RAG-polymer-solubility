@@ -118,6 +118,7 @@ def find_optimal_separation_conditions(
     target_polymer: str,
     comparison_polymers: str,
     start_temperature: float = 25.0,
+    max_temperature: float = 160.0,
     initial_selectivity: float = 30.0,
     table_name: str = "common_solvents_database",
     polymer_column: str = "polymer",
@@ -130,6 +131,7 @@ def find_optimal_separation_conditions(
         target_polymer: Polymer to dissolve (e.g., "LDPE", "PP")
         comparison_polymers: Polymers to NOT dissolve, comma-separated (e.g., "HDPE,PP,PS")
         start_temperature: Starting temperature in °C (default: 25.0)
+        max_temperature: Maximum temperature to scan in °C (default: 160.0; values up to 180 use lower-confidence Apelblat extrapolation; 180-200 is sensitivity-only screening)
         initial_selectivity: Required selectivity in percentage points (default: 30.0)
     WHEN TO USE:
     - "Find optimal conditions to separate LDPE from HDPE and PP"
@@ -181,7 +183,7 @@ def find_optimal_separation_conditions(
     output.append(f"Target: Dissolve {target_polymer}")
     output.append(f"Separate from: {', '.join(comp_polymers)}")
     output.append(
-        f"Starting conditions: T={start_temperature}°C, selectivity threshold={initial_selectivity}%\n"
+        f"Starting conditions: T={start_temperature}°C, max T={max_temperature}°C, selectivity threshold={initial_selectivity}%\n"
     )
     temp_result = analyzer.explore_temperature_range(
         table_name,
@@ -193,6 +195,7 @@ def find_optimal_separation_conditions(
         comp_polymers,
         start_temp=start_temperature,
         min_selectivity=initial_selectivity,
+        max_temp=max_temperature,
     )
     opt = temp_result.get("optimal_conditions")
     if opt and opt["selectivity"] >= initial_selectivity:
@@ -230,6 +233,7 @@ def find_optimal_separation_conditions(
         target_polymer=target_polymer,
         comparison_polymers=comp_polymers,
         start_temperature_c=start_temperature,
+        max_temperature_c=max_temperature,
         initial_selectivity=initial_selectivity,
         table_name=table_name,
         optimal_conditions=temp_result.get("optimal_conditions"),
@@ -314,6 +318,16 @@ def analyze_selective_solubility_enhanced(
     output.append(f"Target: {target_polymer}")
     output.append(f"Comparing against: {', '.join(comp_list)}")
     output.append(f"Temperature range: {temp_min}°C - {temp_max}°C\n")
+    from strap.solubility import FITTED_TEMP_MAX_C, FITTED_TEMP_MIN_C, temperature_basis_note
+    basis_notes = [
+        note for note in (temperature_basis_note(temp_min), temperature_basis_note(temp_max))
+        if note
+    ]
+    if basis_notes:
+        output.append(
+            f"Temperature basis: Apelblat extrapolation outside the fitted "
+            f"{FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f}°C range; lower confidence.\n"
+        )
     val_result = validator.verify_value_exists(table_name, polymer_column, target_polymer)
     if not val_result.is_valid:
         return _adaptive_error(
@@ -579,6 +593,8 @@ def analyze_selective_solubility_enhanced(
         ),
         "temperature": (temp_min + temp_max) / 2,
         "temperature_range": [temp_min, temp_max],
+        "uses_extrapolated_temperatures": bool(basis_notes),
+        "fitted_temperature_range_c": [FITTED_TEMP_MIN_C, FITTED_TEMP_MAX_C],
         "target_polymer": target_polymer,
         "comparison_polymers": comp_list,
         "algorithm_used": "selective_solubility",

@@ -117,6 +117,47 @@ class TestPredictSolubility:
         result = predict_solubility("HDPE", "toluene", 0.0)
         parsed = _parse_tool_result(result)
         assert "%" in parsed["display"]
+        assert parsed["data"]["temperature_extrapolation"] == "below_fit"
+
+    def test_above_range_extrapolation_is_labeled(self):
+        from strap.tools.interpolation import predict_solubility
+
+        result = predict_solubility("HDPE", "toluene", 180.0)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["temperature_extrapolation"] == "above_fit"
+        assert "lower confidence" in parsed["display"]
+
+    def test_sensitivity_range_extrapolation_is_labeled(self):
+        from strap.tools.interpolation import predict_solubility
+
+        result = predict_solubility("HDPE", "toluene", 190.0)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["temperature_use_regime"] == "sensitivity_extrapolation"
+        assert "screening only" in parsed["display"]
+
+    def test_above_200_returns_error(self):
+        from strap.tools.interpolation import predict_solubility
+
+        result = predict_solubility("HDPE", "toluene", 201.0)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["success"] is False
+        assert parsed["data"]["error_code"] == "temperature_above_supported_extrapolation"
+
+    def test_excluded_data_quality_pair_returns_error(self):
+        from strap.solubility import get_solubility, get_solubility_curve, get_entry
+        from strap.tools.interpolation import predict_solubility
+
+        assert get_entry("EVOH", "triethylamine") is None
+        assert get_solubility("EVOH", "triethylamine", 80.0) is None
+        assert get_solubility("EVOH", "triethylamine", 80.0, method="sql") is None
+        assert get_solubility_curve("EVOH", "triethylamine", 25.0, 80.0) == []
+
+        parsed = _parse_tool_result(predict_solubility("EVOH", "triethylamine", 80.0))
+        assert parsed["data"]["success"] is False
+        assert parsed["data"]["error_code"] == "excluded_data_quality_pair"
 
 
 class TestPredictSolubilityRange:
@@ -137,6 +178,60 @@ class TestPredictSolubilityRange:
         lines = [l for l in parsed["display"].split("\n") if l.startswith("|") and "T (C)" not in l and "---" not in l]
         assert len(lines) <= 200
 
+    def test_range_reports_extrapolated_points(self):
+        from strap.tools.interpolation import predict_solubility_range
+
+        result = predict_solubility_range("HDPE", "toluene", 160, 180, 10)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["extrapolated_points"] == 2
+        assert "lower-confidence" in parsed["display"]
+
+    def test_range_caps_above_200(self):
+        from strap.tools.interpolation import predict_solubility_range
+
+        result = predict_solubility_range("HDPE", "toluene", 190, 220, 10)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["range_was_capped"] is True
+        assert parsed["data"]["t_end_c"] == 200.0
+
+    def test_range_does_not_exceed_requested_end_temperature(self):
+        from strap.tools.interpolation import predict_solubility_range
+
+        result = predict_solubility_range("LDPE", "dodecane", 25, 140, 25)
+        parsed = _parse_tool_result(result)
+        temperatures = [row["temperature_c"] for row in parsed["data"]["predictions"]]
+
+        assert max(temperatures) == 140.0
+        assert 150.0 not in temperatures
+
+    def test_range_excluded_data_quality_pair_returns_error(self):
+        from strap.tools.interpolation import predict_solubility_range
+
+        parsed = _parse_tool_result(
+            predict_solubility_range("EVOH", "triethylamine", 25, 80, 5)
+        )
+
+        assert parsed["data"]["success"] is False
+        assert parsed["data"]["error_code"] == "excluded_data_quality_pair"
+
+
+class TestRankSolventsSensitivityScreening:
+    def test_190c_screening_filters_to_high_boiling_solvents(self):
+        from strap.tools.interpolation import rank_solvents_selectivity
+
+        result = rank_solvents_selectivity("HDPE", "PP", 190.0, min_selectivity=0.0)
+        parsed = _parse_tool_result(result)
+
+        assert parsed["data"]["temperature_use_regime"] == "sensitivity_extrapolation"
+        assert parsed["data"]["high_temperature_screening"] is True
+        assert parsed["data"]["n_results"] >= 1
+        assert all(
+            solvent["boiling_point_c"] >= 195.0
+            for solvent in parsed["data"]["solvents"]
+        )
+
 
 class TestListCoverage:
     def test_returns_string(self):
@@ -147,3 +242,61 @@ class TestListCoverage:
         assert parsed["data"]["tool_name"] == "list_interpolation_coverage"
         assert "362" in parsed["display"]
         assert "HDPE" in parsed["display"]
+
+
+class TestTemperatureOptimizerExtrapolation:
+    def test_optimizer_can_evaluate_to_180_with_warning(self, monkeypatch):
+        import asyncio
+
+        from strap.engines.optimization import TemperatureOptimizer
+
+        def fake_get_solubility(polymer, solvent, temperature):
+            if polymer == "A":
+                return temperature
+            if polymer == "B":
+                return 0.0
+            return None
+
+        monkeypatch.setattr("strap.solubility.get_solubility", fake_get_solubility)
+        monkeypatch.setattr("strap.solubility.get_boiling_point", lambda solvent: 220.0)
+
+        result = asyncio.run(
+            TemperatureOptimizer(object()).find_optimal_temperature(
+                target_polymer="A",
+                other_polymers=["B"],
+                solvent="S1",
+                temp_range=(160.0, 180.0),
+                step_size=10.0,
+            )
+        )
+
+        assert result.optimal_temperature == 180.0
+        assert any("extrapolations" in rec for rec in result.recommendations)
+
+    def test_optimizer_can_evaluate_sensitivity_range_to_200(self, monkeypatch):
+        import asyncio
+
+        from strap.engines.optimization import TemperatureOptimizer
+
+        def fake_get_solubility(polymer, solvent, temperature):
+            if polymer == "A":
+                return temperature
+            if polymer == "B":
+                return 0.0
+            return None
+
+        monkeypatch.setattr("strap.solubility.get_solubility", fake_get_solubility)
+        monkeypatch.setattr("strap.solubility.get_boiling_point", lambda solvent: 220.0)
+
+        result = asyncio.run(
+            TemperatureOptimizer(object()).find_optimal_temperature(
+                target_polymer="A",
+                other_polymers=["B"],
+                solvent="S1",
+                temp_range=(180.0, 240.0),
+                step_size=10.0,
+            )
+        )
+
+        assert result.optimal_temperature == 200.0
+        assert any("sensitivity-only" in rec for rec in result.recommendations)

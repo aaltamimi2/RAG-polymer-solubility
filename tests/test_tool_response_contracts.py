@@ -65,7 +65,130 @@ def test_predict_solubility_ml_returns_standard_envelope(monkeypatch):
     assert parsed["data"]["polymer_name"].upper() == "PE"
     assert parsed["data"]["solvent_name"] == "Toluene"
     assert parsed["data"]["red"] == pytest.approx(0.57)
-    assert "ML Solubility Prediction" in parsed["display"]
+    assert parsed["data"]["analysis_type"] == "hsp_binary_screen"
+    assert parsed["data"]["temperature_used_by_model"] is False
+    assert parsed["data"]["probability_soluble"] == pytest.approx(0.92)
+    assert "HSP Binary Solubility Screen" in parsed["display"]
+
+
+def test_predict_solubility_ml_generates_fallback_single_pair_visual(monkeypatch, tmp_path):
+    from strap.tools import _helpers, ml_prediction
+
+    class FakePredictor:
+        def predict(self, polymer_hsp, solvent_hsp, r0, molar_volume):
+            return {
+                "soluble": True,
+                "probability": 0.92,
+                "confidence": 0.88,
+                "red": 0.57,
+                "ra": 4.2,
+                "r0": 7.4,
+            }
+
+    old_dir = _helpers.set_plots_dir(str(tmp_path))
+    monkeypatch.setattr(ml_prediction, "get_predictor", lambda: FakePredictor())
+    try:
+        raw = ml_prediction.predict_solubility_ml(
+            "PC",
+            "dichloromethane",
+            temperature=25.0,
+            generate_visualizations=True,
+        )
+    finally:
+        _helpers.set_plots_dir(old_dir)
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["success"] is True
+    assert len(parsed["data"]["artifacts"]) >= 1
+    assert any(path.endswith("pc_dichloromethane_hsp_pair_summary.png") for path in parsed["data"]["artifacts"])
+    assert "Fallback HSP Summary Visualization" in parsed["display"]
+
+
+def test_predict_solubility_ml_rejects_categories_for_single_pair(monkeypatch):
+    from strap.tools import ml_prediction
+
+    monkeypatch.setattr(ml_prediction, "get_predictor", lambda: object())
+
+    raw = ml_prediction.predict_solubility_ml(
+        "polyolefins",
+        "Toluene",
+        temperature=25.0,
+        generate_visualizations=False,
+    )
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["success"] is False
+    assert parsed["data"]["error_code"] == "hsp_category_requires_matrix_screen"
+    assert parsed["data"]["resolution"]["status"] == "category"
+
+
+def test_screen_hsp_solubility_matrix_resolves_categories_and_polarity(monkeypatch):
+    from strap.tools import ml_prediction
+
+    class FakePredictor:
+        def predict(self, polymer_hsp, solvent_hsp, r0, molar_volume):
+            probability = 0.9 if solvent_hsp["Dispersion"] >= 16 else 0.2
+            return {
+                "soluble": probability >= 0.85,
+                "probability": probability,
+                "confidence": 0.8,
+                "red": 0.7 if probability >= 0.85 else 1.6,
+                "ra": 4.2,
+                "r0": 7.4,
+            }
+
+    monkeypatch.setattr(ml_prediction, "get_predictor", lambda: FakePredictor())
+
+    raw = ml_prediction.screen_hsp_solubility_matrix(
+        polymer_category="polyolefins",
+        solvent_polarity="nonpolar",
+        temperature_c=60.0,
+        generate_visualization=False,
+    )
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["tool_name"] == "screen_hsp_solubility_matrix"
+    assert parsed["data"]["success"] is True
+    assert parsed["data"]["analysis_type"] == "hsp_binary_screen"
+    assert parsed["data"]["temperature_used_by_model"] is False
+    assert len(parsed["data"]["results"]) == 12
+    assert parsed["data"]["polymer_resolution"][0]["category_id"] == "polyolefins"
+    assert parsed["data"]["solvent_resolution"][0]["category_id"] == "nonpolar"
+    assert "not quantitative wt% solubility" in parsed["display"]
+
+
+def test_screen_hsp_solubility_matrix_generates_named_batch_heatmap(monkeypatch, tmp_path):
+    from strap.tools import ml_prediction
+    from strap.tools import _helpers
+
+    class FakePredictor:
+        def predict(self, polymer_hsp, solvent_hsp, r0, molar_volume):
+            return {
+                "soluble": True,
+                "probability": 0.9,
+                "confidence": 0.8,
+                "red": 0.7,
+                "ra": 4.2,
+                "r0": 7.4,
+            }
+
+    old_dir = _helpers.set_plots_dir(str(tmp_path))
+    monkeypatch.setattr(ml_prediction, "get_predictor", lambda: FakePredictor())
+    monkeypatch.setattr(ml_prediction, "get_plots_dir", lambda: str(tmp_path))
+    try:
+        raw = ml_prediction.screen_hsp_solubility_matrix(
+            polymer_category="nylons",
+            solvent_polarity="polar aprotic",
+            generate_visualization=True,
+        )
+    finally:
+        _helpers.set_plots_dir(old_dir)
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["success"] is True
+    assert len(parsed["data"]["artifacts"]) == 1
+    assert parsed["data"]["artifacts"][0].endswith("nylon_66_pa6_pa66_acetone_mek_mibk_hsp_red_matrix.png")
+    assert "hsp_binary_screen_matrix.png" not in parsed["data"]["artifacts"][0]
 
 
 def test_get_solvent_gscore_returns_standard_envelope(monkeypatch):
@@ -277,6 +400,30 @@ def test_safe_tool_wrapper_normalizes_legacy_display_data_envelopes():
     assert parsed["data"]["value"] == 1
 
 
+def test_safe_tool_wrapper_preserves_large_tool_envelopes_without_truncating_data():
+    from strap.tools._helpers import safe_tool_wrapper
+
+    @safe_tool_wrapper(structured_output=True, tool_name="large_envelope_tool")
+    def large_envelope_tool():
+        return json.dumps(
+            {
+                "display": "large envelope",
+                "data": {
+                    "analysis_type": "pareto_front",
+                    "points": [{"point_id": f"P{i}", "total_cost": float(i)} for i in range(500)],
+                },
+            },
+            ensure_ascii=False,
+        )
+
+    parsed = json.loads(large_envelope_tool())
+
+    assert parsed["display"] == "large envelope"
+    assert parsed["data"]["tool_name"] == "large_envelope_tool"
+    assert parsed["data"]["analysis_type"] == "pareto_front"
+    assert len(parsed["data"]["points"]) == 500
+
+
 def test_statistical_summary_invalid_table_returns_standard_error():
     from strap.tools.statistical import statistical_summary
 
@@ -344,6 +491,56 @@ def test_plot_solubility_vs_temperature_no_data_returns_standard_error():
     assert parsed["data"]["tool_name"] == "plot_solubility_vs_temperature"
     assert parsed["data"]["success"] is False
     assert parsed["data"]["error_code"] == "tool_reported_failure"
+
+
+def test_plot_solubility_vs_temperature_labels_extrapolated_range():
+    from strap.tools.visualization import plot_solubility_vs_temperature
+
+    parsed = json.loads(
+        plot_solubility_vs_temperature(
+            table_name="unused",
+            polymer_column="polymer",
+            solvent_column="solvent",
+            temperature_column="temperature",
+            solubility_column="solubility",
+            polymers="EVOH",
+            solvents="DMSO",
+            temperature_max=170.0,
+        )
+    )
+
+    assert parsed["data"]["tool_name"] == "plot_solubility_vs_temperature"
+    assert parsed["data"]["success"] is True
+    assert parsed["data"]["temperature_max_c"] == 170.0
+    assert parsed["data"]["extrapolated_points"] > 0
+    assert parsed["data"]["model_limit_annotations_on_plot"] is False
+    assert parsed["data"]["exact_sql_values_available"] is True
+    assert "saved plot remains presentation-ready" in parsed["display"]
+    assert "Exact SQL/database grid-point values" in parsed["display"]
+
+
+def test_plot_solubility_vs_temperature_can_opt_into_diagnostic_annotations():
+    from strap.tools.visualization import plot_solubility_vs_temperature
+
+    parsed = json.loads(
+        plot_solubility_vs_temperature(
+            table_name="unused",
+            polymer_column="polymer",
+            solvent_column="solvent",
+            temperature_column="temperature",
+            solubility_column="solubility",
+            polymers="EVOH",
+            solvents="DMSO",
+            temperature_max=170.0,
+            annotate_model_limits=True,
+        )
+    )
+
+    assert parsed["data"]["tool_name"] == "plot_solubility_vs_temperature"
+    assert parsed["data"]["success"] is True
+    assert parsed["data"]["extrapolated_points"] > 0
+    assert parsed["data"]["model_limit_annotations_on_plot"] is True
+    assert "annotated on plot" in parsed["display"]
 
 
 def test_find_optimal_separation_conditions_invalid_comparison_type_returns_standard_error():

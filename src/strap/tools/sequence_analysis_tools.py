@@ -31,6 +31,12 @@ from strap.services.advanced_separation_service import (
     plot_separation_sequence as _plot_separation_sequence,
 )
 from strap.tools._helpers import safe_tool_wrapper
+from strap.solubility import (
+    FITTED_TEMP_MAX_C,
+    FITTED_TEMP_MIN_C,
+    RECOMMENDED_EXTRAPOLATION_MAX_C,
+    SENSITIVITY_EXTRAPOLATION_MAX_C,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +108,13 @@ async def analyze_integrated_separation(
             max_supported=3,
         )
 
-    # Temperature range from interpolation model (25–160 °C, step 5)
+    # Temperature range from interpolation model. 160-180 C can support
+    # exploratory recommendations; 180-200 C is sensitivity-only screening.
+    effective_temperature_max = min(float(temperature_max), SENSITIVITY_EXTRAPOLATION_MAX_C)
     available_temps = [
         float(t) for t in range(
-            max(int(temperature_min), 25),
-            min(int(temperature_max), 160) + 1,
+            max(int(temperature_min), int(FITTED_TEMP_MIN_C)),
+            int(effective_temperature_max) + 1,
             5,
         )
     ]
@@ -184,6 +192,13 @@ async def analyze_integrated_separation(
         temperature_min=temperature_min,
         temperature_max=temperature_max,
         available_temps=available_temps,
+        temperature_basis_note=(
+            f"Temperatures above {FITTED_TEMP_MAX_C:.0f} C are Apelblat extrapolations from the fitted "
+            f"{FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C range. Values above "
+            f"{RECOMMENDED_EXTRAPOLATION_MAX_C:.0f} C are sensitivity-only screening data."
+            if any(t > FITTED_TEMP_MAX_C for t in available_temps)
+            else None
+        ),
         all_results=all_results,
         plot_url=plot_url,
         visualization_error=visualization_error,

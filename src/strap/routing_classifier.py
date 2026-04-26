@@ -124,6 +124,15 @@ _NEGATED_PROCESS_DESIGN_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_NEGATED_OPTIMIZATION_RE = re.compile(
+    r"\b(do not|don't|no)\b[^.]{0,64}\b("
+    r"optimi[sz](?:e|ation)|pareto|frontier|superstructure|pyomo|minlp|"
+    r"waste management|optimal pathway|"
+    r"max(?:imize)? profit|min(?:imize)? emissions?|min(?:imize)? cost|"
+    r"max(?:imize)? circularity"
+    r")\b",
+    re.IGNORECASE,
+)
 _SAFETY_INTENT_RE = re.compile(
     r"\b("
     r"gsk|gscore|pubchem|ghs|hazard|toxicity|toxic|health risk|risk profile|"
@@ -156,7 +165,16 @@ _RAG_INTENT_RE = re.compile(
     re.IGNORECASE,
 )
 _VISUALIZATION_INTENT_RE = re.compile(
-    r"\b(plot|chart|graph|visualiz|dashboard|figure|heatmap|diagram)\b",
+    r"\b(plot|chart|graph|visualiz|visuals?|dashboard|figure|heatmap|diagram|state\s+map)\b",
+    re.IGNORECASE,
+)
+_SEPARATION_VISUALIZATION_REQUEST_RE = re.compile(
+    r"\b("
+    r"dynamic[- ]programming|dp\s+(?:state\s+)?map|state\s+map|"
+    r"separation\s+(?:state\s+map|route\s+map)|"
+    r"all\s+possible\s+separation|separation\s*/\s*selectivity|"
+    r"selectivity\s+visuals?"
+    r")\b",
     re.IGNORECASE,
 )
 _STATISTICS_INTENT_RE = re.compile(
@@ -164,7 +182,15 @@ _STATISTICS_INTENT_RE = re.compile(
     re.IGNORECASE,
 )
 _ML_PREDICTION_RE = re.compile(
-    r"\b(machine learning|ml prediction|predict(?:ion)?|hansen|hsp|relative energy difference|red)\b",
+    r"\b(machine learning|ml prediction|hansen|hsp|relative energy difference|red\b)\b",
+    re.IGNORECASE,
+)
+_QUANTITATIVE_SOLUBILITY_RANGE_RE = re.compile(
+    r"\b(solubility|soluble|dissolv(?:e|es|ing|ility)?)\b"
+    r"(?=[^.?!]{0,120}\b("
+    r"from|between|up to|range|over|versus|vs\.?|temperature|temperatures?|"
+    r"\d+(?:\.\d+)?\s*(?:c|\u00b0c)"
+    r")\b)",
     re.IGNORECASE,
 )
 _THERMAL_PREDICTION_RE = re.compile(
@@ -173,6 +199,61 @@ _THERMAL_PREDICTION_RE = re.compile(
 )
 _SEQUENTIAL_CUE_RE = re.compile(
     r"\b(then|and then|after|followed by|before finally|finally|using the result|based on the result)\b",
+    re.IGNORECASE,
+)
+_DIRECT_SOLVENT_LOOKUP_VERB_RE = re.compile(
+    r"\b("
+    r"what|which|list|show|give|suggest|recommend|recommendation|good|best|"
+    r"available|candidate|candidates"
+    r")\b",
+    re.IGNORECASE,
+)
+_DIRECT_SOLVENT_LOOKUP_TOPIC_RE = re.compile(
+    r"\bsolvents?\b(?=[^.?!]{0,120}\b(?:dissolv(?:e|es|ing)|solubil|for)\b)"
+    r"|"
+    r"\b(?:dissolv(?:e|es|ing)|solubil)\b(?=[^.?!]{0,120}\bsolvents?\b)",
+    re.IGNORECASE,
+)
+_DIRECT_SOLVENT_LOOKUP_BLOCKER_RE = re.compile(
+    r"\b("
+    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ity)?|but\s+not|not\s+dissolv|"
+    r"rank|ranking|screen|screening|matrix|heatmap|compare|comparison|versus|vs\.?|"
+    r"hansen|hsp|red\b|relative energy difference|ml prediction|machine learning|"
+    r"temperature|temperatures?|from\s+room\s+temperature|between|up\s+to|range|"
+    r"\d+(?:\.\d+)?\s*(?:c|\u00b0c)|sequence|route|process design|planner|"
+    r"dynamic[- ]programming|dp planner|atmospheric pressure|feasible|feasibility|"
+    r"tea|lca|techno[- ]economic|biosteam|msp|capex|opex|gwp|emissions?|cost|"
+    r"optimization|optimisation|pareto|superstructure|contamin|decontamin|pfas|"
+    r"phthalate|safety|toxicity|hazard|literature|paper|patent|plot|chart|graph"
+    r")\b",
+    re.IGNORECASE,
+)
+_SIMPLE_SOLVENT_LOOKUP_POLYMER_RE = re.compile(
+    r"\b(?:LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b",
+    re.IGNORECASE,
+)
+_DIRECT_SOLUBILITY_LOOKUP_RE = re.compile(
+    r"\b(?:what|show|give|list|calculate|predict|estimate)\b"
+    r"(?=[^.?!]{0,160}\bsolubility\b)"
+    r"(?=[^.?!]{0,160}\b(?:LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b)"
+    r"(?=[^.?!]{0,220}\b(?:in|for|these|those|each)\b)"
+    r"(?=[^.?!]{0,220}\b(?:up to|from|between|range|temperature|temperatures?|\d+(?:\.\d+)?\s*(?:c|\u00b0c))\b)",
+    re.IGNORECASE,
+)
+_DIRECT_SOLUBILITY_LOOKUP_BLOCKER_RE = re.compile(
+    r"\b("
+    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ity)?|but\s+not|not\s+dissolv|"
+    r"rank|ranking|screen|screening|matrix|heatmap|compare|comparison|versus|vs\.?|"
+    r"hansen|hsp|red\b|route|sequence|process design|planner|dynamic[- ]programming|"
+    r"tea|lca|techno[- ]economic|biosteam|msp|capex|opex|gwp|emissions?|"
+    r"optimization|optimisation|pareto|contamin|decontamin|pfas|phthalate|"
+    r"safety|toxicity|hazard|literature|paper|patent|plot|chart|graph"
+    r")\b",
+    re.IGNORECASE,
+)
+_DIRECT_SOLUBILITY_PLOT_RE = re.compile(
+    r"\b(plot|chart|graph|visualiz|show)\b(?=[\s\S]{0,500}\blast solubility lookup\b)|"
+    r"\blast solubility lookup\b(?=[\s\S]{0,500}\b(plot|chart|graph|visualiz|show)\b)",
     re.IGNORECASE,
 )
 _QUERY_CONTEXT_LABEL_TO_GOALS: dict[str, tuple[str, ...]] = {
@@ -219,6 +300,12 @@ Rules:
 - You may return more than 3 subagent names when the query explicitly spans multiple stages or deliverables
 - Return {{"subagents": []}} if the orchestrator can handle it directly \
 (e.g. listing polymers, simple lookups)
+- Return {{"subagents": []}} for simple solvent lookup/recommendation questions \
+such as "what solvents dissolve LDPE" or "what are good solvents for dissolving LDPE", \
+even if the user mentions a mixed feedstock. Route only when the user asks for \
+selectivity, separation sequence/route, HSP/RED screening, temperature-dependent \
+solubility, TEA/LCA/CAPEX/OPEX/GWP, optimization, safety, contaminants, literature, \
+patents, or visualizations.
 - HIGH = clear specialist match, LOW = ambiguous
 - "separation-engineer" handles dissolution, purification, separation \
 sequences, selective solvents, mixed-stream processing
@@ -231,6 +318,9 @@ return both specialists""".format(subagent_list=_build_subagent_list())
 
 
 def classify_query_llm(query: str, classifier_model: BaseChatModel) -> list[dict] | None:
+    if is_direct_answer_query(query):
+        return []
+
     try:
         result = classifier_model.invoke([
             SystemMessage(content=_CLASSIFIER_SYSTEM_PROMPT),
@@ -306,6 +396,8 @@ def classify_query_keywords(messages: list) -> list[dict]:
     query = _extract_query_text(messages)
     if not query:
         return []
+    if is_direct_answer_query(query):
+        return []
 
     query_lower = query.lower()
     matches: list[tuple[int, int, dict]] = []
@@ -328,6 +420,66 @@ def score_query_rules(query_text: str) -> dict[str, int]:
     }
 
 
+def explain_direct_answer_query(query_text: str) -> dict[str, str | bool]:
+    """Explain whether the query should stay in the orchestrator fast path."""
+    if not query_text:
+        return {"is_direct": False, "reason": "empty query"}
+    if is_direct_solubility_plot_query(query_text):
+        return {
+            "is_direct": True,
+            "reason": "follow-up solubility plot; answer with core plotting tool",
+        }
+    if is_direct_solubility_lookup_query(query_text):
+        return {
+            "is_direct": True,
+            "reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+        }
+    if not _DIRECT_SOLVENT_LOOKUP_TOPIC_RE.search(query_text):
+        return {"is_direct": False, "reason": "not a direct solvent lookup topic"}
+    if not _DIRECT_SOLVENT_LOOKUP_VERB_RE.search(query_text):
+        return {"is_direct": False, "reason": "no direct lookup/recommendation verb"}
+    blocker = _DIRECT_SOLVENT_LOOKUP_BLOCKER_RE.search(query_text)
+    if blocker:
+        return {
+            "is_direct": False,
+            "reason": f"contains specialist workflow trigger: {blocker.group(0)}",
+        }
+    if not _SIMPLE_SOLVENT_LOOKUP_POLYMER_RE.search(query_text):
+        return {"is_direct": False, "reason": "no supported polymer mention"}
+    return {
+        "is_direct": True,
+        "reason": "simple polymer-solvent lookup; answer with core tools without specialist routing",
+    }
+
+
+def is_direct_answer_query(query_text: str) -> bool:
+    """Return True for fast-path questions that should not enter specialist routing."""
+    return bool(explain_direct_answer_query(query_text).get("is_direct"))
+
+
+def is_direct_solubility_lookup_query(query_text: str) -> bool:
+    """Return True for quantitative solubility lookups that core tools can answer."""
+    if not query_text:
+        return False
+    if not _DIRECT_SOLUBILITY_LOOKUP_RE.search(query_text):
+        return False
+    return not bool(_DIRECT_SOLUBILITY_LOOKUP_BLOCKER_RE.search(query_text))
+
+
+def is_direct_solubility_plot_query(query_text: str) -> bool:
+    """Return True for follow-up plot requests tied to a prior solubility lookup."""
+    if not query_text:
+        return False
+    if is_separation_visualization_request(query_text):
+        return False
+    return bool(_DIRECT_SOLUBILITY_PLOT_RE.search(query_text))
+
+
+def is_separation_visualization_request(query_text: str) -> bool:
+    """Return True for DP/state-map separation visualization requests."""
+    return bool(query_text and _SEPARATION_VISUALIZATION_REQUEST_RE.search(query_text))
+
+
 def infer_requested_goals(query_text: str) -> set[str]:
     """Infer requested planning goals directly from the query text."""
     requested: set[str] = set()
@@ -341,6 +493,7 @@ def infer_requested_goals(query_text: str) -> set[str]:
     negated_literature = bool(_NEGATED_LITERATURE_RE.search(query_text))
     negated_patent = bool(_NEGATED_PATENT_RE.search(query_text))
     negated_rag = bool(_NEGATED_RAG_RE.search(query_text))
+    negated_optimization = bool(_NEGATED_OPTIMIZATION_RE.search(query_text))
 
     for label in (*query_context.route_labels, *query_context.request_labels):
         for goal in _QUERY_CONTEXT_LABEL_TO_GOALS.get(label, ()):
@@ -356,7 +509,14 @@ def infer_requested_goals(query_text: str) -> set[str]:
                 continue
             if goal in {"literature.answer", "rag.retrieval"} and negated_rag:
                 continue
+            if goal == "optimization.pathway" and negated_optimization:
+                continue
             requested.add(goal)
+
+    if is_separation_visualization_request(query_text):
+        requested.discard("optimization.pathway")
+        requested.discard("tea.economics")
+        requested.discard("lca.environmental")
 
     if "optimization.pathway" in requested and not bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)):
         requested.discard("tea.economics")
@@ -388,9 +548,35 @@ def _extract_query_text(messages: list) -> str:
 def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) -> list[dict] | None:
     if not matched_rules:
         return matched_rules
+    if is_direct_answer_query(query_text):
+        return []
+
+    if is_separation_visualization_request(query_text):
+        visualization_rules = [
+            rule for rule in matched_rules if rule["subagent"] == "visualization-specialist"
+        ]
+        if visualization_rules:
+            return visualization_rules
 
     query_lower = query_text.lower()
+    negated_process = bool(_NEGATED_PROCESS_DESIGN_RE.search(query_text))
+    negated_optimization = bool(_NEGATED_OPTIMIZATION_RE.search(query_text))
+    if negated_process or negated_optimization:
+        matched_rules = [
+            rule
+            for rule in matched_rules
+            if not (
+                (negated_process and rule["subagent"] == "separation-engineer")
+                or (negated_optimization and rule["subagent"] == "optimization-engineer")
+            )
+        ]
+        if not matched_rules:
+            return matched_rules
+
     names = {rule["subagent"] for rule in matched_rules}
+    if "statistics-ml" in names and _QUANTITATIVE_SOLUBILITY_RANGE_RE.search(query_text) and not _HSP_QUERY_RE.search(query_text):
+        matched_rules = [rule for rule in matched_rules if rule["subagent"] != "statistics-ml"]
+        names = {rule["subagent"] for rule in matched_rules}
     if {"statistics-ml", "separation-engineer"}.issubset(names):
         is_hsp = bool(_HSP_QUERY_RE.search(query_text))
         is_process_design = bool(_PROCESS_DESIGN_RE.search(query_text))
@@ -399,11 +585,22 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
             return [rule for rule in matched_rules if rule["subagent"] != "separation-engineer"]
         if is_process_design and not needs_explicit_hsp_screening:
             return [rule for rule in matched_rules if rule["subagent"] != "statistics-ml"]
+    if {"statistics-ml", "biosteam-analyst"}.issubset(names):
+        has_explicit_biosteam_intent = bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
+        if _HSP_QUERY_RE.search(query_text) and not has_explicit_biosteam_intent:
+            matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
+            names = {rule["subagent"] for rule in matched_rules}
     if {"separation-engineer", "biosteam-analyst"}.issubset(names):
         has_biosteam_intent = bool(_BIOSTEAM_INTENT_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
         if not has_biosteam_intent:
             matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
             names = {rule["subagent"] for rule in matched_rules}
+        else:
+            has_separation_route_intent = bool(_SEPARATION_ROUTE_INTENT_RE.search(query_text)) and not bool(_NEGATED_PROCESS_DESIGN_RE.search(query_text))
+            has_solvent_shortlist_intent = bool(_SOLVENT_SHORTLIST_RE.search(query_text))
+            if not has_separation_route_intent and not has_solvent_shortlist_intent:
+                matched_rules = [rule for rule in matched_rules if rule["subagent"] != "separation-engineer"]
+                names = {rule["subagent"] for rule in matched_rules}
     if {"contaminant-removal-analyst", "biosteam-analyst"}.issubset(names):
         has_biosteam_intent = bool(_BIOSTEAM_INTENT_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
         has_contaminant_intent = bool(_CONTAMINANT_INTENT_RE.search(query_text))
@@ -432,7 +629,10 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
     if {"optimization-engineer", "biosteam-analyst"}.issubset(names):
         has_explicit_biosteam_intent = bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query_text)) and not bool(_NEGATED_BIOSTEAM_RE.search(query_text))
         has_optimization_intent = bool(_OPTIMIZATION_INTENT_RE.search(query_text))
-        if has_optimization_intent and not has_explicit_biosteam_intent:
+        if has_explicit_biosteam_intent and not has_optimization_intent:
+            matched_rules = [rule for rule in matched_rules if rule["subagent"] != "optimization-engineer"]
+            names = {rule["subagent"] for rule in matched_rules}
+        elif has_optimization_intent and not has_explicit_biosteam_intent:
             matched_rules = [rule for rule in matched_rules if rule["subagent"] != "biosteam-analyst"]
             names = {rule["subagent"] for rule in matched_rules}
     if {"optimization-engineer", "visualization-specialist", "biosteam-analyst"}.issubset(names):
@@ -718,6 +918,9 @@ def select_workflow_rules(
     keyword_matched: list[dict] | None = None,
 ) -> list[dict]:
     """Select the active specialist set for a query before workflow ordering."""
+    if is_direct_answer_query(query_text):
+        return []
+
     llm_matched = _normalize_matched_rules(query_text, llm_matched) if llm_matched is not None else None
     keyword_matched = _normalize_matched_rules(query_text, keyword_matched)
 
@@ -805,6 +1008,9 @@ def infer_planner_seed_rules(
     seed_rules: list[dict] | None,
 ) -> list[dict]:
     """Infer target specialists from planning goals before backchaining prerequisites."""
+    if is_direct_answer_query(query_text):
+        return []
+
     score_map = score_query_rules(query_text)
     rules_by_name = {rule["subagent"]: rule for rule in ROUTING_RULES}
     selected_names, _goal_candidate_names = _collect_goal_candidate_names(
@@ -830,6 +1036,9 @@ def plan_workflow_rules(
     seed_rules: list[dict] | None,
 ) -> list[dict]:
     """Build a workflow plan from query goals, then backchain graph prerequisites."""
+    if is_direct_answer_query(query_text):
+        return []
+
     target_rules = infer_planner_seed_rules(query_text, seed_rules)
     if not target_rules:
         return []
@@ -1018,6 +1227,42 @@ def _build_hint_from_matches(matched_rules: list[dict], query_text: str = "") ->
     return None
 
 
+def build_direct_answer_hint(query_text: str) -> str | None:
+    """Build a non-delegation hint for fast-path direct lookup questions."""
+    if not is_direct_answer_query(query_text):
+        return None
+    if is_direct_solubility_plot_query(query_text):
+        return (
+            "\n\n[DIRECT_ANSWER: This is a follow-up plot request for the last solubility "
+            "lookup in compact session context. Do not delegate to task(). Use "
+            "plot_solubility_vs_temperature directly with the stored polymer, solvent(s), "
+            "and temperature range, but let any temperature range in the current user "
+            "request override the stored range. Do not write CSV files or inspect the filesystem. "
+            "Return the generated plot path/URL and any caveats from the plotting tool.]"
+        )
+    if is_direct_solubility_lookup_query(query_text):
+        return (
+            "\n\n[DIRECT_ANSWER: This is a quantitative solubility lookup. Do not delegate "
+            "to task(). Resolve any referents such as 'these solvents' from the compact "
+            "session context, then use predict_solubility_range for each named solvent. "
+            "Do not run separation/selectivity ranking unless the user explicitly asks for "
+            "separation, selectivity, ranking, or process design. Keep the answer to a compact "
+            "table and include any interpolation/boiling-point caveats returned by the tools.]"
+        )
+    return (
+        "\n\n[DIRECT_ANSWER: This is a simple solvent lookup/recommendation question. "
+        "Do not delegate to task() and do not run separation/selectivity ranking unless "
+        "the user explicitly asks for separation, selectivity, ranking, temperature-dependent "
+        "screening, or process design. Call list_available_solvents with the target polymer "
+        "argument, then answer briefly from that lookup. Do not call predict_solubility_range, "
+        "list_interpolation_coverage, or rank_solvents_selectivity for this fast path. "
+        "If a mixed feedstock is mentioned, state that "
+        "selectivity versus the other polymers is a separate follow-up analysis. Do not invent "
+        "temperature, pressure, atmospheric-operation, or process constraints that the user did "
+        "not provide.]"
+    )
+
+
 def classify_query(messages: list) -> str | None:
     query_text = _extract_query_text(messages)
     matched = select_workflow_rules(
@@ -1026,6 +1271,43 @@ def classify_query(messages: list) -> str | None:
     )
     matched = plan_workflow_rules(query_text, matched)
     return _build_hint_from_matches(matched, query_text=query_text)
+
+
+def explain_routing_decision(
+    query_text: str,
+    *,
+    llm_matched: list[dict] | None = None,
+    keyword_matched: list[dict] | None = None,
+) -> dict:
+    """Return a compact, testable explanation of a routing decision."""
+    if keyword_matched is None:
+        keyword_matched = classify_query_keywords([HumanMessage(content=query_text)])
+    selected = select_workflow_rules(
+        query_text,
+        llm_matched=llm_matched,
+        keyword_matched=keyword_matched,
+    )
+    planned = plan_workflow_rules(query_text, selected)
+    planned_names = [rule["subagent"] for rule in planned]
+    return {
+        "query": query_text,
+        "direct_answer": explain_direct_answer_query(query_text),
+        "keyword_scores": {
+            name: score
+            for name, score in score_query_rules(query_text).items()
+            if score
+        },
+        "requested_goals": sorted(infer_requested_goals(query_text)),
+        "available_inputs": sorted(infer_available_query_inputs(query_text)),
+        "keyword_matched": [rule["subagent"] for rule in keyword_matched or []],
+        "llm_matched": [rule["subagent"] for rule in llm_matched or []] if llm_matched is not None else None,
+        "selected": [rule["subagent"] for rule in selected],
+        "planned": planned_names,
+        "dependencies": {
+            name: sorted(deps)
+            for name, deps in derive_workflow_dependencies(query_text, set(planned_names)).items()
+        } if planned_names else {},
+    }
 
 
 def generate_routing_table() -> str:

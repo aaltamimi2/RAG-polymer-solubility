@@ -88,6 +88,15 @@ def visualization_tool_directive(required_tool: str) -> str:
     )
 
 
+def visualization_required_tool_repair_message(required_tool: str) -> str:
+    return (
+        "Your previous response attempted to finalize without calling the required "
+        f"visualization tool `{required_tool}`. Call `{required_tool}` now using the "
+        "source handoff or payload provided in the task. Do not invent plot paths and "
+        "do not write the final synthesis until the plotting tool has returned."
+    )
+
+
 def separation_support_directive(
     requested: list[str],
     supported: list[str],

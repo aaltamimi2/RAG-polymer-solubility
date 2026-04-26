@@ -434,6 +434,25 @@ def normalize_agent_payload(producer: str, payload: dict[str, Any]) -> dict[str,
                 ]
             normalized["recommended_solvents"] = recommended
 
+    if producer == "separation-engineer":
+        requested_polymers = {
+            str(polymer).strip().upper()
+            for polymer in normalized.get("polymers", []) or []
+            if str(polymer).strip()
+        }
+        declared_supported = {
+            str(polymer).strip().upper()
+            for polymer in normalized.get("supported_polymers", []) or []
+            if str(polymer).strip()
+        }
+        if isinstance(normalized.get("unsupported_polymers"), list):
+            normalized["unsupported_polymers"] = [
+                str(polymer).strip()
+                for polymer in normalized.get("unsupported_polymers", [])
+                if str(polymer).strip().upper() in requested_polymers
+                and str(polymer).strip().upper() not in declared_supported
+            ]
+
     return normalized
 
 

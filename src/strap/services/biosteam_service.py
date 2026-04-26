@@ -424,25 +424,40 @@ def build_single_config(
     target_plastic_percent: float = 60,
     processing_capacity: float = 20000,
     dissolution_temp_c: float | None = None,
-    precipitation_temp_c: float = 25,
+    precipitation_temp_c: float | None = 25,
     solvent_price: float | None = None,
 ) -> dict[str, Any]:
     """Build one normalized BioSTEAM runner config."""
-    safe_solvent = _sanitize_biosteam_solvent_name(solvent)
+
+    def _optional_float(value: Any) -> float | None:
+        if value is None:
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    raw_solvent = str(solvent or "").strip()
+    canonical_solvent = resolve_to_biosteam(raw_solvent) or raw_solvent
+    safe_solvent = _sanitize_biosteam_solvent_name(canonical_solvent)
+    dissolution_temp = _optional_float(dissolution_temp_c)
+    precipitation_temp = _optional_float(precipitation_temp_c)
+    price = _optional_float(solvent_price)
     config: dict[str, Any] = {
         "solvent": safe_solvent,
         "target_plastic": target_plastic,
         "target_plastic_percent": target_plastic_percent,
         "processing_capacity": processing_capacity,
         "energy_case": energy_case,
-        "precipitation_temperature_c": precipitation_temp_c,
     }
-    if safe_solvent != solvent:
-        config["solvent_input_name"] = solvent
-    if dissolution_temp_c is not None:
-        config["dissolution_temperature_c"] = dissolution_temp_c
-    if solvent_price is not None:
-        config["solvent_price"] = solvent_price
+    if safe_solvent != raw_solvent:
+        config["solvent_input_name"] = raw_solvent
+    if dissolution_temp is not None:
+        config["dissolution_temperature_c"] = dissolution_temp
+    if precipitation_temp is not None:
+        config["precipitation_temperature_c"] = precipitation_temp
+    if price is not None:
+        config["solvent_price"] = price
     return config
 
 

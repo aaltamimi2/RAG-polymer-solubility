@@ -13,6 +13,7 @@ from strap.waste_management.data_loader import (
     S_PE as DEFAULT_S_PE,
     S_EV1 as DEFAULT_S_EV1,
     S_EV2 as DEFAULT_S_EV2,
+    SOLVENTS_BY_STAGE_POLYMER as DEFAULT_SOLVENTS_BY_STAGE_POLYMER,
 )
 
 
@@ -29,20 +30,15 @@ def estimate_metric_upper_bound(
     metric,
     feed,
     *,
-    s_pe=None,
-    s_ev1=None,
-    s_ev2=None,
+    solvents_by_stage_polymer=None,
     othertech=None,
 ):
     """Return a conservative but data-driven upper bound for a process metric."""
-    s_pe = list(s_pe or DEFAULT_S_PE)
-    s_ev1 = list(s_ev1 or DEFAULT_S_EV1)
-    s_ev2 = list(s_ev2 or DEFAULT_S_EV2)
-    strap_upper = (
-        _max_strap_metric(strap, metric, "Wash 1", "PE", s_pe)
-        + _max_strap_metric(strap, metric, "Wash 1", "EVOH", s_ev1)
-        + _max_strap_metric(strap, metric, "Wash 2", "PE", s_pe)
-        + _max_strap_metric(strap, metric, "Wash 2", "EVOH", s_ev2)
+    stage_map = solvents_by_stage_polymer or DEFAULT_SOLVENTS_BY_STAGE_POLYMER
+    strap_upper = sum(
+        _max_strap_metric(strap, metric, wash, polymer, solvents)
+        for wash, polymer_map in stage_map.items()
+        for polymer, solvents in polymer_map.items()
     )
     othertech = list(othertech or OTHERTECH)
     other_upper = 3.0 * float(feed) * max(
@@ -80,21 +76,63 @@ def build_model(data, config):
     S_PE = list(sets.get("S_PE", DEFAULT_S_PE))
     S_EV1 = list(sets.get("S_EV1", DEFAULT_S_EV1))
     S_EV2 = list(sets.get("S_EV2", DEFAULT_S_EV2))
+    SOLVENTS_BY_STAGE_POLYMER = {
+        wash: {
+            polymer: list(solvents)
+            for polymer, solvents in polymer_map.items()
+        }
+        for wash, polymer_map in (
+            sets.get("S_BY_STAGE_POLYMER", DEFAULT_SOLVENTS_BY_STAGE_POLYMER)
+        ).items()
+    }
     I_RUNTIME = list(sets.get("I", I_SET))
     J_RUNTIME = list(sets.get("J", J_SET))
     K_RUNTIME = list(sets.get("K", K_SET))
     OTHERTECH_RUNTIME = list(sets.get("othertech", OTHERTECH))
 
     Feed  = config.get("Feed", 8000)
-    PE_f  = config.get("PE_f", 0.6)
-    PET_f = config.get("PET_f", 0.2)
-    N6_f  = config.get("N6_f", 0.1)
-    EV_f  = config.get("EV_f", 0.1)
     BIG_M = config.get("BIG_M", 100000)
 
-    Cpe   = config.get("Cpe", 1173)
-    Cevoh = config.get("Cevoh", 8100)
-    Cwte  = config.get("Cwte", 259.57)
+    polymer_fractions = {
+        str(polymer): float(value)
+        for polymer, value in (
+            config.get("polymer_fractions")
+            or {
+                "PE": config.get("PE_f", 0.6),
+                "PET": config.get("PET_f", 0.2),
+                "N6": config.get("N6_f", 0.1),
+                "EVOH": config.get("EV_f", 0.1),
+            }
+        ).items()
+    }
+    product_values_per_ton = {
+        str(polymer): float(value)
+        for polymer, value in (
+            config.get("polymer_market_values_per_ton")
+            or {
+                "PE": config.get("Cpe", 1173),
+                "EVOH": config.get("Cevoh", 8100),
+                "PET": config.get("Cpet", 0.0),
+            }
+        ).items()
+    }
+    polymer_recovery_yields = {
+        str(polymer): float(value)
+        for polymer, value in (
+            config.get("polymer_recovery_yields")
+            or {}
+        ).items()
+    }
+    gas_stage2_addon_capex_by_polymer = {
+        str(polymer): float(value)
+        for polymer, value in (
+            config.get("gas_stage2_addon_capex_by_polymer")
+            or {
+                "PE": 1.996874495e6,
+                "EVOH": 3.248331031e6,
+            }
+        ).items()
+    }
 
     UB_energy     = config.get("UB_energy", 6.26e7)
     UB_ghg        = config.get("UB_ghg", 21303.35985408156)
@@ -107,9 +145,6 @@ def build_model(data, config):
     })
     fc_t = config.get("fc_t", 3.01)
     vc_t = config.get("vc_t", 0.07)
-
-    Cap1 = Feed - Feed * EV_f   # capacity wash 2 if EVOH removed first
-    Cap2 = Feed - Feed * PE_f   # capacity wash 2 if PE removed first
 
     # Gasification product economics
     products_heat      = config.get("products_heat", 583.33)
@@ -130,6 +165,26 @@ def build_model(data, config):
     # Model
     # -----------------------------------------------------------------------
     m = pyo.ConcreteModel("PIW_WasteManagement")
+    object.__setattr__(m, "_strap_feed", float(Feed))
+    object.__setattr__(m, "_strap_polymer_fractions", dict(polymer_fractions))
+    object.__setattr__(m, "_strap_polymer_recovery_yields", dict(polymer_recovery_yields))
+    stage1_solvents_by_polymer = {
+        polymer: list((SOLVENTS_BY_STAGE_POLYMER.get("Wash 1") or {}).get(polymer, []))
+        for polymer in POLYMERS
+    }
+    stage2_solvents_by_polymer = {
+        polymer: list((SOLVENTS_BY_STAGE_POLYMER.get("Wash 2") or {}).get(polymer, []))
+        for polymer in POLYMERS
+    }
+
+    def _polymer_fraction(polymer: str) -> float:
+        return float(polymer_fractions.get(polymer, 0.0))
+
+    def _product_value(polymer: str) -> float:
+        return float(product_values_per_ton.get(polymer, 0.0))
+
+    def _recovery_yield(polymer: str) -> float:
+        return float(polymer_recovery_yields.get(polymer, 0.97))
 
     def _has_stage1(tech: str) -> bool:
         return tech in I_RUNTIME
@@ -168,6 +223,7 @@ def build_model(data, config):
     m.S_PE = pyo.Set(initialize=S_PE)
     m.S_EV1 = pyo.Set(initialize=S_EV1)
     m.S_EV2 = pyo.Set(initialize=S_EV2)
+    m.W = pyo.Set(initialize=["Wash 1", "Wash 2"])
 
     # --- Decision variables ---
     # Stage 1
@@ -256,34 +312,34 @@ def build_model(data, config):
     ghg_upper = max(
         UB_ghg,
         estimate_metric_upper_bound(
-            strap, other, "direct_ghg", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "direct_ghg", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         )
         + estimate_metric_upper_bound(
-            strap, other, "indirect_ghg", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "indirect_ghg", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         ),
     )
     water_upper = max(
         UB_withdrawal,
         estimate_metric_upper_bound(
-            strap, other, "water_with", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "water_with", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         ),
     )
     waste_upper = max(
         UB_waste,
         estimate_metric_upper_bound(
-            strap, other, "waste", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "waste", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         ),
     )
     energy_upper = max(
         UB_energy,
         estimate_metric_upper_bound(
-            strap, other, "total_energy", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "total_energy", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         ),
     )
     renewable_upper = max(
         energy_upper,
         estimate_metric_upper_bound(
-            strap, other, "renewable", Feed, s_pe=S_PE, s_ev1=S_EV1, s_ev2=S_EV2, othertech=OTHERTECH_RUNTIME
+            strap, other, "renewable", Feed, solvents_by_stage_polymer=SOLVENTS_BY_STAGE_POLYMER, othertech=OTHERTECH_RUNTIME
         ),
     )
 
@@ -303,34 +359,21 @@ def build_model(data, config):
     m.one_first_tech = pyo.Constraint(expr=sum(m.x[i] for i in m.I) == 1)
 
     # STRAP 1 polymer removal
-    m.R_PE = pyo.Constraint(expr=
-        m.R["PE"] == Feed * PE_f * sum(m.a["PE", s] for s in ALL_SOLVENTS))
-    m.R_EVOH = pyo.Constraint(expr=
-        m.R["EVOH"] == Feed * EV_f * sum(m.a["EVOH", s] for s in ALL_SOLVENTS))
+    m.R_def = pyo.Constraint(
+        m.P,
+        rule=lambda m, p: m.R[p] == Feed * _polymer_fraction(p) * sum(m.a[p, s] for s in ALL_SOLVENTS)
+    )
 
-    # Incompatible solvent-polymer pairings
-    m.evoh_no_pe_solv_a = pyo.Constraint(m.S_PE,
-        rule=lambda m, s: m.a["EVOH", s] == 0)
-    m.evoh_no_pe_solv_b = pyo.Constraint(m.S_PE,
-        rule=lambda m, s: m.b["EVOH", s] == 0)
-    m.evoh_no_pe_solv_lss = pyo.Constraint(m.S_PE,
-        rule=lambda m, s: m.LSS["EVOH", s] == 0)
-
-    # PE cannot use EVOH solvents
-    ev_all = list(set(S_EV1) | set(S_EV2))
-    m.S_EV_all = pyo.Set(initialize=ev_all)
-    m.pe_no_ev_solv_a = pyo.Constraint(m.S_EV_all,
-        rule=lambda m, s: m.a["PE", s] == 0)
-    m.pe_no_ev_solv_b = pyo.Constraint(m.S_EV_all,
-        rule=lambda m, s: m.b["PE", s] == 0)
-    m.pe_no_ev_solv_lss = pyo.Constraint(m.S_EV_all,
-        rule=lambda m, s: m.LSS["PE", s] == 0)
-
-    # Wash 1 EVOH can only use S_EV1 solvents (not S_EV2 only solvents)
-    s_ev2_only = list(set(S_EV2) - set(S_EV1))
-    m.S_EV2_only = pyo.Set(initialize=s_ev2_only)
-    m.evoh_wash1_restriction = pyo.Constraint(m.S_EV2_only,
-        rule=lambda m, s: m.a["EVOH", s] == 0)
+    m.invalid_stage1_pairs = pyo.ConstraintList()
+    m.invalid_stage2_pairs = pyo.ConstraintList()
+    for polymer in POLYMERS:
+        allowed_stage1 = set(stage1_solvents_by_polymer.get(polymer, []))
+        allowed_stage2 = set(stage2_solvents_by_polymer.get(polymer, []))
+        for solvent in ALL_SOLVENTS:
+            if solvent not in allowed_stage1:
+                m.invalid_stage1_pairs.add(m.a[polymer, solvent] == 0)
+            if solvent not in allowed_stage2:
+                m.invalid_stage2_pairs.add(m.b[polymer, solvent] == 0)
 
     # -----------------------------------------------------------------------
     # CONSTRAINTS – STRAP linkage and Stage 2/3 flow
@@ -355,10 +398,10 @@ def build_model(data, config):
         sum(m.b[p, s] for p in POLYMERS for s in ALL_SOLVENTS) == m.y["st2"])
 
     # STRAP 2 polymer removal
-    m.T_PE = pyo.Constraint(expr=
-        m.T["PE"] == Feed * PE_f * sum(m.b["PE", s] for s in ALL_SOLVENTS))
-    m.T_EVOH = pyo.Constraint(expr=
-        m.T["EVOH"] == Feed * EV_f * sum(m.b["EVOH", s] for s in ALL_SOLVENTS))
+    m.T_def = pyo.Constraint(
+        m.P,
+        rule=lambda m, p: m.T[p] == Feed * _polymer_fraction(p) * sum(m.b[p, s] for s in ALL_SOLVENTS)
+    )
 
     m.LS_def = pyo.Constraint(expr=
         m.LS == m.L["st2"] - sum(m.T[p] for p in POLYMERS))
@@ -380,8 +423,12 @@ def build_model(data, config):
     # Each polymer removed at most once across all washes
     m.polymer_once = pyo.Constraint(m.P,
         rule=lambda m, p: (
-            sum(m.a[p, s] for s in ALL_SOLVENTS)
-            + sum(m.b[p, s] for s in ALL_SOLVENTS) <= 1
+            pyo.Constraint.Feasible
+            if not ALL_SOLVENTS
+            else (
+                sum(m.a[p, s] for s in ALL_SOLVENTS)
+                + sum(m.b[p, s] for s in ALL_SOLVENTS) <= 1
+            )
         ))
 
     # LSS linearisation for operational cost of STRAP 2
@@ -398,10 +445,16 @@ def build_model(data, config):
     def _metric_expr(m, metric):
         """Sum of STRAP + other-tech contributions for a given metric."""
         return (
-            sum(sd(metric, "Wash 1", "PE", s) * m.a["PE", s] for s in S_PE)
-            + sum(sd(metric, "Wash 1", "EVOH", s) * m.a["EVOH", s] for s in S_EV1)
-            + sum(sd(metric, "Wash 2", "PE", s) * m.b["PE", s] for s in S_PE)
-            + sum(sd(metric, "Wash 2", "EVOH", s) * m.b["EVOH", s] for s in S_EV2)
+            sum(
+                sd(metric, "Wash 1", polymer, solvent) * m.a[polymer, solvent]
+                for polymer in POLYMERS
+                for solvent in stage1_solvents_by_polymer.get(polymer, [])
+            )
+            + sum(
+                sd(metric, "Wash 2", polymer, solvent) * m.b[polymer, solvent]
+                for polymer in POLYMERS
+                for solvent in stage2_solvents_by_polymer.get(polymer, [])
+            )
             + sum(
                 od(metric, t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
                 for t in OTHERTECH_RUNTIME
@@ -532,31 +585,47 @@ def build_model(data, config):
         m.TransportationCost == sum(m.TC[k] for k in m.K)
         + (dist["strap"] * vc_t + fc_t) * (
             Feed * sum(m.a[p, s] for p in POLYMERS for s in ALL_SOLVENTS)
-            + Cap1 * sum(m.b["PE", s] for s in S_PE)
-            + Cap2 * sum(m.b["EVOH", s] for s in S_EV2)
+            + sum(m.LSS[p, s] for p in POLYMERS for s in ALL_SOLVENTS)
         ))
 
     # -----------------------------------------------------------------------
     # CONSTRAINTS – Capital cost
     # -----------------------------------------------------------------------
-    m.p_gas_ub = pyo.Constraint(expr=m.p_gas <= _stage2_var("gas_er"))
-    m.t_gas_ub = pyo.Constraint(expr=m.t_gas <= _stage2_var("gas_er"))
-    m.pt_excl = pyo.Constraint(expr=m.p_gas + m.t_gas <= 1)
-    m.p_gas_lb = pyo.Constraint(expr=
-        m.p_gas >= _stage2_var("gas_er") + sum(m.a["PE", s] for s in S_PE) - 1)
-    m.t_gas_lb = pyo.Constraint(expr=
-        m.t_gas >= _stage2_var("gas_er") + sum(m.a["EVOH", s] for s in S_EV1) - 1)
+    m.gas_stage2_selector = pyo.Var(m.P, within=pyo.Binary)
+    m.legacy_p_gas_zero = pyo.Constraint(expr=m.p_gas == 0)
+    m.legacy_t_gas_zero = pyo.Constraint(expr=m.t_gas == 0)
+    m.gas_stage2_selector_ub = pyo.ConstraintList()
+    m.gas_stage2_selector_lb = pyo.ConstraintList()
+    m.gas_stage2_selector_zero = pyo.ConstraintList()
+    for polymer in POLYMERS:
+        addon = float(gas_stage2_addon_capex_by_polymer.get(polymer, 0.0))
+        if addon <= 0:
+            m.gas_stage2_selector_zero.add(m.gas_stage2_selector[polymer] == 0)
+            continue
+        m.gas_stage2_selector_ub.add(m.gas_stage2_selector[polymer] <= _stage2_var("gas_er"))
+        m.gas_stage2_selector_lb.add(
+            m.gas_stage2_selector[polymer]
+            >= _stage2_var("gas_er") + sum(m.a[polymer, s] for s in ALL_SOLVENTS) - 1
+        )
 
     m.CapCost_def = pyo.Constraint(expr=
         m.CapitalCost == (
-            sum(m.a["PE", s] * sd("capex", "Wash 1", "PE", s) for s in S_PE)
-            + sum(m.a["EVOH", s] * sd("capex", "Wash 1", "EVOH", s) for s in S_EV1)
-            + sum(m.b["PE", s] * sd("capex", "Wash 2", "PE", s) for s in S_PE)
-            + sum(m.b["EVOH", s] * sd("capex", "Wash 2", "EVOH", s) for s in S_EV2)
+            sum(
+                m.a[polymer, solvent] * sd("capex", "Wash 1", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage1_solvents_by_polymer.get(polymer, [])
+            )
+            + sum(
+                m.b[polymer, solvent] * sd("capex", "Wash 2", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage2_solvents_by_polymer.get(polymer, [])
+            )
             + _stage1_var("py") * od("capex", "py")
             + _stage1_var("gas_er") * od("capex", "gas_er")
-            + m.p_gas * 1.996874495e6
-            + m.t_gas * 3.248331031e6
+            + sum(
+                m.gas_stage2_selector[polymer] * float(gas_stage2_addon_capex_by_polymer.get(polymer, 0.0))
+                for polymer in POLYMERS
+            )
             + _stage3_var("gas_er") * 1.680302711e6
         ))
 
@@ -565,14 +634,20 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     m.OpCost_def = pyo.Constraint(expr=
         m.OperationalCost == (
-            sum(m.a["PE", s] * sd("opex", "Wash 1", "PE", s) for s in S_PE)
-            + sum(m.a["EVOH", s] * sd("opex", "Wash 1", "EVOH", s) for s in S_EV1)
+            sum(
+                m.a[polymer, solvent] * sd("opex", "Wash 1", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage1_solvents_by_polymer.get(polymer, [])
+            )
             + sum(
                 od("opex", t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
                 for t in OTHERTECH_RUNTIME
             )
-            + sum(m.b["PE", s] * sd("opex", "Wash 2", "PE", s) for s in S_PE)
-            + sum(m.b["EVOH", s] * sd("opex", "Wash 2", "EVOH", s) for s in S_EV2)
+            + sum(
+                m.b[polymer, solvent] * sd("opex", "Wash 2", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage2_solvents_by_polymer.get(polymer, [])
+            )
         ))
 
     # -----------------------------------------------------------------------
@@ -580,14 +655,20 @@ def build_model(data, config):
     # -----------------------------------------------------------------------
     m.Sales_def = pyo.Constraint(expr=
         m.Sales == (
-            Feed * PE_f * 0.97 * Cpe * sum(m.a["PE", s] for s in S_PE)
-            + Feed * EV_f * Cevoh * 0.97 * sum(m.a["EVOH", s] for s in S_EV1)
+            sum(
+                Feed * _polymer_fraction(polymer) * _recovery_yield(polymer) * _product_value(polymer)
+                * sum(m.a[polymer, solvent] for solvent in stage1_solvents_by_polymer.get(polymer, []))
+                for polymer in POLYMERS
+            )
             + Cgas_pw * _stage1_flow("we") + Cgas_er * _stage1_flow("gas_er")
             + Cgas_pw * _stage1_flow("gas_h2") + Cgas_pw * _stage1_flow("gas_h2cc")
             + Cgas_pw * _stage2_flow("we") + Cgas_er * _stage2_flow("gas_er")
             + Cgas_pw * _stage2_flow("gas_h2") + Cgas_pw * _stage2_flow("gas_h2cc")
-            + Feed * PE_f * Cpe * 0.97 * sum(m.b["PE", s] for s in S_PE)
-            + Feed * EV_f * Cevoh * 0.97 * sum(m.b["EVOH", s] for s in S_EV2)
+            + sum(
+                Feed * _polymer_fraction(polymer) * _recovery_yield(polymer) * _product_value(polymer)
+                * sum(m.b[polymer, solvent] for solvent in stage2_solvents_by_polymer.get(polymer, []))
+                for polymer in POLYMERS
+            )
             + Cgas_pw * _stage3_flow("we") + Cgas_er * _stage3_flow("gas_er")
             + Cgas_pw * _stage3_flow("gas_h2") + Cgas_pw * _stage3_flow("gas_h2cc")
         ))
@@ -600,14 +681,20 @@ def build_model(data, config):
 
     m.TotalEmissions_def = pyo.Constraint(expr=
         m.TotalEmissions == (
-            sum(m.a["PE", s] * sd("gwp", "Wash 1", "PE", s) for s in S_PE)
-            + sum(m.a["EVOH", s] * sd("gwp", "Wash 1", "EVOH", s) for s in S_EV1)
+            sum(
+                m.a[polymer, solvent] * sd("gwp", "Wash 1", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage1_solvents_by_polymer.get(polymer, [])
+            )
             + sum(
                 od("gwp", t) * (_stage1_flow(t) + _stage2_flow(t) + _stage3_flow(t))
                 for t in OTHERTECH_RUNTIME
             )
-            + sum(m.b["PE", s] * sd("gwp", "Wash 2", "PE", s) for s in S_PE)
-            + sum(m.b["EVOH", s] * sd("gwp", "Wash 2", "EVOH", s) for s in S_EV2)
+            + sum(
+                m.b[polymer, solvent] * sd("gwp", "Wash 2", polymer, solvent)
+                for polymer in POLYMERS
+                for solvent in stage2_solvents_by_polymer.get(polymer, [])
+            )
         ))
 
     m.CE_def = pyo.Constraint(expr=

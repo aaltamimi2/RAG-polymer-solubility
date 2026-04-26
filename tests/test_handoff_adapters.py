@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from strap.handoff_adapters import build_typed_handoff
@@ -48,7 +50,7 @@ def test_build_typed_handoff_separation_to_optimization_includes_solvent_filters
     assert contract == "optimization.stage_candidates.v1"
     assert payload["workflow_scope"] == "multi_stage"
     assert payload["constraint_mode"] == "ranked_soft"
-    assert payload["fallback_policy"] == "broaden_disclosed"
+    assert payload["fallback_policy"] == "fail_closed"
     assert payload["polymer_solvent_filters"]["PE"] == ["Toluene", "Xylene"]
     assert payload["polymer_solvent_filters"]["EVOH"] == ["Ethylene Glycol", "Pyridazine"]
     assert payload["stages"][0]["target_polymer"] == "PE"
@@ -121,10 +123,111 @@ def test_build_typed_handoff_optimization_pareto_to_visualization():
     assert contract == "optimization_plot_context.v1"
     assert payload["analysis_type"] == "pareto_front"
     assert payload["requested_plot_tool"] == "plot_optimization_pareto_front"
+    assert payload["requested_plot_mode"] is None
     assert payload["source_handoff_id"] == "handoff-opt-1"
     assert payload["pareto_result_json"]["points"][0]["total_cost"] == 100.0
     assert "plot_optimization_pareto_front" in prompt
     assert 'source_handoff_id="handoff-opt-1"' in prompt
+
+
+def test_build_typed_handoff_optimization_pareto_to_visualization_requests_landscape_mode():
+    source = HandoffRecord(
+        handoff_id="handoff-opt-landscape",
+        scope=_scope(),
+        producer="optimization-engineer",
+        consumer="orchestrator",
+        contract="optimization.results.v1",
+        status="ok",
+        payload={
+            "analysis_type": "pareto_front",
+            "schema_version": "1.5",
+            "x_metric": "total_cost",
+            "y_metric": "emissions",
+            "n_points_feasible": 1,
+            "points": [{"point_id": 1, "total_cost": 100.0, "emissions": 4.0}],
+        },
+        created_at="2026-04-24T15:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "visualization-specialist",
+        scope_user_query="Create an optimization Pareto landscape including all feasible points and highlight the frontier.",
+    )
+    assert typed is not None
+    contract, payload, prompt = typed
+    assert contract == "optimization_plot_context.v1"
+    assert payload["requested_plot_mode"] == "landscape"
+    assert 'plot_mode="landscape"' in prompt
+
+
+def test_build_typed_handoff_optimization_pareto_to_visualization_sets_composition_output_stem():
+    source = HandoffRecord(
+        handoff_id="handoff-opt-composition",
+        scope=_scope(),
+        producer="optimization-engineer",
+        consumer="orchestrator",
+        contract="optimization.results.v1",
+        status="ok",
+        payload={
+            "analysis_type": "pareto_front",
+            "schema_version": "1.5",
+            "x_metric": "total_cost",
+            "y_metric": "emissions",
+            "n_points_feasible": 1,
+            "points": [{"point_id": 1, "total_cost": 100.0, "emissions": 4.0}],
+        },
+        created_at="2026-04-25T15:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "visualization-specialist",
+        scope_user_query=(
+            "For a mixed plastic feedstock composed of 60% LDPE, 20% EVOH, and 20% PET, "
+            "save the plot under a composition-specific filename."
+        ),
+    )
+
+    assert typed is not None
+    _contract, payload, prompt = typed
+    assert payload["requested_output_stem"] == "optimization_pareto_emissions_ldpe60_evoh20_pet20"
+    assert 'output_stem="optimization_pareto_emissions_ldpe60_evoh20_pet20"' in prompt
+
+
+def test_build_typed_handoff_optimization_pareto_slices_to_visualization():
+    source = HandoffRecord(
+        handoff_id="handoff-opt-slices",
+        scope=_scope(),
+        producer="optimization-engineer",
+        consumer="orchestrator",
+        contract="optimization.results.v1",
+        status="ok",
+        payload={
+            "analysis_type": "pareto_slices",
+            "schema_version": "1.0",
+            "x_metric": "total_cost",
+            "y_metric": "circularity",
+            "n_slices_requested": 2,
+            "n_slices_solved": 2,
+            "pareto_slices_payload_path": "/tmp/pareto_slices.json",
+            "slices": [
+                {"slice_id": "slice_1", "label": "20/60/20", "n_points_feasible": 9},
+            ],
+        },
+        created_at="2026-04-25T00:00:00Z",
+    )
+
+    typed = build_typed_handoff(source, "visualization-specialist", scope_user_query="Plot all slices as a landscape.")
+
+    assert typed is not None
+    contract, payload, prompt = typed
+    assert contract == "optimization_plot_context.v1"
+    assert payload["analysis_type"] == "pareto_slices"
+    assert payload["requested_plot_tool"] == "plot_optimization_pareto_slices"
+    assert payload["requested_plot_mode"] == "landscape"
+    assert payload["pareto_slices_json"]["pareto_slices_payload_path"] == "/tmp/pareto_slices.json"
+    assert "plot_optimization_pareto_slices" in prompt
 
 
 def test_build_typed_handoff_resolves_dmso_aliases_to_optimizer_catalog_name():
@@ -210,6 +313,148 @@ def test_build_typed_handoff_preserves_route_candidates_with_canonical_names():
     # DMSO alias must canonicalize even in route_candidates.
     assert any(r["polymer_solvent_map"].get("EVOH") == "Dimethyl sulfoxide" for r in routes)
 
+
+def test_build_typed_handoff_includes_pet_candidates_for_optimization():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-pet",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.0",
+            "polymers": ["LDPE", "EVOH", "PET"],
+            "steps": [
+                {"step": 1, "polymer": "LDPE", "solvent": "cyclohexane"},
+                {"step": 2, "polymer": "EVOH", "solvent": "dimethylsulfoxide"},
+                {"step": 3, "polymer": "PET", "solvent": "n,n-dimethylformamide"},
+            ],
+            "solvent_mapping": {
+                "LDPE": "cyclohexane",
+                "EVOH": "dimethylsulfoxide",
+                "PET": "n,n-dimethylformamide",
+            },
+            "top_solvents": ["cyclohexane", "dimethylsulfoxide", "n,n-dimethylformamide"],
+            "top_k_sequences": [
+                {
+                    "rank": 1,
+                    "sequence": ["LDPE", "EVOH", "PET"],
+                    "solvent_mapping": {
+                        "LDPE": "cyclohexane",
+                        "EVOH": "dimethylsulfoxide",
+                        "PET": "n,n-dimethylformamide",
+                    },
+                }
+            ],
+        },
+        created_at="2026-04-23T10:00:00Z",
+    )
+
+    typed = build_typed_handoff(source, "optimization-engineer")
+
+    assert typed is not None
+    _, payload, _ = typed
+    assert "PET" in payload["polymer_solvent_filters"]
+    assert payload["polymer_solvent_filters"]["PET"] == ["N,N-Dimethylformamide"]
+    assert any(stage["target_polymer"] == "PET" for stage in payload["stages"])
+    assert any(route["polymer_solvent_map"].get("PET") == "N,N-Dimethylformamide" for route in payload["route_candidates"])
+
+
+def test_build_typed_handoff_includes_extended_polymer_candidates_for_optimization():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-extended-polymers",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.0",
+            "polymers": ["PP", "PS", "polyvinyl chloride", "polycarbonate"],
+            "steps": [
+                {"step": 1, "polymer": "PP", "solvent": "toluene"},
+                {"step": 2, "polymer": "PS", "solvent": "n,n-dimethylformamide"},
+                {"step": 3, "polymer": "polyvinyl chloride", "solvent": "dimethylsulfoxide"},
+                {"step": 4, "polymer": "polycarbonate", "solvent": "toluene"},
+            ],
+            "solvent_mapping": {
+                "PP": "toluene",
+                "PS": "n,n-dimethylformamide",
+                "polyvinyl chloride": "dimethylsulfoxide",
+                "polycarbonate": "toluene",
+            },
+            "top_k_sequences": [
+                {
+                    "rank": 1,
+                    "sequence": ["PP", "PS", "polyvinyl chloride", "polycarbonate"],
+                    "solvent_mapping": {
+                        "PP": "toluene",
+                        "PS": "n,n-dimethylformamide",
+                        "polyvinyl chloride": "dimethylsulfoxide",
+                        "polycarbonate": "toluene",
+                    },
+                }
+            ],
+        },
+        created_at="2026-04-25T10:00:00Z",
+    )
+
+    typed = build_typed_handoff(source, "optimization-engineer")
+
+    assert typed is not None
+    _, payload, _ = typed
+    assert payload["polymer_solvent_filters"]["PP"] == ["Toluene"]
+    assert payload["polymer_solvent_filters"]["PS"] == ["N,N-Dimethylformamide"]
+    assert payload["polymer_solvent_filters"]["PVC"] == ["Dimethyl sulfoxide"]
+    assert payload["polymer_solvent_filters"]["PC"] == ["Toluene"]
+    assert {stage["target_polymer"] for stage in payload["stages"]} >= {"PP", "PS", "PVC", "PC"}
+    assert any(
+        route["polymer_solvent_map"].get("PVC") == "Dimethyl sulfoxide"
+        and route["polymer_solvent_map"].get("PC") == "Toluene"
+        for route in payload["route_candidates"]
+    )
+
+
+
+
+def test_build_typed_handoff_ranked_candidate_query_uses_fail_closed_fallback():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-ranked",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.0",
+            "polymers": ["LDPE", "EVOH", "PET"],
+            "polymer_solvent_candidates": {
+                "LDPE": [{"rank": 1, "solvent": "cyclohexane"}],
+                "EVOH": [{"rank": 1, "solvent": "ethylene glycol"}],
+                "PET": [{"rank": 1, "solvent": "N,N-Dimethylformamide"}],
+            },
+            "top_k_sequences": [],
+        },
+        created_at="2026-04-23T00:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query=(
+            "Have the separation engineer propose the top 3 solvent candidates per polymer "
+            "and pass those shortlisted candidates to the optimization engineer."
+        ),
+    )
+
+    assert typed is not None
+    _, payload, _ = typed
+    assert payload["constraint_mode"] == "ranked_soft"
+    assert payload["fallback_policy"] == "fail_closed"
 
 def test_build_typed_handoff_defaults_to_ranked_soft_when_top_k_sequences_present():
     """With a neutral user query, the presence of top_k_sequences>=2 must flip
@@ -362,6 +607,75 @@ def test_build_typed_handoff_uses_ranked_polymer_solvent_candidates(monkeypatch:
     assert payload["route_candidates"], "broad solvent pools must not suppress route_candidates"
 
 
+def test_build_typed_handoff_backfills_underreported_top_n_candidates(monkeypatch: pytest.MonkeyPatch):
+    def fake_plan_sequential_separation(**kwargs):
+        assert kwargs["top_k_solvents"] == 3
+        return json.dumps(
+            {
+                "data": {
+                    "polymer_solvent_candidates": {
+                        "LDPE": [
+                            {"rank": 1, "solvent": "cyclohexane", "temperature_c": 79.7},
+                            {"rank": 2, "solvent": "hexane", "temperature_c": 67.7},
+                            {"rank": 3, "solvent": "n-heptane", "temperature_c": 97.5},
+                        ],
+                        "EVOH": [
+                            {"rank": 1, "solvent": "methanol", "temperature_c": 63.6},
+                            {"rank": 2, "solvent": "dimethylsulfoxide", "temperature_c": 145.0},
+                            {"rank": 3, "solvent": "ethanol", "temperature_c": 77.2},
+                        ],
+                        "PET": [
+                            {"rank": 1, "solvent": "dimethylformamide", "temperature_c": 100.0},
+                            {"rank": 2, "solvent": "pyridine", "temperature_c": 114.0},
+                            {"rank": 3, "solvent": "dimethylsulfoxide", "temperature_c": 145.0},
+                        ],
+                    }
+                }
+            }
+        )
+
+    monkeypatch.setattr(
+        "strap.tools.sequence_planning_tools.plan_sequential_separation",
+        fake_plan_sequential_separation,
+    )
+    source = HandoffRecord(
+        handoff_id="handoff-underfilled-topn",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.0",
+            "polymers": ["LDPE", "EVOH", "PET"],
+            "polymer_solvent_candidates": {
+                "LDPE": [{"rank": 1, "solvent": "cyclohexane", "temperature_c": 79.7}],
+                "EVOH": [{"rank": 1, "solvent": "methanol", "temperature_c": 63.6}],
+            },
+            "top_k_sequences": [],
+        },
+        created_at="2026-04-24T00:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query="Propose the top 3 solvent candidates per polymer and optimize.",
+    )
+
+    assert typed is not None
+    _, payload, prompt = typed
+    assert payload["candidate_counts_by_polymer"] == {"PE": 3, "EVOH": 3, "PET": 3}
+    assert payload["candidate_backfill_warnings"]
+    assert "Candidate backfill warnings" in prompt
+    pet_stage = next(stage for stage in payload["stages"] if stage["target_polymer"] == "PET")
+    assert [pair["solvent"] for pair in pet_stage["candidate_pairs"]][:2] == [
+        "N,N-Dimethylformamide",
+        "pyridine",
+    ]
+
+
 def test_build_typed_handoff_infers_slot_independent_from_broad_pool_query():
     source = HandoffRecord(
         handoff_id="handoff-sep-broad-pool",
@@ -396,8 +710,71 @@ def test_build_typed_handoff_infers_slot_independent_from_broad_pool_query():
     assert payload["route_pool_mode"] == "slot_independent"
 
 
-def test_build_typed_handoff_optimization_point_solve_to_visualization_falls_back():
-    """Point-optimum analyses have no native plot tool and must surface that fact."""
+def test_build_typed_handoff_infers_slot_independent_from_solvent_choices_query():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-solvent-choices",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "polymers": ["LDPE", "EVOH"],
+            "steps": [
+                {"step": 1, "polymer": "LDPE", "solvent": "Cyclohexane"},
+                {"step": 2, "polymer": "EVOH", "solvent": "Dimethyl sulfoxide"},
+            ],
+            "solvent_mapping": {"LDPE": "Cyclohexane", "EVOH": "Dimethyl sulfoxide"},
+            "top_k_sequences": [
+                {"rank": 1, "sequence": ["LDPE", "EVOH"], "solvent_mapping": {"LDPE": "Cyclohexane", "EVOH": "Dimethyl sulfoxide"}},
+                {"rank": 2, "sequence": ["LDPE", "EVOH"], "solvent_mapping": {"LDPE": "Heptane", "EVOH": "Ethylene Glycol"}},
+            ],
+        },
+        created_at="2026-04-23T14:05:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query=(
+            "Have the separation engineer identify the top 6 solvent choices for LDPE and EVOH recovery, "
+            "then pass those shortlisted solvent candidates to the optimizer for a Pareto sweep."
+        ),
+    )
+
+    assert typed is not None
+    _, payload, _ = typed
+    assert payload["route_pool_mode"] == "slot_independent"
+
+
+def test_build_typed_handoff_optimization_infeasible_to_visualization_skips_plotting():
+    source = HandoffRecord(
+        handoff_id="handoff-opt-infeasible",
+        scope=_scope(),
+        producer="optimization-engineer",
+        consumer="orchestrator",
+        contract="optimization.results.v1",
+        status="ok",
+        payload={
+            "analysis_type": "infeasible",
+            "schema_version": "1.3",
+            "failure_reason": "no_candidate_overlap",
+            "message": "No valid candidates survived.",
+        },
+        created_at="2026-04-24T12:00:00Z",
+    )
+
+    typed = build_typed_handoff(source, "visualization-specialist")
+    assert typed is not None
+    contract, payload, prompt = typed
+    assert contract == "optimization_plot_context.v1"
+    assert payload["analysis_type"] == "infeasible"
+    assert payload["requested_plot_tool"] is None
+    assert "Do not call a plotting tool" in prompt
+
+
+def test_build_typed_handoff_optimization_point_solve_to_visualization_uses_point_plot_tool():
+    """Point-optimum analyses should route to the dedicated point-result plotting tool."""
     source = HandoffRecord(
         handoff_id="handoff-opt-2",
         scope=_scope(),
@@ -421,4 +798,152 @@ def test_build_typed_handoff_optimization_point_solve_to_visualization_falls_bac
     contract, payload, prompt = typed
     assert contract == "optimization_plot_context.v1"
     assert payload["analysis_type"] == "point_optimum"
-    assert "no dedicated plotting tool" in prompt.lower()
+    assert payload["requested_plot_tool"] == "plot_optimization_point_result"
+    assert "plot_optimization_point_result" in prompt
+
+
+def test_build_typed_handoff_preserves_temperature_distinct_optimizer_options():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-temp-variants",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.1",
+            "polymers": ["PET"],
+            "steps": [
+                {"step": 1, "polymer": "PET", "solvent": "dimethyl sulfoxide", "temperature_c": 135.0},
+            ],
+            "solvent_mapping": {"PET": "dimethyl sulfoxide"},
+            "polymer_solvent_candidates": {
+                "PET": [
+                    {"rank": 1, "solvent": "dimethyl sulfoxide", "temperature_c": 135.0},
+                    {"rank": 2, "solvent": "dimethyl sulfoxide", "temperature_c": 145.0},
+                ]
+            },
+            "top_k_sequences": [
+                {
+                    "rank": 1,
+                    "sequence": ["PET"],
+                    "solvent_mapping": {"PET": "dimethyl sulfoxide"},
+                    "steps": [{"step": 1, "polymer": "PET", "solvent": "dimethyl sulfoxide", "temperature_c": 135.0}],
+                },
+                {
+                    "rank": 2,
+                    "sequence": ["PET"],
+                    "solvent_mapping": {"PET": "dimethyl sulfoxide"},
+                    "steps": [{"step": 1, "polymer": "PET", "solvent": "dimethyl sulfoxide", "temperature_c": 145.0}],
+                },
+            ],
+        },
+        created_at="2026-04-23T18:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query="Use the shortlisted solvent candidates in optimization.",
+    )
+
+    assert typed is not None
+    _, payload, _ = typed
+    pet_stage = next(stage for stage in payload["stages"] if stage["target_polymer"] == "PET")
+    options = [pair["optimizer_option"] for pair in pet_stage["candidate_pairs"]]
+    assert "Dimethyl sulfoxide @ 135C" in options
+    assert "Dimethyl sulfoxide @ 145C" in options
+    assert len(options) == 2
+
+    route_options = [
+        route["polymer_solvent_map"]["PET"]
+        for route in payload["route_candidates"]
+    ]
+    assert "Dimethyl sulfoxide @ 135C" in route_options
+    assert "Dimethyl sulfoxide @ 145C" in route_options
+
+
+def test_build_typed_handoff_skips_placeholder_step_solvents():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-placeholders",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.1",
+            "polymers": ["LDPE", "PET"],
+            "steps": [
+                {"step": 1, "polymer": "LDPE", "solvent": "cyclohexane", "temperature_c": 120.0},
+                {"step": 2, "polymer": "PET", "solvent": "N/A (Solid Residue)", "temperature_c": 120.0},
+            ],
+            "polymer_solvent_candidates": {
+                "LDPE": [{"rank": 1, "solvent": "cyclohexane"}],
+                "PET": [{"rank": 1, "solvent": "dimethyl sulfoxide"}],
+            },
+            "top_k_sequences": [
+                {
+                    "rank": 1,
+                    "sequence": ["LDPE", "PET"],
+                    "solvent_mapping": {"LDPE": "cyclohexane"},
+                }
+            ],
+        },
+        created_at="2026-04-23T19:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query="Use the shortlisted solvent candidates in optimization.",
+    )
+
+    assert typed is not None
+    _, payload, _ = typed
+    pet_stage = next(stage for stage in payload["stages"] if stage["target_polymer"] == "PET")
+    options = [pair["optimizer_option"] for pair in pet_stage["candidate_pairs"]]
+    assert "N/A (Solid Residue) @ 120C" not in options
+    assert options == ["Dimethyl sulfoxide"]
+
+
+def test_build_typed_handoff_separation_to_optimization_carries_feed_metadata_without_inline_json():
+    source = HandoffRecord(
+        handoff_id="handoff-sep-feed",
+        scope=_scope(),
+        producer="separation-engineer",
+        consumer="orchestrator",
+        contract="separation.route.v1",
+        status="ok",
+        payload={
+            "agent": "separation-engineer",
+            "schema_version": "1.0",
+            "polymers": ["LDPE", "EVOH", "PET"],
+            "steps": [
+                {"step": 1, "polymer": "LDPE", "solvent": "Toluene", "temperature_c": 110.0},
+                {"step": 2, "polymer": "EVOH", "solvent": "Ethylene Glycol", "temperature_c": 90.0},
+            ],
+            "solvent_mapping": {"LDPE": "Toluene", "EVOH": "Ethylene Glycol"},
+            "top_solvents": ["Toluene", "Ethylene Glycol"],
+            "top_k_sequences": [],
+        },
+        created_at="2026-04-23T12:00:00Z",
+    )
+
+    typed = build_typed_handoff(
+        source,
+        "optimization-engineer",
+        scope_user_query=(
+            "For a mixed plastic feedstock of 8000 tonnes/year composed of 5% LDPE, 5% EVOH, and 90% PET, "
+            "optimize waste management for the shortlisted solvents."
+        ),
+    )
+
+    assert typed is not None
+    _, payload, task_prompt = typed
+    assert payload["feed_capacity_tpy"] == 8000.0
+    assert payload["feed_composition"] == {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9}
+    assert "Exact `stage_candidates_json`" not in task_prompt
+    assert "attached by the orchestrator" in task_prompt

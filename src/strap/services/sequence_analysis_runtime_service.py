@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Awaitable, Callable
 
+from strap.solubility import temperature_extrapolation_status, temperature_use_regime
+
 
 async def get_full_solvent_properties(
     solvent_names: list[str],
@@ -92,6 +94,9 @@ async def find_optimal_separation(
                 {
                     "solvent": solvent,
                     "temperature": temp,
+                    "temperature_extrapolation": temperature_extrapolation_status(float(temp)),
+                    "temperature_use_regime": temperature_use_regime(float(temp)),
+                    "high_temperature_screening": temperature_use_regime(float(temp)) == "sensitivity_extrapolation",
                     "selectivity": target_sol - max_other,
                     "target_sol": target_sol,
                     "max_other": max_other,
@@ -129,6 +134,34 @@ async def find_optimal_separation(
     for result in results:
         if result["solvent"] in property_lookup:
             result.update(property_lookup[result["solvent"]])
+
+    atmospheric_results = []
+    for result in results:
+        bp = result.get("bp")
+        if bp is None:
+            if result.get("high_temperature_screening"):
+                result["missing_boiling_point"] = True
+                continue
+            atmospheric_results.append(result)
+            continue
+        try:
+            bp_value = float(bp)
+        except (TypeError, ValueError):
+            atmospheric_results.append(result)
+            continue
+        if float(result.get("temperature", 0)) <= bp_value - 5.0:
+            atmospheric_results.append(result)
+        else:
+            result["atmospheric_infeasible"] = True
+    if atmospheric_results:
+        results = atmospheric_results
+    else:
+        return {
+            "solvent": "No viable solvent",
+            "temperature": 0,
+            "selectivity": 0,
+            "note": "No solvent found within atmospheric boiling-point constraints",
+        }
 
     rank_lower = rank_by.lower()
     if rank_lower in ["cost", "energy"]:

@@ -17,6 +17,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from .handoffs import validate_agent_payload
 from .guardrail_checks import get_selectivity_overclaim_errors
+from .routing_classifier import is_direct_answer_query
 from .solubility import get_boiling_point
 
 if TYPE_CHECKING:
@@ -96,6 +97,20 @@ def _response_with_caveat(response, ai_msg, issues: list[str] | None):
     except Exception:
         logger.exception("verifier: failed to append caveat; returning original response")
         return response
+
+
+def _is_direct_route_response(ai_msg) -> bool:
+    metadata = getattr(ai_msg, "additional_kwargs", None)
+    if not isinstance(metadata, dict):
+        return False
+    if metadata.get("strap_origin") == "direct_tool_fast_path":
+        return True
+    route_decision = metadata.get("strap_route_decision")
+    if not isinstance(route_decision, dict):
+        return False
+    return route_decision.get("mode") in {"direct_tool", "artifact_transform"}
+
+
 _SELECTIVITY_OVERCLAIM_TERMS = (
     "will selectively dissolve",
     "will dissolve",
@@ -296,6 +311,13 @@ def _is_single_specialist_separation_context(messages: list) -> bool:
         if tool_call.get("args", {}).get("subagent_type")
     }
     return subagents == {"separation-engineer"}
+
+
+def _is_direct_answer_fast_path_context(messages: list) -> bool:
+    """Return True for simple orchestrator-only answers where model verification is too costly."""
+    if not is_direct_answer_query(_get_user_query(messages)):
+        return False
+    return not bool(_get_task_tool_registry(messages))
 
 
 def _build_separation_verifier_fallback(messages: list) -> str | None:
@@ -828,6 +850,9 @@ class OutputVerifierMiddleware(AgentMiddleware):
         tool_calls = getattr(ai_msg, "tool_calls", None)
         if tool_calls:
             return response  # Agent still working — pass through
+        if _is_direct_route_response(ai_msg):
+            _verified_flag.set(True)
+            return response
 
         content = _extract_text(getattr(ai_msg, "content", ""))
         if not content or len(content) < 50:
@@ -845,7 +870,10 @@ class OutputVerifierMiddleware(AgentMiddleware):
         )
 
         verdict = {"pass": True, "confidence": "LOW", "issues": []}
-        use_model_verifier = not _is_single_specialist_separation_context(request.messages)
+        use_model_verifier = not (
+            _is_single_specialist_separation_context(request.messages)
+            or _is_direct_answer_fast_path_context(request.messages)
+        )
         if not deterministic_issues and use_model_verifier:
             try:
                 verdict = self._verify(user_query, tool_context, content)
@@ -992,6 +1020,9 @@ class OutputVerifierMiddleware(AgentMiddleware):
         tool_calls = getattr(ai_msg, "tool_calls", None)
         if tool_calls:
             return response  # Agent still working — pass through
+        if _is_direct_route_response(ai_msg):
+            _verified_flag.set(True)
+            return response
 
         content = _extract_text(getattr(ai_msg, "content", ""))
         if not content or len(content) < 50:
@@ -1009,7 +1040,10 @@ class OutputVerifierMiddleware(AgentMiddleware):
         )
 
         verdict = {"pass": True, "confidence": "LOW", "issues": []}
-        use_model_verifier = not _is_single_specialist_separation_context(request.messages)
+        use_model_verifier = not (
+            _is_single_specialist_separation_context(request.messages)
+            or _is_direct_answer_fast_path_context(request.messages)
+        )
         if not deterministic_issues and use_model_verifier:
             try:
                 verdict = await self._averify(user_query, tool_context, content)

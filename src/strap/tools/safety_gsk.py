@@ -24,6 +24,7 @@ from strap.solubility import get_logp
 from strap.tools._helpers import (
     get_plots_dir,
     safe_tool_wrapper,
+    save_plot,
 )
 logger = logging.getLogger(__name__)
 def _gsk_response(tool_name: str, display: str, **data) -> str:
@@ -675,9 +676,7 @@ async def visualize_gscores(
                 error_code="invalid_plot_type",
                 plot_type=plot_type,
             )
-        filepath = os.path.join(plots_dir, filename)
-        plt.savefig(filepath, dpi=300, bbox_inches='tight')
-        plt.close()
+        filepath = save_plot(fig, filename, output_dir=plots_dir, dpi=300)
         output = [f"**G-Score Visualization Created**\n"]
         output.append(f"**Plot type:** {plot_type}")
         output.append(f"**Solvents shown:** {len(df)}")

@@ -6,20 +6,45 @@ from __future__ import annotations
 import numpy as np
 from strap.services.tool_response_service import json_tool_error, json_tool_response, json_tool_success
 from strap.solubility import (
+    FITTED_TEMP_MAX_C,
+    FITTED_TEMP_MIN_C,
+    RECOMMENDED_EXTRAPOLATION_MAX_C,
+    SENSITIVITY_EXTRAPOLATION_MAX_C,
     _load_coefficients,
     _get_known_names,
     get_all_solvents_selectivity,
     get_boiling_point,
     get_entry,
     get_coefficients_metadata,
+    get_solubility_pair_exclusion_reason,
     get_solubility,
     predict,
     resolve_polymer,
     resolve_solvent,
+    temperature_basis_note,
+    temperature_extrapolation_status,
+    temperature_use_regime,
 )
 from strap.tools._helpers import safe_tool_wrapper
 # R² threshold: below this the interpolation is unreliable → silent SQL fallback
 _R2_THRESHOLD = 0.98
+
+
+def _bounded_temperature_grid(t_start_c: float, t_end_c: float, t_step_c: float) -> np.ndarray:
+    """Return a temperature grid that never exceeds the requested end point."""
+    step = max(float(t_step_c), 1.0)
+    start = float(t_start_c)
+    end = float(t_end_c)
+    if end < start:
+        return np.array([], dtype=float)
+    temps = np.arange(start, end + 1e-9, step, dtype=float)
+    if temps.size == 0:
+        temps = np.array([start], dtype=float)
+    if not np.isclose(float(temps[-1]), end):
+        temps = np.append(temps, end)
+    return temps
+
+
 # ------------------------------------------------------------------
 # Tool 1: Single-point prediction
 # ------------------------------------------------------------------
@@ -35,6 +60,17 @@ def predict_solubility(polymer_name: str, solvent_name: str, temperature_c: floa
     Returns:
         Markdown-formatted prediction with solubility and boiling point.
     """
+    if temperature_c > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return json_tool_error(
+            (
+                f"Temperature {temperature_c} C is above the supported sensitivity limit "
+                f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C for Apelblat extrapolation."
+            ),
+            tool_name="predict_solubility",
+            error_code="temperature_above_supported_extrapolation",
+            temperature_c=temperature_c,
+            max_temperature_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
     _, lookup = _load_coefficients()
     known_p, known_s = _get_known_names(lookup)
     polymer = resolve_polymer(polymer_name, known_p)
@@ -72,6 +108,15 @@ def predict_solubility(polymer_name: str, solvent_name: str, temperature_c: floa
             error_code="pair_not_found",
             polymer_name=polymer,
             solvent_name=solvent,
+        )
+    if reason := get_solubility_pair_exclusion_reason(polymer, solvent):
+        return json_tool_error(
+            f"**Excluded data-quality pair**: {polymer} in {solvent}.\n\n{reason}",
+            tool_name="predict_solubility",
+            error_code="excluded_data_quality_pair",
+            polymer_name=polymer,
+            solvent_name=solvent,
+            reason=reason,
         )
     cat = entry["category"]
     if cat == "insoluble":
@@ -122,10 +167,18 @@ def predict_solubility(polymer_name: str, solvent_name: str, temperature_c: floa
     bp = get_boiling_point(solvent)
     bp_str = f"{bp:.1f}" if bp is not None else "N/A"
     r2 = entry.get("r_squared", 0)
+    basis_note = temperature_basis_note(temperature_c)
     display = (
         f"{polymer} in {solvent} at {temperature_c} C: "
         f"**{pred['solubility_pct']:.2f}%** | BP {bp_str} C | R\u00b2 = {r2:.2f}"
     )
+    atmospheric_operation = None
+    if bp is not None:
+        atmospheric_operation = temperature_c < bp
+        if not atmospheric_operation:
+            display += " | Above solvent BP at 1 atm"
+    if basis_note:
+        display += f" | {basis_note}"
     return json_tool_success(
         display,
         tool_name="predict_solubility",
@@ -136,7 +189,14 @@ def predict_solubility(polymer_name: str, solvent_name: str, temperature_c: floa
         method="interpolation",
         solubility_pct=pred["solubility_pct"],
         boiling_point_c=bp,
+        atmospheric_operation=atmospheric_operation,
         r_squared=r2,
+        extrapolation=pred["extrapolation"] or "none",
+        temperature_extrapolation=temperature_extrapolation_status(temperature_c),
+        temperature_use_regime=temperature_use_regime(temperature_c),
+        fitted_temperature_range_c=[FITTED_TEMP_MIN_C, FITTED_TEMP_MAX_C],
+        recommended_extrapolation_max_c=RECOMMENDED_EXTRAPOLATION_MAX_C,
+        sensitivity_extrapolation_max_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
     )
 # ------------------------------------------------------------------
 # Tool 2: Range prediction
@@ -159,6 +219,22 @@ def predict_solubility_range(
     Returns:
         Markdown table of predicted solubilities across the range.
     """
+    if t_start_c > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return json_tool_error(
+            (
+                f"Start temperature {t_start_c} C is above the supported sensitivity limit "
+                f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C for Apelblat extrapolation."
+            ),
+            tool_name="predict_solubility_range",
+            error_code="temperature_above_supported_extrapolation",
+            temperature_c=t_start_c,
+            max_temperature_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
+    requested_t_end_c = t_end_c
+    range_was_capped = False
+    if t_end_c > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        t_end_c = SENSITIVITY_EXTRAPOLATION_MAX_C
+        range_was_capped = True
     _, lookup = _load_coefficients()
     known_p, known_s = _get_known_names(lookup)
     polymer = resolve_polymer(polymer_name, known_p)
@@ -197,6 +273,15 @@ def predict_solubility_range(
             polymer_name=polymer,
             solvent_name=solvent,
         )
+    if reason := get_solubility_pair_exclusion_reason(polymer, solvent):
+        return json_tool_error(
+            f"**Excluded data-quality pair**: {polymer} in {solvent}.\n\n{reason}",
+            tool_name="predict_solubility_range",
+            error_code="excluded_data_quality_pair",
+            polymer_name=polymer,
+            solvent_name=solvent,
+            reason=reason,
+        )
     cat = entry["category"]
     if cat == "insoluble":
         display = f"**{polymer} in {solvent}**: Insoluble across all temperatures."
@@ -227,7 +312,7 @@ def predict_solubility_range(
     bp = get_boiling_point(solvent)
     bp_str = f"BP {bp:.1f} C" if bp is not None else ""
     step = max(t_step_c, 1.0)
-    temps = np.arange(t_start_c, t_end_c + step / 2, step)
+    temps = _bounded_temperature_grid(t_start_c, t_end_c, step)
     if len(temps) > 200:
         temps = temps[:200]
     lines = [
@@ -236,16 +321,37 @@ def predict_solubility_range(
         "| T (C) | Solubility (%) |",
         "|-------|----------------|",
     ]
-    predictions: list[dict[str, float]] = []
+    if range_was_capped:
+        lines.insert(
+            2,
+            f"Requested end temperature {requested_t_end_c} C was capped at {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C.",
+        )
+    if bp is not None and t_end_c >= bp:
+        lines.insert(
+            2,
+            f"Atmospheric note: part or all of this range is at/above the solvent BP ({bp:.1f} C).",
+        )
+    predictions: list[dict[str, float | str]] = []
+    extrapolated_points = 0
     for t in temps:
         pred = predict(entry, float(t))
+        if pred["extrapolation"]:
+            extrapolated_points += 1
         predictions.append(
             {
                 "temperature_c": pred["temperature_c"],
                 "solubility_pct": pred["solubility_pct"],
+                "extrapolation": pred["extrapolation"] or "none",
+                "temperature_use_regime": temperature_use_regime(float(t)),
             }
         )
         lines.append(f"| {pred['temperature_c']:.1f} | {pred['solubility_pct']:.2f} |")
+    if extrapolated_points:
+        lines.append("")
+        lines.append(
+            f"Note: {extrapolated_points} point(s) are Apelblat extrapolations outside "
+            f"the fitted {FITTED_TEMP_MIN_C:.0f}-{FITTED_TEMP_MAX_C:.0f} C range; treat them as lower-confidence estimates."
+        )
     return json_tool_success(
         "\n".join(lines),
         tool_name="predict_solubility_range",
@@ -255,10 +361,16 @@ def predict_solubility_range(
         r_squared=entry.get("r_squared"),
         t_start_c=t_start_c,
         t_end_c=t_end_c,
+        requested_t_end_c=requested_t_end_c,
+        range_was_capped=range_was_capped,
         t_step_c=step,
         n_points=len(predictions),
         predictions=predictions,
+        extrapolated_points=extrapolated_points,
+        fitted_temperature_range_c=[FITTED_TEMP_MIN_C, FITTED_TEMP_MAX_C],
+        sensitivity_extrapolation_max_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
         boiling_point_c=bp,
+        atmospheric_range_exceeds_bp=bool(bp is not None and t_end_c >= bp),
     )
 # ------------------------------------------------------------------
 # Tool 3: Coverage listing
@@ -323,6 +435,17 @@ def rank_solvents_selectivity(
     Returns:
         Markdown table of solvents ranked by selectivity (target_sol / max_other_sol).
     """
+    if temperature_c > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return json_tool_error(
+            (
+                f"Temperature {temperature_c} C is above the supported sensitivity limit "
+                f"of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C for Apelblat extrapolation."
+            ),
+            tool_name="rank_solvents_selectivity",
+            error_code="temperature_above_supported_extrapolation",
+            temperature_c=temperature_c,
+            max_temperature_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
     _, lookup = _load_coefficients()
     known_p, _ = _get_known_names(lookup)
     target = resolve_polymer(target_polymer, known_p)
@@ -398,8 +521,40 @@ def rank_solvents_selectivity(
                 bp_map[str(cosmo_val).lower().strip()] = bp
     except Exception:
         pass
-    # Mark atmospheric feasibility
+    use_regime = temperature_use_regime(temperature_c)
+    high_temperature_screening = use_regime == "sensitivity_extrapolation"
+    if high_temperature_screening:
+        filtered = [
+            r
+            for r in filtered
+            if (bp := bp_map.get(r["solvent"].lower().strip())) is not None
+            and bp >= temperature_c + 5.0
+        ]
+        if not filtered:
+            display = (
+                f"No high-boiling solvents found with selectivity ≥ {min_selectivity} for "
+                f"{target} vs {', '.join(others)} at {temperature_c}°C while keeping a 5°C boiling-point margin."
+            )
+            return json_tool_response(
+                display,
+                {
+                    "target_polymer": target,
+                    "other_polymers": others,
+                    "temperature_c": temperature_c,
+                    "temperature_extrapolation": temperature_extrapolation_status(temperature_c),
+                    "temperature_use_regime": use_regime,
+                    "min_selectivity": min_selectivity,
+                    "n_results": 0,
+                    "solvents": [],
+                    "high_temperature_screening": True,
+                    "required_boiling_point_c": temperature_c + 5.0,
+                },
+                tool_name="rank_solvents_selectivity",
+                success=True,
+            )
+    # Mark atmospheric feasibility and interpolation basis
     atm_note = f"Solvents with BP > {temperature_c}°C are safe for atmospheric operation."
+    basis_note = temperature_basis_note(temperature_c)
     lines = [
         f"## Solvents for separating {target} from {', '.join(others)} at {temperature_c}°C",
         f"Showing {len(filtered)} solvents with selectivity ≥ {min_selectivity}. {atm_note}",
@@ -407,6 +562,16 @@ def rank_solvents_selectivity(
         f"| Solvent | {target} Sol. (%) | Max Other Sol. (%) | Selectivity | BP (°C) | Atmospheric? |",
         "|---------|-------------------|--------------------|-------------|---------|-------------|",
     ]
+    if basis_note:
+        lines.insert(
+            2,
+            f"**Temperature basis:** {basis_note}",
+        )
+    if high_temperature_screening:
+        lines.insert(
+            3 if basis_note else 2,
+            f"**High-temperature screening:** showing only solvents with BP ≥ {temperature_c + 5.0:.0f}°C; do not treat 180–200°C results as validated process recommendations.",
+        )
     structured_results: list[dict[str, float | str | None]] = []
     for r in filtered:
         solvent_lower = r["solvent"].lower().strip()
@@ -423,6 +588,8 @@ def rank_solvents_selectivity(
                 "selectivity": r["selectivity"],
                 "boiling_point_c": bp,
                 "atmospheric_operation": atm == "YES",
+                "temperature_extrapolation": temperature_extrapolation_status(temperature_c),
+                "temperature_use_regime": use_regime,
             }
         )
         lines.append(
@@ -436,6 +603,11 @@ def rank_solvents_selectivity(
         target_polymer=target,
         other_polymers=others,
         temperature_c=temperature_c,
+        temperature_extrapolation=temperature_extrapolation_status(temperature_c),
+        temperature_use_regime=use_regime,
+        fitted_temperature_range_c=[FITTED_TEMP_MIN_C, FITTED_TEMP_MAX_C],
+        sensitivity_extrapolation_max_c=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        high_temperature_screening=high_temperature_screening,
         min_selectivity=min_selectivity,
         n_results=len(structured_results),
         solvents=structured_results,

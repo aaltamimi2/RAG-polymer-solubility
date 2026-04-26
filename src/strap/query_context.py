@@ -53,7 +53,7 @@ _REQUEST_PATTERNS = (
     ("literature.answer", re.compile(r"\b(rag|retrieval-augmented|indexed documents?|retrieved findings|retrieval diagnostics)\b", re.IGNORECASE)),
     ("statistics.analysis", re.compile(r"\b(statistics?|statistical|confidence interval|hypothesis|anova|correlation|regression)\b", re.IGNORECASE)),
     ("thermal.prediction", re.compile(r"\b(glass transition|tg\b|melting|thermal prediction|thermal propert)\b", re.IGNORECASE)),
-    ("ml.prediction", re.compile(r"\b(machine learning|ml prediction|predict(?:ion)?|hansen|hsp|relative energy difference|red)\b", re.IGNORECASE)),
+    ("ml.prediction", re.compile(r"\b(machine learning|ml prediction|hansen|hsp|relative energy difference|red\b)\b", re.IGNORECASE)),
     ("safety.assessment", re.compile(r"\b(gsk|gscore|pubchem|ghs|hazard|toxicity|toxic|health risk|risk profile|safety score|safety scores|exposure|flammab|flammability|sds|msds)\b", re.IGNORECASE)),
     ("tea.economics", re.compile(r"\b(tea|techno[- ]economic|biosteam|msp|capex|opex|operating cost|capital cost|payback)\b", re.IGNORECASE)),
     ("lca.environmental", re.compile(r"\b(lca|life cycle|gwp|emissions?|environmental)\b", re.IGNORECASE)),
@@ -99,6 +99,17 @@ _CONTAMINANT_FAMILY_ALIASES = {
     "phthalates": "Phthalates",
 }
 _AMBIGUOUS_SOLVENT_ALIASES = {"tea"}
+_FEED_CAPACITY_PATTERNS = (
+    re.compile(
+        r"\b(\d[\d,]*(?:\.\d+)?)\s*(?:metric\s+tons?|tonnes?|tons?|mt)\s*/\s*(?:year|yr)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(\d[\d,]*(?:\.\d+)?)\s*(?:metric\s+tons?|tonnes?|tons?|mt)\s+per\s+year\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(\d[\d,]*(?:\.\d+)?)\s*t\s*/\s*y\b", re.IGNORECASE),
+)
 
 
 @dataclass(frozen=True)
@@ -120,6 +131,9 @@ class QueryContext:
     route_spans: tuple[QuerySpan, ...]
     request_spans: tuple[QuerySpan, ...]
     sequence_spans: tuple[QuerySpan, ...]
+    feed_composition_items: tuple[tuple[str, float], ...]
+    feed_composition_slices_items: tuple[tuple[tuple[str, float], ...], ...]
+    feed_capacity_tpy: float | None
 
     @property
     def polymers(self) -> tuple[str, ...]:
@@ -144,6 +158,14 @@ class QueryContext:
     @property
     def request_labels(self) -> tuple[str, ...]:
         return _unique_span_values(self.request_spans)
+
+    @property
+    def feed_composition(self) -> dict[str, float]:
+        return dict(self.feed_composition_items)
+
+    @property
+    def feed_composition_slices(self) -> tuple[dict[str, float], ...]:
+        return tuple(dict(items) for items in self.feed_composition_slices_items)
 
     @property
     def available_inputs(self) -> frozenset[str]:
@@ -174,6 +196,10 @@ class QueryContext:
             available.add("user.data_or_prediction_target")
         if "optimization.pathway" in self.request_labels:
             available.add("user.optimization_request")
+        if self.feed_composition_items or self.feed_composition_slices_items:
+            available.add("user.feed_composition")
+        if self.feed_capacity_tpy is not None:
+            available.add("user.feed_capacity")
         return frozenset(available)
 
 
@@ -262,6 +288,95 @@ def _collect_pattern_spans(
     return tuple(accepted)
 
 
+def _collect_feed_fraction_items(text: str) -> tuple[tuple[str, float], ...]:
+    accepted: list[QuerySpan] = []
+    feed_items: list[tuple[str, float]] = []
+    patterns = [
+        (term, normalized, _compile_term_pattern(term))
+        for term, normalized in sorted(_polymer_term_map().items(), key=lambda item: (-len(item[0]), item[0]))
+    ]
+    for _term, normalized, pattern in patterns:
+        for match in pattern.finditer(text):
+            if _contains_overlap(accepted, match.start(), match.end()):
+                continue
+            prefix = text[max(0, match.start() - 24):match.start()]
+            percent_match = re.search(r"(\d+(?:\.\d+)?)\s*%\s*$", prefix)
+            if percent_match is None:
+                continue
+            accepted.append(
+                QuerySpan(
+                    kind="feed_fraction",
+                    normalized=normalized,
+                    text=match.group(0),
+                    start=match.start(),
+                    end=match.end(),
+                )
+            )
+            feed_items.append((normalized, float(percent_match.group(1)) / 100.0))
+    deduped: dict[str, float] = {}
+    for polymer, fraction in feed_items:
+        deduped[polymer] = fraction
+    return tuple(deduped.items())
+
+
+def _collect_feed_composition_slices(
+    text: str,
+    polymer_spans: tuple[QuerySpan, ...],
+) -> tuple[tuple[tuple[str, float], ...], ...]:
+    """Extract slash-delimited composition slices such as 20/60/20.
+
+    The parser intentionally requires at least three requested polymers so a
+    free-standing numeric fraction elsewhere in the prompt is not interpreted
+    as a feed composition. Slice order follows the first three polymers as
+    mentioned by the user, e.g. LDPE/EVOH/PET.
+    """
+    ordered_polymers: list[str] = []
+    for span in polymer_spans:
+        if span.normalized not in ordered_polymers:
+            ordered_polymers.append(span.normalized)
+        if len(ordered_polymers) >= 3:
+            break
+    if len(ordered_polymers) < 3:
+        return ()
+
+    slice_pattern = re.compile(
+        r"(?<![\d.])(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)(?!\d|\.\d)"
+    )
+    slices: list[tuple[tuple[str, float], ...]] = []
+    seen: set[tuple[tuple[str, float], ...]] = set()
+    for match in slice_pattern.finditer(text):
+        values = [float(match.group(i)) for i in range(1, 4)]
+        total = sum(values)
+        if 99.0 <= total <= 101.0:
+            fractions = [value / 100.0 for value in values]
+        elif 0.99 <= total <= 1.01:
+            fractions = values
+        else:
+            continue
+        item = tuple(
+            (polymer, round(fraction, 6))
+            for polymer, fraction in zip(ordered_polymers, fractions)
+        )
+        if item in seen:
+            continue
+        seen.add(item)
+        slices.append(item)
+    return tuple(slices)
+
+
+def _extract_feed_capacity_tpy(text: str) -> float | None:
+    for pattern in _FEED_CAPACITY_PATTERNS:
+        match = pattern.search(text)
+        if match is None:
+            continue
+        raw = match.group(1).replace(",", "")
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def _collect_research_topic_ranges(text: str) -> tuple[tuple[int, int], ...]:
     ranges: list[tuple[int, int]] = []
     for match in _RESEARCH_TOPIC_LEAD_RE.finditer(text):
@@ -339,9 +454,10 @@ def _contaminant_family_term_map() -> dict[str, str]:
 def extract_query_context(text: str) -> QueryContext:
     """Extract structured entities and spans from a user query."""
     research_topic_ranges = _collect_research_topic_ranges(text)
+    polymer_spans = _collect_term_spans(text, kind="polymer", term_map=_polymer_term_map())
     return QueryContext(
         text=text,
-        polymer_spans=_collect_term_spans(text, kind="polymer", term_map=_polymer_term_map()),
+        polymer_spans=polymer_spans,
         solvent_spans=_collect_term_spans(text, kind="solvent", term_map=_solvent_term_map()),
         contaminant_spans=_collect_term_spans(text, kind="contaminant", term_map=_contaminant_term_map()),
         contaminant_family_spans=_collect_term_spans(
@@ -362,4 +478,7 @@ def extract_query_context(text: str) -> QueryContext:
             excluded_ranges=research_topic_ranges,
         ),
         sequence_spans=_collect_pattern_spans(text, kind="sequence", patterns=_SEQUENCE_PATTERNS),
+        feed_composition_items=_collect_feed_fraction_items(text),
+        feed_composition_slices_items=_collect_feed_composition_slices(text, polymer_spans),
+        feed_capacity_tpy=_extract_feed_capacity_tpy(text),
     )

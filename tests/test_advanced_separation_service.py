@@ -186,8 +186,8 @@ def test_build_process_flow_report_summarizes_steps():
 def test_plot_helpers_delegate_to_save_plot(monkeypatch):
     saved = []
 
-    def _fake_save_plot(fig, filename, backend=None):
-        saved.append((filename, backend))
+    def _fake_save_plot(fig, filename, backend=None, **kwargs):
+        saved.append((filename, backend, kwargs))
         return f"/tmp/{filename}.png"
 
     monkeypatch.setattr(service, "save_plot", _fake_save_plot)

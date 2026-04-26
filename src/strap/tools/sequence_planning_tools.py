@@ -39,6 +39,7 @@ from strap.services.advanced_separation_service import (
     plot_topk_comparison as _plot_topk_comparison,
 )
 from strap.solvent_registry import ABBREVIATION_MAP as _ABBREVIATION_MAP
+from strap.solubility import SENSITIVITY_EXTRAPOLATION_MAX_C
 from strap.tools._helpers import safe_tool_wrapper
 
 logger = logging.getLogger(__name__)
@@ -180,6 +181,14 @@ async def plan_multiple_separation_schemes(
             error_code="insufficient_polymers",
             polymers=polymer_list,
         )
+    if temperature > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return _advanced_error(
+            "plan_multiple_separation_schemes",
+            f"Temperature exceeds the supported Apelblat sensitivity limit of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C.",
+            error_code="temperature_above_supported_extrapolation",
+            temperature=temperature,
+            max_temperature=SENSITIVITY_EXTRAPOLATION_MAX_C,
+        )
 
     # ---- Pre-load solvent properties (BP, LogP, G-score) once ----
     all_solvents = _get_available_solvents()
@@ -279,6 +288,14 @@ async def plan_sequential_separation(
             "Need at least 2 polymers for separation planning.",
             error_code="insufficient_polymers",
             polymers=polymer_list,
+        )
+    if temperature > SENSITIVITY_EXTRAPOLATION_MAX_C:
+        return _advanced_error(
+            "plan_sequential_separation",
+            f"Temperature exceeds the supported Apelblat sensitivity limit of {SENSITIVITY_EXTRAPOLATION_MAX_C:.0f} C.",
+            error_code="temperature_above_supported_extrapolation",
+            temperature=temperature,
+            max_temperature=SENSITIVITY_EXTRAPOLATION_MAX_C,
         )
 
     # Parse excluded solvents (from feedback loop cost constraints)

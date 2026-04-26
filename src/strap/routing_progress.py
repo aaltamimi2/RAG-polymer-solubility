@@ -147,6 +147,32 @@ def _build_optimization_synthesis_anchor(payload: dict) -> str:
                     )
             return " ".join(anchor_parts)
 
+    if analysis_type == "pareto_slices":
+        slices = payload.get("slices")
+        n_slices_requested = payload.get("n_slices_requested")
+        n_slices_solved = payload.get("n_slices_solved")
+        payload_path = str(payload.get("pareto_slices_payload_path", "")).strip()
+        anchor_parts.append(
+            "This is a multi-composition Pareto-slice optimization result. Anchor the final answer to the validated slice summaries, not to a single upstream separation route."
+        )
+        anchor_parts.append(
+            f"Report {n_slices_solved or 0} solved slices out of {n_slices_requested or 0} requested."
+        )
+        if payload_path:
+            anchor_parts.append(f"Use the authoritative multi-slice payload path: {payload_path}.")
+        if isinstance(slices, list) and slices:
+            for slice_summary in slices[:5]:
+                if not isinstance(slice_summary, dict):
+                    continue
+                label = str(slice_summary.get("label", "")).strip() or str(slice_summary.get("slice_id", "")).strip() or "slice"
+                status = str(slice_summary.get("status", "")).strip() or "unknown"
+                n_points = slice_summary.get("n_points_feasible")
+                max_circularity = slice_summary.get("max_circularity")
+                anchor_parts.append(
+                    f"Validated slice {label}: status={status}, frontier_points={n_points}, max_circularity={max_circularity}."
+                )
+        return " ".join(anchor_parts)
+
     optimal_washes = payload.get("optimal_washes")
     if isinstance(optimal_washes, list) and optimal_washes:
         washes_text = ", ".join(str(item) for item in optimal_washes if str(item).strip())
@@ -173,11 +199,30 @@ def _build_completion_synthesis_anchor(messages: list, ordered_plan: list[dict])
         "Do not invent new solvents, temperatures, selectivity values, or purity claims."
     ]
 
+    optimization_anchor_added = False
     if "optimization-engineer" in completed_names:
         payload = _get_latest_validated_task_payload(messages, "optimization-engineer")
         if isinstance(payload, dict):
             anchor_parts.append(_build_optimization_synthesis_anchor(payload))
-            return " ".join(anchor_parts)
+            optimization_anchor_added = True
+
+    if "visualization-specialist" in completed_names:
+        payload = _get_latest_validated_task_payload(messages, "visualization-specialist")
+        if isinstance(payload, dict):
+            plot_paths = payload.get("plot_paths")
+            plot_type = str(payload.get("plot_type", "")).strip() or "visualization"
+            if isinstance(plot_paths, list) and plot_paths:
+                anchor_parts.append(
+                    f"Visualization-specialist returned validated {plot_type} artifacts. Include these plot paths verbatim in the final answer."
+                )
+                for path in plot_paths[:8]:
+                    path_text = str(path).strip()
+                    if path_text:
+                        anchor_parts.append(f"Validated plot artifact: {path_text}.")
+                return " ".join(anchor_parts)
+
+    if optimization_anchor_added:
+        return " ".join(anchor_parts)
 
     if "separation-engineer" in completed_names:
         payload = _get_latest_validated_task_payload(messages, "separation-engineer")
