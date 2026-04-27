@@ -133,9 +133,9 @@ tool_groups:
 - database_query
 - reflection
 guardrails:
-  max_tool_calls: 200
-  max_iterations: 100
-  token_budget: 400000
+  max_tool_calls: 12
+  max_iterations: 12
+  token_budget: 100000
   synthesis_tools:
   - statistical_summary
   - correlation_analysis

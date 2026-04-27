@@ -13,6 +13,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from .planning_graph import GENERIC_CONTEXT_ARTIFACT, build_planning_graph
 from .query_context import extract_query_context
 from .subagent_config import load_routing_configuration
+from .user_input_parsing import contains_temperature_mention, has_temperature_ceiling
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
@@ -38,6 +39,14 @@ except Exception as e:  # pragma: no cover - import-time fallback
 
 _HSP_QUERY_RE = re.compile(
     r"\b(hansen|hsp|red\b|relative energy difference|ml prediction|machine learning)\b",
+    re.IGNORECASE,
+)
+_STATISTICS_ML_EXPLICIT_RE = re.compile(
+    r"\b("
+    r"hansen|hsp|red\b|relative energy difference|ml prediction|machine learning|"
+    r"statistical|statistics|correlation|regression|anova|t[- ]?test|p[- ]?value|"
+    r"glass transition|tg\b|thermal prediction|thermal propert"
+    r")\b",
     re.IGNORECASE,
 )
 _HSP_SCREENING_RE = re.compile(
@@ -189,7 +198,7 @@ _QUANTITATIVE_SOLUBILITY_RANGE_RE = re.compile(
     r"\b(solubility|soluble|dissolv(?:e|es|ing|ility)?)\b"
     r"(?=[^.?!]{0,120}\b("
     r"from|between|up to|range|over|versus|vs\.?|temperature|temperatures?|"
-    r"\d+(?:\.\d+)?\s*(?:c|\u00b0c)"
+    r"\d+(?:\.\d+)?\s*(?:deg\s*)?(?:c|\u00b0c)"
     r")\b)",
     re.IGNORECASE,
 )
@@ -203,7 +212,7 @@ _SEQUENTIAL_CUE_RE = re.compile(
 )
 _DIRECT_SOLVENT_LOOKUP_VERB_RE = re.compile(
     r"\b("
-    r"what|which|list|show|give|suggest|recommend|recommendation|good|best|"
+    r"what|which|list|show|give|identify|find|suggest|recommend|recommendation|good|best|"
     r"available|candidate|candidates"
     r")\b",
     re.IGNORECASE,
@@ -216,15 +225,15 @@ _DIRECT_SOLVENT_LOOKUP_TOPIC_RE = re.compile(
 )
 _DIRECT_SOLVENT_LOOKUP_BLOCKER_RE = re.compile(
     r"\b("
-    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ity)?|but\s+not|not\s+dissolv|"
+    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ely|ity)?|over|but\s+not|not\s+dissolv|"
     r"rank|ranking|screen|screening|matrix|heatmap|compare|comparison|versus|vs\.?|"
     r"hansen|hsp|red\b|relative energy difference|ml prediction|machine learning|"
     r"temperature|temperatures?|from\s+room\s+temperature|between|up\s+to|range|"
-    r"\d+(?:\.\d+)?\s*(?:c|\u00b0c)|sequence|route|process design|planner|"
+    r"\d+(?:\.\d+)?\s*(?:deg\s*)?(?:c|\u00b0c)|sequence|route|process design|planner|"
     r"dynamic[- ]programming|dp planner|atmospheric pressure|feasible|feasibility|"
     r"tea|lca|techno[- ]economic|biosteam|msp|capex|opex|gwp|emissions?|cost|"
     r"optimization|optimisation|pareto|superstructure|contamin|decontamin|pfas|"
-    r"phthalate|safety|toxicity|hazard|literature|paper|patent|plot|chart|graph"
+    r"phthalate|safe|safest|safety|toxicity|hazard|literature|paper|patent|plot|chart|graph"
     r")\b",
     re.IGNORECASE,
 )
@@ -232,12 +241,44 @@ _SIMPLE_SOLVENT_LOOKUP_POLYMER_RE = re.compile(
     r"\b(?:LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b",
     re.IGNORECASE,
 )
+_TEMPERATURE_VALUE_RE = re.compile(
+    r"\b\d+(?:\.\d+)?\s*(?:deg\s*)?(?:°\s*)?C\b",
+    re.IGNORECASE,
+)
+_ROUTINE_TEMP_CEILING_RE = re.compile(
+    r"(?:\b(?:below|under|up\s+to|at\s+or\s+below|less\s+than|max(?:imum)?)\b[^.?!]{0,80}|<=\s*)"
+    r"\d+(?:\.\d+)?\s*(?:deg\s*)?(?:°\s*)?C\b",
+    re.IGNORECASE,
+)
+_ROUTINE_SOLVENT_CANDIDATE_BLOCKER_RE = re.compile(
+    r"\b("
+    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ely|ity)?|over|but\s+not|not\s+dissolv|"
+    r"rank|ranking|screen|screening|matrix|heatmap|compare|comparison|versus|vs\.?|"
+    r"hansen|hsp|red\b|relative energy difference|ml prediction|machine learning|"
+    r"statistical|statistics|correlation|regression|anova|thermal prediction|thermal propert|"
+    r"from\s+room\s+temperature|between|range|sequence|route|process design|planner|"
+    r"dynamic[- ]programming|dp planner|atmospheric pressure|feasible|feasibility|"
+    r"tea|lca|techno[- ]economic|biosteam|msp|capex|opex|gwp|emissions?|cost|"
+    r"optimization|optimisation|pareto|superstructure|contamin|decontamin|pfas|"
+    r"phthalate|safe|safest|safety|toxicity|hazard|literature|paper|patent|plot|chart|graph"
+    r")\b",
+    re.IGNORECASE,
+)
+_ROUTINE_MULTI_TARGET_RE = re.compile(
+    r"\b(any\s+one|any\s+of|one\s+of|each(?:\s+of)?|components?|constituents?|polymers?)\b",
+    re.IGNORECASE,
+)
+_SINGLE_POLYMER_DISSOLUTION_FOCUS_RE = re.compile(
+    r"\b(?:dissolv(?:e|es|ing)|solubil(?:ize|ise|ity)?)\b[^.?!]{0,48}"
+    r"\b(LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b",
+    re.IGNORECASE,
+)
 _DIRECT_SOLUBILITY_LOOKUP_RE = re.compile(
     r"\b(?:what|show|give|list|calculate|predict|estimate)\b"
     r"(?=[^.?!]{0,160}\bsolubility\b)"
     r"(?=[^.?!]{0,160}\b(?:LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b)"
     r"(?=[^.?!]{0,220}\b(?:in|for|these|those|each)\b)"
-    r"(?=[^.?!]{0,220}\b(?:up to|from|between|range|temperature|temperatures?|\d+(?:\.\d+)?\s*(?:c|\u00b0c))\b)",
+    r"(?=[^.?!]{0,220}\b(?:up to|from|between|range|temperature|temperatures?|\d+(?:\.\d+)?\s*(?:deg\s*)?(?:c|\u00b0c))\b)",
     re.IGNORECASE,
 )
 _DIRECT_SOLUBILITY_LOOKUP_BLOCKER_RE = re.compile(
@@ -434,10 +475,20 @@ def explain_direct_answer_query(query_text: str) -> dict[str, str | bool]:
             "is_direct": True,
             "reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
         }
+    if is_routine_solvent_candidate_query(query_text):
+        return {
+            "is_direct": True,
+            "reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+        }
     if not _DIRECT_SOLVENT_LOOKUP_TOPIC_RE.search(query_text):
         return {"is_direct": False, "reason": "not a direct solvent lookup topic"}
     if not _DIRECT_SOLVENT_LOOKUP_VERB_RE.search(query_text):
         return {"is_direct": False, "reason": "no direct lookup/recommendation verb"}
+    if contains_temperature_mention(query_text) and not has_temperature_ceiling(query_text):
+        return {
+            "is_direct": False,
+            "reason": "contains a temperature mention that is not a simple ceiling constraint",
+        }
     blocker = _DIRECT_SOLVENT_LOOKUP_BLOCKER_RE.search(query_text)
     if blocker:
         return {
@@ -455,6 +506,38 @@ def explain_direct_answer_query(query_text: str) -> dict[str, str | bool]:
 def is_direct_answer_query(query_text: str) -> bool:
     """Return True for fast-path questions that should not enter specialist routing."""
     return bool(explain_direct_answer_query(query_text).get("is_direct"))
+
+
+def is_routine_solvent_candidate_query(query_text: str) -> bool:
+    """Return True for simple multi-polymer solvent-candidate lookups.
+
+    These queries are database lookups even when they include a temperature
+    ceiling such as "below 100 C". Richer asks still route to specialists.
+    """
+    if not query_text:
+        return False
+    if not _DIRECT_SOLVENT_LOOKUP_TOPIC_RE.search(query_text):
+        return False
+    if not _DIRECT_SOLVENT_LOOKUP_VERB_RE.search(query_text):
+        return False
+    polymers = {
+        re.sub(r"[-\s]", "", match.group(0)).upper()
+        for match in _SIMPLE_SOLVENT_LOOKUP_POLYMER_RE.finditer(query_text)
+    }
+    if len(polymers) < 2:
+        return False
+    if (
+        _SINGLE_POLYMER_DISSOLUTION_FOCUS_RE.search(query_text)
+        and not _ROUTINE_MULTI_TARGET_RE.search(query_text)
+    ):
+        return False
+    if re.search(r"\bfeedstock\b", query_text, re.IGNORECASE) and not _ROUTINE_MULTI_TARGET_RE.search(query_text):
+        return False
+    if _ROUTINE_SOLVENT_CANDIDATE_BLOCKER_RE.search(query_text):
+        return False
+    if contains_temperature_mention(query_text) and not has_temperature_ceiling(query_text):
+        return False
+    return True
 
 
 def is_direct_solubility_lookup_query(query_text: str) -> bool:
@@ -478,6 +561,11 @@ def is_direct_solubility_plot_query(query_text: str) -> bool:
 def is_separation_visualization_request(query_text: str) -> bool:
     """Return True for DP/state-map separation visualization requests."""
     return bool(query_text and _SEPARATION_VISUALIZATION_REQUEST_RE.search(query_text))
+
+
+def is_statistics_ml_explicit_query(query_text: str) -> bool:
+    """Return True when a query explicitly asks for statistics/ML/HSP work."""
+    return bool(query_text and _STATISTICS_ML_EXPLICIT_RE.search(query_text))
 
 
 def infer_requested_goals(query_text: str) -> set[str]:
@@ -574,6 +662,9 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
             return matched_rules
 
     names = {rule["subagent"] for rule in matched_rules}
+    if "statistics-ml" in names and not is_statistics_ml_explicit_query(query_text):
+        matched_rules = [rule for rule in matched_rules if rule["subagent"] != "statistics-ml"]
+        names = {rule["subagent"] for rule in matched_rules}
     if "statistics-ml" in names and _QUANTITATIVE_SOLUBILITY_RANGE_RE.search(query_text) and not _HSP_QUERY_RE.search(query_text):
         matched_rules = [rule for rule in matched_rules if rule["subagent"] != "statistics-ml"]
         names = {rule["subagent"] for rule in matched_rules}
@@ -1248,6 +1339,14 @@ def build_direct_answer_hint(query_text: str) -> str | None:
             "Do not run separation/selectivity ranking unless the user explicitly asks for "
             "separation, selectivity, ranking, or process design. Keep the answer to a compact "
             "table and include any interpolation/boiling-point caveats returned by the tools.]"
+        )
+    if is_routine_solvent_candidate_query(query_text):
+        return (
+            "\n\n[DIRECT_ANSWER: This is a routine multi-polymer solvent-candidate lookup, "
+            "even if it includes a temperature ceiling such as below 100 C. Do not delegate "
+            "to task(), do not use HSP/RED/statistics-ML, and do not infer selectivity or a "
+            "separation sequence. Answer from the direct solubility database lookup and state "
+            "that selectivity/process design is a separate follow-up analysis.]"
         )
     return (
         "\n\n[DIRECT_ANSWER: This is a simple solvent lookup/recommendation question. "

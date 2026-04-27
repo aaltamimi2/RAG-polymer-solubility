@@ -1777,6 +1777,8 @@ def plot_optimization_point_result(
     plot_title: Optional[str] = None,
     source_handoff_id: Optional[str] = None,
     output_stem: Optional[str] = None,
+    output_dir: Optional[str] = None,
+    output_path: Optional[str] = None,
 ) -> str:
     """Plot a single-point optimization result as a compact optimization dashboard."""
     if source_handoff_id:
@@ -1865,7 +1867,12 @@ def plot_optimization_point_result(
     if not plot_stem:
         plot_stem = "optimization_point_result"
 
-    filepath = save_plot(fig, plot_stem)
+    save_kwargs: dict[str, Any] = {}
+    if output_dir is not None:
+        save_kwargs["output_dir"] = output_dir
+    if output_path is not None:
+        save_kwargs["output_path"] = output_path
+    filepath = save_plot(fig, plot_stem, **save_kwargs)
     if not os.path.exists(filepath) and os.path.exists(f"{filepath}.png"):
         filepath = f"{filepath}.png"
     plt.close(fig)
@@ -1882,6 +1889,10 @@ def plot_optimization_point_result(
         display += f"Source handoff: {source_handoff_id}\n"
     if output_stem:
         display += f"Output stem: {output_stem}\n"
+    if output_dir:
+        display += f"Output dir: {output_dir}\n"
+    if output_path:
+        display += f"Output path: {output_path}\n"
     display += f"\n{_get_plot_url(filepath)}"
 
     from strap.services.tool_response_service import json_tool_response
@@ -1897,6 +1908,8 @@ def plot_optimization_point_result(
         "optimal_washes": washes,
         "source_handoff_id": source_handoff_id,
         "output_stem": output_stem,
+        "output_dir": output_dir,
+        "output_path": output_path,
     }
     return json_tool_response(display, data, tool_name="plot_optimization_point_result")
 

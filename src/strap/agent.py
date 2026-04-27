@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import uuid
 import warnings
@@ -113,18 +114,88 @@ _TOOL_GROUP_REGISTRY: dict[str, callable] = {
 
 def _get_cli_version() -> str:
     """Return the installed CLI version for startup rendering."""
+    source_version = _get_source_pyproject_version()
+    if source_version:
+        return source_version
     try:
         from importlib.metadata import PackageNotFoundError, version
 
         return version("strap-agent")
     except Exception:
-        return "0.2.0"
+        return "0.3.0"
+
+
+def _get_source_root() -> Path:
+    """Return the source checkout root for the imported package when available."""
+    for parent in (_PACKAGE_DIR, *_PACKAGE_DIR.parents):
+        if (parent / "pyproject.toml").is_file():
+            return parent
+    return _PACKAGE_DIR
+
+
+def _get_source_pyproject_version() -> str:
+    """Read the source version so editable installs do not show stale metadata."""
+    pyproject_path = _get_source_root() / "pyproject.toml"
+    if not pyproject_path.is_file():
+        return ""
+    try:
+        match = re.search(
+            r'(?m)^version\s*=\s*["\']([^"\']+)["\']',
+            pyproject_path.read_text(encoding="utf-8"),
+        )
+    except Exception:
+        return ""
+    return match.group(1).strip() if match else ""
+
+
+def _git_stdout(root: Path, *args: str) -> str:
+    """Run a small git metadata command without making startup depend on git."""
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=0.5,
+        )
+    except Exception:
+        return ""
+    if completed.returncode != 0:
+        return ""
+    return completed.stdout.strip()
+
+
+def _get_source_status_lines() -> tuple[str, str, str]:
+    """Return source, git, and launch-directory status lines for startup."""
+    source_root = _get_source_root()
+    source_text = f"Source {source_root}"
+
+    git_text = ""
+    if (source_root / ".git").exists():
+        branch = _git_stdout(source_root, "branch", "--show-current")
+        commit = _git_stdout(source_root, "rev-parse", "--short=12", "HEAD")
+        dirty = _git_stdout(source_root, "status", "--short") != ""
+        if branch and commit:
+            git_text = f"Git {branch} @ {commit}"
+            if dirty:
+                git_text += " + local changes"
+        elif commit:
+            git_text = f"Git {commit}"
+
+    cwd = Path.cwd()
+    launch_text = ""
+    if cwd != source_root:
+        launch_text = f"Launch cwd {cwd}"
+    return source_text, git_text, launch_text
 
 
 def _build_startup_panel(
     *,
     accent: str,
     version_text: str,
+    source_text: str = "",
+    git_text: str = "",
+    launch_text: str = "",
     thread_id: str,
     use_checkpointer: bool,
     model_alias: str = "",
@@ -133,50 +204,67 @@ def _build_startup_panel(
     """Build the startup splash panel for interactive CLI sessions."""
     import getpass
 
+    from rich.panel import Panel
     from rich.table import Table
     from rich.text import Text
-    from rich.panel import Panel
+
+    def _meta_line(label: str, value: str, *, value_style: str = "dim") -> Text:
+        line = Text()
+        line.append(f"{label:<10}", style=f"bold {accent}")
+        line.append(value, style=value_style)
+        return line
 
     logo = Text(justify="center")
-    for line in (
-        "   ____  _________ __________ _    _    ______",
-        "  / __ \\/  _/ ___// ___/ __ \\ |  / |  / / __/",
-        " / / / // / \\__ \\/ /__/ /_/ / | /| | / / _/  ",
-        "/_/ /_/___/____/\\___/\\____/|__/ |_|/_/___/  ",
-    ):
-        logo.append(line + "\n", style=f"bold {accent}")
-    logo.append("Contaminant-aware solubility orchestration", style=f"{accent}")
+    logo.append("D I S S O L V E\n", style=f"bold {accent}")
+    logo.append("Advanced Recycling Agent\n", style="bold white")
+    logo.append("Separation design  |  solvent safety  |  TEA/LCA  |  optimization\n", style="white")
+    logo.append("Contaminant-aware workflows available as a specialist capability", style="dim")
 
-    status = Table.grid(padding=(0, 1))
-    status.add_row(Text(f"Welcome back {getpass.getuser()}", style="bold white"))
-    status.add_row(Text(f"DISSOLVE v{version_text}", style=f"bold {accent}"))
-    status.add_row(Text("Separation · Contaminants · TEA/LCA · Safety", style="white"))
-    status.add_row(Text(str(Path.cwd()), style="dim"))
+    status = Table.grid(expand=True)
+    status.add_column()
+    status.add_row(_meta_line("User", getpass.getuser(), value_style="bold white"))
+    status.add_row(_meta_line("Version", f"DISSOLVE v{version_text}", value_style=f"bold {accent}"))
+    if source_text:
+        status.add_row(_meta_line("Source", source_text.removeprefix("Source ")))
+    if git_text:
+        status.add_row(_meta_line("Git", git_text.removeprefix("Git ")))
+    if launch_text:
+        status.add_row(_meta_line("Launch", launch_text.removeprefix("Launch cwd ")))
     if model_alias:
         model_text = f"{model_alias}"
         if model_name:
             model_text += f" ({model_name})"
-        status.add_row(Text(f"Model {model_text}", style="dim"))
+        status.add_row(_meta_line("Model", model_text))
     if os.getenv("LANGSMITH_API_KEY"):
-        status.add_row(Text("LangSmith tracing enabled", style="green"))
+        trace_status = "enabled"
+        trace_style = "green"
     else:
-        status.add_row(Text("LangSmith tracing disabled", style="yellow"))
+        trace_status = "disabled"
+        trace_style = "yellow"
     if use_checkpointer:
-        status.add_row(Text(f"Session {thread_id}", style="dim"))
+        session_status = thread_id
     else:
-        status.add_row(Text("Session persistence disabled", style="dim"))
-    status.add_row(Text("Use /model to switch; quit to exit", style="dim"))
+        session_status = "persistence disabled"
+    trace_line = Text()
+    trace_line.append(f"{'LangSmith':<10}", style=f"bold {accent}")
+    trace_line.append(trace_status, style=trace_style)
+    trace_line.append("   ")
+    trace_line.append("Session ", style=f"bold {accent}")
+    trace_line.append(session_status, style="dim")
+    status.add_row(trace_line)
+    status.add_row(Text("Use /model to switch models; type quit to exit.", style="dim"))
 
     layout = Table.grid(expand=True)
-    layout.add_column(ratio=3, justify="center")
-    layout.add_column(ratio=2)
-    layout.add_row(logo, status)
+    layout.add_column()
+    layout.add_row(logo)
+    layout.add_row("")
+    layout.add_row(status)
 
     return Panel(
         layout,
         border_style=accent,
-        title="[bold white]DISSOLVE CLI[/]",
-        subtitle="[dim]interactive session[/]",
+        title="[bold white]Advanced Recycling Agent[/]",
+        subtitle="[dim]DISSOLVE interactive session[/]",
         padding=(1, 2),
     )
 
@@ -195,6 +283,9 @@ def _show_startup_animation(
     console,
     *,
     version_text: str,
+    source_text: str = "",
+    git_text: str = "",
+    launch_text: str = "",
     thread_id: str,
     use_checkpointer: bool,
     model_alias: str = "",
@@ -216,6 +307,9 @@ def _show_startup_animation(
                 _build_startup_panel(
                     accent=accent,
                     version_text=version_text,
+                    source_text=source_text,
+                    git_text=git_text,
+                    launch_text=launch_text,
                     thread_id=thread_id,
                     use_checkpointer=use_checkpointer,
                     model_alias=model_alias,
@@ -228,6 +322,9 @@ def _show_startup_animation(
         _build_startup_panel(
             accent="#3b82f6",
             version_text=version_text,
+            source_text=source_text,
+            git_text=git_text,
+            launch_text=launch_text,
             thread_id=thread_id,
             use_checkpointer=use_checkpointer,
             model_alias=model_alias,
@@ -874,6 +971,7 @@ def main():
     durable_session_paths["dir"].mkdir(parents=True, exist_ok=True)
     session_context = load_session_context(thread_id)
     version_text = _get_cli_version()
+    source_text, git_text, launch_text = _get_source_status_lines()
     current_model_alias, current_model_spec = _resolve_cli_model(args.model)
     current_model_name = current_model_spec["model"]
     current_interaction_mode = _resolve_cli_interaction_mode(args.mode)
@@ -887,6 +985,9 @@ def main():
     _show_startup_animation(
         console,
         version_text=version_text,
+        source_text=source_text,
+        git_text=git_text,
+        launch_text=launch_text,
         thread_id=thread_id,
         use_checkpointer=use_checkpointer,
         model_alias=current_model_alias,
@@ -901,6 +1002,12 @@ def main():
             )
         )
         console.print("[dim]Data Integrated Solubility Solver via LLM Evaluation[/]")
+        if source_text:
+            console.print(f"[dim]{source_text}[/]")
+        if git_text:
+            console.print(f"[dim]{git_text}[/]")
+        if launch_text:
+            console.print(f"[dim]{launch_text}[/]")
         if os.getenv("LANGSMITH_API_KEY"):
             console.print("[dim]LangSmith tracing:[/] [green]enabled[/]")
         if use_checkpointer:

@@ -19,7 +19,7 @@ from typing import Any
 
 from strap.database import get_connection
 from strap.paths import get_data_path
-from strap.solvent_registry import ABBREVIATION_MAP, get_search_terms, resolve_to_property_db
+from strap.solvent_registry import ABBREVIATION_MAP, SOLVENT_REGISTRY, get_search_terms, resolve_to_property_db
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,21 @@ def _as_float(value: Any) -> float | None:
     if math.isnan(number):
         return None
     return number
+
+
+def _alias_regex(alias: str) -> re.Pattern[str] | None:
+    """Build a tolerant phrase regex for a solvent alias."""
+
+    tokens = [token for token in re.split(r"[^A-Za-z0-9]+", str(alias or "").casefold()) if token]
+    if not tokens:
+        return None
+    body = r"[\s,._/\-()]*".join(re.escape(token) for token in tokens)
+    return re.compile(rf"(?<![a-z0-9]){body}(?![a-z0-9])", re.IGNORECASE)
+
+
+def _phrase_contains_alias(text: str, alias: str) -> bool:
+    pattern = _alias_regex(alias)
+    return bool(pattern and pattern.search(text))
 
 
 def _display_float(value: float | None, unit: str = "") -> str:
@@ -89,9 +104,112 @@ def lookup_curated_safety_profile(solvent_name: str, cas_number: str | None = No
     return None
 
 
+@lru_cache(maxsize=1)
+def _local_safety_solvent_aliases() -> tuple[tuple[str, str], ...]:
+    """Return known local solvent aliases mapped to display names."""
+
+    aliases: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    canonical_by_alias_key: dict[str, str] = {}
+
+    def add(alias: Any, canonical: Any) -> None:
+        alias_text = str(alias or "").strip()
+        canonical_text = str(canonical or "").strip()
+        if not alias_text or not canonical_text or len(_normalize_key(alias_text)) < 3:
+            return
+        canonical_by_alias_key.setdefault(_normalize_key(alias_text), canonical_text)
+        key = (_normalize_key(alias_text), canonical_text.casefold())
+        if key in seen:
+            return
+        seen.add(key)
+        aliases.append((alias_text, canonical_text))
+
+    try:
+        rows = get_connection().execute(
+            """
+            SELECT solvent_name, solvent_name_in_cosmobase, cas_number
+            FROM solvent_data
+            """
+        ).fetchall()
+    except Exception as exc:
+        logger.debug("Could not load local solvent aliases: %s", exc)
+        rows = []
+
+    for solvent_name, cosmobase_name, cas_number in rows:
+        canonical = str(solvent_name or "").strip()
+        add(solvent_name, canonical)
+        add(cosmobase_name, canonical)
+        add(cas_number, canonical)
+
+    for info in SOLVENT_REGISTRY.values():
+        canonical = ""
+        for candidate in (
+            info.get("bp_db_key"),
+            info.get("interp_key"),
+            info.get("property_db"),
+            info.get("biosteam"),
+            info.get("cas"),
+        ):
+            canonical = canonical_by_alias_key.get(_normalize_key(candidate))
+            if canonical:
+                break
+        if not canonical:
+            canonical = str(info.get("property_db") or info.get("biosteam") or info.get("interp_key") or "").strip()
+        for alias in (
+            info.get("interp_key"),
+            info.get("property_db"),
+            info.get("bp_db_key"),
+            info.get("biosteam"),
+            info.get("cas"),
+            *(info.get("aliases") or []),
+        ):
+            add(alias, canonical)
+
+    for alias, expanded in ABBREVIATION_MAP.items():
+        canonical = resolve_to_property_db(expanded) or expanded
+        canonical = canonical_by_alias_key.get(_normalize_key(canonical), canonical)
+        add(alias, canonical)
+        add(expanded, canonical)
+
+    for entry in load_curated_safety_profiles().values():
+        canonical = entry.get("canonical_name") or ""
+        add(canonical, canonical)
+        add(entry.get("cas_number"), canonical)
+        for alias in str(entry.get("aliases") or "").split("|"):
+            add(alias, canonical)
+
+    return tuple(sorted(aliases, key=lambda item: len(_normalize_key(item[0])), reverse=True))
+
+
+def normalize_safety_solvent_query(solvent_name: str) -> str:
+    """Resolve a user/tool solvent phrase to a known local solvent when possible."""
+
+    cleaned = re.sub(r"\s+", " ", str(solvent_name or "")).strip(" .,:;")
+    if not cleaned:
+        return cleaned
+
+    cleaned_key = _normalize_key(cleaned)
+    for alias, canonical in _local_safety_solvent_aliases():
+        if _normalize_key(alias) == cleaned_key:
+            return canonical
+
+    resolved = resolve_to_property_db(cleaned)
+    if resolved:
+        return resolved
+    expanded = ABBREVIATION_MAP.get(cleaned.casefold())
+    if expanded:
+        return resolve_to_property_db(expanded) or expanded
+
+    for alias, canonical in _local_safety_solvent_aliases():
+        if _phrase_contains_alias(cleaned, alias):
+            return canonical
+    return cleaned
+
+
 def _first_solvent_data_row(solvent_name: str) -> dict[str, Any] | None:
     """Return the best local solvent_data row for a solvent query."""
 
+    solvent_name = normalize_safety_solvent_query(solvent_name)
     conn = get_connection()
     candidates: list[str] = [solvent_name]
     resolved = resolve_to_property_db(solvent_name)
@@ -451,8 +569,13 @@ def build_solvent_safety_profile(
 ) -> dict[str, Any]:
     """Build a merged solvent safety profile for card rendering."""
 
-    local = _first_solvent_data_row(solvent_name) or {}
-    display_name = str(local.get("solvent_name") or resolve_to_property_db(solvent_name) or solvent_name).strip()
+    normalized_solvent_name = normalize_safety_solvent_query(solvent_name)
+    local = _first_solvent_data_row(normalized_solvent_name) or {}
+    display_name = str(
+        local.get("solvent_name")
+        or resolve_to_property_db(normalized_solvent_name)
+        or normalized_solvent_name
+    ).strip()
     cas_number = str(local.get("cas_number") or "").strip() or None
     cid = local.get("cid")
 
@@ -465,7 +588,7 @@ def build_solvent_safety_profile(
             cid = None
 
     curated = lookup_curated_safety_profile(display_name, cas_number)
-    gscore = _lookup_gscore(display_name) or _lookup_gscore(solvent_name)
+    gscore = _lookup_gscore(display_name) or _lookup_gscore(normalized_solvent_name) or _lookup_gscore(solvent_name)
 
     physical: dict[str, Any] = {}
     hazards: dict[str, Any] = {"ghs": {}, "toxicity": {}}

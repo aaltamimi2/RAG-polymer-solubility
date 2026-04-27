@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -48,6 +49,85 @@ def test_direct_fast_path_multi_solvent_context_lookup_combines_results():
     assert len(result.data["results"]) == 4
     assert "LDPE in cyclohexane" in result.display
     assert "LDPE in dodecane" in result.display
+
+
+def test_direct_fast_path_handles_routine_multilayer_solvent_candidates(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for dissolving any one of the components "
+        f"below 100 deg C. Save any structured output to {tmp_path}."
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "routine_solvent_candidate_lookup"
+    assert result.route_decision["model_call_budget"] == 0
+    assert result.data["used_hsp_or_statistics_ml"] is False
+    assert result.data["temperature_max_c"] == 100.0
+    assert result.data["polymers"] == ["LDPE", "EVOH", "PET"]
+    assert result.artifacts[0]["type"] == "solvent_candidate_table"
+    assert (tmp_path / "routine_solvent_candidates.json").exists()
+    assert "Method: direct solubility database lookup" in result.display
+
+
+def test_direct_fast_path_handles_routine_multilayer_temperature_spellings():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    variants = {
+        "below 100 C": 100.0,
+        "below 100C": 100.0,
+        "below 100 °C": 100.0,
+        "under 100 C": 100.0,
+        "up to 100 C": 100.0,
+        "below 212 F": 100.0,
+        "below 212 fahrenehit": 100.0,
+        "below 212 degrees Fahrenheit": 100.0,
+        "under 373.15 K": 100.0,
+        "up to 373.15 kelvn": 100.0,
+        "up to 373.15 degrees Kelvin": 100.0,
+        "below 100 celcius": 100.0,
+        "below 100 degrees Celsius": 100.0,
+    }
+    for variant, expected_c in variants.items():
+        query = (
+            "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+            "identify solvents that are promising for dissolving any one of the components "
+            f"{variant}."
+        )
+
+        result = try_direct_tool_fast_path(query)
+
+        assert result is not None, variant
+        assert result.tool_name == "routine_solvent_candidate_lookup"
+        assert result.route_decision["model_call_budget"] == 0
+        assert result.data["used_hsp_or_statistics_ml"] is False
+        assert abs(result.data["temperature_max_c"] - expected_c) < 1e-6
+
+
+def test_direct_fast_path_repairs_wrapped_unquoted_output_path(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    wrapped_path = (
+        f"{tmp_path}/case-studies/case-1/01-ldpe-evoh-p\n"
+        "  et\n"
+        "    -solubility/json."
+    )
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for dissolving any one of the components "
+        f"below 100 deg C. Save any structured output to {wrapped_path}"
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    expected_dir = tmp_path / "case-studies" / "case-1" / "01-ldpe-evoh-pet-solubility" / "json"
+    assert result is not None
+    assert result.tool_name == "routine_solvent_candidate_lookup"
+    assert result.data["structured_output_path"] == str(expected_dir / "routine_solvent_candidates.json")
+    assert (expected_dir / "routine_solvent_candidates.json").exists()
 
 
 def test_direct_fast_path_plot_followup_preserves_dmf_alias_and_temperature_override(tmp_path):
@@ -111,6 +191,56 @@ def test_direct_fast_path_replot_inherits_previous_output_directory(tmp_path):
     assert result.data["temperature_max_c"] == 100.0
     assert result.data["plot_filepath"].startswith(str(tmp_path))
     assert "150.0C" not in result.display
+
+
+def test_direct_fast_path_does_not_treat_generic_result_plot_as_solubility(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: capacity=8,000 MT/yr; composition=EVOH=40%, PE=60%\n"
+        "- Process: scenario=A; solvent_candidates=Toluene, Heptane, Pyridazine, Ethylene glycol\n\n"
+        "User request:\n"
+        f'plot this result and save to "{tmp_path}"'
+    )
+
+    assert try_direct_tool_fast_path(query) is None
+
+
+def test_direct_fast_path_plots_last_optimization_point_result(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    payload = {
+        "analysis_type": "point_optimum",
+        "scenario": "A",
+        "feed_composition": {"PE": 0.6, "EVOH": 0.4},
+        "profit": 12_136_242.52,
+        "total_cost": 6_953_357.48,
+        "emissions": 9_211.0833,
+        "circularity_score": 0.6408,
+        "stage1_tech": ["st1"],
+        "stage2_tech": ["st2"],
+        "stage3_tech": ["lf"],
+        "optimal_washes": ["PE-o-Xylene @ 143.5C", "EVOH-Dimethyl sulfoxide @ 145C"],
+    }
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: capacity=8,000 MT/yr; composition=EVOH=40%, PE=60%\n"
+        "- Process: scenario=A; solvent_candidates=Toluene, Heptane, Pyridazine, Ethylene glycol\n"
+        "- Last optimization result: artifact_id=artifact_opt; analysis_type=point_optimum; "
+        f"payload_json={json.dumps(payload, separators=(',', ':'), sort_keys=True)}\n\n"
+        "User request:\n"
+        f'plot this result and save to "{tmp_path}"'
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "plot_optimization_point_result"
+    assert result.route_decision["intent"] == "optimization_plot"
+    assert result.data["plot_paths"][0].startswith(str(tmp_path))
+    assert result.artifacts[0]["entities"]["plot_type"] == "optimization_point_result"
+    assert "Optimization Point Result Plot Created" in result.display
 
 
 def test_direct_fast_path_does_not_replot_solubility_for_dp_state_map(tmp_path):
@@ -197,6 +327,29 @@ def test_direct_fast_path_plots_top_n_prior_solvent_candidates(tmp_path):
     assert "triethylamine" not in result.display.lower()
 
 
+def test_direct_fast_path_prefers_latest_displayed_candidates_over_broad_session_pool(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: polymers=LDPE, EVOH, PET\n"
+        "- Process: solvent_candidates=Glycol, Dodecane, Dimethyl sulfoxide, N,N-Dimethylformamide, Triethylamine; output_dir="
+        f"{tmp_path}\n"
+        "- Last solvent candidates: polymers=LDPE, EVOH, PET; solvents=Dodecane, Dimethyl sulfoxide, N,N-Dimethylformamide\n\n"
+        "User request:\n"
+        "can you plot the temperature dependent solubility of each of these polymers in each of these solvents over these temperatures"
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "plot_solubility_vs_temperature"
+    assert result.data["solvents"] == ["dodecane", "dimethylsulfoxide", "dimethylformamide"]
+    assert "glycol" not in result.data["solvents"]
+    assert "triethylamine" not in result.display.lower()
+    assert result.data["plot_filepath"].startswith(str(tmp_path))
+
+
 def test_direct_fast_path_prefers_candidate_artifact_for_top_n_when_lookup_exists(tmp_path):
     from strap.direct_fast_path import try_direct_tool_fast_path
 
@@ -279,6 +432,32 @@ def test_direct_fast_path_solubility_lookup_not_plot_update_with_prior_plot():
     assert result.data["results"][0]["t_end_c"] == 80.0
 
 
+def test_direct_fast_path_combined_separation_and_solubility_plot_from_session_context(tmp_path):
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Feedstock: polymers=LDPE, EVOH, PET\n"
+        f"- Process: solvent_candidates=1,4-Dimethylbenzene, Dimethylsulfoxide; output_dir={tmp_path}; dissolution_temp_c=90\n\n"
+        "User request:\n"
+        "okay can you plot this separation approach. also plot the solubility of these polymers "
+        "in each of these solvents from room temperature to 25C"
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "multi_tool_fast_path"
+    assert [child["tool_name"] for child in result.data["results"]] == [
+        "create_separation_tree_plot",
+        "plot_solubility_vs_temperature",
+    ]
+    artifact_types = {artifact["type"] for artifact in result.artifacts}
+    assert {"separation_tree_plot", "plot_artifact"} <= artifact_types
+    assert (tmp_path / "separation_sequence_rank1.png").is_file()
+    assert any(path.name.endswith("_solubility_vs_temp.png") for path in tmp_path.iterdir())
+
+
 def test_direct_fast_path_lists_new_polymer_solvents_despite_plot_context():
     from strap.direct_fast_path import try_direct_tool_fast_path
 
@@ -307,7 +486,8 @@ def test_direct_fast_path_safety_compare_plural_cards():
     assert result is not None
     assert result.tool_name == "compare_solvent_safety_cards"
     assert result.route_decision["intent"] == "safety_lookup"
-    assert "Dimethylformamide" in result.display
+    assert "Dimethyl Formamide" in result.display
+    assert "GVL" not in result.display
 
 
 def test_direct_fast_path_does_not_route_hsp_handle_query_to_safety():

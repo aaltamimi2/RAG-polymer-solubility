@@ -63,6 +63,35 @@ def test_compile_safety_card_snapshot():
     ]
 
 
+def test_fact_extractor_accepts_deg_c_temperature_notation():
+    from strap.planning.extractors import extract_facts
+
+    facts = extract_facts("Identify LDPE/EVOH/PET solvent candidates below 100 deg C.")
+
+    assert facts.temperatures_c == [100.0]
+
+
+def test_fact_extractor_normalizes_fahrenheit_kelvin_and_wrapped_paths(tmp_path):
+    from strap.planning.extractors import extract_facts
+
+    query = (
+        "Identify LDPE/EVOH/PET solvent candidates below 212 fahrenehit and save to "
+        f"{tmp_path}/case-1/01-ldpe-evoh-p\n"
+        "  et\n"
+        "    -solubility/json."
+    )
+
+    facts = extract_facts(query)
+
+    assert abs(facts.temperatures_c[0] - 100.0) < 1e-6
+    assert facts.output_dir == str(tmp_path / "case-1" / "01-ldpe-evoh-pet-solubility" / "json")
+
+    fahrenheit = extract_facts("Identify LDPE/EVOH/PET solvent candidates below 212 degrees Fahrenheit.")
+    kelvin = extract_facts("Identify LDPE/EVOH/PET solvent candidates below 373.15 degrees Kelvin.")
+    assert abs(fahrenheit.temperatures_c[0] - 100.0) < 1e-6
+    assert abs(kelvin.temperatures_c[0] - 100.0) < 1e-6
+
+
 def test_compile_hsp_heatmap_snapshot():
     result = compile_request(
         "Use the Hansen model to screen polyolefins against nonpolar solvents and show the RED heatmap.",

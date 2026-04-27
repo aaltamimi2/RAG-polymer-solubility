@@ -9,7 +9,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .solvent_registry import SOLVENT_REGISTRY
+from .solvent_registry import SOLVENT_REGISTRY, resolve_to_interp_key
+from .user_input_parsing import (
+    extract_output_destination,
+    extract_temperatures_c,
+    has_temperature_ceiling,
+    last_temperature_c,
+)
 
 _SCHEMA_VERSION = "1.1"
 _MAX_CONTEXT_BLOCK_CHARS = 2400
@@ -28,9 +34,20 @@ _COMPOSITION_RE = re.compile(
 _SCENARIO_RE = re.compile(r"\bscenario\s+(?P<scenario>[A-Z0-9_-]+)\b", re.IGNORECASE)
 _ENERGY_CASE_RE = re.compile(r"\b(?:energy\s+case\s*)?(?P<case>C[123])\b", re.IGNORECASE)
 _TEMP_RE = re.compile(r"\b(?P<value>\d+(?:\.\d+)?)\s*(?:deg\s*)?(?:°\s*)?C\b", re.IGNORECASE)
-_PRECIP_TEMP_RE = re.compile(
-    r"\b(?:precipitation|precip|cooling)\s+(?:temperature\s*)?"
-    r"(?P<value>\d+(?:\.\d+)?)\s*(?:deg\s*)?C\b",
+_PRECIP_TEMP_CONTEXT_RE = re.compile(
+    r"\b(?:precipitation|precip|cooling)\s+(?:temperature\s*)?(?:of|=|at|to)?(?:(?:\d+\.\d+)|[^.?!\n]){0,80}",
+    re.IGNORECASE,
+)
+_DISSOLUTION_TEMP_CONTEXT_RE = re.compile(
+    r"\b(?:use|using|dissolv(?:e|es|ing|ution)?|operat(?:e|ing)?|process(?:ing)?|stage\s+\d+)"
+    r"(?:(?:\d+\.\d+)|[^.?!\n]){0,100}?"
+    r"\b(?:at|temperature\s*(?:of|=)?|temp(?:erature)?\s*(?:of|=)?)\s*"
+    r"(?P<value>\d+(?:\.\d+)?)\s*(?:deg\s*)?(?:°\s*)?C\b",
+    re.IGNORECASE,
+)
+_TEMPERATURE_RANGE_CONTEXT_RE = re.compile(
+    r"\b(?:from|between|range|up\s+to|through|until|below|under|max(?:imum)?)\b"
+    r"(?:(?:\d+\.\d+)|[^.?!\n]){0,80}\b\d+(?:\.\d+)?\s*(?:deg\s*)?(?:°\s*)?C\b",
     re.IGNORECASE,
 )
 _TARGET_FRACTION_RE = re.compile(
@@ -43,6 +60,12 @@ _SOLVENT_RE = re.compile(
     r"\b(?:using|with|recovered\s+with|dissolution\s+in)\s+"
     r"(?P<solvent>[A-Z][A-Za-z0-9 ,/-]+?)"
     r"(?=\s+(?:at|under|for|and|with|in|to|from)|[,.$])",
+)
+_OUTPUT_PATH_RE = re.compile(
+    r"\b(?:save|saved|write|written|export|output)\b[^.?!\n]{0,80}?"
+    r"\b(?:to|under|in)\s+"
+    r"(?P<path>\"[^\"]+\"|'[^']+'|\\\\[^\s]+|/[^\s,;]+|~[^\s,;]+)",
+    re.IGNORECASE,
 )
 _METRIC_PATTERNS = (
     ("MSP", re.compile(r"\bmsp\b|minimum\s+selling\s+price", re.IGNORECASE)),
@@ -75,19 +98,87 @@ _DOMAIN_QUERY_RE = re.compile(
     re.IGNORECASE,
 )
 
+_SESSION_SOLVENT_ALIAS_DENYLIST = {
+    # "deg" is a common abbreviation for degrees in "100 deg C"; treating it
+    # as diethylene glycol polluted follow-up solvent context.
+    "deg",
+}
 _SOLVENT_ALIAS_PATTERNS: list[tuple[re.Pattern[str], str]] = []
 _seen_solvent_aliases: set[str] = set()
 for _key, _info in SOLVENT_REGISTRY.items():
     canonical = str(_info.get("property_db") or _info.get("interp_key") or _key)
     for _alias in {_key, *[str(alias) for alias in _info.get("aliases", [])]}:
         alias = _alias.strip()
-        if not alias or alias.lower() in _seen_solvent_aliases:
+        alias_lower = alias.lower()
+        if not alias or alias_lower in _seen_solvent_aliases or alias_lower in _SESSION_SOLVENT_ALIAS_DENYLIST:
             continue
-        _seen_solvent_aliases.add(alias.lower())
+        _seen_solvent_aliases.add(alias_lower)
         left = r"(?<![A-Za-z0-9])"
         right = r"(?![A-Za-z0-9])"
         _SOLVENT_ALIAS_PATTERNS.append((re.compile(left + re.escape(alias) + right, re.IGNORECASE), canonical))
 _SOLVENT_ALIAS_PATTERNS.sort(key=lambda item: len(item[0].pattern), reverse=True)
+
+
+def _is_runtime_excluded_solvent(solvent: str) -> bool:
+    interp_key = resolve_to_interp_key(solvent) or solvent
+    return interp_key.strip().lower() == "triethylamine"
+
+
+def _filter_runtime_solvents(solvents: list[str]) -> list[str]:
+    return [solvent for solvent in solvents if not _is_runtime_excluded_solvent(solvent)]
+
+
+def _solvent_mentions(text: str) -> list[str]:
+    hits: list[tuple[int, int, str]] = []
+    for pattern, canonical in _SOLVENT_ALIAS_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            hits.append((match.start(), match.end(), canonical))
+    accepted: list[tuple[int, int, str]] = []
+    for start, end, canonical in sorted(hits, key=lambda item: (item[0], -(item[1] - item[0]))):
+        if any(not (end <= acc_start or start >= acc_end) for acc_start, acc_end, _ in accepted):
+            continue
+        accepted.append((start, end, canonical))
+    solvents = [canonical for _start, _end, canonical in sorted(accepted)]
+    return _filter_runtime_solvents(_merge_unique([], solvents))
+
+
+def _extract_displayed_solvent_recommendations(text: str) -> dict[str, Any] | None:
+    """Extract the small user-visible recommendation table from assistant prose."""
+    if not re.search(r"\b(Recommended\s+Solvent|Target\s+Polymer|Polymer)\b", text, re.IGNORECASE):
+        return None
+
+    rows: list[dict[str, str]] = []
+    row_re = re.compile(
+        rf"^\s*(?P<polymer>{_KNOWN_POLYMER_PATTERN})\s+(?P<body>.+)$",
+        re.IGNORECASE,
+    )
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("━", "-", "|")):
+            continue
+        match = row_re.match(line)
+        if not match:
+            continue
+        body = match.group("body")
+        solvents = _solvent_mentions(body)
+        if not solvents:
+            continue
+        rows.append(
+            {
+                "polymer": match.group("polymer").upper(),
+                "solvent": solvents[0],
+            }
+        )
+
+    if not rows:
+        return None
+    return {
+        "source": "assistant_displayed_recommendations",
+        "polymers": _merge_unique([], [row["polymer"] for row in rows]),
+        "solvents": _merge_unique([], [row["solvent"] for row in rows]),
+        "rows": rows,
+    }
 
 
 def get_session_root() -> Path:
@@ -222,21 +313,20 @@ def _extract_query_facts(text: str) -> dict[str, Any]:
         if solvent_name:
             facts["process"]["solvent"] = solvent_name
 
-    solvent_hits: list[tuple[int, str]] = []
+    if output_path := _extract_output_dir(text):
+        facts["process"]["output_dir"] = output_path
+
+    solvent_mentions: list[str] = []
     if re.search(r"\b(solvents?|solubility|dissolv(?:e|es|ing)?)\b", text, re.IGNORECASE):
-        for pattern, canonical in _SOLVENT_ALIAS_PATTERNS:
-            match = pattern.search(text)
-            if match:
-                solvent_hits.append((match.start(), canonical))
-        if solvent_hits:
-            solvents = [canonical for _start, canonical in sorted(solvent_hits)]
-            facts["process"]["solvent_candidates"] = _merge_unique([], solvents[:12])
+        solvent_mentions = _solvent_mentions(text)
+        if solvent_mentions:
+            facts["process"]["solvent_candidates"] = solvent_mentions[:12]
 
     if re.search(r"\bsolubility\b", text, re.IGNORECASE):
         subject = _SOLUBILITY_SUBJECT_RE.search(text)
-        solvents = [canonical for _start, canonical in sorted(solvent_hits)]
+        solvents = solvent_mentions
         if subject and solvents:
-            temps = [float(match.group("value")) for match in _TEMP_RE.finditer(text)]
+            temps = extract_temperatures_c(text)
             start_temp = 25.0 if re.search(r"\broom\s+temp(?:erature)?\b", text, re.IGNORECASE) else (temps[0] if len(temps) >= 2 else 25.0)
             end_temp = temps[-1] if temps else None
             lookup: dict[str, Any] = {
@@ -248,12 +338,14 @@ def _extract_query_facts(text: str) -> dict[str, Any]:
                 lookup["temperature_max_c"] = end_temp
             facts["analysis"]["last_solubility_lookup"] = lookup
 
-    if precip_temp := _PRECIP_TEMP_RE.search(text):
-        facts["process"]["precipitation_temp_c"] = float(precip_temp.group("value"))
+    precipitation_temp = _extract_precipitation_temp(text)
+    if precipitation_temp is not None:
+        facts["process"]["precipitation_temp_c"] = precipitation_temp
 
-    temps = [float(match.group("value")) for match in _TEMP_RE.finditer(text)]
-    if temps and "precipitation_temp_c" not in facts["process"]:
-        facts["process"]["dissolution_temp_c"] = temps[0]
+    if "precipitation_temp_c" not in facts["process"]:
+        dissolution_temp = _extract_dissolution_temp(text)
+        if dissolution_temp is not None:
+            facts["process"]["dissolution_temp_c"] = dissolution_temp
 
     if target_fraction := _TARGET_FRACTION_RE.search(text):
         pct = target_fraction.group("pct") or target_fraction.group("pct_alt")
@@ -264,6 +356,49 @@ def _extract_query_facts(text: str) -> dict[str, Any]:
         facts["analysis"]["metrics"] = metrics
 
     return facts
+
+
+def _extract_output_dir(text: str) -> str | None:
+    """Extract a user-requested output directory without touching the filesystem."""
+    destination = extract_output_destination(text)
+    return destination.output_dir if destination is not None else None
+
+
+def _extract_precipitation_temp(text: str) -> float | None:
+    for match in _PRECIP_TEMP_CONTEXT_RE.finditer(text):
+        temp = last_temperature_c(match.group(0))
+        if temp is not None:
+            return temp
+    return None
+
+
+def _extract_dissolution_temp(text: str) -> float | None:
+    """Extract an actual process temperature, not a plot/query temperature range."""
+    if match := _DISSOLUTION_TEMP_CONTEXT_RE.search(text):
+        return float(match.group("value"))
+    context_match = re.search(
+        r"\b(?:use|using|dissolv(?:e|es|ing|ution)?|operat(?:e|ing)?|process(?:ing)?|stage\s+\d+)"
+        r"(?:(?:\d+\.\d+)|[^.?!\n]){0,140}",
+        text,
+        re.IGNORECASE,
+    )
+    if context_match:
+        temp = last_temperature_c(context_match.group(0))
+        if temp is not None:
+            return temp
+    if (
+        _TEMPERATURE_RANGE_CONTEXT_RE.search(text)
+        or has_temperature_ceiling(text)
+        or (
+            re.search(r"\b(?:from|between|range|through|until)\b", text, re.IGNORECASE)
+            and extract_temperatures_c(text)
+        )
+    ):
+        return None
+    if re.search(r"\b(plot|chart|graph|visualiz(?:e|ation)?|curve|solubility\s+(?:plot|curve|range))\b", text, re.IGNORECASE):
+        return None
+    temps = extract_temperatures_c(text)
+    return temps[0] if temps else None
 
 
 def update_session_context_from_text(
@@ -285,14 +420,21 @@ def update_session_context_from_text(
                 existing = updated[section].get(key) or []
                 updated[section][key] = _merge_unique(list(existing), list(value))
             elif key == "solvent_candidates":
-                existing = updated[section].get(key) or []
-                updated[section][key] = _merge_unique(list(existing), list(value))
+                existing = _filter_runtime_solvents(list(updated[section].get(key) or []))
+                new_values = _filter_runtime_solvents(list(value))
+                updated[section][key] = _merge_unique(existing, new_values)
             elif key == "composition_wt_pct":
                 existing = dict(updated[section].get(key) or {})
                 existing.update(value)
                 updated[section][key] = existing
             else:
                 updated[section][key] = value
+
+    if role == "assistant":
+        displayed_recommendations = _extract_displayed_solvent_recommendations(text)
+        if displayed_recommendations:
+            updated["analysis"]["last_solvent_candidate_table"] = displayed_recommendations
+            updated["process"]["solvent_candidates"] = list(displayed_recommendations["solvents"])
 
     if role == "user":
         updated["last_user_query"] = text
@@ -332,6 +474,46 @@ def _artifact_entities(artifact: dict[str, Any]) -> dict[str, Any]:
 def _artifact_data(artifact: dict[str, Any]) -> dict[str, Any]:
     data = artifact.get("data")
     return data if isinstance(data, dict) else {}
+
+
+def _compact_optimization_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Keep only fields needed for follow-up summaries and plotting."""
+    analysis_type = str(payload.get("analysis_type") or "").strip()
+    allowed = {
+        "analysis_type",
+        "schema_version",
+        "objective",
+        "scenario",
+        "feed_composition",
+        "profit",
+        "total_cost",
+        "emissions",
+        "circularity_score",
+        "ce_score",
+        "raw_circularity_score",
+        "capital_cost",
+        "operational_cost",
+        "transport_cost",
+        "sales",
+        "stage1_tech",
+        "stage2_tech",
+        "stage3_tech",
+        "wash1_selection",
+        "wash2_selection",
+        "optimal_washes",
+        "x_metric",
+        "y_metric",
+        "pareto_payload_path",
+        "pareto_slices_payload_path",
+    }
+    compact = {key: payload[key] for key in allowed if key in payload}
+    if analysis_type == "pareto_front":
+        points = payload.get("points")
+        if isinstance(points, list) and len(points) <= 25:
+            compact["points"] = points
+        elif payload.get("pareto_payload_path"):
+            compact["points"] = []
+    return compact
 
 
 def update_session_context_from_direct_metadata(
@@ -409,6 +591,20 @@ def update_session_context_from_direct_metadata(
             polymer = entities.get("polymer")
             polymers = list(entities.get("polymers") or ([polymer] if polymer else []))
             solvents = list(entities.get("solvents") or artifact.get("row_order") or [])
+            plot_type = str(entities.get("plot_type") or "")
+            if plot_type.startswith("optimization_"):
+                plot: dict[str, Any] = {
+                    "artifact_id": artifact.get("artifact_id"),
+                    "plot_type": plot_type,
+                }
+                if data.get("path"):
+                    plot["path"] = str(data["path"])
+                if data.get("paths"):
+                    plot["paths"] = [str(path) for path in data["paths"] if str(path)]
+                if data.get("output_dir"):
+                    plot["output_dir"] = str(data["output_dir"])
+                updated["analysis"]["last_plot_artifact"] = plot
+                continue
             if polymers and solvents:
                 plot: dict[str, Any] = {
                     "artifact_id": artifact.get("artifact_id"),
@@ -426,6 +622,15 @@ def update_session_context_from_direct_metadata(
                 if data.get("output_dir"):
                     plot["output_dir"] = str(data["output_dir"])
                 updated["analysis"]["last_plot_artifact"] = plot
+
+        elif artifact_type in {"optimization_point_result", "optimization_pareto_front"}:
+            payload = data.get("payload") if isinstance(data.get("payload"), dict) else None
+            if payload:
+                updated["analysis"]["last_optimization_result"] = {
+                    "artifact_id": artifact.get("artifact_id"),
+                    "artifact_type": artifact_type,
+                    "payload": _compact_optimization_payload(payload),
+                }
 
     updated["updated_at"] = _utc_now()
     return updated
@@ -457,6 +662,7 @@ def build_session_context_block(context: dict[str, Any]) -> str:
         ("energy_case", "energy_case"),
         ("solvent", "solvent"),
         ("solvent_candidates", "solvent_candidates"),
+        ("output_dir", "output_dir"),
         ("dissolution_temp_c", "dissolution_temp_c"),
         ("precipitation_temp_c", "precipitation_temp_c"),
         ("target_plastic_percent", "target_plastic_percent"),
@@ -466,6 +672,10 @@ def build_session_context_block(context: dict[str, Any]) -> str:
             if isinstance(value, float):
                 value = f"{value:g}"
             elif isinstance(value, list):
+                if key == "solvent_candidates":
+                    value = _filter_runtime_solvents([str(item) for item in value])
+                    if not value:
+                        continue
                 value = ", ".join(str(item) for item in value[:12])
             process_parts.append(f"{label}={value}")
     if process_parts:
@@ -474,13 +684,31 @@ def build_session_context_block(context: dict[str, Any]) -> str:
     if metrics := analysis.get("metrics"):
         lines.append("- Analysis metrics: " + ", ".join(metrics))
 
+    if opt_result := analysis.get("last_optimization_result"):
+        if isinstance(opt_result, dict) and isinstance(opt_result.get("payload"), dict):
+            payload = dict(opt_result["payload"])
+            payload_json = json.dumps(payload, separators=(",", ":"), sort_keys=True)
+            if len(payload_json) <= 1800:
+                parts = []
+                if artifact_id := opt_result.get("artifact_id"):
+                    parts.append(f"artifact_id={artifact_id}")
+                if analysis_type := payload.get("analysis_type"):
+                    parts.append(f"analysis_type={analysis_type}")
+                parts.append(f"payload_json={payload_json}")
+                lines.append("- Last optimization result: " + "; ".join(parts))
+
     if candidate_table := analysis.get("last_solvent_candidate_table"):
         if isinstance(candidate_table, dict):
             parts = []
-            if polymer := candidate_table.get("polymer"):
+            polymers = candidate_table.get("polymers")
+            if isinstance(polymers, list) and polymers:
+                parts.append("polymers=" + ", ".join(str(item) for item in polymers[:8]))
+            elif polymer := candidate_table.get("polymer"):
                 parts.append(f"polymer={polymer}")
             if solvents := candidate_table.get("solvents"):
-                parts.append("solvents=" + ", ".join(str(item) for item in solvents[:12]))
+                solvents = _filter_runtime_solvents([str(item) for item in solvents])
+                if solvents:
+                    parts.append("solvents=" + ", ".join(str(item) for item in solvents[:12]))
             if artifact_id := candidate_table.get("artifact_id"):
                 parts.append(f"artifact_id={artifact_id}")
             if parts:

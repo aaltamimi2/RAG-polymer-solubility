@@ -151,9 +151,13 @@ class TestPredictSolubility:
         from strap.tools.interpolation import predict_solubility
 
         assert get_entry("EVOH", "triethylamine") is None
+        assert get_entry("LDPE", "triethylamine") is None
         assert get_solubility("EVOH", "triethylamine", 80.0) is None
+        assert get_solubility("LDPE", "triethylamine", 80.0) is None
         assert get_solubility("EVOH", "triethylamine", 80.0, method="sql") is None
+        assert get_solubility("LDPE", "triethylamine", 80.0, method="sql") is None
         assert get_solubility_curve("EVOH", "triethylamine", 25.0, 80.0) == []
+        assert get_solubility_curve("LDPE", "triethylamine", 25.0, 80.0) == []
 
         parsed = _parse_tool_result(predict_solubility("EVOH", "triethylamine", 80.0))
         assert parsed["data"]["success"] is False

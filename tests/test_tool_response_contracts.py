@@ -158,6 +158,35 @@ def test_screen_hsp_solubility_matrix_resolves_categories_and_polarity(monkeypat
     assert "not quantitative wt% solubility" in parsed["display"]
 
 
+def test_screen_hsp_solubility_matrix_accepts_json_string_lists(monkeypatch):
+    from strap.tools import ml_prediction
+
+    class FakePredictor:
+        def predict(self, polymer_hsp, solvent_hsp, r0, molar_volume):
+            return {
+                "soluble": True,
+                "probability": 0.9,
+                "confidence": 0.8,
+                "red": 0.7,
+                "ra": 4.2,
+                "r0": 7.4,
+            }
+
+    monkeypatch.setattr(ml_prediction, "get_predictor", lambda: FakePredictor())
+
+    raw = ml_prediction.screen_hsp_solubility_matrix(
+        polymers='["PP", "EVOH"]',
+        solvents='["DMSO", "DMF"]',
+        generate_visualization=False,
+    )
+    parsed = json.loads(raw)
+
+    assert parsed["data"]["success"] is True
+    assert parsed["data"]["analysis_type"] == "hsp_binary_screen"
+    assert parsed["data"]["unsupported"] == []
+    assert len(parsed["data"]["results"]) == 4
+
+
 def test_screen_hsp_solubility_matrix_generates_named_batch_heatmap(monkeypatch, tmp_path):
     from strap.tools import ml_prediction
     from strap.tools import _helpers

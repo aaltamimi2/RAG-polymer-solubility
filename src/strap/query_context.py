@@ -98,7 +98,12 @@ _CONTAMINANT_FAMILY_ALIASES = {
     "phthalate": "Phthalates",
     "phthalates": "Phthalates",
 }
-_AMBIGUOUS_SOLVENT_ALIASES = {"tea"}
+_AMBIGUOUS_SOLVENT_ALIASES = {
+    # DEG is a solvent abbreviation, but "deg C" is far more common in user
+    # temperature text. Require the full solvent name in query-context memory.
+    "deg",
+    "tea",
+}
 _FEED_CAPACITY_PATTERNS = (
     re.compile(
         r"\b(\d[\d,]*(?:\.\d+)?)\s*(?:metric\s+tons?|tonnes?|tons?|mt)\s*/\s*(?:year|yr)\b",

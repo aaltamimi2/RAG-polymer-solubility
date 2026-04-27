@@ -36,6 +36,14 @@ SENSITIVITY_EXTRAPOLATION_MAX_C = 200.0
 
 # Runtime data-quality exclusions.  Keep raw CSV rows intact for provenance,
 # but make agent-facing solubility tools treat these pairs as unavailable.
+EXCLUDED_SOLUBILITY_SOLVENTS: dict[str, str] = {
+    "triethylamine": (
+        "Quarantined from runtime solubility tools pending data-quality review; "
+        "the EVOH rows are anomalous and using the solvent for other polymers "
+        "creates confusing mixed-polymer follow-up plots."
+    ),
+}
+
 EXCLUDED_SOLUBILITY_PAIRS: dict[tuple[str, str], str] = {
     (
         "EVOH",
@@ -171,12 +179,19 @@ def _normalize_pair_for_exclusion(polymer: str, solvent: str) -> tuple[str, str]
 
 def is_solubility_pair_excluded(polymer: str, solvent: str) -> bool:
     """Return True when a polymer-solvent pair is quarantined from runtime tools."""
-    return _normalize_pair_for_exclusion(polymer, solvent) in EXCLUDED_SOLUBILITY_PAIRS
+    _polymer_norm, solvent_norm = _normalize_pair_for_exclusion(polymer, solvent)
+    return solvent_norm in EXCLUDED_SOLUBILITY_SOLVENTS or (
+        _polymer_norm,
+        solvent_norm,
+    ) in EXCLUDED_SOLUBILITY_PAIRS
 
 
 def get_solubility_pair_exclusion_reason(polymer: str, solvent: str) -> str | None:
     """Return the exclusion reason for a quarantined pair, if any."""
-    return EXCLUDED_SOLUBILITY_PAIRS.get(_normalize_pair_for_exclusion(polymer, solvent))
+    polymer_norm, solvent_norm = _normalize_pair_for_exclusion(polymer, solvent)
+    return EXCLUDED_SOLUBILITY_SOLVENTS.get(solvent_norm) or EXCLUDED_SOLUBILITY_PAIRS.get(
+        (polymer_norm, solvent_norm)
+    )
 
 
 def _get_known_names(lookup: dict) -> tuple[set[str], set[str]]:
@@ -412,7 +427,7 @@ def get_available_solvents() -> set[str]:
     """All solvent names in the interpolation dataset."""
     _, lookup = _load_coefficients()
     _, s = _get_known_names(lookup)
-    return s
+    return {solvent for solvent in s if solvent not in EXCLUDED_SOLUBILITY_SOLVENTS}
 
 
 def get_available_solvents_for_polymer(polymer: str) -> set[str]:
@@ -426,7 +441,7 @@ def get_available_solvents_for_polymer(polymer: str) -> set[str]:
         s for (p, s), entry in lookup.items()
         if p == resolved
         and entry["category"] == "fitted"
-        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
+        and not is_solubility_pair_excluded(p, s)
     }
 
 
@@ -436,7 +451,7 @@ def get_available_pairs() -> set[tuple[str, str]]:
     return {
         (p, s) for (p, s), entry in lookup.items()
         if entry["category"] == "fitted"
-        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
+        and not is_solubility_pair_excluded(p, s)
     }
 
 
@@ -457,7 +472,7 @@ def get_entry(polymer: str, solvent: str) -> Optional[dict]:
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
         return None
-    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
+    if is_solubility_pair_excluded(p, s):
         return None
     return lookup.get((p, s))
 
@@ -516,7 +531,7 @@ def _interp_get_solubility(
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
         return None
-    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
+    if is_solubility_pair_excluded(p, s):
         return None
 
     entry = lookup.get((p, s))
@@ -543,7 +558,7 @@ def _interp_get_curve(
     s = resolve_solvent(solvent, known_s)
     if p is None or s is None:
         return None
-    if (p, s) in EXCLUDED_SOLUBILITY_PAIRS:
+    if is_solubility_pair_excluded(p, s):
         return None
 
     entry = lookup.get((p, s))
@@ -599,7 +614,7 @@ def _interp_get_selectivity(
         s for (p, s), entry in lookup.items()
         if p == target_r
         and entry["category"] == "fitted"
-        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
+        and not is_solubility_pair_excluded(p, s)
     }
     if not target_solvents:
         return None
@@ -658,7 +673,7 @@ def _interp_all_solvents_selectivity(
         s for (p, s), entry in lookup.items()
         if p == target_r
         and entry["category"] == "fitted"
-        and (p, s) not in EXCLUDED_SOLUBILITY_PAIRS
+        and not is_solubility_pair_excluded(p, s)
     }
 
     results: list[dict] = []
@@ -762,7 +777,7 @@ def _sql_get_solubility(
     FROM common_solvents_database
     WHERE UPPER(polymer) = UPPER(?)
       AND LOWER(solvent) = LOWER(?)
-      AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+      AND LOWER(solvent) <> 'triethylamine'
       AND temperature___c_ BETWEEN ? AND ?
     """
     try:
@@ -786,7 +801,7 @@ def _sql_get_curve(
     FROM common_solvents_database
     WHERE UPPER(polymer) = UPPER(?)
       AND LOWER(solvent) = LOWER(?)
-      AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+      AND LOWER(solvent) <> 'triethylamine'
       AND temperature___c_ BETWEEN ? AND ?
     GROUP BY temperature___c_
     ORDER BY temperature
@@ -823,7 +838,7 @@ def _sql_get_selectivity(
         SELECT solvent, polymer, AVG(solubility____) as avg_sol
         FROM common_solvents_database
         WHERE polymer IN ('{polymer_filter}')
-          AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+          AND LOWER(solvent) <> 'triethylamine'
           AND temperature___c_ BETWEEN {temperature_c - temp_tolerance}
                                     AND {temperature_c + temp_tolerance}
         GROUP BY solvent, polymer
@@ -886,7 +901,7 @@ def _sql_all_solvents_selectivity(
         SELECT solvent, polymer, AVG(solubility____) as avg_sol
         FROM common_solvents_database
         WHERE polymer IN ('{polymer_filter}')
-          AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+          AND LOWER(solvent) <> 'triethylamine'
           AND temperature___c_ BETWEEN {temperature_c - temp_tolerance}
                                     AND {temperature_c + temp_tolerance}
         GROUP BY solvent, polymer

@@ -125,6 +125,27 @@ def test_plot_solubility_vs_temperature_excludes_quarantined_pair(tmp_path):
     assert "Excluded data-quality pair(s): EVOH/triethylamine" in payload["display"]
 
 
+def test_plot_solubility_vs_temperature_excludes_triethylamine_globally(tmp_path):
+    from strap.tools import visualization
+
+    raw = visualization.plot_solubility_vs_temperature(
+        table_name="common_solvents_database",
+        polymer_column="polymer",
+        solvent_column="solvent",
+        temperature_column="temperature___c_",
+        solubility_column="solubility",
+        polymers="LDPE, PET",
+        solvents="dodecane, triethylamine",
+        temperature_max=80,
+        output_dir=str(tmp_path),
+    )
+    payload = json.loads(raw)
+
+    assert payload["data"]["success"] is True
+    assert payload["data"]["solvents"] == ["dodecane"]
+    assert payload["data"]["excluded_pairs"] == ["LDPE/triethylamine", "PET/triethylamine"]
+
+
 def test_create_separation_tree_plot_honors_output_dir(tmp_path):
     from strap.tools.advanced_separation import create_separation_tree_plot
 
@@ -315,6 +336,35 @@ def test_plot_optimization_point_result_reads_authoritative_handoff(monkeypatch,
         "EVOH-Dimethyl sulfoxide @ 120C",
     ]
     assert payload["data"]["plot_paths"] == [str(output_path)]
+
+
+def test_plot_optimization_point_result_honors_output_dir(monkeypatch, tmp_path):
+    from strap.tools import visualization
+
+    captured: dict[str, str] = {}
+
+    def fake_save_plot(fig, stem, **kwargs):
+        captured["output_dir"] = kwargs.get("output_dir")
+        return str(tmp_path / "custom" / f"{stem}.png")
+
+    monkeypatch.setattr(visualization, "save_plot", fake_save_plot)
+    raw = visualization.plot_optimization_point_result(
+        optimization_result_json={
+            "analysis_type": "point_optimum",
+            "scenario": "A",
+            "feed_composition": {"PE": 0.6, "EVOH": 0.4},
+            "profit": 12_000_000.0,
+            "total_cost": 7_000_000.0,
+            "emissions": 8_700.0,
+            "circularity_score": 0.647,
+            "optimal_washes": ["PE-Cyclohexane @ 120C"],
+        },
+        output_dir=str(tmp_path / "custom"),
+    )
+    payload = json.loads(raw)
+
+    assert captured["output_dir"] == str(tmp_path / "custom")
+    assert payload["data"]["plot_paths"] == [str(tmp_path / "custom" / "optimization_point_result.png")]
 
 
 def test_plot_optimization_pareto_front_reads_requested_plot_mode_from_handoff(monkeypatch, tmp_path):

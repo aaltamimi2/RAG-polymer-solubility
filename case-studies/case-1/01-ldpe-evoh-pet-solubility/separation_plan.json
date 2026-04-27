@@ -1,0 +1,35 @@
+{
+  "agent": "separation-engineer",
+  "schema_version": "1.0",
+  "polymers": ["PET", "EVOH", "HDPE", "LDPE"],
+  "best_sequence": ["EVOH", "LDPE", "HDPE", "PET"],
+  "steps": [
+    {"step": 1, "polymer": "EVOH", "solvent": "Dimethyl sulfoxide", "temperature_c": 145.0, "selectivity_pct": 27.3},
+    {"step": 2, "polymer": "LDPE", "solvent": "p-Xylene", "temperature_c": 130.0, "selectivity_pct": 18.0},
+    {"step": 3, "polymer": "HDPE", "solvent": "Dodecane", "temperature_c": 145.0, "selectivity_pct": 16.4}
+  ],
+  "min_selectivity_pct": 16.4,
+  "avg_selectivity_pct": 20.6,
+  "top_solvents": ["Dimethyl sulfoxide", "p-Xylene", "Dodecane"],
+  "polymer_solvent_candidates": {
+    "EVOH": [
+      {"rank": 1, "solvent": "Dimethyl sulfoxide", "temperature_c": 145.0, "selectivity_pct": 27.3},
+      {"rank": 2, "solvent": "N,N-Dimethylformamide", "temperature_c": 120.0, "selectivity_pct": 12.3}
+    ],
+    "LDPE": [
+      {"rank": 1, "solvent": "p-Xylene", "temperature_c": 130.0, "selectivity_pct": 18.0},
+      {"rank": 2, "solvent": "o-Xylene", "temperature_c": 130.0, "selectivity_pct": 17.7}
+    ],
+    "HDPE": [
+      {"rank": 1, "solvent": "Dodecane", "temperature_c": 145.0, "selectivity_pct": 16.4},
+      {"rank": 2, "solvent": "o-Xylene", "temperature_c": 143.5, "selectivity_pct": 12.2}
+    ]
+  },
+  "solvent_mapping": {"EVOH": "Dimethyl sulfoxide", "LDPE": "p-Xylene", "HDPE": "Dodecane"},
+  "top_k_sequences": [
+    {"rank": 1, "sequence": ["EVOH", "LDPE", "HDPE", "PET"], "min_selectivity": 16.4, "solvent_mapping": {"EVOH": "Dimethyl sulfoxide", "LDPE": "p-Xylene", "HDPE": "Dodecane"}},
+    {"rank": 2, "sequence": ["LDPE", "EVOH", "HDPE", "PET"], "min_selectivity": 16.4, "solvent_mapping": {"LDPE": "p-Xylene", "EVOH": "Dimethyl sulfoxide", "HDPE": "Dodecane"}}
+  ],
+  "supported_polymers": ["PET", "EVOH", "HDPE", "LDPE"],
+  "unsupported_polymers": []
+}

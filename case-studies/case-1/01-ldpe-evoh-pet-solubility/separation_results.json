@@ -1,0 +1,38 @@
+{
+  "agent": "separation-engineer",
+  "schema_version": "1.0",
+  "polymers": ["LDPE", "HDPE", "PET", "PP"],
+  "best_sequence": ["LDPE", "PET", "PP", "HDPE"],
+  "steps": [
+    {"step": 1, "polymer": "LDPE", "solvent": "gamma-Valerolactone", "temperature_c": 135.0, "selectivity_pct": 6.6},
+    {"step": 2, "polymer": "PET", "solvent": "N,N-Dimethylformamide", "temperature_c": 125.0, "selectivity_pct": 8.5},
+    {"step": 3, "polymer": "PP", "solvent": "p-Xylene", "temperature_c": 115.0, "selectivity_pct": 21.8}
+  ],
+  "min_selectivity_pct": 6.6,
+  "avg_selectivity_pct": 12.3,
+  "top_solvents": ["gamma-Valerolactone", "N,N-Dimethylformamide", "p-Xylene", "Dodecane", "o-Xylene"],
+  "polymer_solvent_candidates": {
+    "LDPE": [
+      {"rank": 1, "solvent": "gamma-Valerolactone", "selectivity_pct": 6.6, "temperature_c": 135.0},
+      {"rank": 2, "solvent": "2,4-Pentanedione", "selectivity_pct": 6.0, "temperature_c": 135.0}
+    ],
+    "PET": [
+      {"rank": 1, "solvent": "N,N-Dimethylformamide", "selectivity_pct": 8.5, "temperature_c": 125.0},
+      {"rank": 2, "solvent": "Dimethyl sulfoxide", "selectivity_pct": 5.7, "temperature_c": 125.0}
+    ],
+    "PP": [
+      {"rank": 1, "solvent": "p-Xylene", "selectivity_pct": 21.8, "temperature_c": 115.0},
+      {"rank": 2, "solvent": "o-Xylene", "selectivity_pct": 21.0, "temperature_c": 115.0}
+    ],
+    "HDPE": [
+      {"rank": 1, "solvent": "Dodecane", "selectivity_pct": 16.4, "temperature_c": 145.0},
+      {"rank": 2, "solvent": "o-Xylene", "selectivity_pct": 12.2, "temperature_c": 143.5}
+    ]
+  },
+  "solvent_mapping": {"LDPE": "gamma-Valerolactone", "PET": "N,N-Dimethylformamide", "PP": "p-Xylene"},
+  "top_k_sequences": [
+    {"rank": 1, "sequence": ["LDPE", "PET", "PP", "HDPE"], "min_selectivity": 6.6, "solvent_mapping": {"LDPE": "gamma-Valerolactone", "PET": "N,N-Dimethylformamide", "PP": "p-Xylene"}},
+    {"rank": 2, "sequence": ["LDPE", "PP", "HDPE", "PET"], "min_selectivity": 6.6, "solvent_mapping": {"LDPE": "gamma-Valerolactone", "PP": "p-Xylene", "HDPE": "Dodecane"}}
+  ],
+  "unsupported_polymers": []
+}

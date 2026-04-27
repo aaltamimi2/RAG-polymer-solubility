@@ -112,6 +112,108 @@ def test_simple_solvent_lookup_overrides_overeager_llm_router():
     model.invoke.assert_not_called()
 
 
+def test_routine_multilayer_solvent_candidate_query_stays_out_of_statistics_ml():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_classifier import classify_query, explain_routing_decision
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for dissolving any one of the components "
+        "below 100 deg C."
+    )
+    middleware = RoutingMiddleware(classifier_model=_classifier_for("statistics-ml", "separation-engineer"))
+
+    hint = classify_query([HumanMessage(content=query)])
+    decision = explain_routing_decision(query)
+    allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+
+    assert hint is None
+    assert decision["direct_answer"]["is_direct"] is True
+    assert allowed == []
+    middleware._classifier_model.invoke.assert_not_called()
+
+
+def test_routine_multilayer_solvent_candidate_temperature_spellings_stay_direct():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_classifier import explain_routing_decision
+
+    variants = (
+        "below 100 C",
+        "below 100C",
+        "below 100 °C",
+        "under 100 C",
+        "up to 100 C",
+        "below 212 F",
+        "below 212 fahrenehit",
+        "below 212 degrees Fahrenheit",
+        "under 373.15 K",
+        "up to 373.15 kelvn",
+        "up to 373.15 degrees Kelvin",
+    )
+    for variant in variants:
+        query = (
+            "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+            "identify solvents that are promising for dissolving any one of the components "
+            f"{variant}."
+        )
+        middleware = RoutingMiddleware(classifier_model=_classifier_for("statistics-ml", "separation-engineer"))
+
+        allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+        decision = explain_routing_decision(query)
+
+        assert decision["direct_answer"]["is_direct"] is True, variant
+        assert allowed == []
+        middleware._classifier_model.invoke.assert_not_called()
+
+
+def test_router_blocks_statistics_ml_task_for_routine_solvent_candidate_query():
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for dissolving any one component below 100 deg C."
+    )
+    middleware = RoutingMiddleware(classifier_model=None)
+    request = ToolCallRequest(
+        tool_call=_task_call("stats1", "statistics-ml"),
+        tool=None,
+        state={"messages": [HumanMessage(content=query)]},
+        runtime=MagicMock(),
+    )
+    handler = MagicMock()
+
+    result = middleware.wrap_tool_call(request, handler)
+
+    handler.assert_not_called()
+    assert isinstance(result, ToolMessage)
+    assert result.status == "error"
+    assert "reserved for explicit HSP/RED" in result.content
+
+
+def test_router_blocks_any_subagent_task_for_direct_solvent_candidate_query():
+    from strap.routing import RoutingMiddleware
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for dissolving any one component below 100 C."
+    )
+    middleware = RoutingMiddleware(classifier_model=None)
+    request = ToolCallRequest(
+        tool_call=_task_call("sep1", "separation-engineer"),
+        tool=None,
+        state={"messages": [HumanMessage(content=query)]},
+        runtime=MagicMock(),
+    )
+    handler = MagicMock()
+
+    result = middleware.wrap_tool_call(request, handler)
+
+    handler.assert_not_called()
+    assert isinstance(result, ToolMessage)
+    assert result.status == "error"
+    assert "direct core-tool lookup" in result.content
+
+
 def test_direct_solvent_lookup_injects_fast_path_system_hint():
     from strap.routing import RoutingMiddleware
 
@@ -3139,6 +3241,9 @@ class TestSeparationRoutePurityAndFallback:
             response.result[0].additional_kwargs["strap_origin"]
             == "routing_multi_specialist_optimization_visualization_fallback"
         )
+        artifacts = response.result[0].additional_kwargs["strap_artifacts"]
+        assert artifacts[0]["type"] == "optimization_pareto_front"
+        assert artifacts[0]["data"]["payload"]["analysis_type"] == "pareto_front"
 
     def test_wrap_model_call_optimization_visualization_fallback_handles_pareto_slices(self):
         from strap.routing import RoutingMiddleware
@@ -3300,6 +3405,9 @@ class TestSeparationRoutePurityAndFallback:
             response.result[0].additional_kwargs["strap_origin"]
             == "routing_multi_specialist_optimization_visualization_fallback"
         )
+        artifacts = response.result[0].additional_kwargs["strap_artifacts"]
+        assert artifacts[0]["type"] == "optimization_point_result"
+        assert artifacts[0]["data"]["payload"]["analysis_type"] == "point_optimum"
 
     def test_wrap_model_call_optimization_visualization_fallback_tolerates_extra_allowed_specialists(self):
         from strap.routing import RoutingMiddleware

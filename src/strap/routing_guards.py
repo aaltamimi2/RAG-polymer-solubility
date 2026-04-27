@@ -16,6 +16,7 @@ from .handoffs import (
     get_latest_result_handoff,
     normalize_agent_payload,
 )
+from .orchestrator_runtime import make_artifact
 from .routing_classifier import (
     _EXPLICIT_BIOSTEAM_ANALYSIS_RE,
     _NEGATED_BIOSTEAM_RE,
@@ -713,6 +714,32 @@ _POINT_METRIC_ALIASES = {
 }
 
 
+def _optimization_artifact_type(payload: dict) -> str | None:
+    analysis_type = str(payload.get("analysis_type") or "").strip().lower()
+    if analysis_type == "point_optimum":
+        return "optimization_point_result"
+    if analysis_type == "pareto_front":
+        return "optimization_pareto_front"
+    return None
+
+
+def _build_optimization_session_artifact(payload: dict) -> dict | None:
+    artifact_type = _optimization_artifact_type(payload)
+    if artifact_type is None:
+        return None
+    return make_artifact(
+        artifact_type=artifact_type,
+        producer="optimization-engineer",
+        entities={
+            "analysis_type": payload.get("analysis_type"),
+            "objective": payload.get("objective"),
+            "scenario": payload.get("scenario"),
+        },
+        data={"payload": dict(payload)},
+        display_title="Optimization result",
+    )
+
+
 def _get_point_metric_value(point: dict, metric: str):
     candidates = [metric]
     normalized = str(metric or "").strip().lower()
@@ -824,16 +851,21 @@ def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage
             f"emissions: {_format_metric_value(payload.get('emissions'))}; "
             f"profit: {_format_metric_value(payload.get('profit'), money=True)}."
         )
+        circularity = payload.get("circularity_score")
+        if circularity is not None:
+            lines.append(f"Circularity: {_format_metric_value(circularity)}.")
 
     lines.append(
         "This summary is grounded only in the validated optimization payload and does not restate upstream separation candidates as optimized outcomes."
     )
+    artifact = _build_optimization_session_artifact(payload)
     return _build_origin_tagged_ai_message(
         "\n".join(line for line in lines if line).strip(),
         origin="routing_multi_specialist_separation_optimization_fallback",
         subagent="optimization-engineer",
         tool_call_id=dispatch["tool_call_id"],
         status=status,
+        artifacts=[artifact] if artifact else None,
     )
 
 
@@ -883,6 +915,7 @@ def _build_optimization_visualization_payload_fallback(messages: list) -> AIMess
             subagent="visualization-specialist",
             tool_call_id=viz_dispatch["tool_call_id"],
             status=viz_status,
+            artifacts=[artifact] if (artifact := _build_optimization_session_artifact(opt_payload)) else None,
         )
 
     if analysis_type == "pareto_slices":
@@ -976,12 +1009,14 @@ def _build_optimization_visualization_payload_fallback(messages: list) -> AIMess
     lines.append(
         "This summary is grounded only in the validated optimization and visualization payloads."
     )
+    artifact = _build_optimization_session_artifact(opt_payload)
     return _build_origin_tagged_ai_message(
         "\n".join(line for line in lines if line).strip(),
         origin="routing_multi_specialist_optimization_visualization_fallback",
         subagent="visualization-specialist",
         tool_call_id=viz_dispatch["tool_call_id"],
         status=viz_status or opt_status,
+        artifacts=[artifact] if artifact else None,
     )
 
 
@@ -992,6 +1027,7 @@ def _build_origin_tagged_ai_message(
     subagent: str,
     tool_call_id: str,
     status: str | None = None,
+    artifacts: list[dict] | None = None,
 ) -> AIMessage:
     additional_kwargs = {
         "strap_origin": origin,
@@ -1000,6 +1036,8 @@ def _build_origin_tagged_ai_message(
     }
     if status:
         additional_kwargs["strap_handoff_status"] = status
+    if artifacts:
+        additional_kwargs["strap_artifacts"] = artifacts
     return AIMessage(content=content, additional_kwargs=additional_kwargs)
 
 
@@ -1167,6 +1205,10 @@ def _build_single_specialist_completion_response(
                 tool_call_id=latest_dispatch["tool_call_id"],
                 status=status,
             )])
+    if subagent == "optimization-engineer" and isinstance(payload, dict):
+        ai_message = _build_separation_optimization_payload_fallback(messages)
+        if ai_message is not None:
+            return ModelResponse(result=[ai_message])
     if prose:
         return ModelResponse(result=[_build_origin_tagged_ai_message(
             prose,

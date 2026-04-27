@@ -32,6 +32,7 @@ from .routing_classifier import (
     is_direct_answer_query,
     is_direct_solubility_plot_query,
     is_direct_solubility_lookup_query,
+    is_statistics_ml_explicit_query,
     order_workflow_rules,
     plan_workflow_rules,
     select_workflow_rules,
@@ -214,6 +215,31 @@ class RoutingMiddleware(AgentMiddleware):
         tool_call = request.tool_call
         state_messages = (request.state or {}).get("messages", [])
         query_text = _get_last_human_message(state_messages) or ""
+        if (
+            tool_call.get("name") == "task"
+            and str((tool_call.get("args") or {}).get("subagent_type") or "") == "statistics-ml"
+            and not is_statistics_ml_explicit_query(query_text)
+        ):
+            return ToolMessage(
+                content=(
+                    "Router guard: `statistics-ml` is reserved for explicit HSP/RED, "
+                    "statistical, ML, or thermal-property requests. This looks like a "
+                    "routine solvent-candidate/separation query; answer with core "
+                    "solubility tools or the separation engineer instead."
+                ),
+                tool_call_id=tool_call["id"],
+                status="error",
+            )
+        if tool_call.get("name") == "task" and is_direct_answer_query(query_text):
+            return ToolMessage(
+                content=(
+                    "Router guard: this is a direct core-tool lookup, not a specialist workflow. "
+                    "Do not delegate to `task()`. Use the deterministic/direct tool path and "
+                    "answer from the resulting structured lookup."
+                ),
+                tool_call_id=tool_call["id"],
+                status="error",
+            )
         if (
             is_direct_answer_query(query_text)
             and not is_direct_solubility_lookup_query(query_text)

@@ -1,0 +1,155 @@
+{
+  "tool_name": "routine_solvent_candidate_lookup",
+  "success": true,
+  "analysis_type": "routine_solvent_candidate_lookup",
+  "used_hsp_or_statistics_ml": false,
+  "temperature_max_c": 100.0,
+  "polymers": [
+    "LDPE",
+    "EVOH",
+    "PET"
+  ],
+  "limit_per_polymer": 5,
+  "candidates": [
+    {
+      "solvent": "cyclohexane",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 20.68915496,
+      "avg_solubility_pct": 5.2007446306250005,
+      "polymer": "LDPE"
+    },
+    {
+      "solvent": "hexane",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 19.94122302,
+      "avg_solubility_pct": 4.981609655625,
+      "polymer": "LDPE"
+    },
+    {
+      "solvent": "n-heptane",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 17.40622683,
+      "avg_solubility_pct": 4.286963893125,
+      "polymer": "LDPE"
+    },
+    {
+      "solvent": "thf",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 16.44195658,
+      "avg_solubility_pct": 3.83829484125,
+      "polymer": "LDPE"
+    },
+    {
+      "solvent": "thp",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 15.70277665,
+      "avg_solubility_pct": 3.6939182649999998,
+      "polymer": "LDPE"
+    },
+    {
+      "solvent": "isopropylamine",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 27.74760731,
+      "avg_solubility_pct": 17.452261418125,
+      "polymer": "EVOH"
+    },
+    {
+      "solvent": "dimethylsulfoxide",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 22.11066373,
+      "avg_solubility_pct": 8.735461524375,
+      "polymer": "EVOH"
+    },
+    {
+      "solvent": "dimethylformamide",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 16.08816856,
+      "avg_solubility_pct": 4.649251094375001,
+      "polymer": "EVOH"
+    },
+    {
+      "solvent": "methanol",
+      "n_points": 32,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 12.15374863,
+      "avg_solubility_pct": 2.58233714875,
+      "polymer": "EVOH"
+    },
+    {
+      "solvent": "ethanol",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 8.82078371,
+      "avg_solubility_pct": 1.8370316056250002,
+      "polymer": "EVOH"
+    },
+    {
+      "solvent": "ch2cl2",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 12.23687558,
+      "avg_solubility_pct": 4.28927053875,
+      "polymer": "PET"
+    },
+    {
+      "solvent": "dimethylformamide",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 10.34035522,
+      "avg_solubility_pct": 3.2053047687499996,
+      "polymer": "PET"
+    },
+    {
+      "solvent": "propanone",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 9.86243062,
+      "avg_solubility_pct": 2.668490051874999,
+      "polymer": "PET"
+    },
+    {
+      "solvent": "isopropylamine",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 7.95038502,
+      "avg_solubility_pct": 1.8079600506250002,
+      "polymer": "PET"
+    },
+    {
+      "solvent": "thf",
+      "n_points": 16,
+      "min_temp_c": 25,
+      "max_temp_c": 100,
+      "max_solubility_pct": 6.6300983,
+      "avg_solubility_pct": 1.6923705681249999,
+      "polymer": "PET"
+    }
+  ],
+  "caveats": [
+    "This is a fast database lookup of polymer-solvent solubility records, not an HSP/RED screen.",
+    "Selectivity against the other polymers and process sequencing are separate analyses."
+  ],
+  "structured_output_path": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet/routine_solvent_candidates.json"
+}

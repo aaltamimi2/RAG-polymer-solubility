@@ -93,7 +93,7 @@ async def list_available_solvents(
                     AVG(solubility____) AS avg_solubility_pct
                 FROM common_solvents_database
                 WHERE UPPER(polymer) = ?
-                  AND NOT (UPPER(polymer) = 'EVOH' AND LOWER(solvent) = 'triethylamine')
+                  AND LOWER(solvent) <> 'triethylamine'
                 GROUP BY solvent
                 ORDER BY max_solubility_pct DESC, solvent
                 LIMIT ?

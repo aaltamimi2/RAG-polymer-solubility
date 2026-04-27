@@ -47,6 +47,7 @@ def test_statistics_ml_prompt_mentions_hsp_visualization_workflow():
     prompt = stats_ml["system_prompt"]
     description = stats_ml["description"]
     routing_phrases = stats_ml["routing"]["phrases"]
+    guardrails = stats_ml["guardrails"]
 
     assert "HSP radar" in description
     assert "predict_solubility_ml generates HSP visual artifacts" in prompt
@@ -54,6 +55,9 @@ def test_statistics_ml_prompt_mentions_hsp_visualization_workflow():
     assert "return the generated artifact path(s)" in prompt
     assert "hsp radar" in routing_phrases
     assert "hansen sphere" in routing_phrases
+    assert guardrails["max_tool_calls"] <= 12
+    assert guardrails["max_iterations"] <= 12
+    assert guardrails["token_budget"] <= 100000
 
 
 def test_load_routing_configuration_from_split_manifest():

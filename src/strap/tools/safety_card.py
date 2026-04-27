@@ -93,7 +93,8 @@ def compare_solvent_safety_cards(
     - "Which of THF, toluene, and DMSO has the worst heating risk?"
     """
 
-    solvents = [item.strip() for item in str(solvent_names or "").split(",") if item.strip()]
+    names_text = str(solvent_names or "").replace("N,N-", "N§N-")
+    solvents = [item.strip().replace("N§N-", "N,N-") for item in names_text.split(",") if item.strip()]
     if not solvents:
         return json_tool_error(
             "No solvent names provided.",

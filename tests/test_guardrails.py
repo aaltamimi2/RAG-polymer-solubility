@@ -124,6 +124,58 @@ class TestTokenBudget:
         if isinstance(result, AIMessage):
             assert "Token budget" not in result.content
 
+    def test_counts_anthropic_response_metadata_usage(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(token_budget=5000, max_tool_calls=999)
+        mw.before_agent(None, None)
+        req = MagicMock()
+        req.messages = []
+        req.system_message = None
+        ai_msg = AIMessage(
+            content="ok",
+            response_metadata={
+                "usage": {
+                    "input_tokens": 4500,
+                    "output_tokens": 700,
+                }
+            },
+        )
+        resp = MagicMock()
+        resp.result = [ai_msg]
+
+        result = mw.wrap_model_call(req, MagicMock(return_value=resp))
+
+        assert isinstance(result, AIMessage)
+        assert "Token budget" in result.content
+
+    def test_counts_anthropic_raw_cache_usage_tokens(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(token_budget=5000, max_tool_calls=999)
+        mw.before_agent(None, None)
+        req = MagicMock()
+        req.messages = []
+        req.system_message = None
+        ai_msg = AIMessage(
+            content="ok",
+            response_metadata={
+                "usage": {
+                    "input_tokens": 500,
+                    "output_tokens": 100,
+                    "cache_read_input_tokens": 4200,
+                    "cache_creation_input_tokens": 300,
+                }
+            },
+        )
+        resp = MagicMock()
+        resp.result = [ai_msg]
+
+        result = mw.wrap_model_call(req, MagicMock(return_value=resp))
+
+        assert isinstance(result, AIMessage)
+        assert "Token budget" in result.content
+
 
 class TestSeparationSupportDirective:
     def test_injects_support_coverage_warning_for_unsupported_polymers(self):

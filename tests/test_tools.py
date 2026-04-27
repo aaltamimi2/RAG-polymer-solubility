@@ -22,6 +22,20 @@ def test_all_tools_load():
     assert len(tools) >= 48  # Allow some to fail if optional deps missing
 
 
+def test_cli_startup_reports_source_checkout_not_launch_cwd(monkeypatch, tmp_path):
+    from strap import agent as agent_module
+
+    monkeypatch.chdir(tmp_path)
+
+    assert agent_module._get_cli_version() == "0.3.0"
+    source_text, git_text, launch_text = agent_module._get_source_status_lines()
+
+    assert source_text == f"Source {agent_module._get_source_root()}"
+    assert launch_text == f"Launch cwd {tmp_path}"
+    if git_text:
+        assert git_text.startswith("Git ")
+
+
 def test_database_query_tool(conn):
     """list_tables should return a string mentioning our tables."""
     from strap.tools.database_query import list_tables

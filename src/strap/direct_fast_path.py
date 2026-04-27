@@ -30,13 +30,19 @@ from strap.orchestrator_runtime import make_artifact, make_route_decision, make_
 from strap.solubility import _get_known_names, _load_coefficients, resolve_polymer, resolve_solvent
 from strap.solubility import get_solubility_pair_exclusion_reason
 from strap.solvent_registry import resolve_to_interp_key
+from strap.user_input_parsing import (
+    contains_temperature_mention,
+    extract_output_destination,
+    extract_temperatures_c,
+    has_temperature_ceiling,
+    last_temperature_c,
+)
 
 
 _POLYMER_RE = re.compile(
     r"\b(LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b",
     re.IGNORECASE,
 )
-_TEMP_RE = re.compile(r"\b(?P<value>\d+(?:\.\d+)?)\s*(?:deg\s*)?(?:°\s*)?C\b", re.IGNORECASE)
 _PLOT_RE = re.compile(r"\b(plot|chart|graph|visualiz(?:e|ation)?)\b", re.IGNORECASE)
 _SOLVENT_LOOKUP_RE = re.compile(r"\b(?:solvents?|dissolv(?:e|es|ing)|solubil)\b", re.IGNORECASE)
 _SAFETY_CARD_RE = re.compile(
@@ -58,10 +64,9 @@ _SOLVENT_LIST_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 _SINGLE_SOLUBILITY_RE = re.compile(
-    r"\bsolubility\s+of\b(?=[^.?!]{0,160}\bat\s+\d+(?:\.\d+)?\s*(?:c|°c)\b)",
+    r"\bsolubility\s+of\b(?=[^.?!]{0,160}\bat\s+\d+(?:\.\d+)?\s*(?:deg\s*)?(?:c|°c)\b)",
     re.IGNORECASE,
 )
-_QUOTED_PATH_RE = re.compile(r'"([^"]+)"|\'([^\']+)\'')
 _TOP_N_RE = re.compile(r"\btop\s+(?P<n>\d{1,2})\b", re.IGNORECASE)
 _VALUES_RE = re.compile(
     r"\b(?:exact\s+)?(?:values?|data|table|numbers?|points?|csv)\b",
@@ -72,6 +77,15 @@ _ARTIFACT_UPDATE_RE = re.compile(
     re.IGNORECASE,
 )
 _CONTEXT_REF_RE = re.compile(r"\b(?:these|those|each|same|previous|above|curves?|solvents?|top\s+\d+)\b", re.IGNORECASE)
+_RESULT_NOUN_RE = re.compile(r"\b(?:result|results|outcome|solution)\b", re.IGNORECASE)
+_OPTIMIZATION_REF_RE = re.compile(
+    r"\b(?:this|that|it|same|previous|above|result|results|outcome|solution)\b",
+    re.IGNORECASE,
+)
+_SEPARATION_APPROACH_PLOT_RE = re.compile(
+    r"\b(?:separation\s+(?:approach|sequence|process|route|tree|diagram)|plot\s+this\s+separation)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -221,6 +235,19 @@ def _extract_target_polymer(user_request: str) -> str | None:
         if polymer:
             return polymer
     return None
+
+
+def _extract_target_polymers(user_request: str) -> list[str]:
+    polymers: list[str] = []
+    seen: set[str] = set()
+    for match in _POLYMER_RE.finditer(user_request):
+        raw = match.group(1)
+        polymer = _resolve_polymer_name(raw) or raw.upper()
+        key = polymer.strip().lower()
+        if key and key not in seen:
+            polymers.append(polymer)
+            seen.add(key)
+    return polymers
 
 
 def _dedupe_preserving_order(values: list[str]) -> list[str]:
@@ -376,8 +403,10 @@ def _extract_last_solvent_candidate_table(text: str) -> dict[str, Any] | None:
     match = re.search(r"Last solvent candidates:\s*(?P<body>[^\n]+)", text, re.IGNORECASE)
     body = match.group("body") if match else ""
     polymer_match = re.search(r"\bpolymer=([^;]+)", body, re.IGNORECASE) if body else None
+    polymers_match = re.search(r"\bpolymers=([^;]+)", body, re.IGNORECASE) if body else None
     solvent_match = re.search(r"\bsolvents=([^;]+)", body, re.IGNORECASE) if body else None
     polymer = _resolve_polymer_name(polymer_match.group(1).strip()) if polymer_match else None
+    polymers = _split_polymer_text(polymers_match.group(1)) if polymers_match else []
     solvents: list[str] = []
     if solvent_match:
         for value in _split_solvent_text(solvent_match.group(1)):
@@ -392,7 +421,10 @@ def _extract_last_solvent_candidate_table(text: str) -> dict[str, Any] | None:
         ]
     if not solvents:
         return None
-    return {"polymer": polymer, "solvents": solvents}
+    result: dict[str, Any] = {"polymer": polymer, "solvents": solvents}
+    if polymers:
+        result["polymers"] = polymers
+    return result
 
 
 def _extract_last_plot_artifact(text: str) -> dict[str, Any] | None:
@@ -442,6 +474,59 @@ def _extract_last_plot_artifact(text: str) -> dict[str, Any] | None:
     if output_dir_match:
         artifact["output_dir"] = output_dir_match.group(1).strip()
     return artifact
+
+
+def _extract_session_context_defaults(text: str) -> dict[str, Any] | None:
+    """Parse compact session context for follow-up plot defaults."""
+    context: dict[str, Any] = {}
+
+    feedstock_match = re.search(r"^- Feedstock:\s*(?P<body>[^\n]+)", text, re.IGNORECASE | re.MULTILINE)
+    if feedstock_match:
+        polymers_match = re.search(r"\bpolymers=([^;]+)", feedstock_match.group("body"), re.IGNORECASE)
+        if polymers_match:
+            polymers = _split_polymer_text(polymers_match.group(1))
+            if polymers:
+                context["polymers"] = polymers
+
+    process_match = re.search(r"^- Process:\s*(?P<body>[^\n]+)", text, re.IGNORECASE | re.MULTILINE)
+    if process_match:
+        body = process_match.group("body")
+        solvent_match = re.search(r"\bsolvent_candidates=([^;]+)", body, re.IGNORECASE)
+        if solvent_match:
+            solvents = [
+                solvent
+                for value in _split_solvent_text(solvent_match.group(1))
+                if (solvent := _resolve_solvent_name(value))
+            ]
+            if solvents:
+                context["solvents"] = _dedupe_preserving_order(solvents)
+        output_dir_match = re.search(r"\boutput_dir=([^;]+)", body, re.IGNORECASE)
+        if output_dir_match:
+            context["output_dir"] = output_dir_match.group(1).strip()
+        temp_match = re.search(r"\bdissolution_temp_c=(?P<temp>\d+(?:\.\d+)?)", body, re.IGNORECASE)
+        if temp_match:
+            try:
+                context["temperature_c"] = float(temp_match.group("temp"))
+            except ValueError:
+                pass
+
+    return context or None
+
+
+def _extract_last_optimization_result(text: str) -> dict[str, Any] | None:
+    """Parse the compact optimization payload persisted in session context."""
+    match = re.search(r"^- Last optimization result:\s*(?P<body>[^\n]+)", text, re.IGNORECASE | re.MULTILINE)
+    if not match:
+        return None
+    body = match.group("body")
+    if "payload_json=" not in body:
+        return None
+    payload_text = body.split("payload_json=", 1)[1].strip()
+    try:
+        payload = json.loads(payload_text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def _extract_requested_top_n(user_request: str) -> int | None:
@@ -617,12 +702,17 @@ def _build_plot_call(query_text: str):
         return None
     if not wants_plot and not wants_plot_update:
         return None
+    if _RESULT_NOUN_RE.search(user_request) and not re.search(r"\bsolubility\b", user_request, re.IGNORECASE):
+        # Generic "plot this result" follow-ups must bind to a result artifact.
+        # Do not reinterpret stale solvent/session context as a solubility plot.
+        return None
 
     lookup = _extract_last_solubility_lookup(query_text)
     last_plot = _extract_last_plot_artifact(query_text)
     candidates = _extract_last_solvent_candidate_table(query_text)
+    session_defaults = _extract_session_context_defaults(query_text)
     context_refs = bool(_CONTEXT_REF_RE.search(user_request))
-    if not (lookup or last_plot or candidates or _extract_explicit_solvent(user_request)):
+    if not (lookup or last_plot or candidates or session_defaults or _extract_explicit_solvent(user_request)):
         return None
     if candidates and not context_refs and not _extract_target_polymer(user_request):
         return None
@@ -632,7 +722,7 @@ def _build_plot_call(query_text: str):
         lookup=lookup,
         last_plot=last_plot,
         candidates=candidates,
-    )
+    ) + (session_defaults,)
     polymers = _resolve_context_polymers(user_request, *contexts)
     solvents = _resolve_context_solvents(user_request, *contexts)
     solvents = _filter_and_limit_solvents_for_polymers(polymers, solvents, user_request, default_limit=12)
@@ -658,6 +748,112 @@ def _build_plot_call(query_text: str):
         **_resolve_output_path_args(user_request, *contexts),
     }
     return plot_solubility_vs_temperature, kwargs, "plot_solubility_vs_temperature"
+
+
+def _build_optimization_plot_call(query_text: str):
+    user_request = _current_user_request(query_text)
+    if not _PLOT_RE.search(user_request):
+        return None
+    if re.search(r"\bsolubility\b", user_request, re.IGNORECASE):
+        return None
+    if not _OPTIMIZATION_REF_RE.search(user_request):
+        return None
+    payload = _extract_last_optimization_result(query_text)
+    if not payload:
+        return None
+
+    output_args = _resolve_output_path_args(user_request)
+    analysis_type = str(payload.get("analysis_type") or "").strip().lower()
+    if analysis_type == "point_optimum":
+        from strap.tools.visualization import plot_optimization_point_result
+
+        return (
+            plot_optimization_point_result,
+            {"optimization_result_json": payload, **output_args},
+            "plot_optimization_point_result",
+        )
+    if analysis_type == "pareto_front":
+        from strap.tools.visualization import plot_optimization_pareto_front
+
+        return (
+            plot_optimization_pareto_front,
+            {"pareto_result_json": payload, **output_args},
+            "plot_optimization_pareto_front",
+        )
+    return None
+
+
+def _build_combined_separation_solubility_plot_calls(query_text: str):
+    """Build direct plot calls for follow-ups asking for a route plot plus solubility curves."""
+    user_request = _current_user_request(query_text)
+    if not (_PLOT_RE.search(user_request) and _SEPARATION_APPROACH_PLOT_RE.search(user_request)):
+        return None
+    if not re.search(r"\bsolubility\b", user_request, re.IGNORECASE):
+        return None
+
+    session_defaults = _extract_session_context_defaults(query_text)
+    lookup = _extract_last_solubility_lookup(query_text)
+    last_plot = _extract_last_plot_artifact(query_text)
+    candidates = _extract_last_solvent_candidate_table(query_text)
+    if not (session_defaults or lookup or last_plot or candidates):
+        return None
+    contexts = _ordered_followup_contexts(
+        user_request,
+        lookup=lookup,
+        last_plot=last_plot,
+        candidates=candidates,
+    ) + (session_defaults,)
+    polymers = _resolve_context_polymers(user_request, *contexts)
+    solvents = _resolve_context_solvents(user_request, *contexts)
+    solvents = _filter_and_limit_solvents_for_polymers(polymers, solvents, user_request, default_limit=12)
+    if len(polymers) < 2 or not solvents:
+        return None
+
+    output_args = _resolve_output_path_args(user_request, *contexts)
+    tree_output_args: dict[str, str] = {}
+    if output_args.get("output_dir"):
+        tree_output_args["output_dir"] = output_args["output_dir"]
+    elif output_args.get("output_path"):
+        output_dir = _infer_output_dir_from_path(output_args["output_path"])
+        if output_dir:
+            tree_output_args["output_dir"] = output_dir
+    default_temperature = 100.0
+    for context in contexts:
+        if context and context.get("temperature_c") is not None:
+            default_temperature = float(context["temperature_c"])
+            break
+    _t_start, t_end = _extract_temperature_range(user_request, (25.0, default_temperature))
+
+    from strap.tools.separation_visualization_tools import create_separation_tree_plot
+    from strap.tools.visualization import plot_solubility_vs_temperature
+
+    return [
+        (
+            create_separation_tree_plot,
+            {
+                "polymers": ", ".join(polymers),
+                "temperature": default_temperature,
+                **tree_output_args,
+            },
+            "create_separation_tree_plot",
+        ),
+        (
+            plot_solubility_vs_temperature,
+            {
+                "table_name": "solubility_data",
+                "polymer_column": "polymer",
+                "solvent_column": "solvent",
+                "temperature_column": "temperature_c",
+                "solubility_column": "solubility_percentage",
+                "polymers": ", ".join(polymers),
+                "solvents": ", ".join(str(item) for item in solvents),
+                "temperature_min": 25.0,
+                "temperature_max": t_end,
+                **output_args,
+            },
+            "plot_solubility_vs_temperature",
+        ),
+    ]
 
 
 def _build_values_followup_calls(query_text: str):
@@ -695,7 +891,7 @@ def _build_values_followup_calls(query_text: str):
 
 
 def _extract_temperature_range(user_request: str, default: tuple[float, float] = (25.0, 160.0)) -> tuple[float, float]:
-    temps = [float(match.group("value")) for match in _TEMP_RE.finditer(user_request)]
+    temps = extract_temperatures_c(user_request)
     if re.search(r"\broom\s+temp(?:erature)?\b", user_request, re.IGNORECASE):
         if temps:
             return 25.0, temps[-1]
@@ -712,26 +908,24 @@ def _extract_temperature_range(user_request: str, default: tuple[float, float] =
 
 
 def _extract_output_path_args(user_request: str) -> dict[str, str]:
-    for match in _QUOTED_PATH_RE.finditer(user_request):
-        path = (match.group(1) or match.group(2) or "").strip()
-        if not path:
-            continue
-        from strap.tools._helpers import normalize_wsl_path
-
-        path = normalize_wsl_path(path)
-        if re.search(r"\.(png|jpg|jpeg|svg|pdf|html?)$", path, re.IGNORECASE):
-            return {"output_path": path}
-        return {"output_dir": path}
-    return {}
+    destination = extract_output_destination(
+        user_request,
+        output_extensions={".png", ".jpg", ".jpeg", ".svg", ".pdf", ".html", ".htm"},
+    )
+    if destination is None:
+        return {}
+    if destination.filename_hint:
+        return {"output_path": str(Path(destination.output_dir) / destination.filename_hint)}
+    return {"output_dir": destination.output_dir}
 
 
 def _extract_operating_temperature(user_request: str) -> float | None:
-    matches = [float(match.group("value")) for match in _TEMP_RE.finditer(user_request)]
-    return matches[-1] if matches else None
+    return last_temperature_c(user_request)
 
 
 def _resolve_safety_solvent_name(value: str) -> str:
     from strap.solvent_registry import ABBREVIATION_MAP, resolve_to_property_db
+    from strap.services.solvent_safety_service import normalize_safety_solvent_query
 
     cleaned = re.sub(r"\b(?:solvent|chemical|compound)\b", "", value, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .,:;")
@@ -743,7 +937,7 @@ def _resolve_safety_solvent_name(value: str) -> str:
     expanded = ABBREVIATION_MAP.get(cleaned.lower())
     if expanded:
         return resolve_to_property_db(expanded) or expanded
-    return cleaned
+    return normalize_safety_solvent_query(cleaned)
 
 
 def _split_safety_solvents(raw: str) -> list[str]:
@@ -791,6 +985,105 @@ def _combine_results(results: list[DirectFastPathResult], *, tool_name: str) -> 
     return DirectFastPathResult("\n\n".join(display_parts), tool_name, data, raw)
 
 
+def _temperature_ceiling(user_request: str) -> float | None:
+    if not has_temperature_ceiling(user_request):
+        return None
+    return last_temperature_c(user_request)
+
+
+def _routine_solvent_candidate_lookup(
+    *,
+    polymers: list[str],
+    temperature_max_c: float | None,
+    output_dir: str | None = None,
+    limit_per_polymer: int = 5,
+) -> str:
+    from strap.database import get_connection
+
+    temp_max = float(temperature_max_c) if temperature_max_c is not None else 160.0
+    limit = max(1, min(int(limit_per_polymer), 12))
+    conn = get_connection()
+    all_rows: list[dict[str, Any]] = []
+    for polymer in polymers:
+        df = conn.execute(
+            """
+            SELECT
+                solvent,
+                COUNT(*) AS n_points,
+                MIN(temperature___c_) AS min_temp_c,
+                MAX(temperature___c_) AS max_temp_c,
+                MAX(solubility____) AS max_solubility_pct,
+                AVG(solubility____) AS avg_solubility_pct
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = ?
+              AND temperature___c_ <= ?
+              AND LOWER(solvent) <> 'triethylamine'
+            GROUP BY solvent
+            HAVING MAX(solubility____) > 0
+            ORDER BY max_solubility_pct DESC, avg_solubility_pct DESC, solvent
+            LIMIT ?
+            """,
+            [polymer.upper(), temp_max, limit],
+        ).fetchdf()
+        for row in df.to_dict(orient="records"):
+            row = dict(row)
+            row["polymer"] = polymer.upper()
+            all_rows.append(row)
+
+    payload: dict[str, Any] = {
+        "tool_name": "routine_solvent_candidate_lookup",
+        "success": True,
+        "analysis_type": "routine_solvent_candidate_lookup",
+        "used_hsp_or_statistics_ml": False,
+        "temperature_max_c": temp_max,
+        "polymers": [polymer.upper() for polymer in polymers],
+        "limit_per_polymer": limit,
+        "candidates": all_rows,
+        "caveats": [
+            "This is a fast database lookup of polymer-solvent solubility records, not an HSP/RED screen.",
+            "Selectivity against the other polymers and process sequencing are separate analyses.",
+        ],
+    }
+
+    output_path = None
+    if output_dir:
+        output_root = Path(output_dir).expanduser()
+        output_root.mkdir(parents=True, exist_ok=True)
+        output_path = output_root / "routine_solvent_candidates.json"
+        payload["structured_output_path"] = str(output_path)
+        output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    display = [
+        "**Routine Solvent-Candidate Lookup**",
+        "",
+        f"Temperature ceiling used for lookup: <= {temp_max:g} C",
+        "Method: direct solubility database lookup; HSP/statistics-ML was not used.",
+        "",
+        "| Polymer | Solvent | Max solubility <= limit (%) | Data temp range (C) | n |",
+        "| --- | --- | ---: | ---: | ---: |",
+    ]
+    for row in all_rows:
+        display.append(
+            "| {polymer} | {solvent} | {max_solubility_pct:.2f} | {min_temp_c:.1f}-{max_temp_c:.1f} | {n_points} |".format(
+                polymer=row["polymer"],
+                solvent=row["solvent"],
+                max_solubility_pct=float(row["max_solubility_pct"]),
+                min_temp_c=float(row["min_temp_c"]),
+                max_temp_c=float(row["max_temp_c"]),
+                n_points=int(row["n_points"]),
+            )
+        )
+    if output_path:
+        display.extend(["", f"Structured output saved: {output_path}"])
+    display.extend(
+        [
+            "",
+            "Caveat: this does not claim sequence selectivity; ask for a separation sequence/state map when that is needed.",
+        ]
+    )
+    return json.dumps({"display": "\n".join(display), "data": payload}, ensure_ascii=False)
+
+
 def _artifact_solvents_from_rows(rows: list[dict[str, Any]]) -> list[str]:
     solvents: list[str] = []
     seen: set[str] = set()
@@ -806,6 +1099,26 @@ def _build_artifacts_for_result(result: DirectFastPathResult) -> list[dict[str, 
     data = result.data or {}
     tool_name = str(data.get("tool_name") or result.tool_name)
 
+    if tool_name == "multi_tool_fast_path":
+        artifacts: list[dict[str, Any]] = []
+        for child in data.get("results") or []:
+            if not isinstance(child, dict):
+                continue
+            child_tool_name = str(child.get("tool_name") or "")
+            if not child_tool_name:
+                continue
+            artifacts.extend(
+                _build_artifacts_for_result(
+                    DirectFastPathResult(
+                        display="",
+                        tool_name=child_tool_name,
+                        data=child,
+                        raw="",
+                    )
+                )
+            )
+        return artifacts
+
     if tool_name == "list_available_solvents":
         rows = data.get("solvents") if isinstance(data.get("solvents"), list) else []
         polymer = data.get("polymer")
@@ -819,6 +1132,32 @@ def _build_artifacts_for_result(result: DirectFastPathResult) -> list[dict[str, 
                     data={"rows": rows, "limit": data.get("limit")},
                     row_order=solvents,
                     display_title=f"Solvents with solubility data for {polymer}",
+                )
+            ]
+
+    if tool_name == "routine_solvent_candidate_lookup":
+        rows = data.get("candidates") if isinstance(data.get("candidates"), list) else []
+        rows = [row for row in rows if isinstance(row, dict)]
+        solvents = _artifact_solvents_from_rows(rows)
+        polymers = [str(polymer) for polymer in data.get("polymers") or [] if str(polymer)]
+        if rows and solvents and polymers:
+            return [
+                make_artifact(
+                    artifact_type="solvent_candidate_table",
+                    producer=tool_name,
+                    entities={
+                        "polymers": polymers,
+                        "solvents": solvents,
+                        "temperature_max_c": data.get("temperature_max_c"),
+                    },
+                    data={
+                        "rows": rows,
+                        "temperature_max_c": data.get("temperature_max_c"),
+                        "structured_output_path": data.get("structured_output_path"),
+                        "used_hsp_or_statistics_ml": data.get("used_hsp_or_statistics_ml"),
+                    },
+                    row_order=solvents,
+                    display_title=f"{', '.join(polymers[:4])} solvent candidates",
                 )
             ]
 
@@ -888,18 +1227,70 @@ def _build_artifacts_for_result(result: DirectFastPathResult) -> list[dict[str, 
                 )
             ]
 
+    if tool_name == "plot_optimization_point_result":
+        plot_paths = [str(path) for path in data.get("plot_paths") or [] if str(path)]
+        plot_path = plot_paths[0] if plot_paths else None
+        output_dir = data.get("output_dir") or (os.path.dirname(str(plot_path)) if plot_path else None)
+        if plot_paths:
+            return [
+                make_artifact(
+                    artifact_type="plot_artifact",
+                    producer=tool_name,
+                    entities={"plot_type": "optimization_point_result"},
+                    data={
+                        "path": plot_path,
+                        "paths": plot_paths,
+                        "output_dir": output_dir,
+                        "profit": data.get("profit"),
+                        "total_cost": data.get("total_cost"),
+                        "emissions": data.get("emissions"),
+                        "circularity_score": data.get("circularity_score"),
+                        "optimal_washes": data.get("optimal_washes"),
+                    },
+                    row_order=plot_paths,
+                    display_title="Optimization point-result plot",
+                )
+            ]
+
+    if tool_name == "create_separation_tree_plot":
+        polymers = data.get("polymers") if isinstance(data.get("polymers"), list) else []
+        plot_paths = [str(path) for path in data.get("plot_paths") or [] if str(path)]
+        if polymers and plot_paths:
+            return [
+                make_artifact(
+                    artifact_type="separation_tree_plot",
+                    producer=tool_name,
+                    entities={
+                        "polymers": [str(polymer) for polymer in polymers],
+                        "temperature_c": data.get("temperature"),
+                    },
+                    data={
+                        "paths": plot_paths,
+                        "best_sequence": data.get("best_sequence"),
+                        "min_selectivity": data.get("min_selectivity"),
+                        "total_sequences_evaluated": data.get("total_sequences_evaluated"),
+                    },
+                    row_order=plot_paths,
+                    display_title=f"{', '.join(str(polymer) for polymer in polymers[:4])} separation tree",
+                )
+            ]
+
     return []
 
 
 def _route_intent_for_tool(tool_name: str) -> tuple[str, str]:
     if tool_name == "plot_solubility_vs_temperature":
         return "artifact_transform", "solubility_plot"
+    if tool_name in {"plot_optimization_point_result", "plot_optimization_pareto_front"}:
+        return "artifact_transform", "optimization_plot"
     if tool_name in {"predict_solubility", "predict_solubility_range"}:
         return "direct_tool", "solubility_lookup"
     if tool_name == "list_available_solvents":
         return "direct_tool", "solvent_candidate_lookup"
     if tool_name in {"get_solvent_safety_card", "compare_solvent_safety_cards"}:
         return "direct_tool", "safety_lookup"
+    if tool_name == "multi_tool_fast_path":
+        return "artifact_transform", "multi_artifact_request"
     return "direct_tool", "catalog_lookup"
 
 
@@ -957,7 +1348,7 @@ def _build_solubility_calls(query_text: str) -> tuple[str, list[str], float, flo
     default_range = _context_default_range_for_polymer(polymer, *contexts)
     t_start, t_end = _extract_temperature_range(user_request, default_range)
     single_point = bool(
-        len(list(_TEMP_RE.finditer(user_request))) == 1
+        len(extract_temperatures_c(user_request)) == 1
         and re.search(r"\bat\s+\d", user_request, re.IGNORECASE)
         and not re.search(r"\b(from|to|up\s+to|between|range|over)\b", user_request, re.IGNORECASE)
     )
@@ -993,6 +1384,12 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
 
     if values_spec := _build_values_followup_calls(query_text):
         return values_spec
+
+    if combined_plot_spec := _build_combined_separation_solubility_plot_calls(query_text):
+        return combined_plot_spec
+
+    if optimization_plot_spec := _build_optimization_plot_call(query_text):
+        return optimization_plot_spec
 
     if plot_spec := _build_plot_call(query_text):
         return plot_spec
@@ -1059,10 +1456,45 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
             }
             return plot_solubility_vs_temperature, kwargs, "plot_solubility_vs_temperature"
 
+    if (
+        is_direct_answer_query(user_request)
+        and not is_direct_solubility_lookup_query(user_request)
+        and _SOLVENT_LOOKUP_RE.search(user_request)
+    ):
+        polymers = _extract_target_polymers(user_request)
+        if len(polymers) >= 2:
+            output_dir = None
+            try:
+                from strap.planning.extractors import extract_facts
+
+                output_dir = extract_facts(user_request).output_dir
+            except Exception:
+                output_dir = _resolve_output_path_args(user_request).get("output_dir")
+            return (
+                _routine_solvent_candidate_lookup,
+                {
+                    "polymers": polymers,
+                    "temperature_max_c": _temperature_ceiling(user_request),
+                    "output_dir": output_dir,
+                    "limit_per_polymer": 5,
+                },
+                "routine_solvent_candidate_lookup",
+            )
+        polymer = _extract_target_polymer(user_request)
+        if polymer:
+            from strap.tools.listing import list_available_solvents
+
+            return list_available_solvents, {"polymer": polymer, "limit": 12}, "list_available_solvents"
+
     solubility_query = (
         is_direct_solubility_lookup_query(user_request)
         or bool(_SINGLE_SOLUBILITY_RE.search(user_request))
-        or bool(re.search(r"\bsolubility\b", user_request, re.IGNORECASE) and _CONTEXT_REF_RE.search(user_request))
+        or bool(re.search(r"\bsolubility\b", user_request, re.IGNORECASE) and contains_temperature_mention(user_request))
+        or bool(
+            re.search(r"\bsolubility\b", user_request, re.IGNORECASE)
+            and _CONTEXT_REF_RE.search(user_request)
+            and not (is_direct_answer_query(user_request) and _SOLVENT_LOOKUP_RE.search(user_request))
+        )
     )
     if solubility_query:
         call_spec = _build_solubility_calls(query_text)
@@ -1091,13 +1523,6 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
             for solvent in solvents
         ]
 
-    if is_direct_answer_query(user_request) and _SOLVENT_LOOKUP_RE.search(user_request):
-        polymer = _extract_target_polymer(user_request)
-        if polymer:
-            from strap.tools.listing import list_available_solvents
-
-            return list_available_solvents, {"polymer": polymer, "limit": 12}, "list_available_solvents"
-
     if _POLYMER_LIST_RE.search(user_request):
         from strap.tools.listing import list_available_polymers
 
@@ -1121,7 +1546,9 @@ def try_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | None:
     for func, kwargs, fallback_tool_name in specs:
         raw = _call_tool_sync(func, **kwargs)
         results.append(_parse_tool_envelope(raw, fallback_tool_name=fallback_tool_name))
-    combined = _combine_results(results, tool_name=results[0].tool_name if results else "direct_tool_fast_path")
+    unique_tool_names = {result.tool_name for result in results}
+    combined_tool_name = results[0].tool_name if len(unique_tool_names) <= 1 else "multi_tool_fast_path"
+    combined = _combine_results(results, tool_name=combined_tool_name)
     return _attach_orchestration_metadata(combined, tool_names=[result.tool_name for result in results])
 
 
@@ -1135,7 +1562,9 @@ async def atry_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | 
     for func, kwargs, fallback_tool_name in specs:
         raw = await _call_tool_async(func, **kwargs)
         results.append(_parse_tool_envelope(raw, fallback_tool_name=fallback_tool_name))
-    combined = _combine_results(results, tool_name=results[0].tool_name if results else "direct_tool_fast_path")
+    unique_tool_names = {result.tool_name for result in results}
+    combined_tool_name = results[0].tool_name if len(unique_tool_names) <= 1 else "multi_tool_fast_path"
+    combined = _combine_results(results, tool_name=combined_tool_name)
     return _attach_orchestration_metadata(combined, tool_names=[result.tool_name for result in results])
 
 

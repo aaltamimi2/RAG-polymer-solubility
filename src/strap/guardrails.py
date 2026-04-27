@@ -8,7 +8,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from langchain.agents.middleware.types import AgentMiddleware, ModelResponse, hook_config
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
@@ -162,6 +162,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._max_iterations,
             )
             return AIMessage(content=iteration_limit_message())
+        if self._token_budget_exhausted():
+            return AIMessage(content=token_budget_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
@@ -207,6 +209,8 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._max_iterations,
             )
             return AIMessage(content=iteration_limit_message())
+        if self._token_budget_exhausted():
+            return AIMessage(content=token_budget_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
@@ -719,6 +723,58 @@ class SubagentGuardMiddleware(AgentMiddleware):
 
     # -- helpers -------------------------------------------------------------
 
+    def _token_budget_exhausted(self) -> bool:
+        total_tokens = self._state.total_prompt_tokens + self._state.total_output_tokens
+        return total_tokens >= self._token_budget
+
+    def _usage_pair_from_mapping(self, value: Any) -> tuple[int, int]:
+        if not isinstance(value, dict):
+            return 0, 0
+
+        for nested_key in ("usage", "token_usage", "usage_metadata"):
+            nested = value.get(nested_key)
+            prompt, output = self._usage_pair_from_mapping(nested)
+            if prompt or output:
+                return prompt, output
+
+        def _coerce_int(raw: Any) -> int:
+            try:
+                if raw in (None, ""):
+                    return 0
+                return int(raw)
+            except (TypeError, ValueError):
+                return 0
+
+        prompt = _coerce_int(
+            value.get("input_tokens")
+            or value.get("prompt_tokens")
+            or value.get("input_token_count")
+            or value.get("prompt_token_count")
+        )
+        cache_creation = value.get("cache_creation")
+        cache_creation_tokens = 0
+        if isinstance(cache_creation, dict):
+            cache_creation_tokens = sum(
+                _coerce_int(cache_creation.get(key))
+                for key in ("ephemeral_5m_input_tokens", "ephemeral_1h_input_tokens")
+            )
+        prompt += (
+            _coerce_int(value.get("cache_read_input_tokens"))
+            + _coerce_int(value.get("cache_creation_input_tokens"))
+            + cache_creation_tokens
+        )
+        output = _coerce_int(
+            value.get("output_tokens")
+            or value.get("completion_tokens")
+            or value.get("output_token_count")
+            or value.get("completion_token_count")
+        )
+        if prompt or output:
+            return prompt, output
+
+        total = _coerce_int(value.get("total_tokens") or value.get("total_token_count"))
+        return total, 0
+
     def _track_tokens(self, response) -> None:
         """Accumulate prompt + output tokens from the model response."""
         if hasattr(response, "result"):
@@ -728,10 +784,20 @@ class SubagentGuardMiddleware(AgentMiddleware):
         else:
             ai_msg = response
 
-        usage = getattr(ai_msg, "usage_metadata", None)
-        if usage:
-            self._state.total_prompt_tokens += usage.get("input_tokens", 0)
-            self._state.total_output_tokens += usage.get("output_tokens", 0)
+        sources = (
+            getattr(ai_msg, "usage_metadata", None),
+            getattr(ai_msg, "response_metadata", None),
+            getattr(ai_msg, "additional_kwargs", None),
+            getattr(response, "usage_metadata", None),
+            getattr(response, "response_metadata", None),
+            getattr(response, "llm_output", None),
+        )
+        for source in sources:
+            prompt, output = self._usage_pair_from_mapping(source)
+            if prompt or output:
+                self._state.total_prompt_tokens += prompt
+                self._state.total_output_tokens += output
+                return
 
     def _enforce_tool_call_limit(
         self, response: ModelResponse

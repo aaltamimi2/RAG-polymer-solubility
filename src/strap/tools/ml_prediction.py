@@ -103,6 +103,14 @@ def _coerce_items(value: Any) -> list[str]:
     if value is None:
         return []
     if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.startswith("["):
+            try:
+                parsed = json.loads(stripped)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                parsed = None
+            if isinstance(parsed, list):
+                return [str(item).strip() for item in parsed if str(item).strip()]
         return [item.strip() for item in re.split(r"[,;]", value) if item.strip()]
     if isinstance(value, (list, tuple, set)):
         return [str(item).strip() for item in value if str(item).strip()]

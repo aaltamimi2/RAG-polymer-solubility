@@ -1,0 +1,11 @@
+{
+  "agent": "separation-engineer",
+  "schema_version": "1.0",
+  "polymers": ["LDPE", "EVOH", "PET"],
+  "best_sequence": ["LDPE", "EVOH", "PET"],
+  "steps": [
+    {"step": 1, "polymer": "LDPE", "solvent": "1,4-dimethylbenzene", "temperature_c": 90.0, "selectivity_pct": 80.0},
+    {"step": 2, "polymer": "EVOH", "solvent": "dimethylsulfoxide", "temperature_c": 90.0, "selectivity_pct": 70.0}
+  ],
+  "top_solvents": ["1,4-dimethylbenzene", "dimethylsulfoxide", "pyrrole"]
+}

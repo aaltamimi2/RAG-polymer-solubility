@@ -23,6 +23,17 @@ def test_safety_card_uses_local_bp_and_curated_peroxide_without_pubchem():
     assert "Peroxide / Storage" in parsed["display"]
 
 
+def test_safety_card_normalizes_noisy_query_before_local_property_lookup():
+    from strap.services.solvent_safety_service import build_solvent_safety_profile
+
+    profile = build_solvent_safety_profile("can you dodecane", include_pubchem=False)
+
+    assert profile["identity"]["name"] == "Dodecane"
+    assert profile["identity"]["cas_number"] == "112-40-3"
+    assert profile["physical_properties"]["boiling_point_c"] == pytest.approx(216.3)
+    assert profile["sources"]["local_properties"] == "data/Solvent_Data.csv"
+
+
 def test_safety_profile_flags_heated_toluene_with_pubchem_physical_data(monkeypatch):
     from strap.services import solvent_safety_service as service
 
@@ -74,6 +85,7 @@ def test_direct_safety_parser_extracts_single_and_multi_solvents():
     from strap.direct_fast_path import _extract_operating_temperature, _extract_safety_solvents
 
     assert _extract_safety_solvents("safety card for THF at 60 C") == ["Tetrahydrofuran (THF)"]
+    assert _extract_safety_solvents("can you show me the dodecane safety card") == ["Dodecane"]
     assert _extract_operating_temperature("safety card for THF at 60 C") == pytest.approx(60.0)
     assert _extract_safety_solvents("autoemission temperature of toluene") == ["Toluene"]
     assert _extract_safety_solvents(

@@ -20,6 +20,7 @@ from strap.hsp_registry import (
 )
 from strap.planning.models import PlanningModel
 from strap.planning.runtime_paths import normalize_runtime_path
+from strap.user_input_parsing import extract_output_destination, extract_temperatures_c
 
 
 _POLYMER_ALIASES = {
@@ -140,10 +141,7 @@ def _extract_solvents(query: str) -> list[str]:
 
 
 def _extract_temperatures(query: str) -> list[float]:
-    return [
-        float(match.group(1))
-        for match in re.finditer(r"(\d+(?:\.\d+)?)\s*(?:°\s*)?C\b", query, re.I)
-    ]
+    return extract_temperatures_c(query)
 
 
 def _extract_capacity(query: str) -> float | None:
@@ -353,6 +351,12 @@ def _extract_workflow_markers(query: str) -> list[str]:
 
 
 def _split_output_destination(raw_path: str) -> tuple[str, str | None]:
+    destination = extract_output_destination(
+        f"save to {raw_path}",
+        output_extensions=set(_OUTPUT_PATH_EXTENSIONS),
+    )
+    if destination is not None:
+        return destination.output_dir, destination.filename_hint
     normalized = normalize_runtime_path(raw_path)
     path = Path(normalized)
     if path.suffix.lower() in _OUTPUT_PATH_EXTENSIONS:
@@ -361,23 +365,12 @@ def _split_output_destination(raw_path: str) -> tuple[str, str | None]:
 
 
 def _extract_output_destination(query: str) -> tuple[str | None, str | None]:
-    quoted = re.search(
-        r"\b(?:save|write|store|output|export|put|place|create|generate)\b.{0,120}?\b(?:to|under|in|at)\s+"
-        r"(?P<quote>[\"'`])(?P<path>.+?)(?P=quote)",
+    destination = extract_output_destination(
         query,
-        re.I | re.S,
+        output_extensions=set(_OUTPUT_PATH_EXTENSIONS),
     )
-    if quoted:
-        return _split_output_destination(quoted.group("path"))
-
-    unquoted = re.search(
-        r"\b(?:save|write|store|output|export|put|place|create|generate)\b.{0,120}?\b(?:to|under|in|at)\s+"
-        r"(?P<path>(?:\\\\|//|/|[A-Za-z]:[\\/])[^,.;\n]+)",
-        query,
-        re.I,
-    )
-    if unquoted:
-        return _split_output_destination(unquoted.group("path").strip())
+    if destination is not None:
+        return destination.output_dir, destination.filename_hint
     return None, None
 
 
