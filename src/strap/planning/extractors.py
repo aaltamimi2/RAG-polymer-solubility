@@ -43,12 +43,17 @@ _SOLVENT_ALIASES = {
     "TETRAHYDROPYRAN": "Tetrahydropyran",
     "THP": "Tetrahydropyran",
     "TOLUENE": "Toluene",
+    "CYCLOHEXANE": "Cyclohexane",
     "HEPTANE": "Heptane",
     "N-HEPTANE": "Heptane",
-    "CYCLOHEXANE": "Cyclohexane",
     "DIETHYL ETHER": "Diethyl ether",
     "DICHLOROMETHANE": "Dichloromethane",
     "DCM": "Dichloromethane",
+    "N,N-DIMETHYLFORMAMIDE": "N,N-Dimethylformamide",
+    "DIMETHYLFORMAMIDE": "N,N-Dimethylformamide",
+    "DMF": "N,N-Dimethylformamide",
+    "DIMETHYL SULFOXIDE": "Dimethyl sulfoxide",
+    "DMSO": "Dimethyl sulfoxide",
     "GVL": "gamma-Valerolactone",
     "GAMMA-VALEROLACTONE": "gamma-Valerolactone",
     "DODECANE": "Dodecane",
@@ -69,6 +74,39 @@ _METRIC_ALIASES = {
 
 _OUTPUT_PATH_EXTENSIONS = {".png", ".jpg", ".jpeg", ".svg", ".html", ".json", ".csv", ".xlsx", ".md"}
 
+_NEGATED_PARETO_RE = re.compile(
+    r"\b(?:do\s+not|don't|dont|no|not|without)\b[^.]{0,80}\b(?:pareto|frontier|trade[- ]?offs?)\b"
+    r"|\b(?:pareto|frontier|trade[- ]?offs?)\b[^.]{0,48}\b(?:not\s+wanted|unwanted|not\s+needed)\b",
+    re.I,
+)
+_PARETO_REQUEST_RE = re.compile(r"\b(?:pareto|frontier|trade[- ]?offs?)\b", re.I)
+_SINGLE_OBJECTIVE_RE = re.compile(
+    r"\b(?:single[- ]objective|single[- ]point|point[- ]optimum|one\s+optimum|just\s+optimi[sz]e|only\s+optimi[sz]e)\b",
+    re.I,
+)
+_OPTIMIZATION_WORD_RE = re.compile(
+    r"\b(?:optimi[sz](?:e|ation)|optimizaiotn|optimzation|waste[- ]management|superstructure|pyomo|minlp)\b",
+    re.I,
+)
+_OBJECTIVE_PATTERNS: tuple[tuple[str, str], ...] = (
+    (
+        "max_circularity",
+        r"\b(?:max(?:imize)?|maximum|highest)\s+(?:circularity|ce\s+score)\b|\bmax_circularity\b",
+    ),
+    (
+        "min_emissions",
+        r"\b(?:min(?:imize)?|minimum|lowest)\s+(?:emissions?|gwp|greenhouse\s+gas|co2e?)\b|\bmin_emissions\b",
+    ),
+    (
+        "min_total_cost",
+        r"\b(?:min(?:imize)?|minimum|lowest)\s+(?:total\s+)?cost\b|\bmin_total_cost\b",
+    ),
+    (
+        "max_profit",
+        r"\b(?:max(?:imize)?|maximum|highest)\s+(?:profit|revenue)\b|\bmax_profit\b|\bprofit\s+objective\b",
+    ),
+)
+
 
 class ExtractedFacts(PlanningModel):
     query: str
@@ -81,6 +119,11 @@ class ExtractedFacts(PlanningModel):
     composition_slices: list[dict[str, float]] = Field(default_factory=list)
     scenario: str | None = None
     energy_case: str | None = None
+    polymer_solvent_filters: dict[str, list[str]] = Field(default_factory=dict)
+    route_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    constraint_mode: str | None = None
+    fallback_policy: str | None = None
+    route_pool_mode: str | None = None
     hsp_polymer_category: str | None = None
     hsp_solvent_category: str | None = None
     hsp_solvent_polarity: str | None = None
@@ -89,11 +132,15 @@ class ExtractedFacts(PlanningModel):
     min_washes: int | None = None
     max_washes: int | None = None
     objective: str | None = None
+    pareto_requested: bool = False
+    pareto_negated: bool = False
+    single_objective_requested: bool = False
     metrics: list[str] = Field(default_factory=list)
     requested_artifact_types: list[str] = Field(default_factory=list)
     forbidden_artifact_types: list[str] = Field(default_factory=list)
     output_dir: str | None = None
     output_filename_hint: str | None = None
+    plot_title: str | None = None
     workflow_markers: list[str] = Field(default_factory=list)
     missing_required_inputs: list[str] = Field(default_factory=list)
 
@@ -200,15 +247,45 @@ def _extract_n_points(query: str) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _pareto_negated(query: str) -> bool:
+    return bool(_NEGATED_PARETO_RE.search(query))
+
+
+def _pareto_requested(query: str) -> bool:
+    return bool(_PARETO_REQUEST_RE.search(query)) and not _pareto_negated(query)
+
+
+def _extract_objective(query: str) -> str | None:
+    for objective, pattern in _OBJECTIVE_PATTERNS:
+        if re.search(pattern, query, re.I):
+            return objective
+    if re.search(r"\bmax(?:imize)?\b", query, re.I):
+        return "max_profit"
+    return None
+
+
+def _single_objective_requested(query: str) -> bool:
+    return bool(_SINGLE_OBJECTIVE_RE.search(query)) or _pareto_negated(query) or _extract_objective(query) is not None
+
+
+def _optimization_requested(query: str) -> bool:
+    return bool(_OPTIMIZATION_WORD_RE.search(query)) or _single_objective_requested(query)
+
+
 def _extract_washes(query: str) -> tuple[int | None, int | None]:
     min_washes = None
     max_washes = None
     min_match = re.search(r"(?:at least|require(?:ing)?)\s+(\d+)\s+STRAP wash", query, re.I)
     max_match = re.search(r"(?:up to|allow(?:ing)? up to|maximum of)\s+(\d+)\s+(?:STRAP\s+)?wash", query, re.I)
+    exact_match = re.search(r"(?:exactly|one[- ]wash|single[- ]wash)\s+(\d+)?\s*(?:active\s+)?(?:STRAP\s+)?wash", query, re.I)
     if min_match:
         min_washes = int(min_match.group(1))
     if max_match:
         max_washes = int(max_match.group(1))
+    if exact_match:
+        exact = int(exact_match.group(1) or 1)
+        min_washes = exact
+        max_washes = exact
     return min_washes, max_washes
 
 
@@ -279,9 +356,99 @@ def _extract_hsp_solvent_selectors(query: str) -> tuple[str | None, str | None]:
     return category, polarity
 
 
+def _normalize_extracted_polymer(raw: str) -> str | None:
+    return _POLYMER_ALIASES.get(str(raw or "").strip().upper())
+
+
+def _extract_polymer_solvent_filters(query: str) -> dict[str, list[str]]:
+    """Extract explicit optimizer shortlists such as ``PP: Toluene and Cyclohexane``."""
+    filters: dict[str, list[str]] = {}
+    polymer_pattern = "|".join(sorted((re.escape(key) for key in _POLYMER_ALIASES), key=len, reverse=True))
+    for match in re.finditer(
+        rf"\b({polymer_pattern})\s*:\s*([^.;\n]+)",
+        query,
+        re.I,
+    ):
+        polymer = _normalize_extracted_polymer(match.group(1))
+        if polymer is None:
+            continue
+        solvents = _extract_solvents(match.group(2))
+        if solvents:
+            filters[polymer] = solvents
+    return filters
+
+
+def _extract_route_candidates(query: str) -> list[dict[str, Any]]:
+    """Extract a small explicit route constraint for selected Pareto plots."""
+    lowered = query.lower()
+    if not any(word in lowered for word in ("route", "frontier", "anchor", "constrain", "force")):
+        return []
+    route_region = query
+    region_match = re.search(
+        r"(?:constrain|force|restrict|anchor)[^.]{0,180}?(?:route|frontier|pareto)[^.]{0,180}",
+        query,
+        re.I,
+    )
+    if region_match:
+        route_region = region_match.group(0)
+
+    polymers, _aliases = _extract_polymers(route_region)
+    solvents = _extract_solvents(route_region)
+    if len(polymers) != 1 or len(solvents) != 1:
+        return []
+    polymer = polymers[0]
+    solvent = solvents[0]
+    route_id = f"{polymer.lower()}_{re.sub(r'[^a-z0-9]+', '_', solvent.lower()).strip('_')}_route"
+    return [
+        {
+            "route_id": route_id,
+            "rank": 1,
+            "sequence": [polymer],
+            "source": "query_constraint",
+            "polymer_solvent_map": {polymer: solvent},
+            "step_conditions": [
+                {
+                    "polymer": polymer,
+                    "solvent": solvent,
+                    "optimizer_option": solvent,
+                }
+            ],
+        }
+    ]
+
+
+def _extract_optimizer_constraint_modes(query: str) -> tuple[str | None, str | None, str | None]:
+    text = query.lower()
+    constraint_mode = None
+    fallback_policy = None
+    route_pool_mode = None
+    for value in ("ranked_soft", "ranked soft", "fixed", "hard", "soft"):
+        if value in text:
+            constraint_mode = value.replace(" ", "_")
+            break
+    for value in ("fail_closed", "fail closed", "broaden_disclosed", "broaden disclosed"):
+        if value in text:
+            fallback_policy = value.replace(" ", "_")
+            break
+    for value in ("slot_independent", "slot independent", "exact"):
+        if value in text:
+            route_pool_mode = value.replace(" ", "_")
+            break
+    return constraint_mode, fallback_policy, route_pool_mode
+
+
+def _extract_plot_title(query: str) -> str | None:
+    match = re.search(r"\btitle (?:it|the plot|the figure)?\s*[\"']([^\"']+)[\"']", query, re.I)
+    if match:
+        return match.group(1).strip()
+    return None
+
+
 def _extract_requested_artifacts(query: str) -> list[str]:
     text = query.lower()
     artifacts: list[str] = []
+    pareto_requested = _pareto_requested(query)
+    optimization_requested = _optimization_requested(query)
     if (
         "safety card" in text
         or "safety profile" in text
@@ -302,8 +469,8 @@ def _extract_requested_artifacts(query: str) -> list[str]:
     hsp_requested = "hsp" in text or "hansen" in text or "red" in text
     if "selectivity heatmap" in text or ("compatibility heatmap" in text and not hsp_requested):
         artifacts.append("separation_selectivity_heatmap")
-    if "optimize" in text or "optimization" in text or "pareto" in text:
-        if "pareto" in text:
+    if optimization_requested or pareto_requested:
+        if pareto_requested:
             if "fixed feed compositions" in text or "composition slices" in text or "one png per composition" in text:
                 artifacts.append("optimization_pareto_slices")
             else:
@@ -311,13 +478,13 @@ def _extract_requested_artifacts(query: str) -> list[str]:
         else:
             artifacts.append("optimization_point_result")
     if "plot" in text or "figure" in text or "png" in text or "visual" in text:
-        if "pareto" in text and "fixed feed compositions" in text:
+        if pareto_requested and "fixed feed compositions" in text:
             artifacts.append("optimization_pareto_slices_plot")
-        elif "pareto" in text:
+        elif pareto_requested:
             artifacts.append("optimization_pareto_plot")
-        elif "optimization" in text or "optimize" in text:
+        elif optimization_requested:
             artifacts.append("optimization_point_plot")
-    if "pareto" in text and "landscape" in text and re.search(r"\b(?:generate|create|make|save|plot|figure|visual)\b", text):
+    if pareto_requested and "landscape" in text and re.search(r"\b(?:generate|create|make|save|plot|figure|visual)\b", text):
         artifacts.append("optimization_pareto_plot")
     if "biosteam" in text or "tea/lca" in text or "capex" in text or "opex" in text:
         artifacts.append("biosteam_tea_lca_result")
@@ -402,7 +569,12 @@ def extract_facts(query: str, context: dict[str, Any] | None = None) -> Extracte
         min_washes = int(context["min_washes"])
     if max_washes is None and context.get("max_washes") is not None:
         max_washes = int(context["max_washes"])
-    objective = "max_profit" if "profit" in query.lower() or "maximize" in query.lower() else None
+    pareto_negated = _pareto_negated(query)
+    pareto_requested = _pareto_requested(query)
+    single_objective_requested = _single_objective_requested(query)
+    objective = _extract_objective(query)
+    if pareto_negated and objective is None:
+        objective = "max_profit"
     objective = objective or (str(context["objective"]) if context.get("objective") else None)
     query_output_dir, query_filename_hint = _extract_output_destination(query)
     if hydrated:
@@ -412,6 +584,9 @@ def extract_facts(query: str, context: dict[str, Any] | None = None) -> Extracte
         output_dir = context.get("output_dir") or query_output_dir
         output_filename_hint = context.get("output_filename_hint") or query_filename_hint
     hsp_solvent_category, hsp_solvent_polarity = _extract_hsp_solvent_selectors(query)
+    polymer_solvent_filters = _extract_polymer_solvent_filters(query)
+    route_candidates = _extract_route_candidates(query)
+    constraint_mode, fallback_policy, route_pool_mode = _extract_optimizer_constraint_modes(query)
     requested_artifact_types = _extract_requested_artifacts(query)
     context_requested = [str(item) for item in _context_list(context, "requested_artifact_types") if str(item)]
     if context_requested and (hydrated or not requested_artifact_types):
@@ -434,6 +609,11 @@ def extract_facts(query: str, context: dict[str, Any] | None = None) -> Extracte
         composition_slices=composition_slices,
         scenario=_extract_scenario(query) or (str(context["scenario"]) if context.get("scenario") else None),
         energy_case=(context.get("energy_case") or _extract_energy_case(query)),
+        polymer_solvent_filters=polymer_solvent_filters,
+        route_candidates=route_candidates,
+        constraint_mode=constraint_mode,
+        fallback_policy=fallback_policy,
+        route_pool_mode=route_pool_mode,
         hsp_polymer_category=_extract_hsp_polymer_category(query),
         hsp_solvent_category=hsp_solvent_category,
         hsp_solvent_polarity=hsp_solvent_polarity,
@@ -442,10 +622,14 @@ def extract_facts(query: str, context: dict[str, Any] | None = None) -> Extracte
         min_washes=min_washes,
         max_washes=max_washes,
         objective=objective,
+        pareto_requested=pareto_requested,
+        pareto_negated=pareto_negated,
+        single_objective_requested=single_objective_requested,
         metrics=metrics,
         requested_artifact_types=requested_artifact_types,
         forbidden_artifact_types=_extract_forbidden_artifacts(query),
         output_dir=normalize_runtime_path(output_dir) if output_dir else None,
         output_filename_hint=str(output_filename_hint) if output_filename_hint else None,
+        plot_title=_extract_plot_title(query),
         workflow_markers=workflow_markers,
     )

@@ -723,6 +723,38 @@ def test_infer_requested_goals_prefers_optimization_goal_for_optimization_only_q
     assert goals == {"optimization.pathway"}
 
 
+def test_infer_requested_goals_preserves_optimization_when_only_pareto_is_negated():
+    from strap.routing_classifier import infer_requested_goals, plan_workflow_rules
+
+    query = "Optimize waste management for 8000 tonnes/year 60% PE 40% EVOH. I do not want Pareto."
+
+    assert infer_requested_goals(query) == {"optimization.pathway"}
+    assert [rule["subagent"] for rule in plan_workflow_rules(query, None)] == ["optimization-engineer"]
+
+
+def test_infer_requested_goals_does_not_route_bare_negated_pareto():
+    from strap.routing_classifier import infer_requested_goals, plan_workflow_rules
+
+    query = "I do not want Pareto."
+
+    assert infer_requested_goals(query) == set()
+    assert plan_workflow_rules(query, None) == []
+
+
+def test_plan_workflow_rules_routes_pareto_and_single_objective_aliases_to_optimization():
+    from strap.routing_classifier import plan_workflow_rules
+
+    queries = [
+        "Run cost-vs-emissions Pareto for 8000 tonnes/year 60% PE 40% EVOH.",
+        "Run max circularity for 8000 tonnes/year 60% PE 40% EVOH.",
+        "Minimize emissions for 8000 tonnes/year 60% PE 40% EVOH waste management.",
+        "Run optimzation for 8000 tonnes/year 60% PE 40% EVOH.",
+    ]
+
+    for query in queries:
+        assert [rule["subagent"] for rule in plan_workflow_rules(query, None)] == ["optimization-engineer"]
+
+
 def test_infer_available_query_inputs_maps_core_process_requirements():
     from strap.routing_classifier import infer_available_query_inputs
 

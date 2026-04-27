@@ -1,0 +1,76 @@
+{
+  "artifacts": [],
+  "completed_at": "2026-04-27T15:45:39.448228+00:00",
+  "final_contract_status": {
+    "failed_step_id": "optimize_pareto",
+    "status": "failed"
+  },
+  "plan_id": "plan_6247b9e740cb",
+  "repairs": [
+    {
+      "action": "retry_same_callable",
+      "attempt": 1,
+      "failed_checks": [
+        "callable_reported_failure",
+        "required_artifact_missing"
+      ],
+      "step_id": "optimize_pareto"
+    }
+  ],
+  "run_id": "run_5f1d1052e52f",
+  "started_at": "2026-04-27T15:44:05.882335+00:00",
+  "status": "failed",
+  "step_records": [
+    {
+      "artifact_ids": [],
+      "attempt": 1,
+      "callable_name": "run_waste_management_pareto",
+      "completed_at": "2026-04-27T15:45:39.297534+00:00",
+      "error": "Pareto optimization failed.",
+      "failed_checks": [
+        "callable_reported_failure",
+        "required_artifact_missing"
+      ],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [],
+      "started_at": "2026-04-27T15:44:05.882403+00:00",
+      "status": "failed",
+      "step_id": "optimize_pareto",
+      "verification_status": "failed"
+    },
+    {
+      "artifact_ids": [],
+      "attempt": 1,
+      "callable_name": "run_waste_management_pareto",
+      "completed_at": null,
+      "error": "Retrying same callable after verification failure.",
+      "failed_checks": [
+        "callable_reported_failure",
+        "required_artifact_missing"
+      ],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [],
+      "started_at": null,
+      "status": "running",
+      "step_id": "optimize_pareto",
+      "verification_status": "failed"
+    },
+    {
+      "artifact_ids": [],
+      "attempt": 2,
+      "callable_name": "run_waste_management_pareto",
+      "completed_at": "2026-04-27T15:45:39.446434+00:00",
+      "error": "Pareto optimization failed.",
+      "failed_checks": [
+        "callable_reported_failure",
+        "required_artifact_missing"
+      ],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [],
+      "started_at": "2026-04-27T15:45:39.297647+00:00",
+      "status": "failed",
+      "step_id": "optimize_pareto",
+      "verification_status": "failed"
+    }
+  ]
+}

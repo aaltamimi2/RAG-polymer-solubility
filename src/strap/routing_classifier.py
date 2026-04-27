@@ -98,6 +98,14 @@ _OPTIMIZATION_INTENT_RE = re.compile(
     r"\b("
     r"optimi[sz](?:e|ation)|max(?:imize)? profit|min(?:imize)? emissions?|"
     r"min(?:imize)? cost|max(?:imize)? circularity|superstructure|pyomo|minlp|"
+    r"optimal pathway|waste management|pareto|frontier|trade[- ]?offs?"
+    r")\b",
+    re.IGNORECASE,
+)
+_NON_PARETO_OPTIMIZATION_INTENT_RE = re.compile(
+    r"\b("
+    r"optimi[sz](?:e|ation)|max(?:imize)? profit|min(?:imize)? emissions?|"
+    r"min(?:imize)? cost|max(?:imize)? circularity|superstructure|pyomo|minlp|"
     r"optimal pathway|waste management"
     r")\b",
     re.IGNORECASE,
@@ -133,9 +141,18 @@ _NEGATED_PROCESS_DESIGN_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+_NEGATED_PARETO_RE = re.compile(
+    r"\b(do not|don't|dont|no|not|without)\b[^.]{0,80}\b("
+    r"pareto|frontier|trade[- ]?offs?"
+    r")\b|"
+    r"\b(pareto|frontier|trade[- ]?offs?)\b[^.]{0,48}\b("
+    r"not wanted|unwanted|not needed"
+    r")\b",
+    re.IGNORECASE,
+)
 _NEGATED_OPTIMIZATION_RE = re.compile(
     r"\b(do not|don't|no)\b[^.]{0,64}\b("
-    r"optimi[sz](?:e|ation)|pareto|frontier|superstructure|pyomo|minlp|"
+    r"optimi[sz](?:e|ation)|superstructure|pyomo|minlp|"
     r"waste management|optimal pathway|"
     r"max(?:imize)? profit|min(?:imize)? emissions?|min(?:imize)? cost|"
     r"max(?:imize)? circularity"
@@ -581,6 +598,7 @@ def infer_requested_goals(query_text: str) -> set[str]:
     negated_literature = bool(_NEGATED_LITERATURE_RE.search(query_text))
     negated_patent = bool(_NEGATED_PATENT_RE.search(query_text))
     negated_rag = bool(_NEGATED_RAG_RE.search(query_text))
+    negated_pareto = bool(_NEGATED_PARETO_RE.search(query_text))
     negated_optimization = bool(_NEGATED_OPTIMIZATION_RE.search(query_text))
 
     for label in (*query_context.route_labels, *query_context.request_labels):
@@ -600,6 +618,10 @@ def infer_requested_goals(query_text: str) -> set[str]:
             if goal == "optimization.pathway" and negated_optimization:
                 continue
             requested.add(goal)
+
+    if _OPTIMIZATION_INTENT_RE.search(query_text) and not negated_optimization:
+        if not (negated_pareto and not _NON_PARETO_OPTIMIZATION_INTENT_RE.search(query_text)):
+            requested.add("optimization.pathway")
 
     if is_separation_visualization_request(query_text):
         requested.discard("optimization.pathway")
@@ -648,14 +670,18 @@ def _normalize_matched_rules(query_text: str, matched_rules: list[dict] | None) 
 
     query_lower = query_text.lower()
     negated_process = bool(_NEGATED_PROCESS_DESIGN_RE.search(query_text))
+    negated_pareto_only = bool(_NEGATED_PARETO_RE.search(query_text)) and not bool(
+        _NON_PARETO_OPTIMIZATION_INTENT_RE.search(query_text)
+    )
     negated_optimization = bool(_NEGATED_OPTIMIZATION_RE.search(query_text))
-    if negated_process or negated_optimization:
+    if negated_process or negated_optimization or negated_pareto_only:
         matched_rules = [
             rule
             for rule in matched_rules
             if not (
                 (negated_process and rule["subagent"] == "separation-engineer")
                 or (negated_optimization and rule["subagent"] == "optimization-engineer")
+                or (negated_pareto_only and rule["subagent"] == "optimization-engineer")
             )
         ]
         if not matched_rules:

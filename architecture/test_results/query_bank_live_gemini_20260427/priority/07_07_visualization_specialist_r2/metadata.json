@@ -1,0 +1,14 @@
+{
+  "sheet": "07 visualization-specialist",
+  "row": 2,
+  "query": "Plot the solubility of LDPE, PET, and EVOH in dodecane and o-xylene from 25 C to 160 C with a normalized 0-100% y-axis. Save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/solubility\".",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/07_07_visualization_specialist_r2",
+  "started_at": "2026-04-27T18:31:48.755378+00:00",
+  "finished_at": "2026-04-27T18:31:54.873917+00:00",
+  "stdout_chars": 898,
+  "stderr_chars": 378
+}

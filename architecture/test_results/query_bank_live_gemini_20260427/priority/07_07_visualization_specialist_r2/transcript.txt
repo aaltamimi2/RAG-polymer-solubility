@@ -1,0 +1,31 @@
+> 
+Solubility vs Temperature Plot Created                                          
+
+Polymers: LDPE, PET, EVOH Solvents: Dodecane, o-Xylene Temperature range: 25.0C 
+- 160.0C Y-axis range: 0-100% Model-limit note: 4 point(s) are outside the      
+fitted range; this caveat is reported in text only so the saved plot remains    
+presentation-ready. Exact SQL/database grid-point values can also be provided on
+request; they should be similar to the fitted curve near measured temperatures. 
+Data points: 168                                                                
+
+Plot saved:                                                                     
+/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_l
+ive_gemini_20260427/visualization/solubility/ldpe_pet_evoh_dodecane_1_2_dimethyl
+benzene_solubility_vs_temp.png                                                  
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(0.5s)
+
+Goodbye!

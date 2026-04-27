@@ -1,0 +1,14 @@
+{
+  "sheet": "03 biosteam-analyst",
+  "row": 2,
+  "query": "Run BioSTEAM TEA/LCA for LDPE with Cyclohexane under energy case C2 and report MSP, TCI, AOC, GWP, and the boiling-point margin.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/04_03_biosteam_analyst_r2",
+  "started_at": "2026-04-27T18:30:50.311290+00:00",
+  "finished_at": "2026-04-27T18:31:09.894993+00:00",
+  "stdout_chars": 329,
+  "stderr_chars": 379
+}

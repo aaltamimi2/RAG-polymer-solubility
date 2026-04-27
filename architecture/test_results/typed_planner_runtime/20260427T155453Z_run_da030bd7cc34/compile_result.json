@@ -1,0 +1,397 @@
+{
+  "diagnostics": [
+    {
+      "code": "facts_extracted",
+      "level": "info",
+      "message": "Deterministic facts extracted; no execution attempted.",
+      "step_id": null
+    }
+  ],
+  "extracted_facts": {
+    "composition_slices": [],
+    "constraint_mode": null,
+    "energy_case": null,
+    "fallback_policy": null,
+    "feed_capacity_tpy": 8000.0,
+    "feed_composition": {
+      "PC": 0.25,
+      "PP": 0.25,
+      "PS": 0.25,
+      "PVC": 0.25
+    },
+    "forbidden_artifact_types": [],
+    "hsp_polymer_category": null,
+    "hsp_solvent_category": "sulfoxide",
+    "hsp_solvent_polarity": null,
+    "max_washes": 2,
+    "metrics": [
+      "total_cost",
+      "circularity"
+    ],
+    "min_washes": 1,
+    "missing_required_inputs": [],
+    "n_points": 12,
+    "objective": null,
+    "output_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer",
+    "output_filename_hint": "optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png",
+    "plot_title": "PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing",
+    "polymer_aliases": {
+      "PC": "PC",
+      "PP": "PP",
+      "PS": "PS",
+      "PVC": "PVC"
+    },
+    "polymer_solvent_filters": {
+      "PC": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ],
+      "PP": [
+        "Toluene",
+        "Cyclohexane"
+      ],
+      "PS": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ],
+      "PVC": [
+        "N,N-Dimethylformamide",
+        "Dimethyl sulfoxide"
+      ]
+    },
+    "polymers": [
+      "PP",
+      "PS",
+      "PVC",
+      "PC"
+    ],
+    "query": "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n- Feedstock: capacity=8,000 MT/yr; composition=PC=25%, PP=25%, PS=25%, PVC=25%\n- Process: scenario=A; solvent_candidates=Toluene, Cyclohexane, N,N-Dimethylformamide, Dimethyl sulfoxide; output_dir=/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer\n\nUser request:\nRun a cost-vs-circularity Pareto landscape for a mixed plastic feedstock of 8000 tonnes/year composed of 25% PP, 25% PS, 25% PVC, and 25% PC under scenario A with 12 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Use these optimizer-supported shortlisted solvent candidates: PP: Toluene and Cyclohexane; PS: Toluene and N,N-Dimethylformamide; PVC: N,N-Dimethylformamide and Dimethyl sulfoxide; PC: Toluene and N,N-Dimethylformamide. Constrain the Pareto frontier to the one-wash PVC-Dimethyl sulfoxide residual route, but keep the candidate-pool landscape points visible. Plot the resulting Pareto landscape, title it \"PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing\", and save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png\". Report the frontier points and saved path.",
+    "requested_artifact_types": [
+      "optimization_pareto_front",
+      "optimization_pareto_landscape",
+      "optimization_pareto_plot"
+    ],
+    "route_candidates": [
+      {
+        "polymer_solvent_map": {
+          "PVC": "Dimethyl sulfoxide"
+        },
+        "rank": 1,
+        "route_id": "pvc_dimethyl_sulfoxide_route",
+        "sequence": [
+          "PVC"
+        ],
+        "source": "query_constraint",
+        "step_conditions": [
+          {
+            "optimizer_option": "Dimethyl sulfoxide",
+            "polymer": "PVC",
+            "solvent": "Dimethyl sulfoxide"
+          }
+        ]
+      }
+    ],
+    "route_pool_mode": null,
+    "scenario": "A",
+    "solvents": [
+      "Toluene",
+      "Cyclohexane",
+      "N,N-Dimethylformamide",
+      "Dimethyl sulfoxide"
+    ],
+    "temperatures_c": [],
+    "top_k_per_polymer": null,
+    "workflow_markers": [
+      "optimization",
+      "visualization"
+    ]
+  },
+  "plan": {
+    "assumptions": [],
+    "capability_registry_version": "2026.04.pr1",
+    "compiler_version": "2026.04.pr2",
+    "complexity": "moderate",
+    "created_at": "2026-04-27T15:54:13.125819+00:00",
+    "fallback_policy": "typed_failure",
+    "final_response_contract": {
+      "forbidden_claims": [
+        "upstream prose substituted for downstream structured output"
+      ],
+      "must_cite_artifacts": [
+        "optimization_pareto_front",
+        "optimization_pareto_landscape",
+        "optimization_pareto_plot"
+      ],
+      "require_paths": true,
+      "require_plan_status": true,
+      "required_sections": []
+    },
+    "global_constraints": {
+      "composition_slices": [],
+      "energy_case": null,
+      "feed_capacity_tpy": 8000.0,
+      "feed_composition": {
+        "PC": 0.25,
+        "PP": 0.25,
+        "PS": 0.25,
+        "PVC": 0.25
+      },
+      "forbidden_artifact_types": [],
+      "max_washes": 2,
+      "metrics": [
+        "total_cost",
+        "circularity"
+      ],
+      "min_washes": 1,
+      "n_points": 12,
+      "output_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer",
+      "requested_artifact_types": [
+        "optimization_pareto_front",
+        "optimization_pareto_landscape",
+        "optimization_pareto_plot"
+      ],
+      "scenario": "A",
+      "top_k_per_polymer": null
+    },
+    "intent_family": "optimization",
+    "missing_inputs": [],
+    "mode": "single_agent",
+    "plan_id": "plan_9c5eb77fabbf",
+    "planner_model_id": null,
+    "schema_version": "1.0",
+    "steps": [
+      {
+        "allow_tool_choice": false,
+        "allowed_tools": [
+          "run_waste_management_pareto"
+        ],
+        "budget": {
+          "max_seconds": null,
+          "max_tokens": null,
+          "max_tool_calls": null
+        },
+        "depends_on": [],
+        "disallowed_tools": [],
+        "execution_kind": "tool",
+        "input_contracts": [],
+        "label": "Optimize Pareto frontier",
+        "output_contracts": [
+          {
+            "artifact_contracts": [
+              {
+                "artifact_type": "optimization_pareto_front",
+                "count": {
+                  "max": null,
+                  "min": 1
+                },
+                "entities": {},
+                "forbidden_artifact_types": [],
+                "metrics": {},
+                "output_formats": [],
+                "path_policy": "optional",
+                "required": true,
+                "validation_checks": []
+              },
+              {
+                "artifact_type": "optimization_pareto_landscape",
+                "count": {
+                  "max": null,
+                  "min": 1
+                },
+                "entities": {},
+                "forbidden_artifact_types": [],
+                "metrics": {},
+                "output_formats": [],
+                "path_policy": "optional",
+                "required": true,
+                "validation_checks": []
+              }
+            ],
+            "contract_id": "optimization_pareto_output",
+            "data_requirements": [],
+            "forbidden_claims": [],
+            "required": true,
+            "text_requirements": [],
+            "validation_checks": [
+              "source_is_optimizer_structured_output"
+            ]
+          }
+        ],
+        "retry_policy": {
+          "allow_recompile": false,
+          "max_attempts": 2,
+          "retry_on": [
+            "contract_failed",
+            "tool_arg_invalid",
+            "missing_artifact"
+          ]
+        },
+        "role": "optimization-engineer",
+        "step_id": "optimize_pareto",
+        "tool_args_template": {
+          "feed_capacity_tpy": 8000.0,
+          "feed_composition_json": {
+            "PC": 0.25,
+            "PP": 0.25,
+            "PS": 0.25,
+            "PVC": 0.25
+          },
+          "max_washes": 2,
+          "min_washes": 1,
+          "n_points": 12,
+          "objective": "pareto",
+          "polymer_solvent_filters_json": {
+            "PC": [
+              "Toluene",
+              "N,N-Dimethylformamide"
+            ],
+            "PP": [
+              "Toluene",
+              "Cyclohexane"
+            ],
+            "PS": [
+              "Toluene",
+              "N,N-Dimethylformamide"
+            ],
+            "PVC": [
+              "N,N-Dimethylformamide",
+              "Dimethyl sulfoxide"
+            ]
+          },
+          "polymers": [
+            "PP",
+            "PS",
+            "PVC",
+            "PC"
+          ],
+          "scenario": "A",
+          "solvents": [
+            "Toluene",
+            "Cyclohexane",
+            "N,N-Dimethylformamide",
+            "Dimethyl sulfoxide"
+          ],
+          "stage_candidates_json": {
+            "constraint_mode": "ranked_soft",
+            "fallback_policy": "broaden_disclosed",
+            "feed_capacity_tpy": 8000.0,
+            "feed_composition": {
+              "PC": 0.25,
+              "PP": 0.25,
+              "PS": 0.25,
+              "PVC": 0.25
+            },
+            "polymers": [
+              "PP",
+              "PS",
+              "PVC",
+              "PC"
+            ],
+            "route_candidates": [
+              {
+                "polymer_solvent_map": {
+                  "PVC": "Dimethyl sulfoxide"
+                },
+                "rank": 1,
+                "route_id": "pvc_dimethyl_sulfoxide_route",
+                "sequence": [
+                  "PVC"
+                ],
+                "source": "query_constraint",
+                "step_conditions": [
+                  {
+                    "optimizer_option": "Dimethyl sulfoxide",
+                    "polymer": "PVC",
+                    "solvent": "Dimethyl sulfoxide"
+                  }
+                ]
+              }
+            ],
+            "route_pool_mode": "exact",
+            "schema_version": "1.1",
+            "workflow_scope": "multi_stage"
+          },
+          "x_metric": "total_cost",
+          "y_metric": "circularity"
+        }
+      },
+      {
+        "allow_tool_choice": false,
+        "allowed_tools": [
+          "plot_optimization_pareto_front"
+        ],
+        "budget": {
+          "max_seconds": null,
+          "max_tokens": null,
+          "max_tool_calls": null
+        },
+        "depends_on": [
+          "optimize_pareto"
+        ],
+        "disallowed_tools": [],
+        "execution_kind": "tool",
+        "input_contracts": [
+          {
+            "artifact_type": "optimization_pareto_landscape",
+            "entities": {},
+            "required": true,
+            "source_step_id": "optimize_pareto",
+            "validation_checks": []
+          }
+        ],
+        "label": "Plot optimization output",
+        "output_contracts": [
+          {
+            "artifact_contracts": [
+              {
+                "artifact_type": "optimization_pareto_plot",
+                "count": {
+                  "max": null,
+                  "min": 1
+                },
+                "entities": {},
+                "forbidden_artifact_types": [],
+                "metrics": {},
+                "output_formats": [],
+                "path_policy": "required",
+                "required": true,
+                "validation_checks": []
+              }
+            ],
+            "contract_id": "optimization_plot_output",
+            "data_requirements": [],
+            "forbidden_claims": [],
+            "required": true,
+            "text_requirements": [],
+            "validation_checks": [
+              "visualization_from_authoritative_payload"
+            ]
+          }
+        ],
+        "retry_policy": {
+          "allow_recompile": false,
+          "max_attempts": 2,
+          "retry_on": [
+            "contract_failed",
+            "tool_arg_invalid",
+            "missing_artifact"
+          ]
+        },
+        "role": "visualization-specialist",
+        "step_id": "plot_optimization",
+        "tool_args_template": {
+          "output_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer",
+          "output_stem": "optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427",
+          "plot_mode": "landscape",
+          "plot_title": "PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing",
+          "source_step_id": "optimize_pareto"
+        }
+      }
+    ],
+    "unsupported_reason": null,
+    "user_query": "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n- Feedstock: capacity=8,000 MT/yr; composition=PC=25%, PP=25%, PS=25%, PVC=25%\n- Process: scenario=A; solvent_candidates=Toluene, Cyclohexane, N,N-Dimethylformamide, Dimethyl sulfoxide; output_dir=/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer\n\nUser request:\nRun a cost-vs-circularity Pareto landscape for a mixed plastic feedstock of 8000 tonnes/year composed of 25% PP, 25% PS, 25% PVC, and 25% PC under scenario A with 12 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Use these optimizer-supported shortlisted solvent candidates: PP: Toluene and Cyclohexane; PS: Toluene and N,N-Dimethylformamide; PVC: N,N-Dimethylformamide and Dimethyl sulfoxide; PC: Toluene and N,N-Dimethylformamide. Constrain the Pareto frontier to the one-wash PVC-Dimethyl sulfoxide residual route, but keep the candidate-pool landscape points visible. Plot the resulting Pareto landscape, title it \"PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing\", and save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png\". Report the frontier points and saved path.",
+    "workflow_id": null
+  },
+  "status": "compiled",
+  "validation_errors": []
+}

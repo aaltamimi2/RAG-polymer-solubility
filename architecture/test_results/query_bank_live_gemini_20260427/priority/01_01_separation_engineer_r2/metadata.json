@@ -1,0 +1,14 @@
+{
+  "sheet": "01 separation-engineer",
+  "row": 2,
+  "query": "For LDPE/EVOH/PET at 100 C, generate the top 5 dynamic-programming separation sequences and report the solvent, operating temperature, and selectivity for each step.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/01_01_separation_engineer_r2",
+  "started_at": "2026-04-27T18:29:46.096747+00:00",
+  "finished_at": "2026-04-27T18:30:04.841372+00:00",
+  "stdout_chars": 3319,
+  "stderr_chars": 379
+}

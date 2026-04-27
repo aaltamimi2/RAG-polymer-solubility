@@ -1,0 +1,47 @@
+[
+  {
+    "artifact_id": "run_biosteam_tea_lca:biosteam_tea_lca_result",
+    "artifact_type": "biosteam_tea_lca_result",
+    "entities": {},
+    "inputs_used": {},
+    "output_paths": [],
+    "schema_version": "1.0",
+    "source_handoff_ids": [],
+    "source_step_id": "run_biosteam_tea_lca",
+    "validation_summary": {
+      "normalized_by": "production_typed_runtime_wrapper",
+      "payload": {
+        "energy_case": "C1",
+        "lca": {
+          "etox_ctue_per_kg": 0.978822937776393,
+          "gwp_kg_co2e_per_kg": 0.9635222802080188,
+          "htc_ctuh_per_kg": 3.629916343187271e-08,
+          "htnc_ctuh_per_kg": 1.751887728340472e-08
+        },
+        "operations": {
+          "cooling_duty_mj_per_kg": 6272.21499503406,
+          "electricity_consumed_mj_per_kg": 35542.55163852632,
+          "electricity_intensity_mj_per_kg": null,
+          "heating_duty_mj_per_kg": 2.2072476976218745e-13,
+          "total_energy_mj_per_kg": 41814.76663356038,
+          "unit_operations": 25,
+          "waste_diverted_kg_yr": 11765552.192188786,
+          "waste_generated_kg_yr": 29476.951382614247,
+          "water_circulated_m3_yr": 174928.28043944194,
+          "water_consumed_m3_yr": 2528.9456073735414
+        },
+        "runtime_seconds": 10.211,
+        "solvent": "Toluene",
+        "success": true,
+        "target_plastic": "PET",
+        "tea": {
+          "aoc_usd_per_yr": 2202296.851317049,
+          "msp_usd_per_kg": 1.0986885651181857,
+          "tci_usd": 83350404.0730207
+        },
+        "tool_name": "run_biosteam_simulation"
+      },
+      "wrapper_version": "2026.04.pr6"
+    }
+  }
+]

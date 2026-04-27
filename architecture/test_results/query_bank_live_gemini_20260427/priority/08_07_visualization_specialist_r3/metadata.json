@@ -1,0 +1,14 @@
+{
+  "sheet": "07 visualization-specialist",
+  "row": 3,
+  "query": "Generate a dynamic-programming separation state map for LDPE/EVOH/PET at 100 C and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/dp_state_map\". Only include separation/selectivity visuals, not cost or greenness plots.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/08_07_visualization_specialist_r3",
+  "started_at": "2026-04-27T18:31:54.889432+00:00",
+  "finished_at": "2026-04-27T18:32:03.343692+00:00",
+  "stdout_chars": 654,
+  "stderr_chars": 378
+}

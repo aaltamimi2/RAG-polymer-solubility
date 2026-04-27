@@ -1,0 +1,73 @@
+> 
+The separation of LDPE, EVOH, and PET at 100°C has been analyzed for all        
+possible sequential paths. The most robust approach, based on the highest       
+minimum selectivity across all steps, is to target LDPE first, followed by EVOH,
+leaving PET as the final residue.                                               
+
+                        Recommended Separation Sequences                        
+
+The following sequences are ranked by the robustness of their selectivity       
+(minimum selectivity in any step).                                              
+
+                                                   
+  Rank   Sequence            Min. Selectivity (%)  
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
+  1      LDPE → EVOH → PET   11.9%                 
+  2      EVOH → LDPE → PET   11.9%                 
+  3      EVOH → PET → LDPE   5.0%                  
+  4      LDPE → PET → EVOH   1.3%                  
+  5      PET → LDPE → EVOH   -1.6%                 
+                                                   
+
+────────────────────────────────────────────────────────────────────────────────
+                    Step-by-Step Breakdown of Top Sequences                     
+
+                  Sequence 1: LDPE → EVOH → PET (Recommended)                   
+
+ • Step 1: Isolate LDPE                                                         
+    • Solvent: p-Xylene                                                         
+    • Operating Temperature: 137.3°C                                            
+    • Selectivity: 11.9%                                                        
+ • Step 2: Isolate EVOH                                                         
+    • Solvent: Dimethyl sulfoxide                                               
+    • Operating Temperature: 160.0°C                                            
+    • Selectivity: 18.4%                                                        
+
+                         Sequence 2: EVOH → LDPE → PET                          
+
+ • Step 1: Isolate EVOH                                                         
+    • Solvent: Dimethyl sulfoxide                                               
+    • Operating Temperature: 145.0°C                                            
+    • Selectivity: 18.4%                                                        
+ • Step 2: Isolate LDPE                                                         
+    • Solvent: p-Xylene                                                         
+    • Operating Temperature: 137.3°C                                            
+    • Selectivity: 11.9%                                                        
+
+(Other sequences are significantly less selective and are not recommended for   
+robust processing.)                                                             
+
+                             Solvent Candidate Pool                             
+
+Candidate operating temperatures are provided based on the Apelblat-fitted      
+database. Note that steps above 100°C run at these solvent-specific             
+temperatures; for sequences involving solvents with boiling points lower than   
+the recommended temperature, please note that atmospheric operation requires    
+strictly controlled temperature below the solvent boiling point.                
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(13.2s)
+
+Goodbye!

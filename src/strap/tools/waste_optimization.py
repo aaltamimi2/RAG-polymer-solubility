@@ -1616,9 +1616,9 @@ def _prepare_optimization_context(
     requested_route_pool_mode = _normalize_route_pool_mode(route_pool_mode)
     if has_typed_handoff:
         legacy_overrides: list[str] = []
-        if candidate_solvents is not None:
+        if candidate_solvents is not None and stage_global_candidates:
             legacy_overrides.append("candidate_solvents")
-        if polymer_solvent_filters_json is not None:
+        if polymer_solvent_filters_json is not None and stage_polymer_filters:
             legacy_overrides.append("polymer_solvent_filters_json")
         if constraint_mode is not None and constraint_mode != stage_constraint_mode:
             legacy_overrides.append("constraint_mode")
@@ -1645,8 +1645,8 @@ def _prepare_optimization_context(
             or stage_route_pool_mode
             or "exact"
         )
-        effective_candidate_solvents = stage_global_candidates
-        effective_polymer_filters = stage_polymer_filters
+        effective_candidate_solvents = stage_global_candidates or candidate_solvents
+        effective_polymer_filters = stage_polymer_filters or polymer_solvent_filters_json
     else:
         effective_constraint_mode = constraint_mode or "soft"
         effective_fallback_policy = fallback_policy or "broaden_disclosed"
@@ -1797,6 +1797,8 @@ def _prepare_optimization_context(
         "scenario": normalized_scenario,
         "config": scenario_payload["config"],
         "data": data,
+        "othertech_telemetry": data.get("othertech_telemetry", []),
+        "available_othertech": list((data.get("sets") or {}).get("othertech") or []),
         "feed": feed,
         "fractions": dict(feed_fractions),
         "recoverable_polymers": recoverable_polymers,
@@ -2568,27 +2570,31 @@ def _run_constrained_pareto_sweep(
         if not enforced:
             return pd.DataFrame(), reason or "route constraints could not be applied"
         sweep_debug_rows: list[dict[str, Any]] = []
+        solver_stdout = ""
         try:
-            if y_metric == "emissions":
-                frontier = pareto_cost_vs_emissions(
-                    sweep_model,
-                    emission_ideal=float(y_opt["emissions"]),
-                    emission_nonideal=float(cost_opt["emissions"]),
-                    n_points=n_points,
-                    solver_name="scip",
-                    solver_options=solver_options,
-                    debug_rows=sweep_debug_rows,
-                )
-            else:
-                frontier = pareto_cost_vs_ce(
-                    sweep_model,
-                    ce_nonideal=float(cost_opt["CE"]),
-                    ce_ideal=float(y_opt["CE"]),
-                    n_points=n_points,
-                    solver_name="scip",
-                    solver_options=solver_options,
-                    debug_rows=sweep_debug_rows,
-                )
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                if y_metric == "emissions":
+                    frontier = pareto_cost_vs_emissions(
+                        sweep_model,
+                        emission_ideal=float(y_opt["emissions"]),
+                        emission_nonideal=float(cost_opt["emissions"]),
+                        n_points=n_points,
+                        solver_name="scip",
+                        solver_options=solver_options,
+                        debug_rows=sweep_debug_rows,
+                    )
+                else:
+                    frontier = pareto_cost_vs_ce(
+                        sweep_model,
+                        ce_nonideal=float(cost_opt["CE"]),
+                        ce_ideal=float(y_opt["CE"]),
+                        n_points=n_points,
+                        solver_name="scip",
+                        solver_options=solver_options,
+                        debug_rows=sweep_debug_rows,
+                    )
+            solver_stdout = buffer.getvalue()
         except Exception as exc:
             if debug_attempts is not None:
                 debug_attempts.append(
@@ -2611,15 +2617,16 @@ def _run_constrained_pareto_sweep(
             continue
 
         if debug_attempts is not None:
-            debug_attempts.append(
-                {
-                    "attempt_index": attempt,
-                    "solver_options": dict(solver_options or {}),
-                    "accepted": not frontier.empty,
-                    "n_rows": int(len(frontier)),
-                    "sweep_point_debug": sweep_debug_rows,
-                }
-            )
+            attempt_debug = {
+                "attempt_index": attempt,
+                "solver_options": dict(solver_options or {}),
+                "accepted": not frontier.empty,
+                "n_rows": int(len(frontier)),
+                "sweep_point_debug": sweep_debug_rows,
+            }
+            if solver_stdout.strip():
+                attempt_debug["captured_stdout_lines"] = len(solver_stdout.splitlines())
+            debug_attempts.append(attempt_debug)
         if not frontier.empty:
             return frontier, None
 
@@ -3211,6 +3218,8 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "othertech_telemetry": context.get("othertech_telemetry", []),
+            "available_othertech": context.get("available_othertech", []),
             "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
@@ -3303,6 +3312,8 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "othertech_telemetry": context.get("othertech_telemetry", []),
+            "available_othertech": context.get("available_othertech", []),
             "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
@@ -3367,6 +3378,8 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "othertech_telemetry": context.get("othertech_telemetry", []),
+            "available_othertech": context.get("available_othertech", []),
             "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
@@ -3441,6 +3454,8 @@ def _run_pareto_with_route_pool(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "othertech_telemetry": context.get("othertech_telemetry", []),
+            "available_othertech": context.get("available_othertech", []),
             "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, []),
             "tool_name": "run_waste_management_pareto",
@@ -3460,6 +3475,12 @@ def _run_pareto_with_route_pool(
     points = _frame_to_pareto_points(annotated_frontier)
     y_key = "emissions" if y_metric == "emissions" else "circularity_score"
     frontier_points, dominated_points = _classify_pareto_points(points, y_key=y_key)
+    landscape_points, landscape_summary = _sample_candidate_landscape_points(
+        context,
+        min_active_washes=min_active_washes,
+        max_active_washes=max_active_washes,
+    )
+    compact_landscape_points = _compact_plot_points(landscape_points)
 
     route_reports = list(skipped_reports)
     raw_exact_route_ids = {
@@ -3597,7 +3618,9 @@ def _run_pareto_with_route_pool(
         "ideal_points": ideal_points,
         "points": frontier_points,
         "all_feasible_points": points,
+        "landscape_points": compact_landscape_points,
         "dominated_points": dominated_points,
+        "landscape_summary": landscape_summary,
         "route_candidates": route_candidates,
         "route_reports": route_reports,
         "n_routes_requested": len(route_candidates),
@@ -3622,6 +3645,8 @@ def _run_pareto_with_route_pool(
         "simulation_failures": context.get("simulation_failures", []),
         "simulation_skips": context.get("simulation_skips", []),
         "candidate_telemetry": candidate_telemetry,
+        "othertech_telemetry": context.get("othertech_telemetry", []),
+        "available_othertech": context.get("available_othertech", []),
         "source_handoff_summary": source_handoff_summary,
         "candidate_summary": _build_pareto_candidate_summary(context, frontier_points),
         "tool_name": "run_waste_management_pareto",
@@ -3654,6 +3679,12 @@ def _run_pareto_with_route_pool(
             "**Surviving candidates:** "
             + ", ".join(f"{polymer}={count}" for polymer, count in sorted(surviving_counts.items()))
             + "\n"
+        )
+    if landscape_summary.get("status") == "generated":
+        display += (
+            f"**Landscape samples:** {landscape_summary.get('n_landscape_points', 0)} unique / "
+            f"{landscape_summary.get('n_candidate_designs_solved', 0)} solved / "
+            f"{landscape_summary.get('n_candidate_designs_attempted', 0)} attempted forced candidate designs\n"
         )
     if context["filter_warnings"]:
         for warning in context["filter_warnings"]:
@@ -4896,6 +4927,8 @@ def run_waste_management_optimization(
         results["simulation_failures"] = context.get("simulation_failures", [])
         results["simulation_skips"] = context.get("simulation_skips", [])
         results["candidate_telemetry"] = candidate_telemetry
+        results["othertech_telemetry"] = context.get("othertech_telemetry", [])
+        results["available_othertech"] = context.get("available_othertech", [])
         results["source_handoff_summary"] = source_handoff_summary
         results["constraint_mode"] = context["constraint_mode"]
         results["fallback_policy"] = context["fallback_policy"]
@@ -5267,6 +5300,8 @@ def run_waste_management_pareto(
             "simulation_failures": context.get("simulation_failures", []),
             "simulation_skips": context.get("simulation_skips", []),
             "candidate_telemetry": candidate_telemetry,
+            "othertech_telemetry": context.get("othertech_telemetry", []),
+            "available_othertech": context.get("available_othertech", []),
             "source_handoff_summary": source_handoff_summary,
             "candidate_summary": _build_pareto_candidate_summary(context, points),
             "solver_debug": _compact_pareto_solver_debug(anchor_solver_debug, sweep_solver_debug),

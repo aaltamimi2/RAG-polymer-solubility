@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-04-27T18:32:08.664708+00:00",
+  "files": {
+    "artifacts": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/artifacts.json",
+    "compile_result": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/compile_result.json",
+    "ledger": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/ledger.json",
+    "manifest": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/manifest.json",
+    "plan": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/plan.json",
+    "request": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/request.json"
+  },
+  "produced_file_copies": {
+    "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_sequence_rank1.png": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/produced_files/separation_sequence_rank1.png",
+    "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_topk_comparison.png": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b/produced_files/separation_topk_comparison.png"
+  },
+  "run_dir": "architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404867b",
+  "run_id": "run_bf1e8404867b",
+  "schema_version": "1.0"
+}

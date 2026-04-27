@@ -1,0 +1,2438 @@
+{
+  "analysis_type": "pareto_front",
+  "schema_version": "1.5",
+  "x_metric": "total_cost",
+  "y_metric": "circularity",
+  "scenario": "A",
+  "feed": 8000.0,
+  "feed_composition": {
+    "PP": 0.25,
+    "PS": 0.25,
+    "PVC": 0.25,
+    "PC": 0.25
+  },
+  "constraint_mode": "ranked_soft",
+  "fallback_policy": "broaden_disclosed",
+  "route_pool_mode": "exact",
+  "n_points_requested": 12,
+  "n_points_raw_feasible": 12,
+  "n_points_feasible": 2,
+  "strap_table_rows": 16,
+  "ideal_points": {
+    "min_total_cost": {
+      "total_cost": 1752444.9557891248,
+      "circularity_score": 0.4174497086207973
+    },
+    "max_circularity": {
+      "total_cost": 1764985.0157891249,
+      "circularity_score": 0.5228786852279058
+    }
+  },
+  "points": [
+    {
+      "point_id": 1,
+      "epsilon": 417449.70862079726,
+      "profit": -6444.955789124593,
+      "emissions": 3377.522361593674,
+      "raw_circularity_score": 417449.7086207972,
+      "circularity_score": 0.4174497086207972,
+      "total_cost": 1752444.9557891248,
+      "capital_cost": 1202653.7091525379,
+      "operational_cost": 503787.246636587,
+      "transportation_cost": 46004.00000000003,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "stage3_tech": [],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "selection_origin": "exact_route",
+      "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+      "wash2_origin_route_id": null,
+      "wash1_origin_route_ids": [
+        "pvc_dimethyl_sulfoxide_route"
+      ],
+      "wash2_origin_route_ids": [],
+      "n_equivalent_designs": 1,
+      "stage3_variants": [],
+      "equivalent_designs": [
+        {
+          "stage1_tech": [
+            "st1"
+          ],
+          "stage2_tech": [
+            "lf"
+          ],
+          "stage3_tech": [],
+          "wash1_selection": [
+            "PVC-Dimethyl sulfoxide"
+          ],
+          "wash2_selection": [],
+          "recovered_polymers": [
+            "PVC"
+          ],
+          "residual_polymers": [
+            "PP",
+            "PS",
+            "PC"
+          ],
+          "residual_destination_stage": "stage2",
+          "residual_destination_tech": [
+            "lf"
+          ],
+          "recovered_mass_tpy_by_polymer": {
+            "PVC": 2000.0
+          },
+          "saleable_recovered_mass_tpy_by_polymer": {
+            "PVC": 1940.0
+          },
+          "residual_mass_tpy_by_polymer": {
+            "PP": 2000.0,
+            "PS": 2000.0,
+            "PC": 2000.0
+          },
+          "route_id": "pvc_dimethyl_sulfoxide_route",
+          "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+          "rank": 1,
+          "polymer_solvent_map": {
+            "PVC": "Dimethyl sulfoxide"
+          },
+          "selection_origin": "exact_route",
+          "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+          "wash2_origin_route_id": null,
+          "wash1_origin_route_ids": [
+            "pvc_dimethyl_sulfoxide_route"
+          ],
+          "wash2_origin_route_ids": []
+        }
+      ],
+      "raw_point_id": 1,
+      "point_status": "frontier",
+      "is_frontier": true
+    },
+    {
+      "point_id": 2,
+      "epsilon": 427034.1610396253,
+      "profit": 641014.9842108751,
+      "emissions": 17167.92236159367,
+      "raw_circularity_score": 522878.6852279057,
+      "circularity_score": 0.5228786852279057,
+      "total_cost": 1764985.0157891249,
+      "capital_cost": 1202653.7091525379,
+      "operational_cost": 456771.306636587,
+      "transportation_cost": 105560.00000000003,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "we"
+      ],
+      "stage3_tech": [],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "we"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "selection_origin": "exact_route",
+      "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+      "wash2_origin_route_id": null,
+      "wash1_origin_route_ids": [
+        "pvc_dimethyl_sulfoxide_route"
+      ],
+      "wash2_origin_route_ids": [],
+      "n_equivalent_designs": 1,
+      "stage3_variants": [],
+      "equivalent_designs": [
+        {
+          "stage1_tech": [
+            "st1"
+          ],
+          "stage2_tech": [
+            "we"
+          ],
+          "stage3_tech": [],
+          "wash1_selection": [
+            "PVC-Dimethyl sulfoxide"
+          ],
+          "wash2_selection": [],
+          "recovered_polymers": [
+            "PVC"
+          ],
+          "residual_polymers": [
+            "PP",
+            "PS",
+            "PC"
+          ],
+          "residual_destination_stage": "stage2",
+          "residual_destination_tech": [
+            "we"
+          ],
+          "recovered_mass_tpy_by_polymer": {
+            "PVC": 2000.0
+          },
+          "saleable_recovered_mass_tpy_by_polymer": {
+            "PVC": 1940.0
+          },
+          "residual_mass_tpy_by_polymer": {
+            "PP": 2000.0,
+            "PS": 2000.0,
+            "PC": 2000.0
+          },
+          "route_id": "pvc_dimethyl_sulfoxide_route",
+          "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+          "rank": 1,
+          "polymer_solvent_map": {
+            "PVC": "Dimethyl sulfoxide"
+          },
+          "selection_origin": "exact_route",
+          "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+          "wash2_origin_route_id": null,
+          "wash1_origin_route_ids": [
+            "pvc_dimethyl_sulfoxide_route"
+          ],
+          "wash2_origin_route_ids": []
+        }
+      ],
+      "raw_point_id": 2,
+      "point_status": "frontier",
+      "is_frontier": true
+    }
+  ],
+  "all_feasible_points": [
+    {
+      "point_id": 1,
+      "epsilon": 417449.70862079726,
+      "profit": -6444.955789124593,
+      "emissions": 3377.522361593674,
+      "raw_circularity_score": 417449.7086207972,
+      "circularity_score": 0.4174497086207972,
+      "total_cost": 1752444.9557891248,
+      "capital_cost": 1202653.7091525379,
+      "operational_cost": 503787.246636587,
+      "transportation_cost": 46004.00000000003,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "stage3_tech": [],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "selection_origin": "exact_route",
+      "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+      "wash2_origin_route_id": null,
+      "wash1_origin_route_ids": [
+        "pvc_dimethyl_sulfoxide_route"
+      ],
+      "wash2_origin_route_ids": [],
+      "n_equivalent_designs": 1,
+      "stage3_variants": [],
+      "equivalent_designs": [
+        {
+          "stage1_tech": [
+            "st1"
+          ],
+          "stage2_tech": [
+            "lf"
+          ],
+          "stage3_tech": [],
+          "wash1_selection": [
+            "PVC-Dimethyl sulfoxide"
+          ],
+          "wash2_selection": [],
+          "recovered_polymers": [
+            "PVC"
+          ],
+          "residual_polymers": [
+            "PP",
+            "PS",
+            "PC"
+          ],
+          "residual_destination_stage": "stage2",
+          "residual_destination_tech": [
+            "lf"
+          ],
+          "recovered_mass_tpy_by_polymer": {
+            "PVC": 2000.0
+          },
+          "saleable_recovered_mass_tpy_by_polymer": {
+            "PVC": 1940.0
+          },
+          "residual_mass_tpy_by_polymer": {
+            "PP": 2000.0,
+            "PS": 2000.0,
+            "PC": 2000.0
+          },
+          "route_id": "pvc_dimethyl_sulfoxide_route",
+          "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+          "rank": 1,
+          "polymer_solvent_map": {
+            "PVC": "Dimethyl sulfoxide"
+          },
+          "selection_origin": "exact_route",
+          "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+          "wash2_origin_route_id": null,
+          "wash1_origin_route_ids": [
+            "pvc_dimethyl_sulfoxide_route"
+          ],
+          "wash2_origin_route_ids": []
+        }
+      ],
+      "raw_point_id": 1,
+      "point_status": "frontier",
+      "is_frontier": true
+    },
+    {
+      "point_id": 2,
+      "epsilon": 427034.1610396253,
+      "profit": 641014.9842108751,
+      "emissions": 17167.92236159367,
+      "raw_circularity_score": 522878.6852279057,
+      "circularity_score": 0.5228786852279057,
+      "total_cost": 1764985.0157891249,
+      "capital_cost": 1202653.7091525379,
+      "operational_cost": 456771.306636587,
+      "transportation_cost": 105560.00000000003,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "we"
+      ],
+      "stage3_tech": [],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "we"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "selection_origin": "exact_route",
+      "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+      "wash2_origin_route_id": null,
+      "wash1_origin_route_ids": [
+        "pvc_dimethyl_sulfoxide_route"
+      ],
+      "wash2_origin_route_ids": [],
+      "n_equivalent_designs": 1,
+      "stage3_variants": [],
+      "equivalent_designs": [
+        {
+          "stage1_tech": [
+            "st1"
+          ],
+          "stage2_tech": [
+            "we"
+          ],
+          "stage3_tech": [],
+          "wash1_selection": [
+            "PVC-Dimethyl sulfoxide"
+          ],
+          "wash2_selection": [],
+          "recovered_polymers": [
+            "PVC"
+          ],
+          "residual_polymers": [
+            "PP",
+            "PS",
+            "PC"
+          ],
+          "residual_destination_stage": "stage2",
+          "residual_destination_tech": [
+            "we"
+          ],
+          "recovered_mass_tpy_by_polymer": {
+            "PVC": 2000.0
+          },
+          "saleable_recovered_mass_tpy_by_polymer": {
+            "PVC": 1940.0
+          },
+          "residual_mass_tpy_by_polymer": {
+            "PP": 2000.0,
+            "PS": 2000.0,
+            "PC": 2000.0
+          },
+          "route_id": "pvc_dimethyl_sulfoxide_route",
+          "matched_route_id": "pvc_dimethyl_sulfoxide_route",
+          "rank": 1,
+          "polymer_solvent_map": {
+            "PVC": "Dimethyl sulfoxide"
+          },
+          "selection_origin": "exact_route",
+          "wash1_origin_route_id": "pvc_dimethyl_sulfoxide_route",
+          "wash2_origin_route_id": null,
+          "wash1_origin_route_ids": [
+            "pvc_dimethyl_sulfoxide_route"
+          ],
+          "wash2_origin_route_ids": []
+        }
+      ],
+      "raw_point_id": 2,
+      "point_status": "frontier",
+      "is_frontier": true
+    }
+  ],
+  "landscape_points": [
+    {
+      "landscape_point_id": 1,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1752444.9557891248,
+      "emissions": 3377.522361593677,
+      "circularity_score": 0.4174497086207974,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 2,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1753608.6171922022,
+      "emissions": 2653.9850361626295,
+      "circularity_score": 0.4312404681690325,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "recovered_polymers": [
+        "PP"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 3,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1765083.6200898527,
+      "emissions": 3096.015440671957,
+      "circularity_score": 0.45890152617843694,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 4,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1767234.3837337643,
+      "emissions": 2791.1610612403088,
+      "circularity_score": 0.4298225691258274,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "recovered_polymers": [
+        "PP"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 5,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1767234.3837337643,
+      "emissions": 2791.161061240309,
+      "circularity_score": 0.43343747595812554,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-Toluene"
+      ],
+      "recovered_polymers": [
+        "PS"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 6,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1768238.5628329741,
+      "emissions": 3141.369356775263,
+      "circularity_score": 0.41991140204752464,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 7,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1768238.5628329744,
+      "emissions": 3141.369356775263,
+      "circularity_score": 0.42955115360031965,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PS"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 8,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 1768861.0522529532,
+      "emissions": 2776.2639271866356,
+      "circularity_score": 0.46248042975777587,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage2",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 9,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3408113.652981327,
+      "emissions": 5378.707397756307,
+      "circularity_score": 0.4486901767898297,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 10,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3419588.655878978,
+      "emissions": 5820.737802265634,
+      "circularity_score": 0.4763512347992341,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 11,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3420752.317282055,
+      "emissions": 5097.200476834587,
+      "circularity_score": 0.4901419943474693,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 12,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3421739.419522889,
+      "emissions": 5515.883422833986,
+      "circularity_score": 0.4508871845789227,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-Toluene"
+      ],
+      "wash2_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 13,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3421739.419522889,
+      "emissions": 5515.883422833986,
+      "circularity_score": 0.44727227774662454,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 14,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3422743.598622099,
+      "emissions": 5866.09171836894,
+      "circularity_score": 0.4470008622211169,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 15,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3422903.080925966,
+      "emissions": 4792.3460974029385,
+      "circularity_score": 0.4646779441271579,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PS-Toluene"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 16,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3423366.088042078,
+      "emissions": 5500.986288780312,
+      "circularity_score": 0.479930138378573,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-Dimethyl sulfoxide"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 17,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3423907.260025176,
+      "emissions": 5142.554392937893,
+      "circularity_score": 0.45115187021655706,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 18,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3423907.2600251767,
+      "emissions": 5142.554392937893,
+      "circularity_score": 0.460791621769352,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 19,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3424529.7494451557,
+      "emissions": 4777.448963349265,
+      "circularity_score": 0.4937208979268081,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Cyclohexane"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 20,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3434378.083823617,
+      "emissions": 5234.376501912266,
+      "circularity_score": 0.49233900213656234,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-Toluene"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 21,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3434378.083823617,
+      "emissions": 5234.376501912266,
+      "circularity_score": 0.4887240953042643,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 22,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3435382.262922827,
+      "emissions": 5584.58479744722,
+      "circularity_score": 0.48845267977875656,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 23,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3435382.262922827,
+      "emissions": 5584.58479744722,
+      "circularity_score": 0.4788129282259615,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 24,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3436528.847467528,
+      "emissions": 4929.522122480617,
+      "circularity_score": 0.46326004508395285,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PS-Toluene"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 25,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3437533.0265667383,
+      "emissions": 5279.730418015572,
+      "circularity_score": 0.45937372272614696,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PS": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 26,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3437533.0265667383,
+      "emissions": 5279.730418015572,
+      "circularity_score": 0.45334887800565005,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-Toluene"
+      ],
+      "wash2_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 27,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3437533.0265667383,
+      "emissions": 5279.730418015572,
+      "circularity_score": 0.4497339711733519,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 28,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3438155.5159867173,
+      "emissions": 4914.624988426944,
+      "circularity_score": 0.4923029988836031,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PP-Toluene"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PP": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 29,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3438155.5159867173,
+      "emissions": 4914.624988426945,
+      "circularity_score": 0.4959179057159013,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-Toluene"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 30,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3438537.2056659483,
+      "emissions": 5629.938713550526,
+      "circularity_score": 0.4494625556478442,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PVC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PVC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PVC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PC": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 31,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3439159.695085927,
+      "emissions": 5264.833283961898,
+      "circularity_score": 0.4823918318053003,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PVC-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PVC",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PS"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PVC": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PVC": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PS": 2000.0
+      }
+    },
+    {
+      "landscape_point_id": 32,
+      "point_status": "landscape_sample",
+      "is_frontier": false,
+      "selection_origin": "landscape_sample",
+      "total_cost": 3439159.695085928,
+      "emissions": 5264.833283961898,
+      "circularity_score": 0.4920315833580954,
+      "stage1_tech": [
+        "st1"
+      ],
+      "stage2_tech": [
+        "st2"
+      ],
+      "stage3_tech": [
+        "lf"
+      ],
+      "stage3_variants": [
+        "lf"
+      ],
+      "wash1_selection": [
+        "PS-N,N-Dimethylformamide"
+      ],
+      "wash2_selection": [
+        "PC-Toluene"
+      ],
+      "recovered_polymers": [
+        "PS",
+        "PC"
+      ],
+      "residual_polymers": [
+        "PP",
+        "PVC"
+      ],
+      "residual_destination_stage": "stage3",
+      "residual_destination_tech": [
+        "lf"
+      ],
+      "recovered_mass_tpy_by_polymer": {
+        "PS": 2000.0,
+        "PC": 2000.0
+      },
+      "saleable_recovered_mass_tpy_by_polymer": {
+        "PS": 1940.0,
+        "PC": 1940.0
+      },
+      "residual_mass_tpy_by_polymer": {
+        "PP": 2000.0,
+        "PVC": 2000.0
+      }
+    }
+  ],
+  "dominated_points": [],
+  "landscape_summary": {
+    "status": "generated",
+    "objective": "min_total_cost",
+    "n_candidate_designs_generated": 56,
+    "n_candidate_designs_selected": 56,
+    "max_candidate_designs": 120,
+    "truncated": false,
+    "polymers_considered": [
+      "PP",
+      "PS",
+      "PVC",
+      "PC"
+    ],
+    "candidate_counts_by_wash_polymer": {
+      "Wash 1": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      },
+      "Wash 2": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      }
+    },
+    "n_candidate_designs_attempted": 56,
+    "n_candidate_designs_solved": 56,
+    "n_landscape_points": 32,
+    "n_failed_designs": 0,
+    "failures": []
+  },
+  "route_candidates": [
+    {
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "sequence": [
+        "PVC"
+      ],
+      "source": "query_constraint",
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "actual_solvent_map": {},
+      "step_conditions": [
+        {
+          "polymer": "PVC",
+          "solvent": "Dimethyl sulfoxide",
+          "optimizer_option": "Dimethyl sulfoxide",
+          "dissolution_temp_c": null,
+          "precipitation_temp_c": null,
+          "temperature_source": "biosteam_default"
+        }
+      ]
+    }
+  ],
+  "route_reports": [
+    {
+      "route_id": "pvc_dimethyl_sulfoxide_route",
+      "rank": 1,
+      "status": "feasible",
+      "reason": "",
+      "dominating_point_id": null,
+      "polymer_solvent_map": {
+        "PVC": "Dimethyl sulfoxide"
+      },
+      "n_points_raw": 12,
+      "n_points_unique": 2,
+      "n_points_on_frontier": 2,
+      "stage3_techs_explored": [],
+      "frontier_stage3_techs": []
+    }
+  ],
+  "n_routes_requested": 1,
+  "n_routes_solved": 1,
+  "frontier_summary": {
+    "n_routes_on_frontier": 1,
+    "route_ids_on_frontier": [
+      "pvc_dimethyl_sulfoxide_route"
+    ],
+    "n_distinct_stage3_techs": 0,
+    "distinct_stage3_techs": [],
+    "n_cross_product_points": 0,
+    "n_equivalent_design_variants": 0
+  },
+  "requested_solvent_filters": {
+    "global": [],
+    "PP": [
+      "Toluene",
+      "Cyclohexane"
+    ],
+    "PS": [
+      "Toluene",
+      "N,N-Dimethylformamide"
+    ],
+    "PVC": [
+      "N,N-Dimethylformamide",
+      "Dimethyl sulfoxide"
+    ],
+    "PC": [
+      "Toluene",
+      "N,N-Dimethylformamide"
+    ]
+  },
+  "applied_solvent_filters": {
+    "PP": [
+      "Toluene",
+      "Cyclohexane"
+    ],
+    "PS": [
+      "Toluene",
+      "N,N-Dimethylformamide"
+    ],
+    "PVC": [
+      "N,N-Dimethylformamide",
+      "Dimethyl sulfoxide"
+    ],
+    "PC": [
+      "Toluene",
+      "N,N-Dimethylformamide"
+    ]
+  },
+  "solvent_filter_warnings": [],
+  "solvent_filter_status": "applied",
+  "simulation_failures": [],
+  "simulation_skips": [],
+  "candidate_telemetry": {
+    "source": {
+      "typed_stage_candidates": true,
+      "route_candidates_present": true,
+      "route_pool_mode": "exact",
+      "constraint_mode": "ranked_soft",
+      "fallback_policy": "broaden_disclosed"
+    },
+    "requested": {
+      "global_candidates": [],
+      "by_polymer": {
+        "PP": [
+          "Toluene",
+          "Cyclohexane"
+        ],
+        "PS": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ],
+        "PVC": [
+          "N,N-Dimethylformamide",
+          "Dimethyl sulfoxide"
+        ],
+        "PC": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ]
+      },
+      "counts_by_polymer": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      },
+      "source_counts_by_polymer": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      },
+      "source_lists_by_polymer": {
+        "PP": [
+          "Toluene",
+          "Cyclohexane"
+        ],
+        "PS": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ],
+        "PVC": [
+          "N,N-Dimethylformamide",
+          "Dimethyl sulfoxide"
+        ],
+        "PC": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ]
+      }
+    },
+    "applied": {
+      "by_polymer": {
+        "PP": [
+          "Toluene",
+          "Cyclohexane"
+        ],
+        "PS": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ],
+        "PVC": [
+          "N,N-Dimethylformamide",
+          "Dimethyl sulfoxide"
+        ],
+        "PC": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ]
+      },
+      "counts_by_polymer": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      }
+    },
+    "surviving": {
+      "compiled_rows_total": 16,
+      "by_stage": {
+        "Wash 1": {
+          "PP": [
+            "Toluene",
+            "Cyclohexane"
+          ],
+          "PS": [
+            "Toluene",
+            "N,N-Dimethylformamide"
+          ],
+          "PVC": [
+            "N,N-Dimethylformamide",
+            "Dimethyl sulfoxide"
+          ],
+          "PC": [
+            "Toluene",
+            "N,N-Dimethylformamide"
+          ]
+        },
+        "Wash 2": {
+          "PP": [
+            "Toluene",
+            "Cyclohexane"
+          ],
+          "PS": [
+            "Toluene",
+            "N,N-Dimethylformamide"
+          ],
+          "PVC": [
+            "N,N-Dimethylformamide",
+            "Dimethyl sulfoxide"
+          ],
+          "PC": [
+            "Toluene",
+            "N,N-Dimethylformamide"
+          ]
+        }
+      },
+      "counts_by_stage": {
+        "Wash 1": {
+          "PP": 2,
+          "PS": 2,
+          "PVC": 2,
+          "PC": 2
+        },
+        "Wash 2": {
+          "PP": 2,
+          "PS": 2,
+          "PVC": 2,
+          "PC": 2
+        }
+      },
+      "by_polymer": {
+        "PP": [
+          "Toluene",
+          "Cyclohexane"
+        ],
+        "PS": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ],
+        "PVC": [
+          "N,N-Dimethylformamide",
+          "Dimethyl sulfoxide"
+        ],
+        "PC": [
+          "Toluene",
+          "N,N-Dimethylformamide"
+        ]
+      },
+      "counts_by_polymer": {
+        "PP": 2,
+        "PS": 2,
+        "PVC": 2,
+        "PC": 2
+      }
+    },
+    "simulation": {
+      "failures_total": 0,
+      "skips_total": 0,
+      "failure_counts_by_class": {},
+      "skip_counts_by_reason": {},
+      "failures_by_polymer": {},
+      "skips_by_polymer": {}
+    }
+  },
+  "source_handoff_summary": {
+    "summary_kind": "optimizer_consumed_handoff",
+    "status": "typed_handoff",
+    "typed_handoff": true,
+    "source_handoff_id": null,
+    "route_id": null,
+    "schema_version": "1.1",
+    "workflow_scope": "multi_stage",
+    "constraint_mode": "ranked_soft",
+    "fallback_policy": "broaden_disclosed",
+    "route_pool_mode": "exact",
+    "operating_constraints": {},
+    "feed_composition": {
+      "PP": 0.25,
+      "PS": 0.25,
+      "PVC": 0.25,
+      "PC": 0.25
+    },
+    "feed_capacity_tpy": 8000.0,
+    "polymers": [
+      "PP",
+      "PS",
+      "PVC",
+      "PC"
+    ],
+    "stage_count": 0,
+    "route_candidates_count": 1,
+    "candidate_pairs_count": 0,
+    "candidate_counts_by_polymer": {},
+    "candidate_pair_counts_by_polymer": {},
+    "candidate_option_counts_by_polymer": {},
+    "candidate_solvent_counts_by_polymer": {},
+    "polymer_solvent_filter_counts_by_polymer": {},
+    "polymer_option_filter_counts_by_polymer": {},
+    "candidate_backfill_warnings": [],
+    "route_candidate_warnings": [],
+    "source_user_query_present": false,
+    "source_task_prompt_present": false,
+    "audit_note": "This summary is derived from the normalized stage_candidates_json object consumed by the optimizer; it may differ from visible upstream separation prose if the handoff was normalized or backfilled."
+  },
+  "candidate_summary": {
+    "status": "applied",
+    "requested_filters": {
+      "global": [],
+      "PP": [
+        "Toluene",
+        "Cyclohexane"
+      ],
+      "PS": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ],
+      "PVC": [
+        "N,N-Dimethylformamide",
+        "Dimethyl sulfoxide"
+      ],
+      "PC": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ]
+    },
+    "applied_filters": {
+      "PP": [
+        "Toluene",
+        "Cyclohexane"
+      ],
+      "PS": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ],
+      "PVC": [
+        "N,N-Dimethylformamide",
+        "Dimethyl sulfoxide"
+      ],
+      "PC": [
+        "Toluene",
+        "N,N-Dimethylformamide"
+      ]
+    },
+    "warnings": [],
+    "n_pairs_requested": 8,
+    "n_pairs_applied": 8,
+    "n_pairs_broadened": 0,
+    "n_pairs_infeasible": 0
+  },
+  "tool_name": "run_waste_management_pareto",
+  "success": true,
+  "pareto_payload_path": "/home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_payload_7b7f99a300aa.json"
+}

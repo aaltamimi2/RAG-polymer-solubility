@@ -174,6 +174,24 @@ def _plot_destination_args(facts: ExtractedFacts, *, default_stem: str) -> dict[
     return args
 
 
+def _stage_candidates_from_facts(facts: ExtractedFacts) -> dict[str, Any] | None:
+    """Build a route-constraint payload from explicit query instructions."""
+    if not facts.route_candidates:
+        return None
+    payload: dict[str, Any] = {
+        "schema_version": "1.1",
+        "workflow_scope": "multi_stage",
+        "constraint_mode": facts.constraint_mode or "ranked_soft",
+        "fallback_policy": facts.fallback_policy or "broaden_disclosed",
+        "route_pool_mode": facts.route_pool_mode or "exact",
+        "polymers": facts.polymers,
+        "feed_composition": facts.feed_composition,
+        "feed_capacity_tpy": facts.feed_capacity_tpy,
+        "route_candidates": facts.route_candidates,
+    }
+    return {key: value for key, value in payload.items() if value not in (None, [], {})}
+
+
 def _missing_inputs_for_optimization(facts: ExtractedFacts, *, slices: bool = False) -> list[MissingInput]:
     missing: list[MissingInput] = []
     if facts.feed_capacity_tpy is None:
@@ -524,6 +542,13 @@ def _compile_direct_pareto(
 
     cap = _select_capability("optimization_pareto_landscape", owner="optimization-engineer")
     x_metric, y_metric = _optimization_metrics(facts)
+    stage_candidates = _stage_candidates_from_facts(facts)
+    plot_args = {
+        "source_step_id": "optimize_pareto",
+        "plot_mode": "landscape",
+        "plot_title": facts.plot_title,
+        **_plot_destination_args(facts, default_stem="optimization_pareto"),
+    }
     steps: list[PlanStep] = [
         PlanStep(
             step_id="optimize_pareto",
@@ -544,7 +569,13 @@ def _compile_direct_pareto(
                 x_metric=x_metric,
                 y_metric=y_metric,
                 objective="pareto",
-                solvent_shortlist=facts.solvents or None,
+                solvent_shortlist=None if stage_candidates else facts.solvents or None,
+                candidate_solvents=None if stage_candidates else facts.solvents or None,
+                polymer_solvent_filters_json=facts.polymer_solvent_filters or None,
+                stage_candidates_json=stage_candidates,
+                constraint_mode=facts.constraint_mode,
+                fallback_policy=facts.fallback_policy,
+                route_pool_mode=facts.route_pool_mode,
             ),
         )
     ]
@@ -568,11 +599,7 @@ def _compile_direct_pareto(
                         path_required=True,
                     )
                 ],
-                tool_args_template={
-                    "source_step_id": "optimize_pareto",
-                    "plot_mode": "landscape",
-                    **_plot_destination_args(facts, default_stem="optimization_pareto"),
-                },
+                tool_args_template={key: value for key, value in plot_args.items() if value is not None},
             )
         )
 

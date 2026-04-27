@@ -1,0 +1,31 @@
+> 
+Typed runtime completed from verified structured artifacts. Plan:               
+plan_738948075447 Artifacts:                                                    
+
+ • separation_tree_plot:                                                        
+   /home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_ban
+   k_live_gemini_20260427/visualization/separation_tree/separation_sequence_rank
+   1.png                                                                        
+ • separation_tree_plot:                                                        
+   /home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_ban
+   k_live_gemini_20260427/visualization/separation_tree/separation_topk_comparis
+   on.png Diagnostic bundle:                                                    
+   architecture/test_results/typed_planner_runtime/20260427T183208Z_run_bf1e8404
+   867b Completed steps: plot_separation_visualization                          
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(5.8s)
+
+Goodbye!

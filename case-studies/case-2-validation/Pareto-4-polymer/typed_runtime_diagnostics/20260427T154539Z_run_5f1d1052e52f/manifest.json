@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-04-27T15:45:39.452238+00:00",
+  "files": {
+    "artifacts": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/artifacts.json",
+    "compile_result": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/compile_result.json",
+    "ledger": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/ledger.json",
+    "manifest": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/manifest.json",
+    "plan": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/plan.json",
+    "request": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f/request.json"
+  },
+  "produced_file_copies": {},
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/typed_runtime_diagnostics/20260427T154539Z_run_5f1d1052e52f",
+  "run_id": "run_5f1d1052e52f",
+  "schema_version": "1.0"
+}

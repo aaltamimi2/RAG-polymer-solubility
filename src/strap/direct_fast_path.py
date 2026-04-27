@@ -82,6 +82,11 @@ _OPTIMIZATION_REF_RE = re.compile(
     r"\b(?:this|that|it|same|previous|above|result|results|outcome|solution)\b",
     re.IGNORECASE,
 )
+_OPTIMIZATION_WORKFLOW_RE = re.compile(
+    r"\b(?:pareto|waste[- ]management|run\s+.*optimization|perform\s+.*optimization|"
+    r"optimi[sz]e\s+.*(?:feedstock|waste|circularity|cost|emissions))\b",
+    re.IGNORECASE | re.DOTALL,
+)
 _SEPARATION_APPROACH_PLOT_RE = re.compile(
     r"\b(?:separation\s+(?:approach|sequence|process|route|tree|diagram)|plot\s+this\s+separation)\b",
     re.IGNORECASE,
@@ -1358,6 +1363,8 @@ def _build_solubility_calls(query_text: str) -> tuple[str, list[str], float, flo
 def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
     user_request = _current_user_request(query_text)
     if is_separation_visualization_request(user_request):
+        return None
+    if _OPTIMIZATION_WORKFLOW_RE.search(user_request):
         return None
 
     if _SAFETY_CARD_RE.search(user_request) and not _has_fast_path_domain_conflict(

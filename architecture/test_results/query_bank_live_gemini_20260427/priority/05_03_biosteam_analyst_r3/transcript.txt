@@ -1,0 +1,22 @@
+> 
+Typed runtime completed from verified structured artifacts. Plan:               
+plan_8c4eecea61a6 Diagnostic bundle:                                            
+architecture/test_results/typed_planner_runtime/20260427T183126Z_run_18fa71bc0a1
+b Completed steps: run_biosteam_tea_lca                                         
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(13.9s)
+
+Goodbye!

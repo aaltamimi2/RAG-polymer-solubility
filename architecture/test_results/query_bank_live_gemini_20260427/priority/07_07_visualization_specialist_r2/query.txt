@@ -1,0 +1,1 @@
+Plot the solubility of LDPE, PET, and EVOH in dodecane and o-xylene from 25 C to 160 C with a normalized 0-100% y-axis. Save the PNG to "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/solubility".

@@ -337,6 +337,54 @@ def test_compile_direct_optimization_snapshot():
     ]
 
 
+def test_compile_no_pareto_defaults_to_max_profit_point_optimization():
+    result = compile_request(
+        "Optimize waste management for 8000 tonnes/year 60% PE 40% EVOH. I do not want Pareto.",
+        created_at=FIXED_TIME,
+    )
+
+    assert result.status == "compiled"
+    assert result.extracted_facts["pareto_negated"] is True
+    assert result.extracted_facts["requested_artifact_types"] == ["optimization_point_result"]
+    step = result.plan.steps[0]
+    assert step.allowed_tools == ["run_waste_management_optimization"]
+    assert step.tool_args_template["objective"] == "max_profit"
+
+
+def test_compile_single_objective_aliases_choose_requested_objective():
+    cases = {
+        "Run max circularity for 8000 tonnes/year 60% PE 40% EVOH": "max_circularity",
+        "Minimize emissions for 8000 tonnes/year 60% PE 40% EVOH waste management": "min_emissions",
+        "Minimize total cost for 8000 tonnes/year 60% PE 40% EVOH": "min_total_cost",
+    }
+
+    for query, objective in cases.items():
+        result = compile_request(query, created_at=FIXED_TIME)
+        assert result.status == "compiled"
+        step = result.plan.steps[0]
+        assert step.allowed_tools == ["run_waste_management_optimization"]
+        assert step.tool_args_template["objective"] == objective
+        assert result.extracted_facts["requested_artifact_types"] == ["optimization_point_result"]
+
+
+def test_compile_routed_no_pareto_uses_point_optimization_after_handoff():
+    query = (
+        "For 8000 tonnes/year composed of 60% LDPE and 40% EVOH, have the separation engineer "
+        "propose the top 4 solvent candidates per polymer using dynamic programming, then pass "
+        "those candidates to the optimization engineer. Do not run Pareto; return the single "
+        "max-profit route."
+    )
+    result = compile_request(query, created_at=FIXED_TIME)
+
+    assert result.status == "compiled"
+    assert result.plan.mode == "planned_workflow"
+    steps = result.plan.steps
+    assert steps[2].step_id == "optimize_point"
+    assert steps[2].allowed_tools == ["run_waste_management_optimization"]
+    assert steps[2].tool_args_template["objective"] == "max_profit"
+    assert _step_snapshot(result)[2]["outputs"] == ["optimization_point_result"]
+
+
 def test_compile_routed_pareto_snapshot():
     query = (
         "For a mixed plastic feedstock of 8000 tonnes/year composed of 20% LDPE, 60% EVOH, and "

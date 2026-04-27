@@ -1,0 +1,18 @@
+{
+  "created_at": "2026-04-27T15:54:53.268855+00:00",
+  "files": {
+    "artifacts": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/artifacts.json",
+    "compile_result": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/compile_result.json",
+    "ledger": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/ledger.json",
+    "manifest": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/manifest.json",
+    "plan": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/plan.json",
+    "request": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/request.json"
+  },
+  "produced_file_copies": {
+    "/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/produced_files/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png",
+    "/home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_payload_e434e7e3be96.json": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34/produced_files/pareto_payload_e434e7e3be96.json"
+  },
+  "run_dir": "architecture/test_results/typed_planner_runtime/20260427T155453Z_run_da030bd7cc34",
+  "run_id": "run_da030bd7cc34",
+  "schema_version": "1.0"
+}

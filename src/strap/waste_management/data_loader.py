@@ -314,6 +314,18 @@ _TECH_REQUIRED_METRICS = {
     "gas_h2": ("gwp",),
     "gas_h2cc": ("gwp",),
 }
+OTHERTECH_PAPER_GWP_FALLBACK = {
+    "lf": 0.0864564,
+    "we": 2.45971,
+    "py": 0.682266,
+    "gas_er": 1.07,
+    "gas_h2": 5.42838,
+    "gas_h2cc": 2.55583,
+}
+OTHERTECH_MODEL_CAPEX_FALLBACK = {
+    # Same model-level gasification CAPEX coefficient used by model.py for gas_er.
+    "gas_er": 1.680302711e6,
+}
 
 
 def _coerce_strap_dataframe(
@@ -494,6 +506,45 @@ def _tech_has_required_metrics(metrics: dict[str, float | None], tech_key: str) 
     return all(metrics.get(metric) is not None for metric in required)
 
 
+def _is_zero_or_missing(value: float | None) -> bool:
+    return value is None or abs(float(value)) < 1e-12
+
+
+def _apply_othertech_fallbacks(
+    rows: dict[str, dict[str, float | None]]
+) -> list[dict[str, Any]]:
+    telemetry: list[dict[str, Any]] = []
+    for tech_key, fallback in OTHERTECH_PAPER_GWP_FALLBACK.items():
+        metrics = rows.get(tech_key)
+        if metrics is None:
+            continue
+        if _is_zero_or_missing(metrics.get("gwp")):
+            metrics["gwp"] = float(fallback)
+            telemetry.append({
+                "event": "othertech_metric_fallback",
+                "tech": tech_key,
+                "metric": "gwp",
+                "value": float(fallback),
+                "source": "piw_paper_julia_reference",
+                "reason": "zero_or_missing_workbook_value",
+            })
+    for tech_key, fallback in OTHERTECH_MODEL_CAPEX_FALLBACK.items():
+        metrics = rows.get(tech_key)
+        if metrics is None:
+            continue
+        if _is_zero_or_missing(metrics.get("capex")):
+            metrics["capex"] = float(fallback)
+            telemetry.append({
+                "event": "othertech_metric_fallback",
+                "tech": tech_key,
+                "metric": "capex",
+                "value": float(fallback),
+                "source": "strap_model_reference",
+                "reason": "zero_or_missing_workbook_value",
+            })
+    return telemetry
+
+
 def derive_available_othertechs(other_data: dict[str, dict[str, float]]) -> list[str]:
     available: list[str] = []
     for tech_key in OTHERTECH:
@@ -530,7 +581,7 @@ def load_strap_data(excel_path=None, sheet_name="StrapScenario3 Units", p_strap=
     return strap_data
 
 
-def load_othertech_data(excel_path, sheet_name="Othertech w TransportA"):
+def load_othertech_data(excel_path, sheet_name="Othertech w TransportA", return_telemetry: bool = False):
     """
     Load data for non-STRAP technologies (landfill, incineration, pyrolysis,
     gasification variants).
@@ -546,17 +597,38 @@ def load_othertech_data(excel_path, sheet_name="Othertech w TransportA"):
         else _load_othertech_rows(excel_path, "Othertech")
     )
     merged_rows = _merge_othertech_rows(primary_rows, fallback_rows)
+    telemetry = _apply_othertech_fallbacks(merged_rows)
 
     other_data = {key: {} for key in OTHER_COLS}
     for tech_key, metrics in merged_rows.items():
         if not _tech_has_required_metrics(metrics, tech_key):
+            telemetry.append({
+                "event": "othertech_excluded",
+                "tech": tech_key,
+                "missing_required_metrics": [
+                    metric
+                    for metric in _TECH_REQUIRED_METRICS.get(tech_key, ())
+                    if metrics.get(metric) is None
+                ],
+                "reason": "missing_required_workbook_or_fallback_metrics",
+            })
             continue
         for key in OTHER_COLS:
             value = metrics.get(key)
             if value is None:
                 value = 0.0
+                telemetry.append({
+                    "event": "othertech_metric_defaulted",
+                    "tech": tech_key,
+                    "metric": key,
+                    "value": 0.0,
+                    "source": "model_default",
+                    "reason": "missing_non_required_metric",
+                })
             other_data[key][tech_key] = float(value)
 
+    if return_telemetry:
+        return other_data, telemetry
     return other_data
 
 
@@ -596,7 +668,7 @@ def load_all_data(excel_path=None,
 
     strap_source_df = _coerce_strap_dataframe(excel_path=excel_path, sheet_name=strap_sheet, strap_df=strap_df)
     strap = load_strap_data(excel_path, strap_sheet, p_strap, strap_df=strap_source_df)
-    other = load_othertech_data(excel_path, other_sheet)
+    other, othertech_telemetry = load_othertech_data(excel_path, other_sheet, return_telemetry=True)
     available_othertech = derive_available_othertechs(other)
     # When a caller supplies an explicit compiled STRAP table, that table is
     # the authoritative optimization decision space. Falling back to default
@@ -628,4 +700,10 @@ def load_all_data(excel_path=None,
         "S_BY_POLYMER": derived_sets["S_BY_POLYMER"],
     }
 
-    return {"strap": strap, "strap_df": strap_source_df.copy(), "other": other, "sets": sets}
+    return {
+        "strap": strap,
+        "strap_df": strap_source_df.copy(),
+        "other": other,
+        "sets": sets,
+        "othertech_telemetry": othertech_telemetry,
+    }

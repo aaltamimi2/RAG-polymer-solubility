@@ -538,13 +538,16 @@ def _base_optimization_kwargs(step: PlanStep, ledger: ExecutionLedger) -> tuple[
     feed = args.get("feed", args.get("feed_capacity_tpy"))
     if feed is None and handoff_payload:
         feed = handoff_payload.get("feed_capacity_tpy")
+    stage_candidates = handoff_payload or args.get("stage_candidates_json")
     kwargs: dict[str, Any] = {
         "feed": feed,
         "scenario": args.get("scenario", "A"),
         "x_metric": args.get("x_metric", "total_cost"),
         "y_metric": args.get("y_metric", "circularity"),
         "n_points": int(args.get("n_points") or 100),
-        "stage_candidates_json": handoff_payload,
+        "candidate_solvents": args.get("candidate_solvents") or args.get("solvent_shortlist"),
+        "polymer_solvent_filters_json": args.get("polymer_solvent_filters_json"),
+        "stage_candidates_json": stage_candidates,
         "constraint_mode": args.get("constraint_mode") or (handoff_payload or {}).get("constraint_mode"),
         "fallback_policy": args.get("fallback_policy") or (handoff_payload or {}).get("fallback_policy"),
         "route_pool_mode": args.get("route_pool_mode") or (handoff_payload or {}).get("route_pool_mode"),
@@ -622,6 +625,7 @@ def wrap_optimization_pareto_plot(step: PlanStep, ledger: ExecutionLedger) -> St
     raw = plot_optimization_pareto_front(
         pareto_result_json=payload,
         plot_mode=str(step.tool_args_template.get("plot_mode") or "frontier_only"),
+        plot_title=step.tool_args_template.get("plot_title"),
         output_dir=step.tool_args_template.get("output_dir"),
         output_path=step.tool_args_template.get("output_path"),
         output_stem=str(output_stem),

@@ -35,7 +35,14 @@ from strap.tools.waste_optimization import (
     run_waste_management_pareto,
     run_waste_management_pareto_slices,
 )
-from strap.waste_management.data_loader import derive_optimizer_sets_from_df, get_optimizer_default_sets, load_all_data
+from strap.waste_management.data_loader import (
+    OTHERTECH_PAPER_GWP_FALLBACK,
+    derive_available_othertechs,
+    derive_optimizer_sets_from_df,
+    get_optimizer_default_sets,
+    load_all_data,
+    load_othertech_data,
+)
 from strap.waste_management.model import build_model, estimate_metric_upper_bound
 from strap.waste_management.solver import (
     _get_solver,
@@ -107,6 +114,42 @@ def test_load_all_data_accepts_explicit_compiled_strap_table():
     assert data["sets"]["S_EV1"] == ["Dimethyl sulfoxide"]
     assert data["sets"]["S_EV2"] == ["Ethylene Glycol"]
     assert list(data["strap_df"]["Solvents"]) == ["Cyclohexane", "Toluene", "Dimethyl sulfoxide", "Ethylene Glycol"]
+
+
+def test_load_othertech_data_applies_audited_piw_fallbacks_for_unresolved_formulas():
+    other, telemetry = load_othertech_data(_EXCEL_PATH, "Othertech w TransportA", return_telemetry=True)
+
+    assert derive_available_othertechs(other) == ["lf", "we", "py", "gas_er", "gas_h2", "gas_h2cc"]
+    for tech in ["py", "gas_er", "gas_h2", "gas_h2cc"]:
+        assert other["gwp"][tech] == OTHERTECH_PAPER_GWP_FALLBACK[tech]
+    assert other["gwp"]["lf"] == 0.0816
+    assert other["gwp"]["we"] == 2.38
+    assert {
+        (event["tech"], event["metric"], event["source"])
+        for event in telemetry
+        if event["event"] == "othertech_metric_fallback"
+    } >= {
+        ("py", "gwp", "piw_paper_julia_reference"),
+        ("gas_er", "gwp", "piw_paper_julia_reference"),
+        ("gas_h2", "gwp", "piw_paper_julia_reference"),
+        ("gas_h2cc", "gwp", "piw_paper_julia_reference"),
+        ("gas_er", "capex", "strap_model_reference"),
+    }
+
+
+def test_load_all_data_surfaces_othertech_fallback_telemetry():
+    data = load_all_data(
+        excel_path=_EXCEL_PATH,
+        strap_sheet="StrapScenario3 Units",
+        other_sheet="Othertech w TransportA",
+        p_strap=1.0,
+    )
+
+    assert data["sets"]["othertech"] == ["lf", "we", "py", "gas_er", "gas_h2", "gas_h2cc"]
+    assert any(
+        event.get("event") == "othertech_metric_fallback" and event.get("tech") == "gas_h2"
+        for event in data["othertech_telemetry"]
+    )
 
 
 def test_numeric_workbook_columns_are_castable_to_float_before_row_updates():

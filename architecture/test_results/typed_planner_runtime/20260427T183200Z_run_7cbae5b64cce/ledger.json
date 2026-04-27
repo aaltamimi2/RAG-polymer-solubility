@@ -1,0 +1,83 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "plot_state_map:separation_dp_state_map",
+      "artifact_type": "separation_dp_state_map",
+      "entities": {},
+      "inputs_used": {},
+      "output_paths": [
+        "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/dp_state_map/separation_dp_state_map.png"
+      ],
+      "schema_version": "1.0",
+      "source_handoff_ids": [],
+      "source_step_id": "plot_state_map",
+      "validation_summary": {
+        "normalized_by": "production_typed_runtime_wrapper",
+        "payload": {
+          "best_sequence": [
+            "EVOH",
+            "PET",
+            "PE"
+          ],
+          "min_selectivity": 10.531623,
+          "objective_paths": [
+            {
+              "metric": "10.5% bottleneck",
+              "objective": "Max selectivity",
+              "rule": "highest bottleneck selectivity",
+              "sequence": [
+                "EVOH",
+                "PET",
+                "PE"
+              ]
+            }
+          ],
+          "objectives_requested": [
+            "selectivity"
+          ],
+          "plot_errors": [],
+          "plot_paths": [
+            "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/dp_state_map/separation_dp_state_map.png"
+          ],
+          "polymers": [
+            "PE",
+            "EVOH",
+            "PET"
+          ],
+          "success": true,
+          "temperature": 100.0,
+          "tool_name": "plot_dynamic_programming_separation_options",
+          "total_sequences_evaluated": 6
+        },
+        "wrapper_version": "2026.04.pr6"
+      }
+    }
+  ],
+  "completed_at": "2026-04-27T18:32:00.104963+00:00",
+  "final_contract_status": {},
+  "plan_id": "plan_ad38ee96bc83",
+  "repairs": [],
+  "run_id": "run_7cbae5b64cce",
+  "started_at": "2026-04-27T18:31:59.526689+00:00",
+  "status": "succeeded",
+  "step_records": [
+    {
+      "artifact_ids": [
+        "plot_state_map:separation_dp_state_map"
+      ],
+      "attempt": 1,
+      "callable_name": "plot_dynamic_programming_separation_options",
+      "completed_at": "2026-04-27T18:32:00.104807+00:00",
+      "error": null,
+      "failed_checks": [],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [
+        "plot_state_map:separation_dp_state_map"
+      ],
+      "started_at": "2026-04-27T18:31:59.526767+00:00",
+      "status": "succeeded",
+      "step_id": "plot_state_map",
+      "verification_status": "passed"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "sheet": "01 separation-engineer",
+  "row": 3,
+  "query": "Rank solvents for selectively dissolving LDPE over PET at 120 C and report the top 5 candidates with selectivity and atmospheric-pressure caveats.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/02_01_separation_engineer_r3",
+  "started_at": "2026-04-27T18:30:04.857537+00:00",
+  "finished_at": "2026-04-27T18:30:28.636830+00:00",
+  "stdout_chars": 2358,
+  "stderr_chars": 379
+}

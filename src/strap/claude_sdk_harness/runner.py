@@ -208,10 +208,10 @@ class ClaudeSdkRunner:
         intent = infer_intent(prompt)
         allowed_tools = self.tool_map.allowed_for_intent(intent) if self.tool_map else []
 
-        if direct := self._direct_fast_path(contextual_prompt, allowed_tools):
-            return direct
         if typed := self._typed_runtime(contextual_prompt, allowed_tools):
             return typed
+        if direct := self._direct_fast_path(contextual_prompt, allowed_tools):
+            return direct
 
         if not os.getenv("ANTHROPIC_API_KEY"):
             message = "Claude SDK harness requires ANTHROPIC_API_KEY for non-fast-path turns."

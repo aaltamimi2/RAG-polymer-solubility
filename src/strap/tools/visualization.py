@@ -182,7 +182,7 @@ def _format_pareto_point_legend_entry(
         or design.get("route_id")
         or ""
     ).strip()
-    if matched_route_id:
+    if matched_route_id and not has_residual_metadata:
         components.append(f"Route: {matched_route_id}")
 
     x_value = row.get(x_metric)

@@ -1,0 +1,115 @@
+{
+  "assumptions": [],
+  "capability_registry_version": "2026.04.pr1",
+  "compiler_version": "2026.04.pr2",
+  "complexity": "moderate",
+  "created_at": "2026-04-27T18:30:54.731173+00:00",
+  "fallback_policy": "typed_failure",
+  "final_response_contract": {
+    "forbidden_claims": [
+      "upstream prose substituted for downstream structured output"
+    ],
+    "must_cite_artifacts": [
+      "biosteam_tea_lca_result"
+    ],
+    "require_paths": false,
+    "require_plan_status": true,
+    "required_sections": []
+  },
+  "global_constraints": {
+    "composition_slices": [],
+    "energy_case": "C2",
+    "feed_capacity_tpy": null,
+    "feed_composition": {},
+    "forbidden_artifact_types": [],
+    "max_washes": null,
+    "metrics": [
+      "emissions"
+    ],
+    "min_washes": null,
+    "n_points": null,
+    "output_dir": null,
+    "requested_artifact_types": [
+      "biosteam_tea_lca_result"
+    ],
+    "scenario": null,
+    "top_k_per_polymer": null
+  },
+  "intent_family": "biosteam_tea_lca",
+  "missing_inputs": [],
+  "mode": "single_agent",
+  "plan_id": "plan_6c7af99726d0",
+  "planner_model_id": null,
+  "schema_version": "1.0",
+  "steps": [
+    {
+      "allow_tool_choice": false,
+      "allowed_tools": [
+        "run_biosteam_simulation"
+      ],
+      "budget": {
+        "max_seconds": null,
+        "max_tokens": null,
+        "max_tool_calls": null
+      },
+      "depends_on": [],
+      "disallowed_tools": [],
+      "execution_kind": "tool",
+      "input_contracts": [],
+      "label": "Run BioSTEAM TEA/LCA",
+      "output_contracts": [
+        {
+          "artifact_contracts": [
+            {
+              "artifact_type": "biosteam_tea_lca_result",
+              "count": {
+                "max": null,
+                "min": 1
+              },
+              "entities": {},
+              "forbidden_artifact_types": [],
+              "metrics": {},
+              "output_formats": [],
+              "path_policy": "optional",
+              "required": true,
+              "validation_checks": []
+            }
+          ],
+          "contract_id": "biosteam_result_output",
+          "data_requirements": [],
+          "forbidden_claims": [],
+          "required": true,
+          "text_requirements": [],
+          "validation_checks": [
+            "source_is_biosteam_structured_output"
+          ]
+        }
+      ],
+      "retry_policy": {
+        "allow_recompile": false,
+        "max_attempts": 2,
+        "retry_on": [
+          "contract_failed",
+          "tool_arg_invalid",
+          "missing_artifact"
+        ]
+      },
+      "role": "biosteam-analyst",
+      "step_id": "run_biosteam_tea_lca",
+      "tool_args_template": {
+        "energy_case": "C2",
+        "polymers": [
+          "PE"
+        ],
+        "solvent": "Cyclohexane",
+        "solvents": [
+          "Cyclohexane"
+        ],
+        "target_plastic": "LDPE"
+      }
+    }
+  ],
+  "unsupported_reason": null,
+  "user_query": "Run BioSTEAM TEA/LCA for LDPE with Cyclohexane under energy case C2 and report MSP, TCI, AOC, GWP, and the boiling-point margin.",
+  "workflow_id": null
+}

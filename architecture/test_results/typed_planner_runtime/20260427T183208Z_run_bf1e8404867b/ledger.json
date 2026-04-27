@@ -1,0 +1,72 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "plot_separation_visualization:separation_tree_plot",
+      "artifact_type": "separation_tree_plot",
+      "entities": {},
+      "inputs_used": {},
+      "output_paths": [
+        "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_sequence_rank1.png",
+        "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_topk_comparison.png"
+      ],
+      "schema_version": "1.0",
+      "source_handoff_ids": [],
+      "source_step_id": "plot_separation_visualization",
+      "validation_summary": {
+        "normalized_by": "production_typed_runtime_wrapper",
+        "payload": {
+          "best_sequence": [
+            "EVOH",
+            "PET",
+            "PE"
+          ],
+          "min_selectivity": 12.135381,
+          "plot_errors": [],
+          "plot_paths": [
+            "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_sequence_rank1.png",
+            "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_topk_comparison.png"
+          ],
+          "polymers": [
+            "PE",
+            "EVOH",
+            "PET"
+          ],
+          "rank1_plot": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_sequence_rank1.png",
+          "success": true,
+          "temperature": 100.0,
+          "tool_name": "create_separation_tree_plot",
+          "topk_plot": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree/separation_topk_comparison.png",
+          "total_sequences_evaluated": 6
+        },
+        "wrapper_version": "2026.04.pr6"
+      }
+    }
+  ],
+  "completed_at": "2026-04-27T18:32:08.663129+00:00",
+  "final_contract_status": {},
+  "plan_id": "plan_738948075447",
+  "repairs": [],
+  "run_id": "run_bf1e8404867b",
+  "started_at": "2026-04-27T18:32:07.983486+00:00",
+  "status": "succeeded",
+  "step_records": [
+    {
+      "artifact_ids": [
+        "plot_separation_visualization:separation_tree_plot"
+      ],
+      "attempt": 1,
+      "callable_name": "create_separation_tree_plot",
+      "completed_at": "2026-04-27T18:32:08.663005+00:00",
+      "error": null,
+      "failed_checks": [],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [
+        "plot_separation_visualization:separation_tree_plot"
+      ],
+      "started_at": "2026-04-27T18:32:07.983533+00:00",
+      "status": "succeeded",
+      "step_id": "plot_separation_visualization",
+      "verification_status": "passed"
+    }
+  ]
+}

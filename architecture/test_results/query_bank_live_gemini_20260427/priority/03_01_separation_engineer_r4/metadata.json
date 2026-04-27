@@ -1,0 +1,14 @@
+{
+  "sheet": "01 separation-engineer",
+  "row": 4,
+  "query": "Find optimal separation conditions below 160 C for dissolving EVOH while leaving LDPE and PET behind; report the best solvent, temperature, selectivity, and model caveats.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/03_01_separation_engineer_r4",
+  "started_at": "2026-04-27T18:30:28.651427+00:00",
+  "finished_at": "2026-04-27T18:30:50.295523+00:00",
+  "stdout_chars": 1956,
+  "stderr_chars": 379
+}

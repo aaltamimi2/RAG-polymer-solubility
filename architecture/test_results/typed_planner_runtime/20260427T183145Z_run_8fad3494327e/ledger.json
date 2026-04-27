@@ -1,0 +1,76 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "run_biosteam_tea_lca:biosteam_tea_lca_result",
+      "artifact_type": "biosteam_tea_lca_result",
+      "entities": {},
+      "inputs_used": {},
+      "output_paths": [],
+      "schema_version": "1.0",
+      "source_handoff_ids": [],
+      "source_step_id": "run_biosteam_tea_lca",
+      "validation_summary": {
+        "normalized_by": "production_typed_runtime_wrapper",
+        "payload": {
+          "energy_case": "C3",
+          "lca": {
+            "etox_ctue_per_kg": 22.046205872289395,
+            "gwp_kg_co2e_per_kg": 0.9687356646295943,
+            "htc_ctuh_per_kg": 1.8538407127346994e-08,
+            "htnc_ctuh_per_kg": 1.022316909818941e-06
+          },
+          "operations": {
+            "cooling_duty_mj_per_kg": -6.997590224039628e-13,
+            "electricity_consumed_mj_per_kg": 35143.1414896878,
+            "electricity_intensity_mj_per_kg": 35143.1414896878,
+            "heating_duty_mj_per_kg": 2.2072476976218745e-13,
+            "total_energy_mj_per_kg": 35143.1414896878,
+            "unit_operations": 25,
+            "waste_diverted_kg_yr": 11765552.192188786,
+            "waste_generated_kg_yr": 29476.951382614247,
+            "water_circulated_m3_yr": 147904.68925024505,
+            "water_consumed_m3_yr": 1718.2378716976348
+          },
+          "runtime_seconds": 9.747,
+          "solvent": "Toluene",
+          "success": true,
+          "target_plastic": "PE",
+          "tea": {
+            "aoc_usd_per_yr": 2688986.8808014616,
+            "msp_usd_per_kg": 0.9638055717195868,
+            "tci_usd": 67386749.6518682
+          },
+          "tool_name": "run_biosteam_simulation"
+        },
+        "wrapper_version": "2026.04.pr6"
+      }
+    }
+  ],
+  "completed_at": "2026-04-27T18:31:45.106040+00:00",
+  "final_contract_status": {},
+  "plan_id": "plan_feeeaf6268cc",
+  "repairs": [],
+  "run_id": "run_8fad3494327e",
+  "started_at": "2026-04-27T18:31:34.353528+00:00",
+  "status": "succeeded",
+  "step_records": [
+    {
+      "artifact_ids": [
+        "run_biosteam_tea_lca:biosteam_tea_lca_result"
+      ],
+      "attempt": 1,
+      "callable_name": "run_biosteam_simulation",
+      "completed_at": "2026-04-27T18:31:45.105891+00:00",
+      "error": null,
+      "failed_checks": [],
+      "input_artifact_ids": [],
+      "output_artifact_ids": [
+        "run_biosteam_tea_lca:biosteam_tea_lca_result"
+      ],
+      "started_at": "2026-04-27T18:31:34.353588+00:00",
+      "status": "succeeded",
+      "step_id": "run_biosteam_tea_lca",
+      "verification_status": "passed"
+    }
+  ]
+}

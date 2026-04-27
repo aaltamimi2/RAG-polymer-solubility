@@ -1,0 +1,51 @@
+> 
+For the selective dissolution of LDPE over PET at 120°C, the following top 5    
+solvents have been identified based on their selectivity values.                
+
+Important Note on Atmospheric Operation: Many of the highly selective solvents  
+have boiling points significantly below 120°C. To maintain atmospheric-pressure 
+operation, you must either select a solvent with a boiling point above the      
+target operating temperature (such as Dodecane) or recognize that the           
+low-boiling candidates would require pressurized equipment to remain in the     
+liquid phase at 120°C.                                                          
+
+           Top 5 Solvent Candidates for LDPE/PET Separation at 120°C            
+
+                                                                                
+                                                       Atmospheric-Pressure     
+  Solvent           Selectivity   Boiling Point (°C)   Caveat                   
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
+  Cyclohexane       48.5          80.7                 Requires pressure;       
+                                                       exceeds boiling point    
+                                                       at 120°C.                
+  Hexane            47.6          68.7                 Requires pressure;       
+                                                       exceeds boiling point    
+                                                       at 120°C.                
+  n-Heptane         44.0          98.5                 Requires pressure;       
+                                                       exceeds boiling point    
+                                                       at 120°C.                
+  Tetrahydropyran   33.0          88.0                 Requires pressure;       
+                                                       exceeds boiling point    
+                                                       at 120°C.                
+  Dodecane          33.0          216.3                Atmospherically          
+                                                       feasible at 120°C.       
+                                                                                
+
+Selectivity is calculated as (LDPE solubility / Maximum PET solubility).        
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(18.4s)
+
+Goodbye!

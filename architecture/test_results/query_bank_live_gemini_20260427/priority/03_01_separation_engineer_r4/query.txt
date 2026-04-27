@@ -1,0 +1,1 @@
+Find optimal separation conditions below 160 C for dissolving EVOH while leaving LDPE and PET behind; report the best solvent, temperature, selectivity, and model caveats.

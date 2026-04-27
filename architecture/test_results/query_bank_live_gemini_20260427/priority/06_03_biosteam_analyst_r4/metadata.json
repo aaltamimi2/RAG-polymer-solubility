@@ -1,0 +1,14 @@
+{
+  "sheet": "03 biosteam-analyst",
+  "row": 4,
+  "query": "Run a BioSTEAM multi-polymer recovery case under energy case C3 for PE dissolved with Toluene followed by EVOH dissolved with Ethylene glycol; report blended MSP, combined TCI, weighted GWP, and per-step conditions.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/06_03_biosteam_analyst_r4",
+  "started_at": "2026-04-27T18:31:29.839855+00:00",
+  "finished_at": "2026-04-27T18:31:48.740452+00:00",
+  "stdout_chars": 329,
+  "stderr_chars": 379
+}

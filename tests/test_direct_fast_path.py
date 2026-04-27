@@ -530,3 +530,15 @@ def test_direct_fast_path_falls_through_for_complex_routed_request():
 
     handler.assert_called_once_with(request)
     assert response.result[0].content == "model answer"
+
+
+def test_direct_fast_path_falls_through_for_pareto_workflow():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "Run a cost-vs-circularity Pareto landscape for 8000 tonnes/year composed of "
+        "25% PP, 25% PS, 25% PVC, and 25% PC. Use shortlisted solvent candidates: "
+        "PP: Toluene and Cyclohexane; PVC: Dimethyl sulfoxide. Plot the resulting landscape."
+    )
+
+    assert try_direct_tool_fast_path(query) is None

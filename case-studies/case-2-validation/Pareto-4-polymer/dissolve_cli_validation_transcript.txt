@@ -1,0 +1,39 @@
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-claudesdk @ 154be948087a + local changes
+LangSmith tracing: enabled
+Harness: claude_sdk
+Model: claude-sonnet (anthropic:claude-sonnet-4-6)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+> 
+Typed runtime completed from verified structured artifacts. Plan:               
+plan_9c5eb77fabbf Workflow: None Frontier points: 2 Feasible landscape points:  
+32 Metrics: total_cost vs circularity_score Frontier points:                    
+
+                                                                                
+           #   total_cost   circulari…   stages       route        washes       
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
+           1    1,752,445        0.417   st1,         pvc_dimet…   wash1=PVC-…  
+                                         lf/landfi…                sulfoxide    
+           2    1,764,985        0.523   st1, we      pvc_dimet…   wash1=PVC-…  
+                                                                   sulfoxide    
+  Artifacts:                                                                    
+                                                                                
+
+ • optimization_pareto_front, optimization_pareto_landscape:                    
+   /home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_
+   payload_7b7f99a300aa.json                                                    
+ • optimization_pareto_plot:                                                    
+   /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pare
+   to-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_2
+   0260427.png Diagnostic bundle:                                               
+   architecture/test_results/typed_planner_runtime/20260427T155905Z_run_af9a8c98
+   d1ed Completed steps: optimize_pareto, plot_optimization                     
+
+(40.6s)
+
+> Goodbye!

@@ -189,6 +189,34 @@ def test_runner_preserves_direct_fast_path_without_anthropic_key(monkeypatch, tm
     assert "Solvents with solubility data for EVOH" in result.content
 
 
+def test_runner_checks_typed_runtime_before_direct_fast_path(monkeypatch, tmp_path):
+    from strap.claude_sdk_harness.messages import ClaudeSdkTurnResult
+    from strap.claude_sdk_harness.runner import ClaudeSdkRunner
+
+    monkeypatch.setenv("DISSOLVE_TYPED_PLANNER", "enforce_selected")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("DISSOLVE_SESSION_DIR", str(tmp_path))
+
+    runner = ClaudeSdkRunner(thread_id="thread-typed-first", cwd=tmp_path)
+    calls: list[str] = []
+
+    def fake_typed(prompt, allowed_tools):
+        calls.append("typed")
+        return ClaudeSdkTurnResult(content="typed", origin="typed_runtime")
+
+    def fake_direct(prompt, allowed_tools):  # pragma: no cover - assertion guard
+        calls.append("direct")
+        return ClaudeSdkTurnResult(content="direct", origin="direct_tool_fast_path")
+
+    monkeypatch.setattr(runner, "_typed_runtime", fake_typed)
+    monkeypatch.setattr(runner, "_direct_fast_path", fake_direct)
+
+    result = runner.run_turn("Run a Pareto optimization using shortlisted solvent candidates.")
+
+    assert result.origin == "typed_runtime"
+    assert calls == ["typed"]
+
+
 def test_runner_missing_key_bridge_records_error_code(monkeypatch, tmp_path):
     from strap.claude_sdk_harness.runner import ClaudeSdkRunner
     from strap.claude_sdk_harness.sessions import load_bridge

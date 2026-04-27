@@ -1,0 +1,14 @@
+{
+  "sheet": "07 visualization-specialist",
+  "row": 4,
+  "query": "Create a simple separation tree plot for LDPE/EVOH/PET at 100 C, including solvent and temperature labels, and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree\".",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/09_07_visualization_specialist_r4",
+  "started_at": "2026-04-27T18:32:03.360930+00:00",
+  "finished_at": "2026-04-27T18:32:14.799173+00:00",
+  "stdout_chars": 978,
+  "stderr_chars": 378
+}

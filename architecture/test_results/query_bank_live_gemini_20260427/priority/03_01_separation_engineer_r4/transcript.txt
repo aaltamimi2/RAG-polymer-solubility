@@ -1,0 +1,49 @@
+> 
+The separation of EVOH from LDPE and PET is highly selective when using Dimethyl
+sulfoxide or Dimethylformamide at temperatures around 120°C.                    
+
+                       Recommended Separation Conditions                        
+
+Based on the solubility database, the most effective conditions identified are: 
+
+ • Solvent: Dimethyl sulfoxide                                                  
+ • Operating Temperature: 120.0°C                                               
+ • Selectivity: 27.3 (Target EVOH solubility: 35.4%, Max Other: 8.1%)           
+ • Pressure Context: Valid for atmospheric pressure operation; the boiling point
+   of Dimethyl sulfoxide (189.0°C) is comfortably above the operating           
+   temperature, ensuring safe operation.                                        
+
+Alternative Candidate:                                                          
+
+ • Dimethylformamide: Offers a selectivity of 12.3 at 120.0°C. Its boiling point
+   of 153.0°C is also above the operating temperature, confirming atmospheric   
+   feasibility.                                                                 
+
+                                 Model Caveats                                  
+
+ • Data Basis: These recommendations are derived from modified Apelblat         
+   solubility model interpolations.                                             
+ • Selectivity: Selectivity is calculated as the ratio of the target polymer's  
+   predicted solubility to the maximum predicted solubility of the contaminant  
+   polymers (LDPE and PET) at the same conditions.                              
+ • Experimental Confirmation: While these solvents are strong candidates based  
+   on the thermodynamic models, experimental validation (specifically cloud     
+   point and dissolution kinetics testing) is recommended to confirm these      
+   theoretical solubilities in your specific polymer-solvent mixture.           
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(16.3s)
+
+Goodbye!

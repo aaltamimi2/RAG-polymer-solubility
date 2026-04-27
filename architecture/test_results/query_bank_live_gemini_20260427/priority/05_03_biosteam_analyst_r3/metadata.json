@@ -1,0 +1,14 @@
+{
+  "sheet": "03 biosteam-analyst",
+  "row": 3,
+  "query": "Compare BioSTEAM TEA/LCA for PET using Toluene versus Dimethyl sulfoxide under energy case C1; report MSP, TCI, AOC, GWP, failed scenarios, and the lower-MSP solvent.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/05_03_biosteam_analyst_r3",
+  "started_at": "2026-04-27T18:31:09.909552+00:00",
+  "finished_at": "2026-04-27T18:31:29.824821+00:00",
+  "stdout_chars": 329,
+  "stderr_chars": 379
+}
