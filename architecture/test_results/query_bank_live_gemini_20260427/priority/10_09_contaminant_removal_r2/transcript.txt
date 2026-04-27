@@ -1,0 +1,44 @@
+> 
+Integrated screening summary for PET with di-n-butyl phthalate (DBP).           
+
+Separation screening identified the following predicted selective-dissolution   
+candidates: None (Insoluble).                                                   
+
+Predicted separation order: PET.                                                
+
+The upstream separation result screened Cyclohexane at 25.0°C as a candidate    
+operating point.                                                                
+
+Contaminant screening preferred leaching.                                       
+
+Target contaminants evaluated: di-n-butyl phthalate (DBP).                      
+
+In the recommended contaminant-removal screen, ethyl acetate kept the           
+contaminants miscible with minimum logD 0.54.                                   
+
+Screened operating temperature: 55.0°C; boiling point: 77.1°C at 1 atm.         
+
+Final recommendation: ethyl acetate is the leading contaminant-removal          
+candidate, but it should be treated as a follow-on screening result rather than 
+a fully validated integrated separation solvent because it was not the          
+top-ranked upstream separation solvent.                                         
+
+Treat this as a screening-based recommendation. Confirm separation selectivity, 
+contaminant retention, and polymer precipitation experimentally before scale-up.
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ f96324dcd476 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(24.5s)
+
+Goodbye!

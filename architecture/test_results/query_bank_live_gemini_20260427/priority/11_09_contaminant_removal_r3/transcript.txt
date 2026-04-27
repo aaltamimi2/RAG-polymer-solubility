@@ -1,0 +1,44 @@
+> 
+The analysis compared leaching and temperature-swing STRAP (Solvent Targeted    
+Recovery and Precipitation) for the removal of Perfluorooctanoic Acid (PFOA)    
+from LDPE using toluene, cyclohexane, and dodecane (max 120 °C).                
+
+                                   Findings:                                    
+
+ • STRAP Contaminant Removal (Recommended): Toluene is identified as a feasible 
+   solvent for the STRAP process. It allows for the dissolution of LDPE at 105  
+   °C, with subsequent cooling precipitation (e.g., to 55 °C), effectively      
+   separating the polymer from PFOA.                                            
+ • Leaching: None of the tested solvents (toluene, cyclohexane, dodecane) are   
+   recommended for leaching. While some solvents interact with the polymer (as  
+   proxy-inferred swelling or solubility), they do not meet the strict criteria 
+   for non-dissolving extraction at the tested conditions or lack sufficient    
+   contaminant miscibility.                                                     
+ • Cyclohexane and Dodecane: Cyclohexane failed the screening due to the absence
+   of a viable dissolution/precipitation window for STRAP and poor contaminant  
+   miscibility for leaching. Dodecane demonstrated poor contaminant logD        
+   performance in both modes.                                                   
+
+                              Comparison Summary:                               
+
+The STRAP process using toluene is the only viable option among the requested   
+candidates, providing full coverage for PFOA removal. Leaching proved           
+ineffective for this specific polymer-contaminant pair under the provided       
+constraints.                                                                    
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ 27b596cc5e27 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(11.7s)
+
+Goodbye!

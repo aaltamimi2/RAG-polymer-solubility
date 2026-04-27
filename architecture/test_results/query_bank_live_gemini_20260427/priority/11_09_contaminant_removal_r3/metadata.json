@@ -1,0 +1,14 @@
+{
+  "sheet": "09 contaminant-removal",
+  "row": 3,
+  "query": "Compare leaching versus STRAP temperature-swing contaminant removal for Perfluorooctanoic Acid from LDPE using toluene, cyclohexane, and dodecane up to 120 C.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/11_09_contaminant_removal_r3",
+  "started_at": "2026-04-27T18:32:44.771615+00:00",
+  "finished_at": "2026-04-27T18:33:01.926791+00:00",
+  "stdout_chars": 1791,
+  "stderr_chars": 379
+}
