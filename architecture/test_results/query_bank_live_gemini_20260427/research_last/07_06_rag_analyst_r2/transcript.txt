@@ -1,0 +1,40 @@
+> 
+Available Solvents Summary                                                      
+
+Solvent Data: 1007 unique solvents GSK Dataset: 154 unique solvents Common      
+Solvents Database: 32 unique solvents                                           
+
+Example Solvents (Solvent Data):                                                
+
+ • 1,1,1,2-Tetrachloroethane                                                    
+ • 1,1,1-Trichloroethane                                                        
+ • 1,1,1-Trifluoroethane                                                        
+ • 1,1,2,2-Tetrabromoethane                                                     
+ • 1,1,2,2-Tetrachloroethane                                                    
+
+Example Solvents (GSK Dataset):                                                 
+
+ • 1,2,3-trimethoxypropane                                                      
+ • 1,2,4-Trichlorobenzene                                                       
+ • 1,2-Dichlorobenzene                                                          
+ • 1,2-Dichloroethane                                                           
+ • 1,2-Dimethoxyethane                                                          
+
+Tip: Use specific solvent names in your queries for best results!               
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ 005af3738283 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(0.4s)
+
+Goodbye!

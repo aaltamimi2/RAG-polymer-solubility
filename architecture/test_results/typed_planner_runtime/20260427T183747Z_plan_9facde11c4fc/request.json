@@ -1,0 +1,27 @@
+{
+  "created_at": "2026-04-27T18:37:47.079716+00:00",
+  "planner_mode": "enforce_selected",
+  "query": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling and compare their main cost and emissions conclusions.",
+  "run_id": "plan_9facde11c4fc",
+  "schema_version": "1.0",
+  "selected_enforcement_artifacts": [
+    "biosteam_tea_lca_plot",
+    "biosteam_tea_lca_result",
+    "hsp_red_heatmap",
+    "hsp_single_pair_summary",
+    "optimization_pareto_front",
+    "optimization_pareto_landscape",
+    "optimization_pareto_plot",
+    "optimization_pareto_slices",
+    "optimization_pareto_slices_plot",
+    "separation_dp_state_map",
+    "separation_selectivity_heatmap",
+    "separation_tree_plot",
+    "solvent_safety_card",
+    "solvent_safety_comparison"
+  ],
+  "selected_enforcement_workflows": [
+    "routed_optimization",
+    "routed_optimization_slices"
+  ]
+}

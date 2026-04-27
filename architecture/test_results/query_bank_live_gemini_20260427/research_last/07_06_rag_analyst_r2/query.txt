@@ -1,0 +1,1 @@
+Ask the literature RAG what the local corpus says about STRAP solvent selection for PE/EVOH/PET multilayer separations, and cite the retrieved chunks.

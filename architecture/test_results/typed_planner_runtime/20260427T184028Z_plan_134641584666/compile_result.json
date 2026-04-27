@@ -1,0 +1,122 @@
+{
+  "diagnostics": [
+    {
+      "code": "facts_extracted",
+      "level": "info",
+      "message": "Deterministic facts extracted; no execution attempted.",
+      "step_id": null
+    },
+    {
+      "code": "missing_required_inputs",
+      "level": "warning",
+      "message": "Required inputs are missing.",
+      "step_id": null
+    }
+  ],
+  "extracted_facts": {
+    "composition_slices": [],
+    "constraint_mode": null,
+    "energy_case": null,
+    "fallback_policy": null,
+    "feed_capacity_tpy": null,
+    "feed_composition": {},
+    "forbidden_artifact_types": [],
+    "hsp_polymer_category": null,
+    "hsp_solvent_category": null,
+    "hsp_solvent_polarity": null,
+    "max_washes": null,
+    "metrics": [
+      "emissions"
+    ],
+    "min_washes": null,
+    "missing_required_inputs": [],
+    "n_points": null,
+    "objective": null,
+    "output_dir": null,
+    "output_filename_hint": null,
+    "pareto_negated": false,
+    "pareto_requested": false,
+    "plot_title": null,
+    "polymer_aliases": {},
+    "polymer_solvent_filters": {},
+    "polymers": [],
+    "query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.",
+    "requested_artifact_types": [
+      "biosteam_tea_lca_result"
+    ],
+    "route_candidates": [],
+    "route_pool_mode": null,
+    "scenario": null,
+    "single_objective_requested": false,
+    "solvents": [],
+    "temperatures_c": [],
+    "top_k_per_polymer": null,
+    "workflow_markers": []
+  },
+  "plan": {
+    "assumptions": [],
+    "capability_registry_version": "2026.04.pr1",
+    "compiler_version": "2026.04.pr2",
+    "complexity": "moderate",
+    "created_at": "2026-04-27T18:40:28.896236+00:00",
+    "fallback_policy": "typed_failure",
+    "final_response_contract": {
+      "forbidden_claims": [
+        "upstream prose substituted for downstream structured output"
+      ],
+      "must_cite_artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "require_paths": false,
+      "require_plan_status": true,
+      "required_sections": []
+    },
+    "global_constraints": {
+      "composition_slices": [],
+      "energy_case": null,
+      "feed_capacity_tpy": null,
+      "feed_composition": {},
+      "forbidden_artifact_types": [],
+      "max_washes": null,
+      "metrics": [
+        "emissions"
+      ],
+      "min_washes": null,
+      "n_points": null,
+      "output_dir": null,
+      "requested_artifact_types": [
+        "biosteam_tea_lca_result"
+      ],
+      "scenario": null,
+      "top_k_per_polymer": null
+    },
+    "intent_family": "biosteam_tea_lca",
+    "missing_inputs": [
+      {
+        "name": "solvent",
+        "reason": "BioSTEAM TEA/LCA requires a solvent.",
+        "required_for_step_id": null
+      },
+      {
+        "name": "target_plastic",
+        "reason": "BioSTEAM TEA/LCA requires a target polymer.",
+        "required_for_step_id": null
+      },
+      {
+        "name": "energy_case",
+        "reason": "BioSTEAM TEA/LCA requires an explicit energy case C1, C2, or C3.",
+        "required_for_step_id": null
+      }
+    ],
+    "mode": "clarification_required",
+    "plan_id": "plan_134641584666",
+    "planner_model_id": null,
+    "schema_version": "1.0",
+    "steps": [],
+    "unsupported_reason": null,
+    "user_query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.",
+    "workflow_id": null
+  },
+  "status": "clarification_required",
+  "validation_errors": []
+}

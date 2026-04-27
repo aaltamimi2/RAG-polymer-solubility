@@ -1,0 +1,162 @@
+{
+  "diagnostics": [
+    {
+      "code": "facts_extracted",
+      "level": "info",
+      "message": "Deterministic facts extracted; no execution attempted.",
+      "step_id": null
+    },
+    {
+      "code": "plan_validation_failed",
+      "level": "error",
+      "message": "Plan failed compile-time validation.",
+      "step_id": null
+    }
+  ],
+  "extracted_facts": {
+    "composition_slices": [],
+    "constraint_mode": null,
+    "energy_case": null,
+    "fallback_policy": null,
+    "feed_capacity_tpy": null,
+    "feed_composition": {},
+    "forbidden_artifact_types": [],
+    "hsp_polymer_category": null,
+    "hsp_solvent_category": null,
+    "hsp_solvent_polarity": null,
+    "max_washes": null,
+    "metrics": [],
+    "min_washes": null,
+    "missing_required_inputs": [],
+    "n_points": null,
+    "objective": null,
+    "output_dir": null,
+    "output_filename_hint": null,
+    "pareto_negated": false,
+    "pareto_requested": false,
+    "plot_title": null,
+    "polymer_aliases": {},
+    "polymer_solvent_filters": {},
+    "polymers": [],
+    "query": "Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.",
+    "requested_artifact_types": [
+      "hsp_single_pair_summary"
+    ],
+    "route_candidates": [],
+    "route_pool_mode": null,
+    "scenario": null,
+    "single_objective_requested": false,
+    "solvents": [],
+    "temperatures_c": [],
+    "top_k_per_polymer": null,
+    "workflow_markers": []
+  },
+  "plan": {
+    "assumptions": [],
+    "capability_registry_version": "2026.04.pr1",
+    "compiler_version": "2026.04.pr2",
+    "complexity": "moderate",
+    "created_at": "2026-04-27T18:37:38.879132+00:00",
+    "fallback_policy": "typed_failure",
+    "final_response_contract": {
+      "forbidden_claims": [
+        "upstream prose substituted for downstream structured output"
+      ],
+      "must_cite_artifacts": [
+        "hsp_single_pair_summary"
+      ],
+      "require_paths": false,
+      "require_plan_status": true,
+      "required_sections": []
+    },
+    "global_constraints": {
+      "composition_slices": [],
+      "energy_case": null,
+      "feed_capacity_tpy": null,
+      "feed_composition": {},
+      "forbidden_artifact_types": [],
+      "max_washes": null,
+      "metrics": [],
+      "min_washes": null,
+      "n_points": null,
+      "output_dir": null,
+      "requested_artifact_types": [
+        "hsp_single_pair_summary"
+      ],
+      "scenario": null,
+      "top_k_per_polymer": null
+    },
+    "intent_family": "statistics_ml",
+    "missing_inputs": [],
+    "mode": "single_tool_or_specialist",
+    "plan_id": "plan_96e531c9cf69",
+    "planner_model_id": null,
+    "schema_version": "1.0",
+    "steps": [
+      {
+        "allow_tool_choice": false,
+        "allowed_tools": [
+          "predict_solubility_ml"
+        ],
+        "budget": {
+          "max_seconds": null,
+          "max_tokens": null,
+          "max_tool_calls": null
+        },
+        "depends_on": [],
+        "disallowed_tools": [],
+        "execution_kind": "tool",
+        "input_contracts": [],
+        "label": "HSP/RED screen",
+        "output_contracts": [
+          {
+            "artifact_contracts": [
+              {
+                "artifact_type": "hsp_single_pair_summary",
+                "count": {
+                  "max": null,
+                  "min": 1
+                },
+                "entities": {},
+                "forbidden_artifact_types": [],
+                "metrics": {},
+                "output_formats": [],
+                "path_policy": "optional",
+                "required": true,
+                "validation_checks": []
+              }
+            ],
+            "contract_id": "hsp_output",
+            "data_requirements": [],
+            "forbidden_claims": [],
+            "required": true,
+            "text_requirements": [],
+            "validation_checks": []
+          }
+        ],
+        "retry_policy": {
+          "allow_recompile": false,
+          "max_attempts": 2,
+          "retry_on": [
+            "contract_failed",
+            "tool_arg_invalid",
+            "missing_artifact"
+          ]
+        },
+        "role": "statistics-ml",
+        "step_id": "hsp_screen",
+        "tool_args_template": {
+          "generate_visualizations": true
+        }
+      }
+    ],
+    "unsupported_reason": null,
+    "user_query": "Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.",
+    "workflow_id": null
+  },
+  "status": "invalid",
+  "validation_errors": [
+    "hsp_screen: missing required input polymer for predict_solubility_ml",
+    "hsp_screen: missing required input solvent for predict_solubility_ml"
+  ]
+}

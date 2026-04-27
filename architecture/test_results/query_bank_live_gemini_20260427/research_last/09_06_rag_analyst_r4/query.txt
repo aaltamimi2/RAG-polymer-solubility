@@ -1,0 +1,1 @@
+Get the RAG status, then answer whether local documents mention contaminant-aware solvent selection or PFAS/phthalate removal in recycled polymers.

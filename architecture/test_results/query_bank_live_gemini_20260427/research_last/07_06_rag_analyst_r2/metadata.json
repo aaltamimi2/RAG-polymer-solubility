@@ -1,0 +1,14 @@
+{
+  "sheet": "06 rag-analyst",
+  "row": 2,
+  "query": "Ask the literature RAG what the local corpus says about STRAP solvent selection for PE/EVOH/PET multilayer separations, and cite the retrieved chunks.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/07_06_rag_analyst_r2",
+  "started_at": "2026-04-27T18:40:18.804819+00:00",
+  "finished_at": "2026-04-27T18:40:24.480090+00:00",
+  "stdout_chars": 1307,
+  "stderr_chars": 378
+}

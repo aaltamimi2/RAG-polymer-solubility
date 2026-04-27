@@ -1,0 +1,17 @@
+{
+  "sheet": "05 patent-researcher",
+  "row": 4,
+  "query": "Search patents related to removing phthalates or PFAS contaminants from recycled polymers using solvent extraction; summarize the strongest claims and polymer targets.",
+  "status": "live-failed",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [
+    "Traceback",
+    "Exception"
+  ],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/06_05_patent_researcher_r4",
+  "started_at": "2026-04-27T18:39:17.943932+00:00",
+  "finished_at": "2026-04-27T18:40:18.788585+00:00",
+  "stdout_chars": 2769,
+  "stderr_chars": 1507
+}

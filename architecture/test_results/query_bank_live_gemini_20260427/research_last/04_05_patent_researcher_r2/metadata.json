@@ -1,0 +1,14 @@
+{
+  "sheet": "05 patent-researcher",
+  "row": 2,
+  "query": "Search Google Patents for solvent-based recycling of multilayer polyethylene/EVOH/PET packaging and summarize the most relevant patent families, assignees, and claimed solvent systems.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/04_05_patent_researcher_r2",
+  "started_at": "2026-04-27T18:37:50.866486+00:00",
+  "finished_at": "2026-04-27T18:38:48.532898+00:00",
+  "stdout_chars": 654,
+  "stderr_chars": 379
+}

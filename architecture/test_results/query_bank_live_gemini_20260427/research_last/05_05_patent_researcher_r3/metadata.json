@@ -1,0 +1,14 @@
+{
+  "sheet": "05 patent-researcher",
+  "row": 3,
+  "query": "Search polymer patents for selective dissolution of polyolefins using xylene, toluene, or dodecane and report assignees, target polymers, and claimed temperature ranges.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/05_05_patent_researcher_r3",
+  "started_at": "2026-04-27T18:38:48.548180+00:00",
+  "finished_at": "2026-04-27T18:39:17.927335+00:00",
+  "stdout_chars": 573,
+  "stderr_chars": 379
+}

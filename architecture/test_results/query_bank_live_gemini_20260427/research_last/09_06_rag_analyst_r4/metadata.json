@@ -1,0 +1,14 @@
+{
+  "sheet": "06 rag-analyst",
+  "row": 4,
+  "query": "Get the RAG status, then answer whether local documents mention contaminant-aware solvent selection or PFAS/phthalate removal in recycled polymers.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/09_06_rag_analyst_r4",
+  "started_at": "2026-04-27T18:40:36.781089+00:00",
+  "finished_at": "2026-04-27T18:41:31.754232+00:00",
+  "stdout_chars": 1466,
+  "stderr_chars": 379
+}

@@ -1,0 +1,1 @@
+Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.

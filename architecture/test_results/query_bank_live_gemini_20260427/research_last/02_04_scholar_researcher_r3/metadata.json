@@ -1,0 +1,14 @@
+{
+  "sheet": "04 scholar-researcher",
+  "row": 3,
+  "query": "Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/02_04_scholar_researcher_r3",
+  "started_at": "2026-04-27T18:37:34.330341+00:00",
+  "finished_at": "2026-04-27T18:37:42.477355+00:00",
+  "stdout_chars": 491,
+  "stderr_chars": 378
+}

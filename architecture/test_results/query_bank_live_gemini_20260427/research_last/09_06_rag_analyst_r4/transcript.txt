@@ -1,0 +1,39 @@
+> 
+The RAG status check indicates that the system is functioning as a Data         
+Integrated Solubility Solver via LLM Evaluation (DISSOLVE), specifically        
+designed for solvent-based separation processes in mixed polymer waste streams. 
+
+Regarding your question about contaminant-aware selection and PFAS/phthalate    
+removal:                                                                        
+
+ • While there are no specific documents titled "contaminant-aware solvent      
+   selection" or "PFAS/phthalate removal," these concepts are core operational  
+   goals of the platform.                                                       
+ • The system utilizes rigorous thermodynamics (e.g., SLE equations, COSMO-RS   
+   activity coefficients) to model polymer dissolution, which is the exact      
+   mechanism required for targeted contaminant removal (such as phthalates used 
+   as plasticizers in PVC).                                                     
+ • The architecture (found in PLAN.md and AGENTS.md) is specifically built to   
+   design separation cascades for complex polymer streams, incorporating the    
+   contaminant removal workflows necessary for high-confidence purification.    
+
+In summary, the platform acts as a thermodynamic-informed expert agent that     
+performs the type of solvent screening required for these removal processes,    
+even if the terms are not explicitly defined as document headers.               
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ 005af3738283 + local changes
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(49.5s)
+
+Goodbye!

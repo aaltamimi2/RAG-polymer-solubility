@@ -1,0 +1,14 @@
+{
+  "sheet": "04 scholar-researcher",
+  "row": 2,
+  "query": "Search Google Scholar for solvent-based recycling of multilayer LDPE/EVOH/PET packaging films and summarize the top 5 relevant papers with year, DOI if available, and relevance to selective dissolution.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/01_04_scholar_researcher_r2",
+  "started_at": "2026-04-27T18:34:57.720048+00:00",
+  "finished_at": "2026-04-27T18:37:34.314166+00:00",
+  "stdout_chars": 3814,
+  "stderr_chars": 364
+}

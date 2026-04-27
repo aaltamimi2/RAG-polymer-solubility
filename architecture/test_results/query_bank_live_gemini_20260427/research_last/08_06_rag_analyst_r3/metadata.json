@@ -1,0 +1,14 @@
+{
+  "sheet": "06 rag-analyst",
+  "row": 3,
+  "query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/08_06_rag_analyst_r3",
+  "started_at": "2026-04-27T18:40:24.495043+00:00",
+  "finished_at": "2026-04-27T18:40:36.766000+00:00",
+  "stdout_chars": 329,
+  "stderr_chars": 378
+}

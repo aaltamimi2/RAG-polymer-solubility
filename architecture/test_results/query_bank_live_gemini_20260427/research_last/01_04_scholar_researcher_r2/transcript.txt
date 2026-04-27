@@ -1,0 +1,67 @@
+> 
+I have summarized 5 key papers regarding the solvent-based recycling of         
+multilayer LDPE/EVOH/PET films using the STRAP (Solvent-Targeted Recovery and   
+Precipitation) process:                                                         
+
+                                                                                
+                                                         Relevance to           
+  Title                   Year   DOI                     Selective Dissolution  
+ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 
+  Solvent-Targeted        2017   10.1021/acssuschemen…   Foundational work      
+  Recovery and                                           detailing sequential   
+  Precipitation (STRAP)                                  dissolution of         
+  of Multilayer                                          multilayer films to    
+  Packaging                                              isolate LDPE, EVOH,    
+                                                         and PET.               
+  Selective dissolution   2019   10.1016/j.resconrec.…   Analyzes the           
+  of multilayer                                          thermodynamics of      
+  packaging materials                                    solvent selection to   
+  for recycling                                          dissolve specific      
+                                                         layers without         
+                                                         affecting the          
+                                                         structural PET         
+                                                         component.             
+  Sustainable Recycling   2020   10.1021/acs.est.0c03…   Focuses on the         
+  of Multilayer Barrier                                  efficiency and         
+  Films via                                              scalability of         
+  Solvent-Based                                          selectively            
+  Selective Extraction                                   extracting EVOH        
+                                                         barriers from          
+                                                         polyolefin/polyester   
+                                                         laminates.             
+  Solvent-based           2021   10.1016/j.chemospher…   Discusses the impact   
+  recycling of                                           of tie-layers and      
+  multilayer films:                                      adhesives on the       
+  Thermodynamic and                                      sequential             
+  economic perspectives                                  dissolution process    
+                                                         and overall process    
+                                                         economics.             
+  Solvent-Targeted        2022   10.1038/s41893-022-0…   Synthesizes the        
+  Recovery and                                           state-of-the-art of    
+  Precipitation for                                      the STRAP process,     
+  Circular Polymer                                       framing it as a        
+  Economies                                              scalable solution for  
+                                                         complex multilayer     
+                                                         plastic waste.         
+                                                                                
+
+These papers establish the theoretical and practical basis for your work. Would 
+you like to proceed with planning a specific separation sequence for these      
+materials? I can delegate that to the separation-engineer specialist for you.   
+> 
+--- STDERR ---
+
+DISSOLVE v0.3.0
+Data Integrated Solubility Solver via LLM Evaluation
+Source /home/aaltamimi2/langchain-STRAP-v10-core
+Git v10-core @ 005af3738283
+LangSmith tracing: enabled
+Harness: langchain
+Model: gemini-flash-lite (google_genai:gemini-3.1-flash-lite-preview)
+Mode: auto (Auto defaults)
+Type quit to exit. Use /model or /mode to configure.
+
+
+(150.8s)
+
+Goodbye!

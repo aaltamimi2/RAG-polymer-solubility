@@ -1,0 +1,1 @@
+Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.

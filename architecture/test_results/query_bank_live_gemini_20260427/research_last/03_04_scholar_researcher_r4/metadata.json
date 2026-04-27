@@ -1,0 +1,14 @@
+{
+  "sheet": "04 scholar-researcher",
+  "row": 4,
+  "query": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling and compare their main cost and emissions conclusions.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/research_last/03_04_scholar_researcher_r4",
+  "started_at": "2026-04-27T18:37:42.494356+00:00",
+  "finished_at": "2026-04-27T18:37:50.851384+00:00",
+  "stdout_chars": 329,
+  "stderr_chars": 378
+}

@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-04-27T18:40:28.923684+00:00",
+  "files": {
+    "artifacts": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/artifacts.json",
+    "compile_result": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/compile_result.json",
+    "ledger": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/ledger.json",
+    "manifest": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/manifest.json",
+    "plan": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/plan.json",
+    "request": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666/request.json"
+  },
+  "produced_file_copies": {},
+  "run_dir": "architecture/test_results/typed_planner_runtime/20260427T184028Z_plan_134641584666",
+  "run_id": "plan_134641584666",
+  "schema_version": "1.0"
+}
