@@ -2322,6 +2322,14 @@ def _objective_rank_value(objective: str, result: dict[str, Any]) -> float:
     return -float(result.get("profit", 0.0) or 0.0)
 
 
+def _solve_single_capturing_stdout(*args: Any, **kwargs: Any) -> tuple[dict[str, Any] | None, str]:
+    """Run the verbose legacy solver helper without leaking stdout into CLI responses."""
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        result = solve_single(*args, **kwargs)
+    return result, buffer.getvalue()
+
+
 def _solve_objective_with_fallback(
     model,
     objective: str,
@@ -2347,24 +2355,25 @@ def _solve_objective_with_fallback(
         candidate_model = _clone_if_supported(model)
         try:
             if attempt_options is not None:
-                result = solve_single(
+                result, solver_stdout = _solve_single_capturing_stdout(
                     candidate_model,
                     objective,
                     solver_name="scip",
                     solver_options=attempt_options,
                 )
             else:
-                result = solve_single(candidate_model, objective, solver_name="scip")
+                result, solver_stdout = _solve_single_capturing_stdout(candidate_model, objective, solver_name="scip")
             solver_debug = _sanitize_solver_debug(consume_last_solver_debug())
-            debug_attempts.append(
-                {
-                    "attempt_index": ladder_index,
-                    "solver_name": "scip",
-                    "solver_options": dict(attempt_options or {}),
-                    "accepted": result is not None,
-                    **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
-                }
-            )
+            attempt_debug = {
+                "attempt_index": ladder_index,
+                "solver_name": "scip",
+                "solver_options": dict(attempt_options or {}),
+                "accepted": result is not None,
+                **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
+            }
+            if solver_stdout.strip():
+                attempt_debug["solver_stdout"] = solver_stdout.strip()
+            debug_attempts.append(attempt_debug)
             if result is not None:
                 rank_value = _objective_rank_value(objective, result)
                 if best_result is None or rank_value < best_rank_value:
@@ -2378,7 +2387,7 @@ def _solve_objective_with_fallback(
                 if not saw_prior_failed_attempt:
                     return (result, debug_attempts) if return_debug else result
                 continue
-            logger.warning(
+            logger.debug(
                 "SCIP solver for %s with solver_options=%s returned no verified solution; continuing retry ladder.",
                 objective,
                 attempt_options or "default",
@@ -2413,19 +2422,25 @@ def _solve_objective_with_fallback(
     try:
         fallback_model = _clone_if_supported(model)
         if solver_options:
-            result = solve_single(fallback_model, objective, solver_name=None, solver_options=solver_options)
+            result, solver_stdout = _solve_single_capturing_stdout(
+                fallback_model,
+                objective,
+                solver_name=None,
+                solver_options=solver_options,
+            )
         else:
-            result = solve_single(fallback_model, objective, solver_name=None)
+            result, solver_stdout = _solve_single_capturing_stdout(fallback_model, objective, solver_name=None)
         solver_debug = _sanitize_solver_debug(consume_last_solver_debug())
-        debug_attempts.append(
-            {
-                "attempt_index": len(debug_attempts) + 1,
-                "solver_name": "fallback",
-                "solver_options": dict(solver_options or {}),
-                "accepted": result is not None,
-                **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
-            }
-        )
+        attempt_debug = {
+            "attempt_index": len(debug_attempts) + 1,
+            "solver_name": "fallback",
+            "solver_options": dict(solver_options or {}),
+            "accepted": result is not None,
+            **(solver_debug if isinstance(solver_debug, dict) else {"solver_debug": solver_debug}),
+        }
+        if solver_stdout.strip():
+            attempt_debug["solver_stdout"] = solver_stdout.strip()
+        debug_attempts.append(attempt_debug)
         return (result, debug_attempts) if return_debug else result
     except Exception as fallback_exc:
         debug_attempts.append(
@@ -4420,6 +4435,65 @@ def _compact_pareto_solver_debug(
     }
 
 
+def _compact_point_solver_debug(attempts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Summarize point-optimization retry attempts without returning verbose solver tables."""
+    compact_attempts: list[dict[str, Any]] = []
+    for attempt in attempts:
+        item = {
+            key: attempt[key]
+            for key in (
+                "attempt_index",
+                "solver_name",
+                "solver_options",
+                "accepted",
+                "termination_condition",
+                "rejection_reason",
+                "residual_summary",
+                "error",
+            )
+            if key in attempt
+        }
+        solver_stdout = str(attempt.get("solver_stdout") or "").strip()
+        if solver_stdout:
+            item["captured_stdout_lines"] = len(solver_stdout.splitlines())
+        compact_attempts.append(item)
+    accepted_attempt = next(
+        (attempt.get("attempt_index") for attempt in compact_attempts if attempt.get("accepted")),
+        None,
+    )
+    return {
+        "attempts": compact_attempts,
+        "n_attempts": len(compact_attempts),
+        "n_rejected_attempts": sum(1 for attempt in compact_attempts if not attempt.get("accepted")),
+        "accepted_attempt_index": accepted_attempt,
+    }
+
+
+def _format_point_solver_retry_note(solver_debug: dict[str, Any] | None) -> str | None:
+    if not isinstance(solver_debug, dict):
+        return None
+    rejected = int(solver_debug.get("n_rejected_attempts") or 0)
+    if rejected <= 0:
+        return None
+    accepted = solver_debug.get("accepted_attempt_index")
+    attempts = solver_debug.get("attempts") or []
+    first_rejection = next(
+        (attempt for attempt in attempts if isinstance(attempt, dict) and not attempt.get("accepted")),
+        {},
+    )
+    reason = first_rejection.get("rejection_reason") if isinstance(first_rejection, dict) else None
+    reason_text = ""
+    if isinstance(reason, dict) and reason.get("type"):
+        reason_text = f" First rejection: {reason['type']}."
+    elif reason:
+        reason_text = f" First rejection: {reason}."
+    accepted_text = f" accepted attempt {accepted}" if accepted is not None else " a later retry"
+    return (
+        f"{rejected} solver attempt(s) were rejected before{accepted_text}. "
+        f"The reported solution is the accepted retry and its residual check had no violations.{reason_text}"
+    )
+
+
 def _write_pareto_payload_sidecar(payload: dict[str, Any]) -> str:
     sidecar_dir = Path.cwd() / "plots" / "optimization_payloads"
     sidecar_dir.mkdir(parents=True, exist_ok=True)
@@ -4578,7 +4652,13 @@ def _solve_point_optimum_for_context(
         min_active_washes=min_active_washes,
         max_active_washes=max_active_washes,
     )
-    return _solve_objective_with_fallback(model, objective)
+    solve_result = _solve_objective_with_fallback(model, objective, return_debug=True)
+    if not isinstance(solve_result, tuple):
+        return solve_result
+    result, debug_attempts = solve_result
+    if result is not None:
+        result["solver_debug"] = _compact_point_solver_debug(debug_attempts)
+    return result
 
 
 def _objective_sort_key(objective: str, result: dict[str, Any]) -> float:
@@ -4822,6 +4902,9 @@ def run_waste_management_optimization(
         results["scenario"] = context["scenario"]
         results["feed_composition"] = context["fractions"]
         results["strap_table_rows"] = context.get("strap_table_rows")
+        solver_retry_note = _format_point_solver_retry_note(results.get("solver_debug"))
+        if solver_retry_note:
+            results["solver_retry_note"] = solver_retry_note
 
         display = f"## Multi-layer Plastic Optimization Results\n\n"
         display += f"**Objective:** {objective} | **Scenario:** {context['scenario']}\n"
@@ -4846,6 +4929,8 @@ def run_waste_management_optimization(
         display += f"- **Constraint mode:** {context['constraint_mode']}\n"
         display += f"- **Fallback policy:** {context['fallback_policy']}\n"
         display += f"- **Solvent shortlist status:** {context['filter_status']}\n"
+        if solver_retry_note:
+            display += f"- **Solver retry note:** {solver_retry_note}\n"
         handoff_line = _format_source_handoff_summary_line(source_handoff_summary)
         if handoff_line:
             display += f"- {handoff_line}"

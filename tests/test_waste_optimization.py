@@ -743,6 +743,98 @@ def test_solve_objective_with_fallback_retries_after_unverified_scip_result(monk
     assert debug_attempts[2]["accepted"] is True
 
 
+def test_solve_objective_with_fallback_captures_legacy_solver_stdout(monkeypatch, capsys):
+    def fake_solve_single(model, objective, solver_name="gurobi", solver_options=None):
+        print("legacy solver table")
+        return {"profit": 123.0}
+
+    monkeypatch.setattr("strap.tools.waste_optimization.solve_single", fake_solve_single)
+    monkeypatch.setattr(
+        "strap.tools.waste_optimization.consume_last_solver_debug",
+        lambda: {"accepted": True, "label": "max_profit"},
+    )
+
+    result, debug_attempts = _solve_objective_with_fallback(object(), "max_profit", return_debug=True)
+
+    assert result == {"profit": 123.0}
+    assert capsys.readouterr().out == ""
+    assert debug_attempts[0]["solver_stdout"] == "legacy solver table"
+
+
+def test_run_waste_management_optimization_discloses_solver_retry(monkeypatch):
+    monkeypatch.setattr(
+        "strap.tools.waste_optimization._prepare_optimization_context",
+        lambda **kwargs: {
+            "temp_dir": None,
+            "data": {"dummy": True},
+            "config": {"dummy": True},
+            "scenario": kwargs["scenario"],
+            "fractions": {"PE": 0.6, "EVOH": 0.4},
+            "requested_filters": {"global": [], "PE": ["Heptane"], "EVOH": ["Ethylene Glycol"]},
+            "applied_filters": {"PE": ["Heptane"], "EVOH": ["Ethylene Glycol"]},
+            "filter_warnings": [],
+            "filter_status": "applied",
+            "constraint_mode": kwargs.get("constraint_mode") or "soft",
+            "fallback_policy": kwargs.get("fallback_policy") or "broaden_disclosed",
+            "route_pool_mode": "exact",
+            "route_candidates": [],
+            "has_typed_handoff": False,
+            "strap_table_rows": 4,
+            "simulation_failures": [],
+            "simulation_skips": [],
+        },
+    )
+    monkeypatch.setattr("strap.tools.waste_optimization.build_model", lambda data, config: object())
+    monkeypatch.setattr("strap.tools.waste_optimization._apply_active_wash_constraints", lambda *args, **kwargs: None)
+
+    def fake_solve_with_debug(model, objective, **kwargs):
+        assert kwargs["return_debug"] is True
+        return (
+            {
+                "profit": 12_345.0,
+                "emissions": 678.0,
+                "CE": 250_000.0,
+                "total_cost": 1_000.0,
+                "capital_cost": 100.0,
+                "operational_cost": 800.0,
+                "transportation_cost": 100.0,
+                "wash1_selection": ["PE-Heptane"],
+                "wash2_selection": ["EVOH-Ethylene Glycol"],
+                "stage1_tech": ["st1"],
+                "stage2_tech": ["st2"],
+                "stage3_tech": ["lf"],
+            },
+            [
+                {
+                    "attempt_index": 1,
+                    "accepted": False,
+                    "termination_condition": "optimal",
+                    "rejection_reason": {"type": "original_problem_infeasible"},
+                },
+                {
+                    "attempt_index": 2,
+                    "accepted": True,
+                    "termination_condition": "optimal",
+                    "residual_summary": {"count": 0, "max_residual": 0.0, "violations": []},
+                },
+            ],
+        )
+
+    monkeypatch.setattr("strap.tools.waste_optimization._solve_objective_with_fallback", fake_solve_with_debug)
+
+    raw = waste_optimization.run_waste_management_optimization(
+        feed=8000,
+        feed_composition_json={"PE": 0.6, "EVOH": 0.4},
+        scenario="A",
+        objective="max_profit",
+    )
+    parsed = json.loads(raw)
+
+    assert "Solver retry note" in parsed["display"]
+    assert parsed["data"]["solver_debug"]["n_rejected_attempts"] == 1
+    assert "original_problem_infeasible" in parsed["data"]["solver_retry_note"]
+
+
 def test_run_waste_management_pareto_emits_solver_debug(monkeypatch):
     monkeypatch.setattr(
         "strap.tools.waste_optimization._prepare_optimization_context",
