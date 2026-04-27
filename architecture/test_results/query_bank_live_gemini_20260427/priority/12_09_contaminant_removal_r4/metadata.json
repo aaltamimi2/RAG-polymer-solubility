@@ -1,0 +1,14 @@
+{
+  "sheet": "09 contaminant-removal",
+  "row": 4,
+  "query": "For PET contaminated with DEHP and BBP, screen STRAP contaminant removal by temperature-swing precipitation using dodecane and o-xylene below 140 C.",
+  "status": "live-tested",
+  "returncode": 0,
+  "timed_out": false,
+  "markers": [],
+  "run_dir": "/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/priority/12_09_contaminant_removal_r4",
+  "started_at": "2026-04-27T18:33:01.942602+00:00",
+  "finished_at": "2026-04-27T18:33:31.435944+00:00",
+  "stdout_chars": 1146,
+  "stderr_chars": 379
+}
