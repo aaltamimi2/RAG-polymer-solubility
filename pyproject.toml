@@ -39,6 +39,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest"]
+claude = ["claude-agent-sdk>=0.1.68"]
 viz = []
 ml = [
     "torch>=2.0",
@@ -55,10 +56,11 @@ rag = [
 literature = [
     "rdkit>=2023.0",
 ]
-all = ["strap-agent[viz,ml,biosteam,rag,literature]"]
+all = ["strap-agent[viz,ml,biosteam,rag,literature,claude]"]
 
 [project.scripts]
 dissolve = "strap.agent:main"
+dissolve-claude = "strap.claude_sdk_harness.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/strap"]
@@ -67,3 +69,4 @@ packages = ["src/strap"]
 "src/strap/AGENTS.md" = "strap/AGENTS.md"
 "src/strap/subagents.yaml" = "strap/subagents.yaml"
 "src/strap/skills" = "strap/skills"
+"src/strap/claude_sdk_harness/prompts" = "strap/claude_sdk_harness/prompts"

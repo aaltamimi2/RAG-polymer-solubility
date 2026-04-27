@@ -35,6 +35,12 @@ from langchain.chat_models import init_chat_model  # noqa: E402
 _PACKAGE_DIR = Path(__file__).parent
 
 from .guardrails import SubagentGuardMiddleware  # noqa: E402
+from .claude_sdk_harness.cli_adapter import format_harness_status  # noqa: E402
+from .claude_sdk_harness.models import (  # noqa: E402
+    claude_model_registry,
+    resolve_claude_model_selection,
+)
+from .claude_sdk_harness.runner import ClaudeSdkRunner  # noqa: E402
 from .direct_fast_path import DirectToolFastPathMiddleware  # noqa: E402
 from .prompts import FILE_IO_DIRECTIVE, THINK_DIRECTIVE, build_system_prompt  # noqa: E402
 from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
@@ -365,7 +371,9 @@ class CliModelSpec(TypedDict, total=False):
 
 _DEFAULT_CLI_MODEL_ALIAS = "gemini-flash-lite"
 _CLI_MODEL_PRIMARY_ALIASES = ("gemini-flash-lite", "gemini-pro", "claude-sonnet")
+_CLAUDE_CLI_MODEL_PRIMARY_ALIASES = ("claude-sonnet",)
 _DEFAULT_CLI_INTERACTION_MODE = "review"
+_DEFAULT_CLI_HARNESS = "langchain"
 _CLI_INTERACTION_MODES = {
     "review": {
         "label": "Review defaults",
@@ -430,7 +438,7 @@ _BIOSTEAM_PRECIPITATION_TEMP_PRESETS = ("5 C", "25 C", "40 C")
 
 def _cli_model_registry() -> dict[str, CliModelSpec]:
     """Return the configured model aliases available to the CLI."""
-    claude_model = os.getenv("DISSOLVE_CLAUDE_SONNET_MODEL", "anthropic:claude-sonnet-4-6")
+    claude_model = claude_model_registry()["claude-sonnet"]["model"]
     return {
         "gemini": {
             "label": "Gemini 3.1 Flash Lite",
@@ -465,8 +473,20 @@ def _cli_model_registry() -> dict[str, CliModelSpec]:
     }
 
 
-def _resolve_cli_model(raw_model: str | None = None) -> tuple[str, CliModelSpec]:
+def _cli_model_registry_for_harness(harness: str) -> dict[str, CliModelSpec]:
+    """Return model aliases appropriate for a harness."""
+    if harness == "claude_sdk":
+        return claude_model_registry()
+    return _cli_model_registry()
+
+
+def _resolve_cli_model(raw_model: str | None = None, *, harness: str = _DEFAULT_CLI_HARNESS) -> tuple[str, CliModelSpec]:
     """Resolve a CLI alias or provider-qualified model id."""
+    if harness == "claude_sdk":
+        requested = raw_model if raw_model is not None else os.getenv("STRAP_MODEL")
+        selection = resolve_claude_model_selection(requested)
+        return selection.alias, selection.spec
+
     registry = _cli_model_registry()
     requested = (raw_model or os.getenv("STRAP_MODEL") or _DEFAULT_CLI_MODEL_ALIAS).strip()
     if not requested:
@@ -513,6 +533,20 @@ def _resolve_cli_interaction_mode(raw_mode: str | None = None) -> str:
         "fast": "auto",
     }
     return aliases.get(requested, _DEFAULT_CLI_INTERACTION_MODE)
+
+
+def _resolve_cli_harness(raw_harness: str | None = None) -> str:
+    """Resolve the requested agent harness."""
+    requested = (raw_harness or os.getenv("DISSOLVE_AGENT_HARNESS") or _DEFAULT_CLI_HARNESS).strip().lower()
+    aliases = {
+        "langchain": "langchain",
+        "legacy": "langchain",
+        "default": "langchain",
+        "claude": "claude_sdk",
+        "claude-sdk": "claude_sdk",
+        "claude_sdk": "claude_sdk",
+    }
+    return aliases.get(requested, _DEFAULT_CLI_HARNESS)
 
 
 def _biosteam_energy_case_options() -> list[dict[str, str]]:
@@ -963,16 +997,32 @@ def main():
         choices=("review", "auto"),
         help="CLI interaction mode: review asks before tunable defaults; auto skips clarification.",
     )
+    parser.add_argument(
+        "--harness",
+        metavar="HARNESS",
+        default=None,
+        choices=("langchain", "claude_sdk"),
+        help="Agent harness: langchain is the default; claude_sdk uses the Claude Agent SDK path.",
+    )
     args = parser.parse_args()
 
     use_checkpointer = not args.no_persist
+    current_harness = _resolve_cli_harness(args.harness)
     thread_id = _get_or_create_thread_id(args.session)
     durable_session_paths = session_paths(thread_id)
     durable_session_paths["dir"].mkdir(parents=True, exist_ok=True)
     session_context = load_session_context(thread_id)
     version_text = _get_cli_version()
     source_text, git_text, launch_text = _get_source_status_lines()
-    current_model_alias, current_model_spec = _resolve_cli_model(args.model)
+    requested_model = args.model if args.model is not None else os.getenv("STRAP_MODEL")
+    model_notice = ""
+    if current_harness == "claude_sdk":
+        claude_selection = resolve_claude_model_selection(requested_model)
+        current_model_alias = claude_selection.alias
+        current_model_spec = claude_selection.spec
+        model_notice = claude_selection.notice or ""
+    else:
+        current_model_alias, current_model_spec = _resolve_cli_model(args.model)
     current_model_name = current_model_spec["model"]
     current_interaction_mode = _resolve_cli_interaction_mode(args.mode)
 
@@ -1016,6 +1066,9 @@ def main():
                 "[dim](pass --session {id} to resume)[/]"
             )
             console.print(f"[dim]Session files:[/] {durable_session_paths['dir']}")
+        console.print(f"[dim]Harness:[/] [bold]{current_harness}[/]")
+        if model_notice:
+            console.print(f"[yellow]{model_notice}[/]")
         console.print(
             f"[dim]Model:[/] [bold]{current_model_alias}[/bold] "
             f"[dim]({current_model_name})[/]"
@@ -1029,7 +1082,7 @@ def main():
 
     # ── Load agent with spinner ──
     checkpointer = None
-    if use_checkpointer:
+    if current_harness == "langchain" and use_checkpointer:
         try:
             from langgraph.checkpoint.sqlite import SqliteSaver
 
@@ -1044,15 +1097,31 @@ def main():
 
             checkpointer = MemorySaver()
 
-    with Live(
-        RichSpinner("dots", text=Text(f"Loading {current_model_alias}...", style="dim")),
-        console=console,
-        transient=True,
-    ):
-        agent = create_dissolve_agent(
-            model_name=current_model_name,
-            checkpointer=checkpointer,
-        )
+    agent = None
+    claude_runner: ClaudeSdkRunner | None = None
+    if current_harness == "claude_sdk":
+        claude_selection = resolve_claude_model_selection(requested_model)
+        with Live(
+            RichSpinner("dots", text=Text("Loading Claude SDK harness...", style="dim")),
+            console=console,
+            transient=True,
+        ):
+            claude_runner = ClaudeSdkRunner(
+                thread_id=thread_id,
+                model_alias=claude_selection.alias,
+                sdk_model=claude_selection.sdk_model,
+                cwd=_get_source_root(),
+            )
+    else:
+        with Live(
+            RichSpinner("dots", text=Text(f"Loading {current_model_alias}...", style="dim")),
+            console=console,
+            transient=True,
+        ):
+            agent = create_dissolve_agent(
+                model_name=current_model_name,
+                checkpointer=checkpointer,
+            )
 
     out = Console()  # stdout console for answers
     history: list = []  # used only when checkpointer is disabled
@@ -1083,10 +1152,17 @@ def main():
     plain_config = {"recursion_limit": 150}
 
     def _model_rows() -> list[dict[str, object]]:
-        registry = _cli_model_registry()
+        registry = _cli_model_registry_for_harness(current_harness)
+        primary_aliases = (
+            _CLAUDE_CLI_MODEL_PRIMARY_ALIASES
+            if current_harness == "claude_sdk"
+            else _CLI_MODEL_PRIMARY_ALIASES
+        )
         rows: list[dict[str, object]] = []
         seen_models: set[str] = set()
-        for alias in _CLI_MODEL_PRIMARY_ALIASES:
+        for alias in primary_aliases:
+            if alias not in registry:
+                continue
             spec = registry[alias]
             model_name = spec["model"]
             if model_name in seen_models:
@@ -1177,7 +1253,33 @@ def main():
         out.print("[dim]Use /mode to open the selector, /mode review for human-in-the-loop defaults, or /mode auto to skip CLI review.[/]")
 
     def _switch_model(target: str) -> bool:
-        nonlocal agent, current_model_alias, current_model_spec, current_model_name
+        nonlocal agent, claude_runner, current_model_alias, current_model_spec, current_model_name
+
+        if current_harness == "claude_sdk":
+            selection = resolve_claude_model_selection(target)
+            next_alias = selection.alias
+            next_spec = selection.spec
+            next_model_name = selection.provider_model_id
+            env_status = _model_env_status(next_spec)
+            if env_status.startswith("missing "):
+                out.print(
+                    f"[red]Cannot switch to {next_alias}:[/] {env_status}. "
+                    "Set ANTHROPIC_API_KEY in your environment or .env file."
+                )
+                return False
+            if next_model_name == current_model_name:
+                out.print(f"[dim]Already using {current_model_alias} ({current_model_name}).[/]")
+                return True
+            current_model_alias = next_alias
+            current_model_spec = next_spec
+            current_model_name = next_model_name
+            if claude_runner is not None:
+                claude_runner.model_alias = next_alias
+                claude_runner.sdk_model = selection.sdk_model
+            if selection.notice:
+                out.print(f"[yellow]{selection.notice}[/]")
+            out.print(f"[green]Switched model:[/] {current_model_alias} [dim]({current_model_name})[/]")
+            return True
 
         next_alias, next_spec = _resolve_cli_model(target)
         next_model_name = next_spec["model"]
@@ -1555,6 +1657,42 @@ def main():
             return
         out.print("[yellow]Unknown /context command. Use /context help.[/]")
 
+    def _handle_harness_command(command: str) -> None:
+        parts = command.split(maxsplit=1)
+        target = parts[1].strip() if len(parts) > 1 else ""
+        if target and target not in {"current", "show", "status"}:
+            out.print(
+                "[yellow]Mid-session harness switching is disabled in v1.[/] "
+                "Restart with `dissolve --harness langchain` or `dissolve --harness claude_sdk`."
+            )
+            return
+        out.print(
+            format_harness_status(
+                harness=current_harness,
+                thread_id=thread_id,
+                model_alias=current_model_alias,
+                model_name=current_model_name,
+                cwd=_get_source_root(),
+            )
+        )
+
+    def _handle_claude_session_command(command: str) -> None:
+        from .claude_sdk_harness.sessions import bridge_path, load_bridge
+
+        if current_harness != "claude_sdk":
+            out.print("[dim]Claude SDK session bridge is only active under --harness claude_sdk.[/]")
+            return
+        bridge = load_bridge(thread_id)
+        out.print(f"[bold]Claude session:[/] {bridge.get('claude_session_id', '<none>')}")
+        out.print(f"[dim]Bridge:[/] {bridge_path(thread_id)}")
+
+    def _handle_cost_command(command: str) -> None:
+        if current_harness == "claude_sdk" and claude_runner is not None:
+            cost = claude_runner.last_cost_usd
+            out.print(f"[bold]Last Claude SDK cost:[/] ${cost:.6f}" if cost is not None else "[dim]No Claude SDK cost recorded yet.[/]")
+            return
+        out.print("[dim]Cost tracking is available for Claude SDK turns only in this CLI view.[/]")
+
     def _clarify_user_input(user_input: str) -> str | None:
         if current_interaction_mode == "auto":
             return user_input
@@ -1596,6 +1734,18 @@ def main():
         if user_input.startswith("/context"):
             _handle_context_command(user_input)
             continue
+        if user_input.startswith("/harness"):
+            _handle_harness_command(user_input)
+            continue
+        if user_input.startswith("/claude-session"):
+            _handle_claude_session_command(user_input)
+            continue
+        if user_input.startswith("/claude-fork"):
+            out.print("[yellow]/claude-fork is deferred until SDK session forking is enabled in the runner.[/]")
+            continue
+        if user_input.startswith("/cost"):
+            _handle_cost_command(user_input)
+            continue
 
         clarified_input = _clarify_user_input(user_input)
         if clarified_input is None:
@@ -1612,6 +1762,7 @@ def main():
             injected_context=inject_context,
             mode=current_interaction_mode,
             model=current_model_name,
+            harness=current_harness,
         )
 
         t0 = time.time()
@@ -1621,7 +1772,25 @@ def main():
             transient=True,
         ):
             try:
-                if use_checkpointer:
+                if current_harness == "claude_sdk":
+                    from types import SimpleNamespace
+
+                    if claude_runner is None:
+                        raise RuntimeError("Claude SDK runner was not initialized.")
+                    sdk_result = claude_runner.run_turn(
+                        agent_user_input,
+                        session_context=session_context,
+                    )
+                    result = {
+                        "messages": [
+                            SimpleNamespace(
+                                type="ai",
+                                content=sdk_result.content,
+                                additional_kwargs=sdk_result.additional_kwargs,
+                            )
+                        ]
+                    }
+                elif use_checkpointer:
                     # Checkpointer maintains full history — only send the new message
                     result = agent.invoke(
                         {"messages": [{"role": "user", "content": agent_user_input}]},
@@ -1636,12 +1805,12 @@ def main():
                     )
             except KeyboardInterrupt:
                 console.print("\n[yellow]Interrupted.[/]\n")
-                if not use_checkpointer:
+                if current_harness == "langchain" and not use_checkpointer and history:
                     history.pop()
                 continue
             except Exception as e:
                 console.print(f"\n[red]Error:[/] {e}\n")
-                if not use_checkpointer:
+                if current_harness == "langchain" and not use_checkpointer and history:
                     history.pop()
                 continue
 
@@ -1676,6 +1845,7 @@ def main():
                 answer,
                 elapsed_time=elapsed,
                 model=current_model_name,
+                harness=current_harness,
                 route_decision=answer_metadata.get("strap_route_decision"),
                 artifacts=answer_metadata.get("strap_artifacts"),
             )
