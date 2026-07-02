@@ -251,6 +251,7 @@ def test_cli_model_registry_resolves_aliases(monkeypatch):
     from strap import agent as agent_module
 
     monkeypatch.setenv("DISSOLVE_CLAUDE_SONNET_MODEL", "anthropic:test-sonnet")
+    monkeypatch.setenv("DISSOLVE_CLAUDE_HAIKU_MODEL", "anthropic:test-haiku")
 
     alias, spec = agent_module._resolve_cli_model("gemini-pro")
     assert alias == "gemini-pro"
@@ -259,6 +260,10 @@ def test_cli_model_registry_resolves_aliases(monkeypatch):
     alias, spec = agent_module._resolve_cli_model("claude-sonnet")
     assert alias == "claude-sonnet"
     assert spec["model"] == "anthropic:test-sonnet"
+
+    alias, spec = agent_module._resolve_cli_model("claude-haiku", harness="claude_sdk")
+    assert alias == "claude-haiku"
+    assert spec["model"] == "anthropic:test-haiku"
 
     alias, spec = agent_module._resolve_cli_model("anthropic:custom-model")
     assert alias == "anthropic:custom-model"
@@ -543,3 +548,24 @@ def test_cli_model_command_falls_back_to_table_without_tty(monkeypatch):
 
     assert created_models == ["google_genai:gemini-3.1-flash-lite-preview"]
     assert any("/model to open the selector" in str(item) for item in printed)
+
+
+def test_predict_solubility_range_serves_sql_grid_for_anomalous_pairs():
+    """Anomalous/low-R2 pairs must behave consistently across solubility tools:
+    the range tool serves the same SQL grid engine the point tool falls back
+    to, instead of erroring while the point tool succeeds."""
+    import json
+
+    from strap.tools.interpolation import predict_solubility, predict_solubility_range
+
+    point = json.loads(predict_solubility("PP", "h2o", 80.0))
+    assert not (point.get("data") or {}).get("error")
+
+    rng = json.loads(predict_solubility_range("PP", "h2o", t_start_c=25, t_end_c=120))
+    data = rng.get("data") or {}
+    assert not data.get("error"), data.get("error")
+    assert data.get("method") == "sql"
+    predictions = data.get("predictions") or []
+    assert predictions, "expected measured SQL grid rows"
+    assert all(25 <= row["temperature_c"] <= 120 for row in predictions)
+    assert "no reliable Apelblat fit" in (rng.get("display") or "")

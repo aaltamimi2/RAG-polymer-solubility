@@ -50,8 +50,6 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
         "agent",
         "schema_version",
         "solvents_assessed",
-        "gscore_results",
-        "ghs_results",
     ),
     "biosteam-analyst": (
         "agent",
@@ -102,6 +100,12 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
         "candidate_solvents",
         "recommended_solvents",
     ),
+}
+
+# At least one field from each group must be present. Safety results may be
+# card-style (schema 1.1 `safety_cards`) or legacy gscore/GHS lists.
+_ANY_OF_FIELDS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "safety-analyst": (("safety_cards", "gscore_results", "ghs_results"),),
 }
 
 _CONTRACT_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
@@ -363,6 +367,10 @@ def validate_agent_payload(producer: str, payload: dict[str, Any]) -> list[str]:
     for field_name in _REQUIRED_FIELDS.get(producer, ()):
         if field_name not in payload:
             errors.append(f"missing required field '{field_name}'")
+
+    for group in _ANY_OF_FIELDS.get(producer, ()):
+        if not any(field_name in payload for field_name in group):
+            errors.append(f"missing all of the alternative fields {group}; at least one is required")
 
     if producer == "separation-engineer" and "top_k_sequences" in payload:
         if not isinstance(payload["top_k_sequences"], list) or not payload["top_k_sequences"]:

@@ -1,0 +1,3121 @@
+{
+  "recorded_with": "google_genai:gemini-3-flash-preview",
+  "entries": [
+    {
+      "id": "bank_01_0",
+      "source": "query_bank:01 separation-engineer",
+      "query": "For LDPE/EVOH/PET at 100 C, generate the top 5 dynamic-programming separation sequences and report the solvent, operating temperature, and selectivity for each step.",
+      "expected_label": "separation-engineer",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify the top 5 dynamic-programming separation sequences for LDPE, EVOH, and PET with a 100 C ceiling, including solvent, temperature, and selectivity for each step",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate a dynamic-programming separation state map for the identified LDPE/EVOH/PET sequences",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "Multi-polymer sequence design with specific selectivity and temperature constraints requires the separation-engineer; the requested dynamic-programming sequences are best represented by the separation_dp_state_map deliverable."
+      },
+      "validated": {
+        "query": "For LDPE/EVOH/PET at 100 C, generate the top 5 dynamic-programming separation sequences and report the solvent, operating temperature, and selectivity for each step.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify the top 5 dynamic-programming separation sequences for LDPE, EVOH, and PET with a 100 C ceiling, including solvent, temperature, and selectivity for each step",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate a dynamic-programming separation state map for the identified LDPE/EVOH/PET sequences",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Multi-polymer sequence design with specific selectivity and temperature constraints requires the separation-engineer; the requested dynamic-programming sequences are best represented by the separation_dp_state_map deliverable.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "bank_01_1",
+      "source": "query_bank:01 separation-engineer",
+      "query": "Rank solvents for selectively dissolving LDPE over PET at 120 C and report the top 5 candidates with selectivity and atmospheric-pressure caveats.",
+      "expected_label": "separation-engineer",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify and rank the top 5 solvents for selective dissolution of LDPE over PET at 120 C, including selectivity calculations and atmospheric pressure feasibility checks",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Selective dissolution at specific temperatures and checking atmospheric pressure feasibility (boiling point constraints) are primary tasks for the separation-engineer."
+      },
+      "validated": {
+        "query": "Rank solvents for selectively dissolving LDPE over PET at 120 C and report the top 5 candidates with selectivity and atmospheric-pressure caveats.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify and rank the top 5 solvents for selective dissolution of LDPE over PET at 120 C, including selectivity calculations and atmospheric pressure feasibility checks",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Selective dissolution at specific temperatures and checking atmospheric pressure feasibility (boiling point constraints) are primary tasks for the separation-engineer.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_01_2",
+      "source": "query_bank:01 separation-engineer",
+      "query": "Find optimal separation conditions below 160 C for dissolving EVOH while leaving LDPE and PET behind; report the best solvent, temperature, selectivity, and model caveats.",
+      "expected_label": "separation-engineer",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify optimal solvent and temperature for selective EVOH dissolution from LDPE and PET below 160 C, calculating selectivity and noting model caveats",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Selective dissolution and temperature-dependent separation logic are the domain of the separation-engineer."
+      },
+      "validated": {
+        "query": "Find optimal separation conditions below 160 C for dissolving EVOH while leaving LDPE and PET behind; report the best solvent, temperature, selectivity, and model caveats.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify optimal solvent and temperature for selective EVOH dissolution from LDPE and PET below 160 C, calculating selectivity and noting model caveats",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Selective dissolution and temperature-dependent separation logic are the domain of the separation-engineer.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_02_0",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Show a safety card for THF at 60 C.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "generate a safety card for THF including properties at 60 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "The safety-analyst is the designated specialist for solvent safety cards and temperature-dependent properties like vapor pressure and volatility."
+      },
+      "validated": {
+        "query": "Show a safety card for THF at 60 C.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "generate a safety card for THF including properties at 60 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The safety-analyst is the designated specialist for solvent safety cards and temperature-dependent properties like vapor pressure and volatility.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_1",
+      "source": "query_bank:02 safety-analyst",
+      "query": "How should I safely heat toluene to 110 C?",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "provide a safety assessment for heating toluene to 110 C, including flash point, boiling point proximity, and handling hazards",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "Heating a solvent to its boiling point (~110.6 C) requires a safety assessment from the specialist rather than a simple property lookup."
+      },
+      "validated": {
+        "query": "How should I safely heat toluene to 110 C?",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "provide a safety assessment for heating toluene to 110 C, including flash point, boiling point proximity, and handling hazards",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Heating a solvent to its boiling point (~110.6 C) requires a safety assessment from the specialist rather than a simple property lookup.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_2",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Compare safety profile for heptane, cyclohexane, and toluene at 110 C using volatility and flammability.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "compare the safety profiles of heptane, cyclohexane, and toluene at 110 C based on volatility and flammability",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ],
+        "confidence": "high",
+        "rationale": "The safety-analyst is the dedicated specialist for solvent safety comparisons, hazard screenings, and property analysis like volatility and flammability."
+      },
+      "validated": {
+        "query": "Compare safety profile for heptane, cyclohexane, and toluene at 110 C using volatility and flammability.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "compare the safety profiles of heptane, cyclohexane, and toluene at 110 C based on volatility and flammability",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The safety-analyst is the dedicated specialist for solvent safety comparisons, hazard screenings, and property analysis like volatility and flammability.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_3",
+      "source": "query_bank:02 safety-analyst",
+      "query": "What is the flash point, vapor pressure, and autoignition temperature of DMSO?",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Retrieve the flash point, vapor pressure, and autoignition temperature for DMSO.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "The request asks for specific safety and physical properties (vapor pressure, autoignition) that fall under the safety-analyst's specialized safety card and hazard data tools."
+      },
+      "validated": {
+        "query": "What is the flash point, vapor pressure, and autoignition temperature of DMSO?",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Retrieve the flash point, vapor pressure, and autoignition temperature for DMSO.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request asks for specific safety and physical properties (vapor pressure, autoignition) that fall under the safety-analyst's specialized safety card and hazard data tools.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_4",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Give me the LD50 and toxicity safety card for DMF.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Retrieve LD50 and toxicity safety data for DMF",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "Safety cards and toxicity data (LD50) are provided by the safety-analyst."
+      },
+      "validated": {
+        "query": "Give me the LD50 and toxicity safety card for DMF.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Retrieve LD50 and toxicity safety data for DMF",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Safety cards and toxicity data (LD50) are provided by the safety-analyst.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_5",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Peroxide formation for diethyl ether.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "assess peroxide formation hazards and safety data for diethyl ether",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "Peroxide formation is explicitly handled by the safety-analyst."
+      },
+      "validated": {
+        "query": "Peroxide formation for diethyl ether.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "assess peroxide formation hazards and safety data for diethyl ether",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Peroxide formation is explicitly handled by the safety-analyst.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_6",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Show the solvent safety card for ethyl acetate at 80 C.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "generate a solvent safety card for ethyl acetate, evaluating hazards and volatility at the specified temperature of 80 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "The request asks for a specific safety deliverable at a defined temperature, which is best handled by the safety-analyst specialist."
+      },
+      "validated": {
+        "query": "Show the solvent safety card for ethyl acetate at 80 C.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "generate a solvent safety card for ethyl acetate, evaluating hazards and volatility at the specified temperature of 80 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request asks for a specific safety deliverable at a defined temperature, which is best handled by the safety-analyst specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_7",
+      "source": "query_bank:02 safety-analyst",
+      "query": "What is the volatility and vapor pressure safety profile for acetone?",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "analyze the volatility and vapor pressure safety profile for acetone",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "vapor pressure and volatility safety analysis are handled by the safety-analyst specialist"
+      },
+      "validated": {
+        "query": "What is the volatility and vapor pressure safety profile for acetone?",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "analyze the volatility and vapor pressure safety profile for acetone",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "vapor pressure and volatility safety analysis are handled by the safety-analyst specialist",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_8",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Compare safety cards for THF and tetrahydropyran at 65 C, focusing on peroxide formation.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "compare safety cards and peroxide formation risks for THF and tetrahydropyran at 65 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ],
+        "confidence": "high",
+        "rationale": "Safety-analyst handles solvent safety comparisons and specific chemical hazards like peroxide formation."
+      },
+      "validated": {
+        "query": "Compare safety cards for THF and tetrahydropyran at 65 C, focusing on peroxide formation.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "compare safety cards and peroxide formation risks for THF and tetrahydropyran at 65 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Safety-analyst handles solvent safety comparisons and specific chemical hazards like peroxide formation.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ]
+      }
+    },
+    {
+      "id": "bank_02_9",
+      "source": "query_bank:02 safety-analyst",
+      "query": "Autoemission temperature of cyclohexane at 75 C.",
+      "expected_label": "CLI direct fast path -> safety-card tool; safety-analyst when delegated through agent",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Lookup autoignition temperature and vapor pressure/volatility data for cyclohexane, specifically addressing the request regarding 75 C.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ],
+        "confidence": "high",
+        "rationale": "The safety-analyst handles specific safety parameters like autoignition and vapor pressure/volatility."
+      },
+      "validated": {
+        "query": "Autoemission temperature of cyclohexane at 75 C.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "Lookup autoignition temperature and vapor pressure/volatility data for cyclohexane, specifically addressing the request regarding 75 C.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The safety-analyst handles specific safety parameters like autoignition and vapor pressure/volatility.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_card"
+        ]
+      }
+    },
+    {
+      "id": "bank_03_0",
+      "source": "query_bank:03 biosteam-analyst",
+      "query": "Run BioSTEAM TEA/LCA for LDPE with Cyclohexane under energy case C2 and report MSP, TCI, AOC, GWP, and the boiling-point margin.",
+      "expected_label": "biosteam-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Evaluate the separation feasibility and calculate the boiling-point margin for the LDPE/Cyclohexane system.",
+            "depends_on": []
+          },
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Perform TEA and LCA for LDPE recycling with Cyclohexane using the Grid energy configuration (C2) to report MSP, TCI, AOC, and GWP.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ],
+        "confidence": "high",
+        "rationale": "BioSTEAM-analyst calculates economic and environmental metrics, while the separation-engineer is required to determine the boiling-point margin and provide the feasible dissolution parameters for the simulation."
+      },
+      "validated": {
+        "query": "Run BioSTEAM TEA/LCA for LDPE with Cyclohexane under energy case C2 and report MSP, TCI, AOC, GWP, and the boiling-point margin.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Evaluate the separation feasibility and calculate the boiling-point margin for the LDPE/Cyclohexane system.",
+            "depends_on": []
+          },
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Perform TEA and LCA for LDPE recycling with Cyclohexane using the Grid energy configuration (C2) to report MSP, TCI, AOC, and GWP.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "BioSTEAM-analyst calculates economic and environmental metrics, while the separation-engineer is required to determine the boiling-point margin and provide the feasible dissolution parameters for the simulation.",
+        "validation_notes": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ]
+      }
+    },
+    {
+      "id": "bank_03_1",
+      "source": "query_bank:03 biosteam-analyst",
+      "query": "Compare BioSTEAM TEA/LCA for PET using Toluene versus Dimethyl sulfoxide under energy case C1; report MSP, TCI, AOC, GWP, failed scenarios, and the lower-MSP solvent.",
+      "expected_label": "biosteam-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Perform TEA/LCA for PET with Toluene and DMSO under energy configuration C1 and report MSP, TCI, AOC, and GWP.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ],
+        "confidence": "high",
+        "rationale": "The biosteam-analyst is the dedicated specialist for TEA/LCA simulations, including MSP and GWP calculations for specific polymer-solvent combinations."
+      },
+      "validated": {
+        "query": "Compare BioSTEAM TEA/LCA for PET using Toluene versus Dimethyl sulfoxide under energy case C1; report MSP, TCI, AOC, GWP, failed scenarios, and the lower-MSP solvent.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Perform TEA/LCA for PET with Toluene and DMSO under energy configuration C1 and report MSP, TCI, AOC, and GWP.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The biosteam-analyst is the dedicated specialist for TEA/LCA simulations, including MSP and GWP calculations for specific polymer-solvent combinations.",
+        "validation_notes": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ]
+      }
+    },
+    {
+      "id": "bank_03_2",
+      "source": "query_bank:03 biosteam-analyst",
+      "query": "Run a BioSTEAM multi-polymer recovery case under energy case C3 for PE dissolved with Toluene followed by EVOH dissolved with Ethylene glycol; report blended MSP, combined TCI, weighted GWP, and per-step conditions.",
+      "expected_label": "biosteam-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "run multi-polymer simulation for PE (Toluene) and EVOH (Ethylene glycol) under energy case C3, reporting MSP, TCI, and GWP",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ],
+        "confidence": "high",
+        "rationale": "The request specifies a BioSTEAM simulation for a defined recovery sequence and energy case."
+      },
+      "validated": {
+        "query": "Run a BioSTEAM multi-polymer recovery case under energy case C3 for PE dissolved with Toluene followed by EVOH dissolved with Ethylene glycol; report blended MSP, combined TCI, weighted GWP, and per-step conditions.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "run multi-polymer simulation for PE (Toluene) and EVOH (Ethylene glycol) under energy case C3, reporting MSP, TCI, and GWP",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifies a BioSTEAM simulation for a defined recovery sequence and energy case.",
+        "validation_notes": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ]
+      }
+    },
+    {
+      "id": "bank_04_0",
+      "source": "query_bank:04 scholar-researcher",
+      "query": "Search Google Scholar for solvent-based recycling of multilayer LDPE/EVOH/PET packaging films and summarize the top 5 relevant papers with year, DOI if available, and relevance to selective dissolution.",
+      "expected_label": "scholar-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search Google Scholar for solvent-based recycling of LDPE/EVOH/PET films and provide a summary of the top 5 papers including year, DOI, and selective dissolution relevance.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request is for a scientific literature search and summary from Google Scholar, which is the primary domain of the scholar-researcher."
+      },
+      "validated": {
+        "query": "Search Google Scholar for solvent-based recycling of multilayer LDPE/EVOH/PET packaging films and summarize the top 5 relevant papers with year, DOI if available, and relevance to selective dissolution.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search Google Scholar for solvent-based recycling of LDPE/EVOH/PET films and provide a summary of the top 5 papers including year, DOI, and selective dissolution relevance.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request is for a scientific literature search and summary from Google Scholar, which is the primary domain of the scholar-researcher.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_04_1",
+      "source": "query_bank:04 scholar-researcher",
+      "query": "Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.",
+      "expected_label": "scholar-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search arXiv for papers on machine learning models for polymer solubility and Hansen parameters in plastic recycling, then save them to the research library.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Summarize the methods, datasets, and data limitations described in the retrieved arXiv papers.",
+            "depends_on": [
+              "scholar-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Searching arXiv and summarizing specific technical details from the findings requires the scholar-researcher for retrieval and the rag-analyst for synthesizing the content."
+      },
+      "validated": {
+        "query": "Search arXiv for machine-learning models for polymer solubility or Hansen parameters in solvent-based plastic recycling; summarize methods, datasets, and data limitations.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search arXiv for papers on machine learning models for polymer solubility and Hansen parameters in plastic recycling, then save them to the research library.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Summarize the methods, datasets, and data limitations described in the retrieved arXiv papers.",
+            "depends_on": [
+              "scholar-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Searching arXiv and summarizing specific technical details from the findings requires the scholar-researcher for retrieval and the rag-analyst for synthesizing the content.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_04_2",
+      "source": "query_bank:04 scholar-researcher",
+      "query": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling and compare their main cost and emissions conclusions.",
+      "expected_label": "scholar-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Compare the main cost and emissions conclusions from the retrieved literature findings.",
+            "depends_on": [
+              "scholar-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request is a literature research task requiring a search of scientific databases followed by a comparative analysis of the findings."
+      },
+      "validated": {
+        "query": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling and compare their main cost and emissions conclusions.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "scholar-researcher",
+            "objective": "Search Web of Science for recent TEA/LCA studies of solvent-based plastic recycling.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Compare the main cost and emissions conclusions from the retrieved literature findings.",
+            "depends_on": [
+              "scholar-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request is a literature research task requiring a search of scientific databases followed by a comparative analysis of the findings.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_05_0",
+      "source": "query_bank:05 patent-researcher",
+      "query": "Search Google Patents for solvent-based recycling of multilayer polyethylene/EVOH/PET packaging and summarize the most relevant patent families, assignees, and claimed solvent systems.",
+      "expected_label": "patent-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "Search Google Patents for solvent-based PE/EVOH/PET recycling and summarize relevant patent families, assignees, and solvent systems.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request is specifically for a patent search and summary, which is the core function of the patent-researcher."
+      },
+      "validated": {
+        "query": "Search Google Patents for solvent-based recycling of multilayer polyethylene/EVOH/PET packaging and summarize the most relevant patent families, assignees, and claimed solvent systems.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "Search Google Patents for solvent-based PE/EVOH/PET recycling and summarize relevant patent families, assignees, and solvent systems.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request is specifically for a patent search and summary, which is the core function of the patent-researcher.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_05_1",
+      "source": "query_bank:05 patent-researcher",
+      "query": "Search polymer patents for selective dissolution of polyolefins using xylene, toluene, or dodecane and report assignees, target polymers, and claimed temperature ranges.",
+      "expected_label": "patent-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "search patents for selective polyolefin dissolution using xylene, toluene, or dodecane and extract assignees, polymers, and temperatures",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The user is explicitly asking for a patent search and extraction of specific information from patent literature."
+      },
+      "validated": {
+        "query": "Search polymer patents for selective dissolution of polyolefins using xylene, toluene, or dodecane and report assignees, target polymers, and claimed temperature ranges.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "search patents for selective polyolefin dissolution using xylene, toluene, or dodecane and extract assignees, polymers, and temperatures",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The user is explicitly asking for a patent search and extraction of specific information from patent literature.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_05_2",
+      "source": "query_bank:05 patent-researcher",
+      "query": "Search patents related to removing phthalates or PFAS contaminants from recycled polymers using solvent extraction; summarize the strongest claims and polymer targets.",
+      "expected_label": "patent-researcher",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "Search for and retrieve patents on phthalate or PFAS removal from recycled polymers via solvent extraction.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Summarize the strongest claims and polymer targets from the retrieved patents.",
+            "depends_on": [
+              "patent-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request requires a patent search followed by an analysis/summarization of the findings."
+      },
+      "validated": {
+        "query": "Search patents related to removing phthalates or PFAS contaminants from recycled polymers using solvent extraction; summarize the strongest claims and polymer targets.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "patent-researcher",
+            "objective": "Search for and retrieve patents on phthalate or PFAS removal from recycled polymers via solvent extraction.",
+            "depends_on": []
+          },
+          {
+            "subagent": "rag-analyst",
+            "objective": "Summarize the strongest claims and polymer targets from the retrieved patents.",
+            "depends_on": [
+              "patent-researcher"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires a patent search followed by an analysis/summarization of the findings.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_06_0",
+      "source": "query_bank:06 rag-analyst",
+      "query": "Ask the literature RAG what the local corpus says about STRAP solvent selection for PE/EVOH/PET multilayer separations, and cite the retrieved chunks.",
+      "expected_label": "rag-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "query local corpus for STRAP solvent selection for PE/EVOH/PET and cite retrieved chunks",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request specifically targets the local indexed corpus and requires citations from retrieved chunks, which is the core function of the rag-analyst."
+      },
+      "validated": {
+        "query": "Ask the literature RAG what the local corpus says about STRAP solvent selection for PE/EVOH/PET multilayer separations, and cite the retrieved chunks.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "query local corpus for STRAP solvent selection for PE/EVOH/PET and cite retrieved chunks",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifically targets the local indexed corpus and requires citations from retrieved chunks, which is the core function of the rag-analyst.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_06_1",
+      "source": "query_bank:06 rag-analyst",
+      "query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.",
+      "expected_label": "rag-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "Retrieve and summarize BioSTEAM TEA/LCA assumptions for STRAP recycling (MSP, TCI, AOC, and GWP) from the indexed corpus, citing the retrieved chunks.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request specifically targets the indexed document corpus (RAG) for information extraction and citation, which is the primary role of the rag-analyst."
+      },
+      "validated": {
+        "query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP recycling and summarize the cited source chunks for MSP, TCI, AOC, and GWP.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "Retrieve and summarize BioSTEAM TEA/LCA assumptions for STRAP recycling (MSP, TCI, AOC, and GWP) from the indexed corpus, citing the retrieved chunks.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifically targets the indexed document corpus (RAG) for information extraction and citation, which is the primary role of the rag-analyst.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_06_2",
+      "source": "query_bank:06 rag-analyst",
+      "query": "Get the RAG status, then answer whether local documents mention contaminant-aware solvent selection or PFAS/phthalate removal in recycled polymers.",
+      "expected_label": "rag-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "Check RAG status and search local documents for mentions of contaminant-aware solvent selection and PFAS/phthalate removal in recycled polymers.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request specifically asks for information from local indexed documents, which is the primary domain of the rag-analyst."
+      },
+      "validated": {
+        "query": "Get the RAG status, then answer whether local documents mention contaminant-aware solvent selection or PFAS/phthalate removal in recycled polymers.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "rag-analyst",
+            "objective": "Check RAG status and search local documents for mentions of contaminant-aware solvent selection and PFAS/phthalate removal in recycled polymers.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifically asks for information from local indexed documents, which is the primary domain of the rag-analyst.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_07_0",
+      "source": "query_bank:07 visualization-specialist",
+      "query": "Plot the solubility of LDPE, PET, and EVOH in dodecane and o-xylene from 25 C to 160 C with a normalized 0-100% y-axis. Save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/solubility\".",
+      "expected_label": "visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate solubility vs temperature plots for LDPE, PET, and EVOH in dodecane and o-xylene (25-160 C) with normalized y-axis",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request is for a specific data visualization of solubility across multiple polymers and solvents."
+      },
+      "validated": {
+        "query": "Plot the solubility of LDPE, PET, and EVOH in dodecane and o-xylene from 25 C to 160 C with a normalized 0-100% y-axis. Save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/solubility\".",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate solubility vs temperature plots for LDPE, PET, and EVOH in dodecane and o-xylene (25-160 C) with normalized y-axis",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request is for a specific data visualization of solubility across multiple polymers and solvents.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_07_1",
+      "source": "query_bank:07 visualization-specialist",
+      "query": "Generate a dynamic-programming separation state map for LDPE/EVOH/PET at 100 C and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/dp_state_map\". Only include separation/selectivity visuals, not cost or greenness plots.",
+      "expected_label": "visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "generate separation sequence and state map data for LDPE/EVOH/PET at 100 C",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "create a dynamic-programming separation state map plot",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [
+          "biosteam-analyst"
+        ],
+        "deliverables": [
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "Generating a DP state map requires separation engineering logic followed by specialized plotting, while explicitly excluding economic/environmental analysis."
+      },
+      "validated": {
+        "query": "Generate a dynamic-programming separation state map for LDPE/EVOH/PET at 100 C and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/dp_state_map\". Only include separation/selectivity visuals, not cost or greenness plots.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "generate separation sequence and state map data for LDPE/EVOH/PET at 100 C",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "create a dynamic-programming separation state map plot",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [
+          "biosteam-analyst"
+        ],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Generating a DP state map requires separation engineering logic followed by specialized plotting, while explicitly excluding economic/environmental analysis.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "bank_07_2",
+      "source": "query_bank:07 visualization-specialist",
+      "query": "Create a simple separation tree plot for LDPE/EVOH/PET at 100 C, including solvent and temperature labels, and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree\".",
+      "expected_label": "visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "design a separation sequence for LDPE/EVOH/PET below 100 C",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate a separation tree plot from the designed sequence",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot"
+        ],
+        "confidence": "high",
+        "rationale": "Separation tree plots require a designed sequence from the separation engineer as input to the visualization specialist."
+      },
+      "validated": {
+        "query": "Create a simple separation tree plot for LDPE/EVOH/PET at 100 C, including solvent and temperature labels, and save it to \"/home/aaltamimi2/langchain-STRAP-v10-core/architecture/test_results/query_bank_live_gemini_20260427/visualization/separation_tree\".",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "design a separation sequence for LDPE/EVOH/PET below 100 C",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate a separation tree plot from the designed sequence",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Separation tree plots require a designed sequence from the separation engineer as input to the visualization specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_0",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Use HSP/RED to check whether PC is compatible with dichloromethane and generate the HSP radar and RED gauge visuals.",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP/RED screening for PC and dichloromethane and generate HSP radar and RED gauge visuals.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_single_pair_summary"
+        ],
+        "confidence": "high",
+        "rationale": "HSP/RED screening and its specific visualizations (radar/gauge) are handled by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Use HSP/RED to check whether PC is compatible with dichloromethane and generate the HSP radar and RED gauge visuals.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP/RED screening for PC and dichloromethane and generate HSP radar and RED gauge visuals.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "HSP/RED screening and its specific visualizations (radar/gauge) are handled by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_single_pair_summary"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_1",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Use the Hansen model to screen polyolefins against nonpolar solvents and show the RED heatmap.",
+      "expected_label": "statistics-ml -> visualization-specialist if explicit heatmap handoff is used",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform Hansen model (HSP/RED) screening for polyolefins against nonpolar solvents and generate a RED heatmap.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ],
+        "confidence": "high",
+        "rationale": "Hansen Solubility Parameter (HSP) screening and RED heatmap generation are the domain of the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Use the Hansen model to screen polyolefins against nonpolar solvents and show the RED heatmap.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform Hansen model (HSP/RED) screening for polyolefins against nonpolar solvents and generate a RED heatmap.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Hansen Solubility Parameter (HSP) screening and RED heatmap generation are the domain of the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_2",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Screen nylons against polar aprotic solvents using HSP and return the batch compatibility heatmap.",
+      "expected_label": "statistics-ml -> visualization-specialist if explicit heatmap handoff is used",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP-based screening of nylons against polar aprotic solvents and generate a compatibility heatmap.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ],
+        "confidence": "high",
+        "rationale": "The request specifically requires HSP-based screening and a compatibility heatmap, which are handled by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Screen nylons against polar aprotic solvents using HSP and return the batch compatibility heatmap.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP-based screening of nylons against polar aprotic solvents and generate a compatibility heatmap.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifically requires HSP-based screening and a compatibility heatmap, which are handled by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_3",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Make an HSP RED heatmap for polar polymers in glycols.",
+      "expected_label": "statistics-ml -> visualization-specialist if explicit heatmap handoff is used",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP RED screening and generate a heatmap for polar polymers in glycol solvents",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ],
+        "confidence": "high",
+        "rationale": "The statistics-ml specialist is responsible for Hansen Solubility Parameter (HSP) analysis and RED matrix/heatmap generation."
+      },
+      "validated": {
+        "query": "Make an HSP RED heatmap for polar polymers in glycols.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Perform HSP RED screening and generate a heatmap for polar polymers in glycol solvents",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The statistics-ml specialist is responsible for Hansen Solubility Parameter (HSP) analysis and RED matrix/heatmap generation.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_4",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Use HSP to compare styrenic polymers against aromatic solvents and rank compatibility by RED.",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Use HSP to calculate RED values and rank compatibility for styrenic polymers against aromatic solvents.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ],
+        "confidence": "high",
+        "rationale": "Hansen Solubility Parameter (HSP) screening and RED calculations are handled by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Use HSP to compare styrenic polymers against aromatic solvents and rank compatibility by RED.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Use HSP to calculate RED values and rank compatibility for styrenic polymers against aromatic solvents.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Hansen Solubility Parameter (HSP) screening and RED calculations are handled by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_5",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Screen engineering polymers against chlorinated solvents using the Hansen ML model.",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Screen engineering polymers against chlorinated solvents using the Hansen/RED model",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ],
+        "confidence": "high",
+        "rationale": "Hansen Solubility Parameter (HSP) and RED screening are handled exclusively by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Screen engineering polymers against chlorinated solvents using the Hansen ML model.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Screen engineering polymers against chlorinated solvents using the Hansen/RED model",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Hansen Solubility Parameter (HSP) and RED screening are handled exclusively by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_red_heatmap"
+        ]
+      }
+    },
+    {
+      "id": "bank_08_6",
+      "source": "query_bank:08 statistics-ml",
+      "query": "What curated polymer families and quality flags are available for HSP screening?",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "List the curated polymer families and data quality flags available for HSP screening.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Any listing or lookup involving HSP parameters belongs to the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "What curated polymer families and quality flags are available for HSP screening?",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "List the curated polymer families and data quality flags available for HSP screening.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Any listing or lookup involving HSP parameters belongs to the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_08_7",
+      "source": "query_bank:08 statistics-ml",
+      "query": "List the HSP-supported polar aprotic solvents, including raw HSP names and polarity class.",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "List HSP-supported polar aprotic solvents with their HSP names and polarity classification.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Hansen Solubility Parameter (HSP) lookups and listings are explicitly assigned to the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "List the HSP-supported polar aprotic solvents, including raw HSP names and polarity class.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "List HSP-supported polar aprotic solvents with their HSP names and polarity classification.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Hansen Solubility Parameter (HSP) lookups and listings are explicitly assigned to the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_08_8",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Can the HSP model handle GVL for PET, or is GVL unsupported?",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Check if HSP parameters for GVL and PET are available in the model.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "HSP data and model coverage checks are handled by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Can the HSP model handle GVL for PET, or is GVL unsupported?",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "Check if HSP parameters for GVL and PET are available in the model.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "HSP data and model coverage checks are handled by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_08_9",
+      "source": "query_bank:08 statistics-ml",
+      "query": "Use HSP to predict LDPE compatibility with dodecane, and flag any LDPE entry ambiguity.",
+      "expected_label": "statistics-ml only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "perform HSP/RED compatibility prediction for LDPE and dodecane and check for polymer entry ambiguity",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "hsp_single_pair_summary"
+        ],
+        "confidence": "high",
+        "rationale": "HSP and RED analysis for polymer-solvent compatibility is handled by the statistics-ml specialist."
+      },
+      "validated": {
+        "query": "Use HSP to predict LDPE compatibility with dodecane, and flag any LDPE entry ambiguity.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "statistics-ml",
+            "objective": "perform HSP/RED compatibility prediction for LDPE and dodecane and check for polymer entry ambiguity",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "HSP and RED analysis for polymer-solvent compatibility is handled by the statistics-ml specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "hsp_single_pair_summary"
+        ]
+      }
+    },
+    {
+      "id": "bank_09_0",
+      "source": "query_bank:09 contaminant-removal",
+      "query": "Screen leaching-mode removal of di-n-butyl phthalate (DBP) from PET using acetone, ethyl acetate, and cyclohexane up to 55 C while keeping PET intact.",
+      "expected_label": "contaminant-removal-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "screen leaching-mode removal of DBP from PET using acetone, ethyl acetate, and cyclohexane up to 55 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Leaching-mode contaminant removal screening is a specific task for the contaminant-removal-analyst."
+      },
+      "validated": {
+        "query": "Screen leaching-mode removal of di-n-butyl phthalate (DBP) from PET using acetone, ethyl acetate, and cyclohexane up to 55 C while keeping PET intact.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "screen leaching-mode removal of DBP from PET using acetone, ethyl acetate, and cyclohexane up to 55 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Leaching-mode contaminant removal screening is a specific task for the contaminant-removal-analyst.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_09_1",
+      "source": "query_bank:09 contaminant-removal",
+      "query": "Compare leaching versus STRAP temperature-swing contaminant removal for Perfluorooctanoic Acid from LDPE using toluene, cyclohexane, and dodecane up to 120 C.",
+      "expected_label": "contaminant-removal-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "Evaluate and compare PFOA removal from LDPE using leaching-mode extraction and STRAP temperature-swing precipitation with toluene, cyclohexane, and dodecane up to 120 C.",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a comparison dashboard or efficiency plots for the different removal modes and solvents.",
+            "depends_on": [
+              "contaminant-removal-analyst"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The contaminant-removal-analyst is the designated specialist for leaching and STRAP-based contaminant extraction modes; visualization is included to facilitate the requested comparison."
+      },
+      "validated": {
+        "query": "Compare leaching versus STRAP temperature-swing contaminant removal for Perfluorooctanoic Acid from LDPE using toluene, cyclohexane, and dodecane up to 120 C.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "Evaluate and compare PFOA removal from LDPE using leaching-mode extraction and STRAP temperature-swing precipitation with toluene, cyclohexane, and dodecane up to 120 C.",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a comparison dashboard or efficiency plots for the different removal modes and solvents.",
+            "depends_on": [
+              "contaminant-removal-analyst"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The contaminant-removal-analyst is the designated specialist for leaching and STRAP-based contaminant extraction modes; visualization is included to facilitate the requested comparison.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_09_2",
+      "source": "query_bank:09 contaminant-removal",
+      "query": "For PET contaminated with DEHP and BBP, screen STRAP contaminant removal by temperature-swing precipitation using dodecane and o-xylene below 140 C.",
+      "expected_label": "contaminant-removal-analyst",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "screen STRAP contaminant removal for PET/DEHP/BBP in dodecane and o-xylene below 140 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The request specifically asks for STRAP contaminant removal screening for phthalates, which is the primary specialty of the contaminant-removal-analyst."
+      },
+      "validated": {
+        "query": "For PET contaminated with DEHP and BBP, screen STRAP contaminant removal by temperature-swing precipitation using dodecane and o-xylene below 140 C.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "contaminant-removal-analyst",
+            "objective": "screen STRAP contaminant removal for PET/DEHP/BBP in dodecane and o-xylene below 140 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request specifically asks for STRAP contaminant removal screening for phthalates, which is the primary specialty of the contaminant-removal-analyst.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "bank_10_0",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "Optimize waste management for a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A. Restrict the candidate solvents to Toluene or Heptane for PE and Pyridazine or Ethylene Glycol for EVOH. Maximize profit, require at least 1 STRAP wash step and allow up to 2 wash steps. Report the selected solvents, total profit, total cost, and circularity.",
+      "expected_label": "optimization-engineer only",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "optimization-engineer",
+            "objective": "optimize the PE/EVOH processing pathway for maximum profit using restricted solvent candidates (Toluene, Heptane, Pyridazine, Ethylene Glycol) and wash step constraints",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_point_result"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires mixed-plastic pathway optimization for profit and circularity using a specific superstructure, which is the core function of the optimization-engineer."
+      },
+      "validated": {
+        "query": "Optimize waste management for a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A. Restrict the candidate solvents to Toluene or Heptane for PE and Pyridazine or Ethylene Glycol for EVOH. Maximize profit, require at least 1 STRAP wash step and allow up to 2 wash steps. Report the selected solvents, total profit, total cost, and circularity.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "optimization-engineer",
+            "objective": "optimize the PE/EVOH processing pathway for maximum profit using restricted solvent candidates (Toluene, Heptane, Pyridazine, Ethylene Glycol) and wash step constraints",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires mixed-plastic pathway optimization for profit and circularity using a specific superstructure, which is the core function of the optimization-engineer.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_point_result"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_1",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, have the separation engineer propose the top 3 solvent candidates per polymer using the dynamic-programming planner and include separation plots for the shortlisted PE and EVOH solvents. Then pass exactly those shortlisted candidates to the optimization engineer to maximize profit, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Finally, have the visualization specialist create a separation tree plot and an optimization figure summarizing the routed result. Report the selected solvents, total profit, total cost, circularity, and save all plots.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Propose top 3 solvent candidates for PE and EVOH using the dynamic-programming planner for a 8000 tpy feed (60% PE, 40% EVOH).",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "Maximize profit using the shortlisted solvents from the separation engineer, enforcing 1 to 2 STRAP wash steps.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Create a separation tree plot, solubility/separation plots for the shortlisted solvents, and an optimization summary figure.",
+            "depends_on": [
+              "separation-engineer",
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "optimization_point_result",
+          "visualization.artifact.v1"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires sequential coordination between separation planning, pathway optimization, and final visualization of those complex results."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, have the separation engineer propose the top 3 solvent candidates per polymer using the dynamic-programming planner and include separation plots for the shortlisted PE and EVOH solvents. Then pass exactly those shortlisted candidates to the optimization engineer to maximize profit, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Finally, have the visualization specialist create a separation tree plot and an optimization figure summarizing the routed result. Report the selected solvents, total profit, total cost, circularity, and save all plots.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Propose top 3 solvent candidates for PE and EVOH using the dynamic-programming planner for a 8000 tpy feed (60% PE, 40% EVOH).",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "Maximize profit using the shortlisted solvents from the separation engineer, enforcing 1 to 2 STRAP wash steps.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Create a separation tree plot, solubility/separation plots for the shortlisted solvents, and an optimization summary figure.",
+            "depends_on": [
+              "separation-engineer",
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires sequential coordination between separation planning, pathway optimization, and final visualization of those complex results.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "optimization_point_result",
+          "visualization.artifact.v1"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_2",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, have the separation engineer propose the top 6 solvent candidates per polymer using the dynamic-programming planner and include separation plots for the shortlisted PE and EVOH solvents. Then pass exactly those shortlisted candidates to the optimization engineer to run a Pareto sweep of total cost vs emissions with 16 points, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Finally, have the visualization specialist create an optimization Pareto landscape including all feasible points and highlight the frontier, and save all generated plots. Report the frontier points and save all generated images.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose the top 6 solvent candidates per polymer (PE, EVOH) and design the separation sequence using the dynamic-programming planner",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 16-point Pareto sweep of total cost vs. emissions for the 8000 tpy PE/EVOH stream, requiring 1-2 STRAP wash steps using the shortlisted solvents",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate separation plots for the shortlisted solvents and create an optimization Pareto landscape highlighting the frontier",
+            "depends_on": [
+              "separation-engineer",
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "optimization_pareto_landscape",
+          "optimization_pareto_front"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires a sequential workflow starting with separation design/shortlisting, followed by multi-objective optimization, and concluding with specific visualizations of both stages."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, have the separation engineer propose the top 6 solvent candidates per polymer using the dynamic-programming planner and include separation plots for the shortlisted PE and EVOH solvents. Then pass exactly those shortlisted candidates to the optimization engineer to run a Pareto sweep of total cost vs emissions with 16 points, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Finally, have the visualization specialist create an optimization Pareto landscape including all feasible points and highlight the frontier, and save all generated plots. Report the frontier points and save all generated images.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose the top 6 solvent candidates per polymer (PE, EVOH) and design the separation sequence using the dynamic-programming planner",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 16-point Pareto sweep of total cost vs. emissions for the 8000 tpy PE/EVOH stream, requiring 1-2 STRAP wash steps using the shortlisted solvents",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate separation plots for the shortlisted solvents and create an optimization Pareto landscape highlighting the frontier",
+            "depends_on": [
+              "separation-engineer",
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires a sequential workflow starting with separation design/shortlisting, followed by multi-objective optimization, and concluding with specific visualizations of both stages.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "optimization_pareto_landscape",
+          "optimization_pareto_front"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_3",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 20% LDPE, 60% EVOH, and 20% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then pass those candidates to the optimization engineer to run a cost-vs-circularity Pareto landscape with 100 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Finally, plot all feasible points and highlight the frontier.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose the top 12 solvent candidates per polymer for an LDPE/EVOH/PET mixture using the dynamic-programming planner with temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run a cost-vs-circularity Pareto landscape with 100 points using the shortlisted candidates, requiring 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot all feasible points and highlight the Pareto frontier from the optimization results",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_pareto_landscape",
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "The request follows a standard sequence of separation design followed by multi-objective optimization and visualization of the Pareto frontier."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 20% LDPE, 60% EVOH, and 20% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then pass those candidates to the optimization engineer to run a cost-vs-circularity Pareto landscape with 100 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Finally, plot all feasible points and highlight the frontier.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose the top 12 solvent candidates per polymer for an LDPE/EVOH/PET mixture using the dynamic-programming planner with temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run a cost-vs-circularity Pareto landscape with 100 points using the shortlisted candidates, requiring 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot all feasible points and highlight the Pareto frontier from the optimization results",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request follows a standard sequence of separation design followed by multi-objective optimization and visualization of the Pareto frontier.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_pareto_landscape",
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_4",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 34% LDPE, 33% EVOH, and 33% PET under scenario A, have the separation engineer propose the top 8 solvent candidates per polymer using the dynamic-programming planner, including temperature recommendations for each candidate. Then run cost-vs-circularity Pareto landscape optimization with the routed candidates, requiring at least 1 STRAP wash and allowing up to 2 washes. Plot all feasible points and highlight the frontier.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 8 solvent candidates and temperature recommendations for LDPE, EVOH, and PET using the dynamic-programming planner",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform cost-vs-circularity Pareto landscape optimization using the proposed candidates, constrained to 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the Pareto landscape feasible points and frontier",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_dp_state_map",
+          "optimization_pareto_landscape"
+        ],
+        "confidence": "high",
+        "rationale": "The request involves a sequence of separation design, pathway optimization under constraints, and specialized Pareto visualization."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 34% LDPE, 33% EVOH, and 33% PET under scenario A, have the separation engineer propose the top 8 solvent candidates per polymer using the dynamic-programming planner, including temperature recommendations for each candidate. Then run cost-vs-circularity Pareto landscape optimization with the routed candidates, requiring at least 1 STRAP wash and allowing up to 2 washes. Plot all feasible points and highlight the frontier.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 8 solvent candidates and temperature recommendations for LDPE, EVOH, and PET using the dynamic-programming planner",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform cost-vs-circularity Pareto landscape optimization using the proposed candidates, constrained to 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the Pareto landscape feasible points and frontier",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request involves a sequence of separation design, pathway optimization under constraints, and specialized Pareto visualization.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_dp_state_map",
+          "optimization_pareto_landscape"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_5",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then run cost-vs-circularity Pareto landscape optimization for five fixed feed compositions: 20/60/20, 34/33/33, 60/20/20, 20/20/60, and 5/5/90. Require at least 1 STRAP wash and allow up to 2 washes. Save one PNG per composition and one combined comparison plot showing all feasible points colored by composition, with each composition's frontier highlighted.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 12 solvent candidates per polymer and design a dynamic-programming separation route for the LDPE/EVOH/PET stream",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform cost-vs-circularity Pareto landscape optimization for the five specified feed compositions (20/60/20, 34/33/33, 60/20/20, 20/20/60, 5/5/90) under scenario A, requiring 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate individual Pareto plots for each composition and a combined comparison dashboard highlighting feasible points and frontiers",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_dp_state_map",
+          "optimization_pareto_landscape",
+          "optimization_pareto_slices_plot",
+          "visualization_artifact.v1"
+        ],
+        "confidence": "high",
+        "rationale": "The request involves sequential separation planning followed by multi-composition pathway optimization and specific visualization of Pareto frontiers."
+      },
+      "validated": {
+        "query": "For mixed LDPE/EVOH/PET feedstocks at 8000 tonnes/year under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then run cost-vs-circularity Pareto landscape optimization for five fixed feed compositions: 20/60/20, 34/33/33, 60/20/20, 20/20/60, and 5/5/90. Require at least 1 STRAP wash and allow up to 2 washes. Save one PNG per composition and one combined comparison plot showing all feasible points colored by composition, with each composition's frontier highlighted.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 12 solvent candidates per polymer and design a dynamic-programming separation route for the LDPE/EVOH/PET stream",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform cost-vs-circularity Pareto landscape optimization for the five specified feed compositions (20/60/20, 34/33/33, 60/20/20, 20/20/60, 5/5/90) under scenario A, requiring 1-2 STRAP washes",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate individual Pareto plots for each composition and a combined comparison dashboard highlighting feasible points and frontiers",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request involves sequential separation planning followed by multi-composition pathway optimization and specific visualization of Pareto frontiers.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_dp_state_map",
+          "optimization_pareto_landscape",
+          "optimization_pareto_slices_plot",
+          "visualization_artifact.v1"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_6",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 5% LDPE, 5% EVOH, and 90% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then pass those candidates to the optimization engineer to run a Pareto sweep of total cost vs circularity with 100 points, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Plot the Pareto landscape including all feasible points and highlight the frontier.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify the top 12 solvent candidates per polymer (LDPE, EVOH, PET) using the dynamic-programming planner including temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 100-point Pareto sweep of total cost vs circularity for the LDPE/EVOH/PET feedstock (8000 t/y) using the shortlisted solvents, with 1-2 STRAP wash steps under scenario A",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate the Pareto landscape plot highlighting all feasible points and the frontier from the optimization results",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_pareto_landscape"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires sequential steps: solvent shortlisting by the separation engineer, multi-objective optimization for cost vs circularity, and a final Pareto visualization."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 5% LDPE, 5% EVOH, and 90% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then pass those candidates to the optimization engineer to run a Pareto sweep of total cost vs circularity with 100 points, requiring at least 1 STRAP wash step and allowing up to 2 wash steps. Plot the Pareto landscape including all feasible points and highlight the frontier.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify the top 12 solvent candidates per polymer (LDPE, EVOH, PET) using the dynamic-programming planner including temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 100-point Pareto sweep of total cost vs circularity for the LDPE/EVOH/PET feedstock (8000 t/y) using the shortlisted solvents, with 1-2 STRAP wash steps under scenario A",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate the Pareto landscape plot highlighting all feasible points and the frontier from the optimization results",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires sequential steps: solvent shortlisting by the separation engineer, multi-objective optimization for cost vs circularity, and a final Pareto visualization.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_pareto_landscape"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_7",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% LDPE, 20% EVOH, and 20% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then run cost-vs-circularity Pareto landscape optimization with 100 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Save the plot under a composition-specific filename and report the frontier points.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 12 solvent candidates per polymer for LDPE/EVOH/PET using the dynamic-programming planner with temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 100-point cost-vs-circularity Pareto landscape optimization (1-2 STRAP washes) for the 8000 tpy feedstock",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate and save the Pareto landscape plot with a composition-specific filename",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_pareto_landscape",
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires a separation route design (shortlist/DP) followed by a specific Pareto optimization and a custom visualization plot."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% LDPE, 20% EVOH, and 20% PET under scenario A, have the separation engineer propose the top 12 solvent candidates per polymer using the dynamic-programming planner with temperature recommendations. Then run cost-vs-circularity Pareto landscape optimization with 100 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Save the plot under a composition-specific filename and report the frontier points.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "propose top 12 solvent candidates per polymer for LDPE/EVOH/PET using the dynamic-programming planner with temperature recommendations",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "perform a 100-point cost-vs-circularity Pareto landscape optimization (1-2 STRAP washes) for the 8000 tpy feedstock",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate and save the Pareto landscape plot with a composition-specific filename",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires a separation route design (shortlist/DP) followed by a specific Pareto optimization and a custom visualization plot.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_pareto_landscape",
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_8",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, compare two constrained optimization cases: all material sent directly to downstream waste management with no STRAP wash, and at least one STRAP wash using the routed separation candidates. Report both structured results and plot the cost-vs-circularity comparison.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify separation candidates and routes for the PE/EVOH feedstock",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run two optimization cases (no STRAP vs. at least one STRAP) for the 8000 tpy PE/EVOH stream under scenario A",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the cost-vs-circularity comparison for the two optimization cases",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_point_result"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires finding separation routes first, then performing constrained optimization for two cases, followed by a visualization of the comparison."
+      },
+      "validated": {
+        "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under scenario A, compare two constrained optimization cases: all material sent directly to downstream waste management with no STRAP wash, and at least one STRAP wash using the routed separation candidates. Report both structured results and plot the cost-vs-circularity comparison.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify separation candidates and routes for the PE/EVOH feedstock",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run two optimization cases (no STRAP vs. at least one STRAP) for the 8000 tpy PE/EVOH stream under scenario A",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the cost-vs-circularity comparison for the two optimization cases",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires finding separation routes first, then performing constrained optimization for two cases, followed by a visualization of the comparison.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_point_result"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_9",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "For LDPE/EVOH/PET feedstocks at 8000 tonnes/year under scenario A, sweep feed compositions over a 10% grid with at least 20% LDPE, 20% EVOH, and 20% PET. Require at least one STRAP wash and allow up to two washes. For each composition, run a cost-vs-circularity Pareto landscape from the top 12 separation-engineer candidates per polymer, then identify the composition that maximizes profit and the composition that maximizes circularity. Save per-slice plots and a combined composition-sweep summary.",
+      "expected_label": "separation-engineer -> optimization-engineer -> visualization-specialist; possibly statistics-ml for summary",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Identify the top 12 separation candidates and sequences for LDPE, EVOH, and PET, ensuring feasibility for STRAP wash processes.",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "Run a 10% grid composition sweep (min 20% each polymer) for LDPE/EVOH/PET at 8000 tonnes/year to generate cost-vs-circularity Pareto landscapes with 1-2 STRAP washes, identifying max profit and max circularity points.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate per-slice Pareto plots and a combined composition-sweep summary visualization from the optimization results.",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_pareto_slices",
+          "optimization_pareto_slices_plot"
+        ],
+        "confidence": "high",
+        "rationale": "The request involves a multi-objective Pareto optimization across a composition grid, which requires the optimization-engineer to process candidates from the separation-engineer and the visualization-specialist to render the multi-panel landscape plots."
+      },
+      "validated": {
+        "query": "For LDPE/EVOH/PET feedstocks at 8000 tonnes/year under scenario A, sweep feed compositions over a 10% grid with at least 20% LDPE, 20% EVOH, and 20% PET. Require at least one STRAP wash and allow up to two washes. For each composition, run a cost-vs-circularity Pareto landscape from the top 12 separation-engineer candidates per polymer, then identify the composition that maximizes profit and the composition that maximizes circularity. Save per-slice plots and a combined composition-sweep summary.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Identify the top 12 separation candidates and sequences for LDPE, EVOH, and PET, ensuring feasibility for STRAP wash processes.",
+            "depends_on": []
+          },
+          {
+            "subagent": "optimization-engineer",
+            "objective": "Run a 10% grid composition sweep (min 20% each polymer) for LDPE/EVOH/PET at 8000 tonnes/year to generate cost-vs-circularity Pareto landscapes with 1-2 STRAP washes, identifying max profit and max circularity points.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate per-slice Pareto plots and a combined composition-sweep summary visualization from the optimization results.",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request involves a multi-objective Pareto optimization across a composition grid, which requires the optimization-engineer to process candidates from the separation-engineer and the visualization-specialist to render the multi-panel landscape plots.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_pareto_slices",
+          "optimization_pareto_slices_plot"
+        ]
+      }
+    },
+    {
+      "id": "bank_10_10",
+      "source": "query_bank:10 optimization-engineer",
+      "query": "Run a cost-vs-circularity Pareto landscape for a mixed plastic feedstock of 8000 tonnes/year composed of 25% PP, 25% PS, 25% PVC, and 25% PC under scenario A with 12 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Use these optimizer-supported shortlisted solvent candidates: PP: Toluene and Cyclohexane; PS: Toluene and N,N-Dimethylformamide; PVC: N,N-Dimethylformamide and Dimethyl sulfoxide; PC: Toluene and N,N-Dimethylformamide. Constrain the Pareto frontier to the one-wash PVC-Dimethyl sulfoxide residual route, but keep the candidate-pool landscape points visible. Plot the resulting Pareto landscape, title it \"PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing\", and save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png\". Report the frontier points and saved path.",
+      "expected_label": "typed runtime selected optimization -> visualization-specialist",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run a 12-point cost-vs-circularity Pareto landscape optimization for the PP/PS/PVC/PC feedstock with specified solvent candidates and residual polymer constraints",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the Pareto landscape with the specified title and save the PNG to the requested file path",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "optimization_pareto_landscape"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires multi-polymer pathway optimization and Pareto landscape generation, which is the domain of the optimization-engineer, followed by specific plotting requirements for the visualization-specialist."
+      },
+      "validated": {
+        "query": "Run a cost-vs-circularity Pareto landscape for a mixed plastic feedstock of 8000 tonnes/year composed of 25% PP, 25% PS, 25% PVC, and 25% PC under scenario A with 12 points, requiring at least 1 STRAP wash and allowing up to 2 washes. Use these optimizer-supported shortlisted solvent candidates: PP: Toluene and Cyclohexane; PS: Toluene and N,N-Dimethylformamide; PVC: N,N-Dimethylformamide and Dimethyl sulfoxide; PC: Toluene and N,N-Dimethylformamide. Constrain the Pareto frontier to the one-wash PVC-Dimethyl sulfoxide residual route, but keep the candidate-pool landscape points visible. Plot the resulting Pareto landscape, title it \"PP/PS/PVC/PC Pareto Landscape with Residual Polymer Routing\", and save the PNG to \"/home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-2-validation/Pareto-4-polymer/optimization_pareto_circularity_pp25_ps25_pvc25_pc25_residuals_20260427.png\". Report the frontier points and saved path.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "optimization-engineer",
+            "objective": "run a 12-point cost-vs-circularity Pareto landscape optimization for the PP/PS/PVC/PC feedstock with specified solvent candidates and residual polymer constraints",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "plot the Pareto landscape with the specified title and save the PNG to the requested file path",
+            "depends_on": [
+              "optimization-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires multi-polymer pathway optimization and Pareto landscape generation, which is the domain of the optimization-engineer, followed by specific plotting requirements for the visualization-specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "optimization_pareto_landscape"
+        ]
+      }
+    },
+    {
+      "id": "cs1_t1_solvent_discovery",
+      "source": "case_study",
+      "query": "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, identify solvents that are promising for dissolving any one of the components below 100 deg C. Focus on separation-engineering usefulness, not just listing every solvent. Save any structured output to /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility/json.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify and shortlist promising solvents for LDPE, EVOH, and PET below 100 C based on separation engineering criteria and selectivity",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Identifying solvents with a focus on 'separation-engineering usefulness' rather than a raw lookup requires the separation specialist to evaluate selectivity and feasibility."
+      },
+      "validated": {
+        "query": "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, identify solvents that are promising for dissolving any one of the components below 100 deg C. Focus on separation-engineering usefulness, not just listing every solvent. Save any structured output to /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility/json.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify and shortlist promising solvents for LDPE, EVOH, and PET below 100 C based on separation engineering criteria and selectivity",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Identifying solvents with a focus on 'separation-engineering usefulness' rather than a raw lookup requires the separation specialist to evaluate selectivity and feasibility.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "cs1_t2_solubility_plot",
+      "source": "case_study",
+      "query": "Using the same LDPE/EVOH/PET feedstock, plot the predicted solubility or solubility-related response of all three polymers in dodecane and o-xylene from 25 to 100 deg C. Save the figure and structured data under /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Plot LDPE, EVOH, and PET solubility in dodecane and o-xylene from 25 to 100 C and save the output to /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Generating and saving multi-polymer solubility-vs-temperature plots is a core task for the visualization specialist."
+      },
+      "validated": {
+        "query": "Using the same LDPE/EVOH/PET feedstock, plot the predicted solubility or solubility-related response of all three polymers in dodecane and o-xylene from 25 to 100 deg C. Save the figure and structured data under /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Plot LDPE, EVOH, and PET solubility in dodecane and o-xylene from 25 to 100 C and save the output to /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/01-ldpe-evoh-pet-solubility",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Generating and saving multi-polymer solubility-vs-temperature plots is a core task for the visualization specialist.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "cs1_t3_state_map",
+      "source": "case_study",
+      "query": "Now generate a separation state map for all 3! possible LDPE/EVOH/PET separation sequences under a maximum processing temperature of 100 deg C. Save the state map figure and structured sequence-ranking output under the same case-study folder.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Design and rank all 6 possible LDPE/EVOH/PET separation sequences below 100 C.",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a separation state map figure from the sequence analysis.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "Separation design and sequence ranking are handled by the separation-engineer, while the requested state map is a specialist visualization artifact."
+      },
+      "validated": {
+        "query": "Now generate a separation state map for all 3! possible LDPE/EVOH/PET separation sequences under a maximum processing temperature of 100 deg C. Save the state map figure and structured sequence-ranking output under the same case-study folder.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Design and rank all 6 possible LDPE/EVOH/PET separation sequences below 100 C.",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a separation state map figure from the sequence analysis.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Separation design and sequence ranking are handled by the separation-engineer, while the requested state map is a specialist visualization artifact.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "cs1_t4_followup",
+      "source": "case_study",
+      "query": "From that state map, which separation sequence maximizes predicted separation efficiency across each step under the 100 deg C constraint? Use the structured sequence results rather than re-describing the feedstock.",
+      "expected_label": "",
+      "payload": {
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "The user is asking to extract the best sequence from a previously generated separation state map, which is a task for the orchestrator using existing session results."
+      },
+      "validated": {
+        "query": "From that state map, which separation sequence maximizes predicted separation efficiency across each step under the 100 deg C constraint? Use the structured sequence results rather than re-describing the feedstock.",
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The user is asking to extract the best sequence from a previously generated separation state map, which is a task for the orchestrator using existing session results.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "cs2_t1_data_coverage",
+      "source": "case_study",
+      "query": "For a co-mingled feedstock containing HDPE, LDPE, PP, PVC, PA6, PA66, PC, EVOH, PET, and PS, report which polymers have usable DISSOLVE solubility/separation data and identify promising solvent families below 100 deg C. Save structured output under /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/02-complex-feedstock/json.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify data coverage for the 10-polymer feedstock and shortlist promising solvent families below 100 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "Identifying promising solvent families and checking database coverage for a complex multi-polymer mixture at a specific temperature ceiling is a separation feasibility and shortlisting task."
+      },
+      "validated": {
+        "query": "For a co-mingled feedstock containing HDPE, LDPE, PP, PVC, PA6, PA66, PC, EVOH, PET, and PS, report which polymers have usable DISSOLVE solubility/separation data and identify promising solvent families below 100 deg C. Save structured output under /home/aaltamimi2/langchain-STRAP-v10-core/case-studies/case-1/02-complex-feedstock/json.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "identify data coverage for the 10-polymer feedstock and shortlist promising solvent families below 100 C",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Identifying promising solvent families and checking database coverage for a complex multi-polymer mixture at a specific temperature ceiling is a separation feasibility and shortlisting task.",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "cs2_t2_sequence_planning",
+      "source": "case_study",
+      "query": "Using only the polymers and solvent candidates with usable data, propose feasible separation sequence options under a maximum temperature of 100 deg C. If the full search space is too large, explain the pruning strategy and save structured outputs and figures under the same case-study folder.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "design feasible separation sequences below 100 C using available polymer and solvent data",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate separation tree plots and state maps for the proposed sequences",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires designing a multi-step separation sequence with a temperature constraint, which is the core function of the separation-engineer, followed by visualization of the results."
+      },
+      "validated": {
+        "query": "Using only the polymers and solvent candidates with usable data, propose feasible separation sequence options under a maximum temperature of 100 deg C. If the full search space is too large, explain the pruning strategy and save structured outputs and figures under the same case-study folder.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "design feasible separation sequences below 100 C using available polymer and solvent data",
+            "depends_on": []
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "generate separation tree plots and state maps for the proposed sequences",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires designing a multi-step separation sequence with a temperature constraint, which is the core function of the separation-engineer, followed by visualization of the results.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "cs2_t3_objective_comparison",
+      "source": "case_study",
+      "query": "Compare the top feasible sequence options under separation efficiency, solvent greenness, and cost or operating-burden proxies. Save all generated figures and structured outputs under the same case-study folder.",
+      "expected_label": "",
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Identify and rank the top feasible separation sequences for the multi-polymer mixture, including efficiency metrics.",
+            "depends_on": []
+          },
+          {
+            "subagent": "safety-analyst",
+            "objective": "Assess the solvent greenness and safety (GSK scores, hazards) for the solvents used in the top separation sequences.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Estimate the cost (MSP/CAPEX/OPEX) and environmental impact (GWP) for the top separation sequences.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a comparative analysis dashboard or plots showing separation efficiency vs. greenness vs. cost for all sequences.",
+            "depends_on": [
+              "separation-engineer",
+              "safety-analyst",
+              "biosteam-analyst"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "solvent_safety_comparison",
+          "biosteam_tea_lca_result",
+          "visualization_artifact_v1"
+        ],
+        "confidence": "high",
+        "rationale": "The request requires generating separation routes, evaluating them for safety and cost, and then visualizing the comparison across all three dimensions."
+      },
+      "validated": {
+        "query": "Compare the top feasible sequence options under separation efficiency, solvent greenness, and cost or operating-burden proxies. Save all generated figures and structured outputs under the same case-study folder.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Identify and rank the top feasible separation sequences for the multi-polymer mixture, including efficiency metrics.",
+            "depends_on": []
+          },
+          {
+            "subagent": "safety-analyst",
+            "objective": "Assess the solvent greenness and safety (GSK scores, hazards) for the solvents used in the top separation sequences.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "Estimate the cost (MSP/CAPEX/OPEX) and environmental impact (GWP) for the top separation sequences.",
+            "depends_on": [
+              "separation-engineer"
+            ]
+          },
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Generate a comparative analysis dashboard or plots showing separation efficiency vs. greenness vs. cost for all sequences.",
+            "depends_on": [
+              "separation-engineer",
+              "safety-analyst",
+              "biosteam-analyst"
+            ]
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The request requires generating separation routes, evaluating them for safety and cost, and then visualizing the comparison across all three dimensions.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "solvent_safety_comparison",
+          "biosteam_tea_lca_result",
+          "visualization_artifact_v1"
+        ]
+      }
+    },
+    {
+      "id": "followup_answer_from_results",
+      "source": "session_followup",
+      "query": "From that state map, which separation sequence maximizes predicted separation efficiency? Use the structured sequence results rather than re-describing the feedstock.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Generate a separation state map for all LDPE/EVOH/PET sequences under 100 C.\"\nAlready produced this session:\n- separation-engineer: completed (has: best_sequence, steps, solvent_mapping, top_k_sequences, polymers)",
+      "expected_mode": "orchestrator",
+      "expected_specialists": null,
+      "expected_specialists_any": null,
+      "forbidden_specialists": null,
+      "payload": {
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "answerable from the completed separation results already in session"
+      },
+      "validated": {
+        "query": "From that state map, which separation sequence maximizes predicted separation efficiency? Use the structured sequence results rather than re-describing the feedstock.",
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "answerable from the completed separation results already in session",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "followup_new_stage_tea",
+      "source": "session_followup",
+      "query": "Now estimate MSP and GWP for that route.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Design a separation sequence for LDPE/EVOH/PET below 120 C.\"\nAlready produced this session:\n- separation-engineer: completed (has: best_sequence, steps, solvent_mapping, top_k_sequences, polymers)",
+      "expected_mode": "specialists",
+      "expected_specialists": [
+        "biosteam-analyst"
+      ],
+      "expected_specialists_any": null,
+      "forbidden_specialists": [
+        "separation-engineer"
+      ],
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "estimate MSP and GWP for the already-designed LDPE/EVOH/PET route",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ],
+        "confidence": "high",
+        "rationale": "Calculating MSP and GWP requires the biosteam-analyst; the separation route is already available in the session context."
+      },
+      "validated": {
+        "query": "Now estimate MSP and GWP for that route.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "biosteam-analyst",
+            "objective": "estimate MSP and GWP for the already-designed LDPE/EVOH/PET route",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Calculating MSP and GWP requires the biosteam-analyst; the separation route is already available in the session context.",
+        "validation_notes": [],
+        "deliverables": [
+          "biosteam_tea_lca_result"
+        ]
+      }
+    },
+    {
+      "id": "followup_new_stage_safety",
+      "source": "session_followup",
+      "query": "Add safety scoring for the solvents used in that route.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Design a separation sequence for LDPE/EVOH/PET below 120 C.\"\nAlready produced this session:\n- separation-engineer: completed (has: best_sequence, steps, solvent_mapping, top_k_sequences, polymers)",
+      "expected_mode": "specialists",
+      "expected_specialists": [
+        "safety-analyst"
+      ],
+      "expected_specialists_any": null,
+      "forbidden_specialists": [
+        "separation-engineer"
+      ],
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "provide safety scoring and hazard assessments for the solvents identified in the previously generated LDPE/EVOH/PET separation route",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ],
+        "confidence": "high",
+        "rationale": "Safety analysis is requested for the existing separation route results."
+      },
+      "validated": {
+        "query": "Add safety scoring for the solvents used in that route.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "safety-analyst",
+            "objective": "provide safety scoring and hazard assessments for the solvents identified in the previously generated LDPE/EVOH/PET separation route",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Safety analysis is requested for the existing separation route results.",
+        "validation_notes": [],
+        "deliverables": [
+          "solvent_safety_comparison"
+        ]
+      }
+    },
+    {
+      "id": "followup_redo_with_new_params",
+      "source": "session_followup",
+      "query": "Redo the separation with a 140 C ceiling instead.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Design a separation sequence for LDPE/EVOH/PET below 120 C.\"\nAlready produced this session:\n- separation-engineer: completed (has: best_sequence, steps, solvent_mapping, top_k_sequences, polymers)",
+      "expected_mode": "specialists",
+      "expected_specialists": [
+        "separation-engineer"
+      ],
+      "expected_specialists_any": null,
+      "forbidden_specialists": null,
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "redesign the LDPE/EVOH/PET separation sequence with a 140 C temperature ceiling",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "separation_dp_state_map"
+        ],
+        "confidence": "high",
+        "rationale": "requires a new separation design analysis due to the updated temperature constraint"
+      },
+      "validated": {
+        "query": "Redo the separation with a 140 C ceiling instead.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "redesign the LDPE/EVOH/PET separation sequence with a 140 C temperature ceiling",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "requires a new separation design analysis due to the updated temperature constraint",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot",
+          "separation_dp_state_map"
+        ]
+      }
+    },
+    {
+      "id": "followup_compare_existing",
+      "source": "session_followup",
+      "query": "Which of the two solvents had the lower MSP, and by how much?",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Run BioSTEAM TEA for PE with toluene and with DMSO under case C1.\"\nAlready produced this session:\n- biosteam-analyst: completed (has: target_plastic, energy_case, results)",
+      "expected_mode": "orchestrator",
+      "expected_specialists": null,
+      "expected_specialists_any": null,
+      "forbidden_specialists": null,
+      "payload": {
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "deliverables": [],
+        "confidence": "high",
+        "rationale": "answerable from the completed BioSTEAM results already in session"
+      },
+      "validated": {
+        "query": "Which of the two solvents had the lower MSP, and by how much?",
+        "mode": "orchestrator",
+        "steps": [],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "answerable from the completed BioSTEAM results already in session",
+        "validation_notes": [],
+        "deliverables": []
+      }
+    },
+    {
+      "id": "followup_retry_after_failure",
+      "source": "session_followup",
+      "query": "The separation step failed \u2014 please try it again.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Design a separation sequence for LDPE/EVOH/PET below 120 C.\"\nAlready produced this session:\n- separation-engineer: FAILED",
+      "expected_mode": "specialists",
+      "expected_specialists": [
+        "separation-engineer"
+      ],
+      "expected_specialists_any": null,
+      "forbidden_specialists": null,
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Design a separation sequence for LDPE/EVOH/PET below 120 C.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "separation_tree_plot"
+        ],
+        "confidence": "high",
+        "rationale": "Retrying the failed separation analysis using the appropriate specialist."
+      },
+      "validated": {
+        "query": "The separation step failed \u2014 please try it again.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "separation-engineer",
+            "objective": "Design a separation sequence for LDPE/EVOH/PET below 120 C.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "Retrying the failed separation analysis using the appropriate specialist.",
+        "validation_notes": [],
+        "deliverables": [
+          "separation_tree_plot"
+        ]
+      }
+    },
+    {
+      "id": "followup_plot_prior_tea",
+      "source": "session_followup",
+      "query": "Plot the cost breakdown comparison from that TEA.",
+      "expected_label": "",
+      "session_digest": "[SESSION CONTEXT]\nPrevious user requests:\n1. \"Run BioSTEAM TEA for PE with toluene and with DMSO under case C1.\"\nAlready produced this session:\n- biosteam-analyst: completed (has: target_plastic, energy_case, results)",
+      "expected_mode": "specialists",
+      "expected_specialists": null,
+      "expected_specialists_any": [
+        "visualization-specialist",
+        "biosteam-analyst"
+      ],
+      "forbidden_specialists": null,
+      "payload": {
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Plot the cost breakdown comparison from the previously completed BioSTEAM TEA results.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "deliverables": [
+          "biosteam_tea_lca_plot"
+        ],
+        "confidence": "high",
+        "rationale": "The user is requesting a visualization of the techno-economic results that were already generated in the previous step."
+      },
+      "validated": {
+        "query": "Plot the cost breakdown comparison from that TEA.",
+        "mode": "specialists",
+        "steps": [
+          {
+            "subagent": "visualization-specialist",
+            "objective": "Plot the cost breakdown comparison from the previously completed BioSTEAM TEA results.",
+            "depends_on": []
+          }
+        ],
+        "excluded_subagents": [],
+        "confidence": "high",
+        "source": "planner",
+        "rationale": "The user is requesting a visualization of the techno-economic results that were already generated in the previous step.",
+        "validation_notes": [],
+        "deliverables": [
+          "biosteam_tea_lca_plot"
+        ]
+      }
+    }
+  ]
+}

@@ -241,12 +241,56 @@ def test_compile_biosteam_plot_snapshot():
     assert result.plan.steps[1].tool_args_template["output_dir"] == "/tmp/biosteam_case"
 
 
-def test_compile_biosteam_requires_energy_case():
+def test_compile_biosteam_defaults_energy_case_with_assumption():
+    """No energy case in the query compiles with the tool default (C1) recorded
+    as an explicit assumption instead of dead-ending in clarification."""
     result = compile_request("Estimate CAPEX/OPEX/GWP for LDPE recovered with Cyclohexane.", created_at=FIXED_TIME)
 
-    assert result.status == "clarification_required"
+    assert result.status == "compiled"
     assert result.plan is not None
-    assert {item.name for item in result.plan.missing_inputs} == {"energy_case"}
+    assert result.plan.steps[0].tool_args_template["energy_case"] == "C1"
+    assumption = next(a for a in result.plan.assumptions if a.key == "energy_case")
+    assert assumption.value == "C1"
+    assert assumption.source == "default"
+
+
+def test_compile_biosteam_accepts_named_energy_configurations():
+    """CHP / Grid+Boiler vocabulary (as advertised in the subagent description)
+    maps to C1/C3 instead of failing extraction."""
+    chp = compile_request(
+        "Run BioSTEAM TEA for PE with toluene under the CHP energy configuration.",
+        created_at=FIXED_TIME,
+    )
+    assert chp.status == "compiled"
+    assert chp.plan.steps[0].tool_args_template["energy_case"] == "C1"
+
+    boiler = compile_request(
+        "Run BioSTEAM TEA for PE with toluene under the Grid+Boiler energy scenario.",
+        created_at=FIXED_TIME,
+    )
+    assert boiler.status == "compiled"
+    assert boiler.plan.steps[0].tool_args_template["energy_case"] == "C3"
+
+
+def test_compile_biosteam_multi_solvent_defers_to_specialist():
+    """Batch solvent comparisons compile but are not typed-enforcement
+    targets — the biosteam-analyst specialist owns run_biosteam_batch."""
+    result = compile_request(
+        "Batch-screen toluene, xylene, and dodecane for PE recovery TEA under case C1 and rank by MSP.",
+        created_at=FIXED_TIME,
+    )
+
+    assert result.status == "compiled"
+    assert any(a.key == "typed_enforcement" and a.value == "deferred_to_specialist"
+               for a in result.plan.assumptions)
+    required = {
+        contract.artifact_type
+        for step in result.plan.steps
+        for out in step.output_contracts
+        for contract in out.artifact_contracts
+        if contract.required
+    }
+    assert "biosteam_tea_lca_result" not in required
 
 
 def test_compile_biosteam_intent_wins_over_generic_optimize_word():

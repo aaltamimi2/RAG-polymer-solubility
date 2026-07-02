@@ -34,11 +34,7 @@ from strap.langsmith_tracing import (
     stop_subagent_trace_capture,
 )
 from strap.ml_assets import load_ml_polymer_catalog, missing_ml_assets
-from strap.routing_classifier import (
-    classify_query_keywords,
-    plan_workflow_rules,
-    select_workflow_rules,
-)
+from strap.route_planner import fallback_route_plan, get_active_route_plan
 from strap.routing_handoff_state import (
     _get_built_handoff_since,
     _get_missing_required_handoffs_for_consumer,
@@ -274,12 +270,10 @@ def _resolve_langsmith_run_links(run_tree: Any) -> dict[str, str | None]:
 def _deterministic_allowed_rules(query_text: str) -> list[dict[str, Any]]:
     if not query_text.strip():
         return []
-    keyword_matched = classify_query_keywords([HumanMessage(content=query_text)])
-    matched = select_workflow_rules(
-        query_text,
-        keyword_matched=keyword_matched,
-    )
-    return plan_workflow_rules(query_text, matched)
+    # Prefer the active route plan (computed by the agent's planner for this
+    # query); otherwise fall back to the deterministic keyword plan.
+    plan = get_active_route_plan(query_text) or fallback_route_plan(query_text)
+    return plan.to_rules()
 
 
 def _compute_node_levels(nodes: list[dict[str, Any]]) -> dict[str, int]:

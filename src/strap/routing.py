@@ -1,13 +1,10 @@
 """Routing middleware for the DISSOLVE orchestrator agent.
 
-Provides LLM-based semantic routing with keyword fallback. Advisory hints
-are appended to the system prompt before each LLM call. The hints are
-advisory — the LLM remains in control and can override them.
-
-Single source of truth: ROUTING_RULES defines both the prompt routing table
-(via generate_routing_table()), the runtime keyword matcher (via
-classify_query_keywords()), and the LLM classifier prompt (via
-_build_subagent_list()).
+Planner-first semantic routing: a single :class:`~strap.route_planner.RoutePlanner`
+decision (LLM-backed, keyword fallback) drives the advisory hints appended to
+the system prompt, the task()/tool guards, and the workflow progress
+machinery. The hints remain advisory — the orchestrator LLM stays in control
+within the planned specialist set.
 """
 
 from __future__ import annotations
@@ -21,21 +18,18 @@ from deepagents.middleware._utils import append_to_system_message
 from langchain.agents.middleware.types import AgentMiddleware
 from langchain_core.messages import ToolMessage
 
+from .route_planner import (
+    LLMRoutePlannerBackend,
+    RoutePlan,
+    RoutePlanner,
+    build_session_digest,
+)
 from .routing_classifier import (
     _build_hint_from_matches,
-    _normalize_matched_rules,
     build_direct_answer_hint,
-    classify_query_keywords,
-    classify_query_llm,
-    explain_routing_decision,
     generate_routing_table,
-    is_direct_answer_query,
     is_direct_solubility_plot_query,
     is_direct_solubility_lookup_query,
-    is_statistics_ml_explicit_query,
-    order_workflow_rules,
-    plan_workflow_rules,
-    select_workflow_rules,
 )
 
 from .routing_progress import (
@@ -94,6 +88,12 @@ _DIRECT_ANSWER_BLOCKED_TOOLS = {
     "predict_solubility_range",
     "list_interpolation_coverage",
 }
+_GENERIC_DIRECT_HINT = (
+    "\n\n[DIRECT_ANSWER: The route planner classified this as a direct core-tool "
+    "lookup. Do not delegate to task(). Answer from the core database/lookup tools "
+    "and keep the response compact. Do not invent constraints the user did not "
+    "provide.]"
+)
 # ------------------------------------------------------------------
 # Middleware helpers
 # ------------------------------------------------------------------
@@ -114,16 +114,24 @@ def _latest_ai_origin(messages: list) -> str | None:
 # ------------------------------------------------------------------
 
 class RoutingMiddleware(AgentMiddleware):
-    """LLM-based semantic routing with keyword fallback.
+    """Planner-first semantic routing.
 
-    - First call (no completed subagents): try LLM classifier → fall back
-      to keywords → build advisory hint.
-    - Subsequent calls: progress tracking only (keyword-based, no LLM needed).
+    - First call (no completed subagents): compute the RoutePlan (one
+      planner-model call, cached per query; keyword fallback offline) and
+      inject the advisory hint derived from it.
+    - Subsequent calls: progress tracking against the same plan.
     """
 
-    def __init__(self, classifier_model: BaseChatModel | None = None) -> None:
-        self._classifier_model = classifier_model
-        self._route_cache: dict[str, list[dict]] = {}
+    def __init__(
+        self,
+        classifier_model: BaseChatModel | None = None,
+        *,
+        planner: RoutePlanner | None = None,
+    ) -> None:
+        if planner is None:
+            backend = LLMRoutePlannerBackend(classifier_model) if classifier_model is not None else None
+            planner = RoutePlanner(backend=backend)
+        self._planner = planner
 
     def wrap_model_call(
         self,
@@ -215,22 +223,13 @@ class RoutingMiddleware(AgentMiddleware):
         tool_call = request.tool_call
         state_messages = (request.state or {}).get("messages", [])
         query_text = _get_last_human_message(state_messages) or ""
-        if (
-            tool_call.get("name") == "task"
-            and str((tool_call.get("args") or {}).get("subagent_type") or "") == "statistics-ml"
-            and not is_statistics_ml_explicit_query(query_text)
-        ):
-            return ToolMessage(
-                content=(
-                    "Router guard: `statistics-ml` is reserved for explicit HSP/RED, "
-                    "statistical, ML, or thermal-property requests. This looks like a "
-                    "routine solvent-candidate/separation query; answer with core "
-                    "solubility tools or the separation engineer instead."
-                ),
-                tool_call_id=tool_call["id"],
-                status="error",
-            )
-        if tool_call.get("name") == "task" and is_direct_answer_query(query_text):
+        plan = self._get_plan(query_text, state_messages)
+        # Hard (execution-affecting) blocks require an authoritative plan:
+        # planner-sourced, or fallback in a deliberate no-backend deployment.
+        # A degraded planner leaves keyword output advisory-only.
+        if not self._planner.is_authoritative(plan):
+            return handler(request)
+        if tool_call.get("name") == "task" and plan.is_direct:
             return ToolMessage(
                 content=(
                     "Router guard: this is a direct core-tool lookup, not a specialist workflow. "
@@ -240,8 +239,28 @@ class RoutingMiddleware(AgentMiddleware):
                 tool_call_id=tool_call["id"],
                 status="error",
             )
+        if tool_call.get("name") == "task" and plan.is_specialists:
+            requested = str((tool_call.get("args") or {}).get("subagent_type") or "")
+            planned_names = plan.subagent_names()
+            if (
+                requested
+                and requested not in planned_names
+                and plan.source == "planner"
+                and plan.confidence == "high"
+            ):
+                specialists = ", ".join(planned_names)
+                return ToolMessage(
+                    content=(
+                        f"Router guard: `{requested}` is not part of the planned workflow "
+                        f"for this query. Dispatch task() for: {specialists}. If the user's "
+                        "request genuinely needs another specialist, re-read the query and "
+                        "explain the deviation in your final synthesis."
+                    ),
+                    tool_call_id=tool_call["id"],
+                    status="error",
+                )
         if (
-            is_direct_answer_query(query_text)
+            plan.is_direct
             and not is_direct_solubility_lookup_query(query_text)
             and not is_direct_solubility_plot_query(query_text)
             and tool_call.get("name") in _DIRECT_ANSWER_BLOCKED_TOOLS
@@ -300,10 +319,13 @@ class RoutingMiddleware(AgentMiddleware):
         allowed_rules = self._get_allowed_rules(request.messages)
 
         if not returned_calls:
-            hint = (
-                build_direct_answer_hint(query_text or "")
-                or _build_hint_from_matches(allowed_rules)
-            )
+            plan = self._get_plan(query_text or "", request.messages)
+            if plan.is_direct:
+                hint = build_direct_answer_hint(query_text or "") or _GENERIC_DIRECT_HINT
+            elif plan.is_specialists:
+                hint = _build_hint_from_matches(allowed_rules, query_text=query_text or "")
+            else:
+                hint = None
 
             if hint:
                 logger.info(
@@ -364,38 +386,30 @@ class RoutingMiddleware(AgentMiddleware):
                     "routing_middleware: LLM decided tool_calls=%s", tool_names,
                 )
 
+    def _get_plan(self, query_text: str, messages: list | None = None) -> RoutePlan:
+        """Compute (or reuse) the session-aware RoutePlan for the active query.
+
+        The session digest is derived from history before the current user
+        turn, so every consumer sees the same plan for the whole turn; the
+        planner's own cache is keyed by (query, digest).
+        """
+        return self._planner.plan(
+            query_text,
+            session_digest=build_session_digest(messages) if messages else None,
+        )
+
     def _get_allowed_rules(self, messages: list) -> list[dict]:
-        """Return the classifier-selected specialist set for the active query."""
+        """Return the planned specialist set for the active query as rule dicts."""
         query_text = _get_last_human_message(messages) or ""
-        cache_key = query_text.strip()
-        if cache_key in self._route_cache:
-            return self._route_cache[cache_key]
-
-        llm_matched = None
-        keyword_matched = classify_query_keywords(messages)
-        if self._classifier_model and cache_key:
-            llm_matched = classify_query_llm(cache_key, self._classifier_model)
-
-        selected = select_workflow_rules(
-            cache_key,
-            llm_matched=llm_matched,
-            keyword_matched=keyword_matched,
-        )
-        matched = plan_workflow_rules(cache_key, selected)
-        decision = explain_routing_decision(
-            cache_key,
-            llm_matched=llm_matched,
-            keyword_matched=keyword_matched,
-        )
+        plan = self._get_plan(query_text.strip(), messages)
         logger.info(
-            "routing_middleware: route_decision direct=%s keyword=%s planned=%s reason=%s",
-            decision["direct_answer"]["is_direct"],
-            decision["keyword_matched"],
-            decision["planned"],
-            decision["direct_answer"]["reason"],
+            "routing_middleware: route_decision mode=%s planned=%s source=%s confidence=%s",
+            plan.mode,
+            plan.subagent_names(),
+            plan.source,
+            plan.confidence,
         )
-        self._route_cache[cache_key] = matched or []
-        return self._route_cache[cache_key]
+        return plan.to_rules()
 
     def _autodispatch_ready_handoff(self, request: ModelRequest, response, allowed_rules):
         """Synthesize the downstream task() once the next handoff is already validated."""

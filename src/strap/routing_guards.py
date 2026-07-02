@@ -160,18 +160,35 @@ def _query_explicitly_requests_visualization(messages: list) -> bool:
     query = _get_last_human_message(messages)
     if not query:
         return False
+
+    from .route_planner import get_active_route_plan
+
+    plan = get_active_route_plan(query)
+    if plan is not None and plan.source == "planner":
+        return "visualization-specialist" in plan.subagent_names()
+
     return bool(_VISUALIZATION_REQUEST_RE.search(query))
 
 
 def _query_has_explicit_biosteam_intent(messages: list) -> bool:
     """Whether the user explicitly asked for a TEA/LCA / BioSTEAM analysis.
 
-    Mirrors the intent regex used by the routing classifier so the
-    post-optimization dedup here stays in sync with initial classification.
+    Plan-first: when the route planner produced a plan for this query, its
+    decision is authoritative (biosteam-analyst in steps => intent; excluded
+    => no intent). The legacy intent regexes remain as the offline fallback.
     """
     query = _get_last_human_message(messages)
     if not query:
         return False
+
+    from .route_planner import get_active_route_plan
+
+    plan = get_active_route_plan(query)
+    if plan is not None and plan.source == "planner":
+        if "biosteam-analyst" in plan.excluded_subagents:
+            return False
+        return "biosteam-analyst" in plan.subagent_names()
+
     if _NEGATED_BIOSTEAM_RE.search(query):
         return False
     return bool(_EXPLICIT_BIOSTEAM_ANALYSIS_RE.search(query))

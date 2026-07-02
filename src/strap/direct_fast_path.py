@@ -48,7 +48,7 @@ _SOLVENT_LOOKUP_RE = re.compile(r"\b(?:solvents?|dissolv(?:e|es|ing)|solubil)\b"
 _SAFETY_CARD_RE = re.compile(
     r"\b(?:safety\s+(?:cards?|profiles?|suites?|dossiers?)|flash\s+point|vapou?r\s+pressure|"
     r"boiling\s+point|auto[- ]?(?:ignition|emission)|peroxide(?:\s+formation)?|ld50|toxicity|toxic(?:ity)?|"
-    r"(?:safely\s+)?(?:heat|heating|handle|handling))\b",
+    r"safest|safer|safe|(?:safely\s+)?(?:heat|heating|handle|handling))\b",
     re.IGNORECASE,
 )
 _HSP_DOMAIN_RE = re.compile(
@@ -67,6 +67,19 @@ _SINGLE_SOLUBILITY_RE = re.compile(
     r"\bsolubility\s+of\b(?=[^.?!]{0,160}\bat\s+\d+(?:\.\d+)?\s*(?:deg\s*)?(?:c|°c)\b)",
     re.IGNORECASE,
 )
+_SOLUBILITY_THRESHOLD_RE = re.compile(
+    r"\b(?:at\s+least|>=|greater\s+than|more\s+than|higher\s+than|above|over)\s*(?P<threshold>\d+(?:\.\d+)?)\s*%?",
+    re.IGNORECASE,
+)
+_SOLUBILITY_THRESHOLD_TOPIC_RE = re.compile(
+    r"\b(?:solubility|soluble|dissolv(?:e|es|ing)|works?)\b",
+    re.IGNORECASE,
+)
+_CONTEXT_LIMITED_SOLVENT_SCOPE_RE = re.compile(
+    r"\b(?:these|those|above|previous(?:ly)?|listed|shown|candidate|candidates)\s+solvents?\b"
+    r"|\bamong\s+(?:these|those|the\s+above|the\s+previous|the\s+listed)\b",
+    re.IGNORECASE,
+)
 _TOP_N_RE = re.compile(r"\btop\s+(?P<n>\d{1,2})\b", re.IGNORECASE)
 _VALUES_RE = re.compile(
     r"\b(?:exact\s+)?(?:values?|data|table|numbers?|points?|csv)\b",
@@ -77,6 +90,11 @@ _ARTIFACT_UPDATE_RE = re.compile(
     re.IGNORECASE,
 )
 _CONTEXT_REF_RE = re.compile(r"\b(?:these|those|each|same|previous|above|curves?|solvents?|top\s+\d+)\b", re.IGNORECASE)
+_POLYMER_CONTEXT_FILTER_RE = re.compile(
+    r"\b(?:for|of|in|targeting|dissolving)\s+"
+    r"(?P<polymer>LDPE|HDPE|LLDPE|PE|EVOH|PETG?|PP|PS|PVC|PC|PES|PMMA|ABS|PVDF|NYLON[- ]?6|NYLON[- ]?66)\b",
+    re.IGNORECASE,
+)
 _RESULT_NOUN_RE = re.compile(r"\b(?:result|results|outcome|solution)\b", re.IGNORECASE)
 _OPTIMIZATION_REF_RE = re.compile(
     r"\b(?:this|that|it|same|previous|above|result|results|outcome|solution)\b",
@@ -347,6 +365,22 @@ def _extract_context_list(text: str, key: str) -> list[str]:
     return _split_solvent_text(match.group(1))
 
 
+def _extract_candidate_rows_context(text: str) -> list[dict[str, str]]:
+    match = re.search(r"\brows=([^\n;]+(?:,\s*[^\n;]+)*)", text, re.IGNORECASE)
+    if not match:
+        return []
+    rows: list[dict[str, str]] = []
+    for item in match.group(1).split(","):
+        if ":" not in item:
+            continue
+        polymer_text, solvent_text = item.split(":", 1)
+        polymer = _resolve_polymer_name(polymer_text.strip())
+        solvent = _resolve_solvent_name(solvent_text.strip())
+        if polymer and solvent:
+            rows.append({"polymer": polymer, "solvent": solvent})
+    return rows
+
+
 def _split_solvent_text(text: str) -> list[str]:
     """Split solvent lists while preserving names like N,N-Dimethylformamide."""
     cleaned = text.strip(" .,:;")
@@ -424,11 +458,16 @@ def _extract_last_solvent_candidate_table(text: str) -> dict[str, Any] | None:
             for value in _extract_context_list(text, "solvent_candidates")
             if (solvent := _resolve_solvent_name(value))
         ]
+    rows = _extract_candidate_rows_context(text)
+    if not rows and polymers and solvents:
+        rows = [{"polymer": polymer, "solvent": solvent} for polymer in polymers for solvent in solvents]
     if not solvents:
         return None
     result: dict[str, Any] = {"polymer": polymer, "solvents": solvents}
     if polymers:
         result["polymers"] = polymers
+    if rows:
+        result["rows"] = rows
     return result
 
 
@@ -977,6 +1016,39 @@ def _extract_safety_solvents(user_request: str) -> list[str]:
     return []
 
 
+def _extract_context_safety_solvents(query_text: str, user_request: str) -> list[str]:
+    if not _CONTEXT_REF_RE.search(user_request):
+        return []
+    candidates = _extract_last_solvent_candidate_table(query_text)
+    requested_polymer = None
+    if match := _POLYMER_CONTEXT_FILTER_RE.search(user_request):
+        requested_polymer = _resolve_polymer_name(match.group("polymer"))
+    solvents: list[str] = []
+    if candidates:
+        rows = candidates.get("rows")
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                if requested_polymer and _resolve_polymer_name(str(row.get("polymer") or "")) != requested_polymer:
+                    continue
+                solvent = _resolve_safety_solvent_name(str(row.get("solvent") or ""))
+                if solvent:
+                    solvents.append(solvent)
+        if not solvents:
+            solvents = [_resolve_safety_solvent_name(str(value)) for value in candidates.get("solvents") or [] if str(value)]
+    if not solvents:
+        solvents = [
+            _resolve_safety_solvent_name(str(value))
+            for value in (
+                _extract_context_list(query_text, "solvent_candidates")
+                or _extract_context_list(query_text, "solvents")
+            )
+            if str(value)
+        ]
+    return _dedupe_preserving_order([solvent for solvent in solvents if solvent])
+
+
 def _combine_results(results: list[DirectFastPathResult], *, tool_name: str) -> DirectFastPathResult:
     if len(results) == 1:
         return results[0]
@@ -1089,6 +1161,149 @@ def _routine_solvent_candidate_lookup(
     return json.dumps({"display": "\n".join(display), "data": payload}, ensure_ascii=False)
 
 
+def _extract_solubility_threshold_pct(user_request: str) -> float | None:
+    if not _SOLUBILITY_THRESHOLD_TOPIC_RE.search(user_request):
+        return None
+    match = _SOLUBILITY_THRESHOLD_RE.search(user_request)
+    if not match:
+        return None
+    try:
+        return float(match.group("threshold"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _solubility_threshold_lookup(
+    *,
+    polymer: str,
+    temperature_c: float,
+    min_solubility_pct: float,
+    candidate_solvents: list[str] | None = None,
+    temperature_is_ceiling: bool = False,
+) -> str:
+    from strap.database import get_connection
+    from strap.tools.interpolation import get_boiling_point
+
+    conn = get_connection()
+    params: list[Any] = [polymer.upper(), float(temperature_c), float(min_solubility_pct)]
+    scope_clause = ""
+    scope_label = "all supported solvents"
+    scoped_solvents: list[str] = []
+    if candidate_solvents:
+        scoped_solvents = [str(solvent).strip().lower() for solvent in candidate_solvents if str(solvent).strip()]
+        if scoped_solvents:
+            placeholders = ", ".join("?" for _ in scoped_solvents)
+            scope_clause = f" AND LOWER(solvent) IN ({placeholders})"
+            params.extend(scoped_solvents)
+            scope_label = "prior listed solvents"
+
+    if temperature_is_ceiling:
+        df = conn.execute(
+            f"""
+            WITH ranked AS (
+                SELECT
+                    solvent,
+                    temperature___c_ AS temperature_c,
+                    solubility____ AS solubility_pct,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY solvent
+                        ORDER BY solubility____ DESC, temperature___c_ DESC
+                    ) AS rn
+                FROM common_solvents_database
+                WHERE UPPER(polymer) = ?
+                  AND temperature___c_ <= ?
+                  AND LOWER(solvent) <> 'triethylamine'
+                  AND solubility____ >= ?
+                  {scope_clause}
+            )
+            SELECT solvent, temperature_c, solubility_pct
+            FROM ranked
+            WHERE rn = 1
+            ORDER BY solubility_pct DESC, solvent
+            """,
+            params,
+        ).fetchdf()
+    else:
+        df = conn.execute(
+            f"""
+            SELECT
+                solvent,
+                temperature___c_ AS temperature_c,
+                solubility____ AS solubility_pct
+            FROM common_solvents_database
+            WHERE UPPER(polymer) = ?
+              AND temperature___c_ = ?
+              AND LOWER(solvent) <> 'triethylamine'
+              AND solubility____ >= ?
+              {scope_clause}
+            ORDER BY solubility____ DESC, solvent
+            """,
+            params,
+        ).fetchdf()
+    rows: list[dict[str, Any]] = []
+    for row in df.to_dict(orient="records"):
+        solvent = str(row["solvent"])
+        row_temperature_c = float(row.get("temperature_c", temperature_c))
+        bp = get_boiling_point(solvent)
+        rows.append(
+            {
+                "polymer": polymer.upper(),
+                "solvent": solvent,
+                "temperature_c": row_temperature_c,
+                "solubility_pct": float(row["solubility_pct"]),
+                "boiling_point_c": float(bp) if bp is not None else None,
+                "above_boiling_point_at_1atm": bool(bp is not None and row_temperature_c >= float(bp)),
+            }
+        )
+
+    payload: dict[str, Any] = {
+        "tool_name": "solubility_threshold_lookup",
+        "success": True,
+        "analysis_type": "solubility_threshold_lookup",
+        "polymer": polymer.upper(),
+        "temperature_c": float(temperature_c),
+        "temperature_is_ceiling": bool(temperature_is_ceiling),
+        "min_solubility_pct": float(min_solubility_pct),
+        "scope": scope_label,
+        "candidate_solvents": scoped_solvents,
+        "results": rows,
+        "n_results": len(rows),
+    }
+    display = [
+        (
+            f"**{polymer.upper()} solvents with solubility >= {min_solubility_pct:g}% at or below {temperature_c:g} C**"
+            if temperature_is_ceiling
+            else f"**{polymer.upper()} solvents with solubility >= {min_solubility_pct:g}% at {temperature_c:g} C**"
+        ),
+        "",
+        f"Scope: {scope_label}. Triethylamine excluded by current data-quality policy.",
+        "",
+    ]
+    if not rows:
+        display.append("No solvents met the threshold.")
+    else:
+        display.extend(
+            [
+                "| Solvent | Temp (C) | Solubility (%) | BP (C) | Atmospheric note |",
+                "| --- | ---: | ---: | ---: | --- |",
+            ]
+        )
+        for row in rows:
+            bp = row["boiling_point_c"]
+            bp_text = f"{bp:.1f}" if bp is not None else "N/A"
+            atm_note = "Above BP at 1 atm" if row["above_boiling_point_at_1atm"] else "Below BP at 1 atm"
+            display.append(
+                f"| {row['solvent']} | {row['temperature_c']:.1f} | {row['solubility_pct']:.2f} | {bp_text} | {atm_note} |"
+            )
+    display.extend(
+        [
+            "",
+            "Caveat: this is a grid-point database threshold screen, not a full selectivity/process-sequence optimization.",
+        ]
+    )
+    return json.dumps({"display": "\n".join(display), "data": payload}, ensure_ascii=False)
+
+
 def _artifact_solvents_from_rows(rows: list[dict[str, Any]]) -> list[str]:
     solvents: list[str] = []
     seen: set[str] = set()
@@ -1163,6 +1378,36 @@ def _build_artifacts_for_result(result: DirectFastPathResult) -> list[dict[str, 
                     },
                     row_order=solvents,
                     display_title=f"{', '.join(polymers[:4])} solvent candidates",
+                )
+            ]
+
+    if tool_name == "solubility_threshold_lookup":
+        rows = data.get("results") if isinstance(data.get("results"), list) else []
+        rows = [row for row in rows if isinstance(row, dict)]
+        solvents = _artifact_solvents_from_rows(rows)
+        polymer = data.get("polymer")
+        if polymer and solvents:
+            return [
+                make_artifact(
+                    artifact_type="solvent_candidate_table",
+                    producer=tool_name,
+                    entities={
+                        "polymer": polymer,
+                        "solvents": solvents,
+                        "temperature_c": data.get("temperature_c"),
+                        "temperature_is_ceiling": data.get("temperature_is_ceiling"),
+                        "min_solubility_pct": data.get("min_solubility_pct"),
+                    },
+                    data={
+                        "rows": rows,
+                        "temperature_c": data.get("temperature_c"),
+                        "temperature_is_ceiling": data.get("temperature_is_ceiling"),
+                        "min_solubility_pct": data.get("min_solubility_pct"),
+                        "scope": data.get("scope"),
+                        "candidate_solvents": data.get("candidate_solvents"),
+                    },
+                    row_order=solvents,
+                    display_title=f"{polymer} solubility threshold candidates",
                 )
             ]
 
@@ -1292,6 +1537,8 @@ def _route_intent_for_tool(tool_name: str) -> tuple[str, str]:
         return "direct_tool", "solubility_lookup"
     if tool_name == "list_available_solvents":
         return "direct_tool", "solvent_candidate_lookup"
+    if tool_name == "solubility_threshold_lookup":
+        return "direct_tool", "solvent_candidate_lookup"
     if tool_name in {"get_solvent_safety_card", "compare_solvent_safety_cards"}:
         return "direct_tool", "safety_lookup"
     if tool_name == "multi_tool_fast_path":
@@ -1371,6 +1618,8 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
         user_request, "safety_lookup"
     ):
         solvents = _extract_safety_solvents(user_request)
+        if not solvents:
+            solvents = _extract_context_safety_solvents(query_text, user_request)
         if solvents:
             operating_temp = _extract_operating_temperature(user_request)
             if len(solvents) > 1:
@@ -1391,6 +1640,42 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
 
     if values_spec := _build_values_followup_calls(query_text):
         return values_spec
+
+    if (threshold := _extract_solubility_threshold_pct(user_request)) is not None:
+        candidates = _extract_last_solvent_candidate_table(query_text)
+        polymer = _extract_target_polymer(user_request)
+        if not polymer and candidates:
+            polymer = candidates.get("polymer")
+        if not polymer:
+            for value in _extract_context_list(query_text, "polymer"):
+                polymer = _resolve_polymer_name(value)
+                if polymer:
+                    break
+        temperatures = extract_temperatures_c(user_request)
+        if polymer and temperatures:
+            candidate_solvents = None
+            if _CONTEXT_LIMITED_SOLVENT_SCOPE_RE.search(user_request) and candidates:
+                candidate_solvents = [str(value) for value in candidates.get("solvents") or [] if str(value)]
+            if _CONTEXT_LIMITED_SOLVENT_SCOPE_RE.search(user_request) and not candidate_solvents:
+                candidate_solvents = [
+                    solvent
+                    for value in (
+                        _extract_context_list(query_text, "solvent_candidates")
+                        or _extract_context_list(query_text, "solvents")
+                    )
+                    if (solvent := _resolve_solvent_name(value))
+                ]
+            return (
+                _solubility_threshold_lookup,
+                {
+                    "polymer": polymer,
+                    "temperature_c": float(temperatures[-1]),
+                    "min_solubility_pct": threshold,
+                    "candidate_solvents": candidate_solvents,
+                    "temperature_is_ceiling": has_temperature_ceiling(user_request),
+                },
+                "solubility_threshold_lookup",
+            )
 
     if combined_plot_spec := _build_combined_separation_solubility_plot_calls(query_text):
         return combined_plot_spec
@@ -1543,10 +1828,34 @@ def _try_direct_fast_path_impl(query_text: str, *, async_mode: bool = False):
     return None
 
 
-def try_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | None:
+def _plan_allows_fast_path(query_text: str, route_planner, session_digest: str | None = None) -> bool:
+    """Confirm a regex-proposed fast path against the route plan.
+
+    The shape regexes only propose; execution requires LLM-planned intent.
+    With no planner configured (deliberate keyword-mode deployment) the
+    legacy regex gating stands alone. With a planner configured, a fallback
+    plan means the planner is degraded — keyword output is advisory only,
+    so deterministic execution is refused and the orchestrator answers.
+    """
+    if route_planner is None:
+        return True
+    plan = route_planner.plan(query_text, session_digest=session_digest)
+    if plan.source != "planner":
+        return not getattr(route_planner, "has_backend", False)
+    if plan.is_direct or plan.mode == "orchestrator":
+        return True
+    # Deterministic safety-card rendering covers the safety-analyst-only case.
+    return set(plan.subagent_names()) <= {"safety-analyst"}
+
+
+def try_direct_tool_fast_path(
+    query_text: str, route_planner=None, session_digest: str | None = None
+) -> DirectFastPathResult | None:
     """Return a direct tool result for simple requests, or None to use the agent."""
     spec = _try_direct_fast_path_impl(query_text)
     if spec is None:
+        return None
+    if not _plan_allows_fast_path(query_text, route_planner, session_digest):
         return None
     specs = spec if isinstance(spec, list) else [spec]
     results: list[DirectFastPathResult] = []
@@ -1559,10 +1868,14 @@ def try_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | None:
     return _attach_orchestration_metadata(combined, tool_names=[result.tool_name for result in results])
 
 
-async def atry_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | None:
+async def atry_direct_tool_fast_path(
+    query_text: str, route_planner=None, session_digest: str | None = None
+) -> DirectFastPathResult | None:
     """Async variant of try_direct_tool_fast_path."""
     spec = _try_direct_fast_path_impl(query_text, async_mode=True)
     if spec is None:
+        return None
+    if not _plan_allows_fast_path(query_text, route_planner, session_digest):
         return None
     specs = spec if isinstance(spec, list) else [spec]
     results: list[DirectFastPathResult] = []
@@ -1576,11 +1889,24 @@ async def atry_direct_tool_fast_path(query_text: str) -> DirectFastPathResult | 
 
 
 class DirectToolFastPathMiddleware(AgentMiddleware):
-    """Short-circuit simple structured-tool requests before any chat model call."""
+    """Short-circuit simple structured-tool requests before any chat model call.
+
+    When constructed with a ``route_planner``, a regex-proposed fast path only
+    executes after the shared RoutePlan confirms direct-answer intent.
+    """
+
+    def __init__(self, route_planner=None) -> None:
+        self._route_planner = route_planner
 
     def wrap_model_call(self, request, handler):
+        from strap.route_planner import build_session_digest
+
         query_text = _get_last_human_message(request.messages)
-        result = try_direct_tool_fast_path(query_text)
+        result = try_direct_tool_fast_path(
+            query_text,
+            route_planner=self._route_planner,
+            session_digest=build_session_digest(request.messages),
+        )
         if result is None:
             return handler(request)
         return ModelResponse(
@@ -1600,8 +1926,14 @@ class DirectToolFastPathMiddleware(AgentMiddleware):
         )
 
     async def awrap_model_call(self, request, handler):
+        from strap.route_planner import build_session_digest
+
         query_text = _get_last_human_message(request.messages)
-        result = await atry_direct_tool_fast_path(query_text)
+        result = await atry_direct_tool_fast_path(
+            query_text,
+            route_planner=self._route_planner,
+            session_digest=build_session_digest(request.messages),
+        )
         if result is None:
             return await handler(request)
         return ModelResponse(

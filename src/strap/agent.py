@@ -44,6 +44,7 @@ from .claude_sdk_harness.runner import ClaudeSdkRunner  # noqa: E402
 from .direct_fast_path import DirectToolFastPathMiddleware  # noqa: E402
 from .prompts import FILE_IO_DIRECTIVE, THINK_DIRECTIVE, build_system_prompt  # noqa: E402
 from .result_extractor import StructuredResultExtractorMiddleware  # noqa: E402
+from .route_planner import LLMRoutePlannerBackend, RoutePlanner  # noqa: E402
 from .routing import RoutingMiddleware, generate_routing_table  # noqa: E402
 from .planning.typed_runtime_integration import TypedRuntimeMiddleware  # noqa: E402
 from .session_state import (  # noqa: E402
@@ -371,7 +372,7 @@ class CliModelSpec(TypedDict, total=False):
 
 _DEFAULT_CLI_MODEL_ALIAS = "gemini-flash-lite"
 _CLI_MODEL_PRIMARY_ALIASES = ("gemini-flash-lite", "gemini-pro", "claude-sonnet")
-_CLAUDE_CLI_MODEL_PRIMARY_ALIASES = ("claude-sonnet",)
+_CLAUDE_CLI_MODEL_PRIMARY_ALIASES = ("claude-haiku", "claude-sonnet")
 _DEFAULT_CLI_INTERACTION_MODE = "review"
 _DEFAULT_CLI_HARNESS = "langchain"
 _CLI_INTERACTION_MODES = {
@@ -867,20 +868,26 @@ def create_dissolve_agent(
         checkpointer = MemorySaver()
     model = init_chat_model(model_name)
 
-    # Lightweight Gemini Flash model shared by both the routing classifier
-    # and the output verifier — single instance, no extra cost.
+    # Lightweight Gemini Flash model shared by the route planner and the
+    # output verifier — single instance, no extra cost.
     flash_model = init_chat_model("google_genai:gemini-3-flash-preview")
 
-    # Semantic routing: LLM-based classifier with keyword fallback
-    routing = RoutingMiddleware(classifier_model=flash_model)
+    # One route plan per query, shared by every routing consumer. The planner
+    # decides intent; regex shape-matching only proposes fast-path execution.
+    route_planner = RoutePlanner(backend=LLMRoutePlannerBackend(flash_model))
+
+    # Semantic routing: planner-first with deterministic keyword fallback.
+    routing = RoutingMiddleware(planner=route_planner)
 
     # Deterministic direct-tool fast path: simple structured lookups can
     # render core tool output without spending a model call on synthesis.
-    direct_fast_path = DirectToolFastPathMiddleware()
+    # Execution requires plan confirmation of direct-answer intent.
+    direct_fast_path = DirectToolFastPathMiddleware(route_planner=route_planner)
 
     # Opt-in typed runtime: selected complex workflows compile to a typed plan
-    # and execute through production wrappers before legacy advisory routing.
-    typed_runtime = TypedRuntimeMiddleware()
+    # and execute through production wrappers. Interception is gated on the
+    # route plan so token matches cannot preempt research/RAG queries.
+    typed_runtime = TypedRuntimeMiddleware(route_planner=route_planner)
 
     # Output verifier: single reflection pass on the orchestrator's
     # final synthesis to catch unsupported claims / missing caveats.

@@ -1,22 +1,31 @@
-"""Query-classification helpers for orchestrator routing."""
+"""Legacy keyword/regex routing helpers.
+
+Routing decisions are made by :mod:`strap.route_planner`; this module now
+serves two support roles only:
+
+1. The deterministic fallback chain (`classify_query_keywords` →
+   `select_workflow_rules` → `plan_workflow_rules`) used when no planner
+   backend is available or its output fails validation.
+2. Shared rule/graph infrastructure: ``ROUTING_RULES`` loading, the
+   capability planning graph, dependency backchaining, workflow ordering,
+   and advisory-hint rendering.
+
+Do not add new regex intent patterns here — extend the planner prompt or
+capability metadata in ``config/subagents/*.yaml`` instead.
+"""
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from collections import defaultdict
-from typing import TYPE_CHECKING
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 
 from .planning_graph import GENERIC_CONTEXT_ARTIFACT, build_planning_graph
 from .query_context import extract_query_context
 from .subagent_config import load_routing_configuration
 from .user_input_parsing import contains_temperature_mention, has_temperature_ceiling
-
-if TYPE_CHECKING:
-    from langchain_core.language_models import BaseChatModel
 
 logger = logging.getLogger(__name__)
 _HINT_ORDER = {"low": 0, "medium": 1, "high": 2}
@@ -269,7 +278,7 @@ _ROUTINE_TEMP_CEILING_RE = re.compile(
 )
 _ROUTINE_SOLVENT_CANDIDATE_BLOCKER_RE = re.compile(
     r"\b("
-    r"separat(?:e|es|ing|ion|ions)?|selectiv(?:e|ely|ity)?|over|but\s+not|not\s+dissolv|"
+    r"separat(?:e|es|ing|ion|ions)?|selectivity|selective\s+(?:for|against)|over|but\s+not|not\s+dissolv|"
     r"rank|ranking|screen|screening|matrix|heatmap|compare|comparison|versus|vs\.?|"
     r"hansen|hsp|red\b|relative energy difference|ml prediction|machine learning|"
     r"statistical|statistics|correlation|regression|anova|thermal prediction|thermal propert|"
@@ -334,104 +343,6 @@ _QUERY_CONTEXT_LABEL_TO_GOALS: dict[str, tuple[str, ...]] = {
     "contaminant.screening": ("contaminant.screening", "contaminant.removal"),
     "optimization.pathway": ("optimization.pathway",),
 }
-
-
-def _build_subagent_list() -> str:
-    lines = []
-    for rule in ROUTING_RULES:
-        lines.append(f'- {rule["subagent"]}: {rule["description"]}')
-    return "\n".join(lines)
-
-
-_CLASSIFIER_SYSTEM_PROMPT = """\
-You are a query router for a polymer dissolution analysis system.
-Given a user query, identify which specialist(s) should handle it.
-
-Available specialists:
-{subagent_list}
-
-Respond with JSON only:
-{{"subagents": ["name1"], "confidence": "HIGH"|"MEDIUM"|"LOW"}}
-
-Rules:
-- Return the smallest sufficient set of subagent names ordered by relevance
-- You may return more than 3 subagent names when the query explicitly spans multiple stages or deliverables
-- Return {{"subagents": []}} if the orchestrator can handle it directly \
-(e.g. listing polymers, simple lookups)
-- Return {{"subagents": []}} for simple solvent lookup/recommendation questions \
-such as "what solvents dissolve LDPE" or "what are good solvents for dissolving LDPE", \
-even if the user mentions a mixed feedstock. Route only when the user asks for \
-selectivity, separation sequence/route, HSP/RED screening, temperature-dependent \
-solubility, TEA/LCA/CAPEX/OPEX/GWP, optimization, safety, contaminants, literature, \
-patents, or visualizations.
-- HIGH = clear specialist match, LOW = ambiguous
-- "separation-engineer" handles dissolution, purification, separation \
-sequences, selective solvents, mixed-stream processing
-- "safety-analyst" handles safety, toxicity, GSK scores, hazard data
-- "optimization-engineer" handles waste management optimization, profit \
-maximization, emission minimization, MINLP superstructure, Pyomo models, \
-and optimal processing pathway selection for multilayer plastic feeds
-- When a query involves BOTH separation AND safety (e.g. "safest sequence"), \
-return both specialists""".format(subagent_list=_build_subagent_list())
-
-
-def classify_query_llm(query: str, classifier_model: BaseChatModel) -> list[dict] | None:
-    if is_direct_answer_query(query):
-        return []
-
-    try:
-        result = classifier_model.invoke([
-            SystemMessage(content=_CLASSIFIER_SYSTEM_PROMPT),
-            HumanMessage(content=query),
-        ])
-    except Exception:
-        logger.warning("classify_query_llm: model call failed", exc_info=True)
-        return None
-
-    content = result.content
-    if isinstance(content, str):
-        text = content.strip()
-    elif isinstance(content, list):
-        parts = []
-        for item in content:
-            if isinstance(item, dict) and item.get("type") == "text":
-                parts.append(item["text"])
-            elif isinstance(item, str):
-                parts.append(item)
-        text = "\n".join(parts).strip()
-    else:
-        text = str(content).strip()
-
-    parsed = None
-    try:
-        parsed = json.loads(text)
-    except (json.JSONDecodeError, TypeError):
-        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
-        if match:
-            try:
-                parsed = json.loads(match.group(1))
-            except (json.JSONDecodeError, TypeError):
-                pass
-
-    if not parsed or not isinstance(parsed.get("subagents"), list):
-        logger.warning("classify_query_llm: could not parse response: %s", text[:200])
-        return None
-
-    rules_by_name = {rule["subagent"]: rule for rule in ROUTING_RULES}
-    matched_rules: list[dict] = []
-    for name in parsed["subagents"]:
-        rule = rules_by_name.get(name)
-        if rule:
-            matched_rules.append(rule)
-        else:
-            logger.warning("classify_query_llm: unknown subagent name: %s", name)
-
-    logger.info(
-        "classify_query_llm: subagents=%s confidence=%s",
-        parsed["subagents"],
-        parsed.get("confidence"),
-    )
-    return matched_rules
 
 
 def _match_rule(rule: dict, query_lower: str) -> int:
@@ -526,10 +437,11 @@ def is_direct_answer_query(query_text: str) -> bool:
 
 
 def is_routine_solvent_candidate_query(query_text: str) -> bool:
-    """Return True for simple multi-polymer solvent-candidate lookups.
+    """Return True for simple solvent-candidate lookups with a temperature ceiling.
 
     These queries are database lookups even when they include a temperature
-    ceiling such as "below 100 C". Richer asks still route to specialists.
+    ceiling such as "below 100 C" — for one polymer or several. Richer asks
+    (ranges, selectivity, screening) still route to specialists.
     """
     if not query_text:
         return False
@@ -541,14 +453,18 @@ def is_routine_solvent_candidate_query(query_text: str) -> bool:
         re.sub(r"[-\s]", "", match.group(0)).upper()
         for match in _SIMPLE_SOLVENT_LOOKUP_POLYMER_RE.finditer(query_text)
     }
-    if len(polymers) < 2:
+    if not polymers:
         return False
-    if (
+    if len(polymers) < 2:
+        # A single-polymer candidate lookup is routine only under a pure
+        # temperature-ceiling constraint ("below 100 C"); anything else
+        # (no temperature, or range language) is handled by other paths.
+        if not (contains_temperature_mention(query_text) and has_temperature_ceiling(query_text)):
+            return False
+    elif (
         _SINGLE_POLYMER_DISSOLUTION_FOCUS_RE.search(query_text)
         and not _ROUTINE_MULTI_TARGET_RE.search(query_text)
     ):
-        return False
-    if re.search(r"\bfeedstock\b", query_text, re.IGNORECASE) and not _ROUTINE_MULTI_TARGET_RE.search(query_text):
         return False
     if _ROUTINE_SOLVENT_CANDIDATE_BLOCKER_RE.search(query_text):
         return False
@@ -1013,8 +929,8 @@ def _resolve_artifact_workflow(
     return selected_names, dependency_map
 
 
-def derive_workflow_dependencies(query_text: str, subagent_names: set[str]) -> dict[str, set[str]]:
-    """Infer specialist prerequisites from capability contracts and closure coverage."""
+def graph_workflow_dependencies(query_text: str, subagent_names: set[str]) -> dict[str, set[str]]:
+    """Capability-contract backchaining over the planning graph only."""
     _selected_names, dependencies = _resolve_artifact_workflow(
         query_text,
         target_names=set(subagent_names),
@@ -1026,6 +942,22 @@ def derive_workflow_dependencies(query_text: str, subagent_names: set[str]) -> d
         name: set(dependencies.get(name, set()))
         for name in subagent_names
     }
+
+
+def derive_workflow_dependencies(query_text: str, subagent_names: set[str]) -> dict[str, set[str]]:
+    """Return specialist prerequisites for the given subagents.
+
+    When an active :class:`~strap.route_planner.RoutePlan` covers the
+    requested subagents, its (validated, graph-enriched) dependencies are
+    authoritative. Otherwise fall back to capability-contract backchaining.
+    """
+    from .route_planner import active_plan_dependency_map
+
+    plan_dependencies = active_plan_dependency_map(query_text, set(subagent_names))
+    if plan_dependencies is not None:
+        return plan_dependencies
+
+    return graph_workflow_dependencies(query_text, subagent_names)
 
 
 def select_workflow_rules(

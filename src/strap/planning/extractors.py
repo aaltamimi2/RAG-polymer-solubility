@@ -224,6 +224,17 @@ def _extract_composition_slices(query: str, polymers: list[str]) -> list[dict[st
         if len(values) != len(polymers):
             continue
         slices.append(dict(zip(polymers, values, strict=True)))
+    if not slices and len(polymers) == 2:
+        # "slices of 20% PE, 50% PE, and 80% PE" — repeated percentages of the
+        # SAME polymer; the remainder goes to the other polymer. Feed
+        # compositions ("60% PE and 40% EVOH") name different polymers and are
+        # excluded by the same-polymer requirement.
+        pattern = r"\b(\d+(?:\.\d+)?)\s*%\s*(" + "|".join(re.escape(p) for p in polymers) + r")\b"
+        found = [(m.group(2), float(m.group(1)) / 100.0) for m in re.finditer(pattern, query, re.I)]
+        if len(found) >= 2 and len({name.upper() for name, _ in found}) == 1:
+            primary = next(p for p in polymers if p.upper() == found[0][0].upper())
+            other = next(p for p in polymers if p.upper() != primary.upper())
+            slices = [{primary: value, other: round(1.0 - value, 6)} for _, value in found]
     return slices
 
 
@@ -234,7 +245,24 @@ def _extract_scenario(query: str) -> str | None:
 
 def _extract_energy_case(query: str) -> str | None:
     match = re.search(r"\b(?:energy\s+case|case|under)\s+(C[123])\b", query, re.I)
-    return match.group(1).upper() if match else None
+    if match:
+        return match.group(1).upper()
+    # Named configurations, as advertised in the biosteam-analyst description:
+    # C1 = Combined Heat & Power (CHP), C2 = Grid + AMCOR heat, C3 = Grid + boiler.
+    lowered = query.lower()
+    if re.search(r"\bchp\b|combined\s+heat\s*(?:&|and)?\s*power", lowered):
+        return "C1"
+    if re.search(r"grid\s*\+\s*boiler|(?:natural\s+)?gas\s+boiler", lowered):
+        return "C3"
+    if re.search(r"grid\s*\+\s*amcor|\bamcor\b", lowered):
+        return "C2"
+    if re.search(
+        r"\bgrid\b[^.]{0,24}\b(?:electricity|energy|scenario|configuration|config|case)\b"
+        r"|\b(?:electricity|energy|scenario|configuration|config|case)\b[^.]{0,24}\bgrid\b",
+        lowered,
+    ):
+        return "C2"
+    return None
 
 
 def _extract_top_k(query: str) -> int | None:
@@ -486,7 +514,17 @@ def _extract_requested_artifacts(query: str) -> list[str]:
             artifacts.append("optimization_point_plot")
     if pareto_requested and "landscape" in text and re.search(r"\b(?:generate|create|make|save|plot|figure|visual)\b", text):
         artifacts.append("optimization_pareto_plot")
-    if "biosteam" in text or "tea/lca" in text or "capex" in text or "opex" in text:
+    if (
+        "biosteam" in text
+        or "capex" in text
+        or "opex" in text
+        or re.search(r"\btea\b|\blca\b|\bmsp\b", text)
+        or "techno-economic" in text
+        or "technoeconomic" in text
+        or "life cycle" in text
+        or "life-cycle" in text
+        or "minimum selling price" in text
+    ):
         artifacts.append("biosteam_tea_lca_result")
         if "plot" in text or "chart" in text or "visual" in text or "png" in text:
             artifacts.append("biosteam_tea_lca_plot")
@@ -591,10 +629,19 @@ def extract_facts(query: str, context: dict[str, Any] | None = None) -> Extracte
     context_requested = [str(item) for item in _context_list(context, "requested_artifact_types") if str(item)]
     if context_requested and (hydrated or not requested_artifact_types):
         requested_artifact_types = _dedupe(requested_artifact_types + context_requested)
+    # Route-plan deliverables are authoritative intent from the LLM planner:
+    # merge them unconditionally so keyword detection is only a fallback.
+    plan_requested = [str(item) for item in _context_list(context, "plan_requested_artifact_types") if str(item)]
+    if plan_requested:
+        requested_artifact_types = _dedupe(requested_artifact_types + plan_requested)
     workflow_markers = _extract_workflow_markers(query)
     context_markers = [str(item) for item in _context_list(context, "workflow_markers") if str(item)]
     if context_markers and hydrated:
         workflow_markers = _dedupe(workflow_markers + context_markers)
+    # Markers derived from the route plan's step graph are authoritative.
+    plan_markers = [str(item) for item in _context_list(context, "plan_workflow_markers") if str(item)]
+    if plan_markers:
+        workflow_markers = _dedupe(workflow_markers + plan_markers)
     metrics = _extract_metrics(query)
     if not metrics:
         metrics = [str(item) for item in _context_list(context, "metrics") if str(item)]

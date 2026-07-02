@@ -73,6 +73,120 @@ def test_direct_fast_path_handles_routine_multilayer_solvent_candidates(tmp_path
     assert "Method: direct solubility database lookup" in result.display
 
 
+def test_direct_fast_path_handles_selectively_worded_routine_candidate_query():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for selectively dissolving any one "
+        "of these components below 100 °C."
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "routine_solvent_candidate_lookup"
+    assert result.route_decision["model_call_budget"] == 0
+    assert result.data["used_hsp_or_statistics_ml"] is False
+    assert result.data["temperature_max_c"] == 100.0
+
+
+def test_direct_fast_path_handles_paraphrased_routine_candidate_queries():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    queries = [
+        "Which solvents could dissolve one component of an LDPE/EVOH/PET multilayer below 100 C?",
+        "Give candidate solvents for LDPE/EVOH/PET below 100 C.",
+        "Find solvents for any polymer in an LDPE EVOH PET feedstock at or below 100C.",
+    ]
+
+    for query in queries:
+        result = try_direct_tool_fast_path(query)
+
+        assert result is not None, query
+        assert result.tool_name == "routine_solvent_candidate_lookup"
+        assert result.route_decision["model_call_budget"] == 0
+
+
+def test_direct_fast_path_threshold_lookup_scans_all_solvents_by_default():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = "What are other solvents that have solubility of at least 10% for LDPE at 100C"
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "solubility_threshold_lookup"
+    assert result.route_decision["model_call_budget"] == 0
+    assert result.data["scope"] == "all supported solvents"
+    solvents = [row["solvent"] for row in result.data["results"]]
+    assert len(solvents) == 12
+    assert "toluene" in solvents
+    assert "dodecane" in solvents
+    assert "dimethylsulfoxide" not in solvents
+    assert all(row["solubility_pct"] >= 10.0 for row in result.data["results"])
+
+
+def test_direct_fast_path_threshold_lookup_can_limit_to_prior_candidate_table():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    context = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Artifacts: solvent_candidate_table: polymers=LDPE,EVOH,PET; "
+        "solvent_candidates=cyclohexane, hexane, n-heptane, thf, thp, dimethylsulfoxide\n\n"
+        "User request:\n"
+        "Among these solvents, which have solubility of at least 10% for LDPE at 100C?"
+    )
+
+    result = try_direct_tool_fast_path(context)
+
+    assert result is not None
+    assert result.tool_name == "solubility_threshold_lookup"
+    assert result.data["scope"] == "prior listed solvents"
+    solvents = [row["solvent"] for row in result.data["results"]]
+    assert solvents == ["cyclohexane", "hexane", "n-heptane", "thf", "thp"]
+
+
+def test_direct_fast_path_threshold_followup_preserves_threshold_at_lower_temperature():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    context = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Artifacts: solvent_candidate_table: polymer=LDPE; "
+        "solvents=cyclohexane, hexane, n-heptane, thf, thp, isopropylamine, "
+        "2,3-dihydropyran, toluene, 1,4-dimethylbenzene, benzene, "
+        "1,2-dimethylbenzene, dodecane; temperature_c=100; min_solubility_pct=10\n\n"
+        "User request:\n"
+        "Which of these solvents still works at 80C or below (higher than 10% solubility)"
+    )
+
+    result = try_direct_tool_fast_path(context)
+
+    assert result is not None
+    assert result.tool_name == "solubility_threshold_lookup"
+    assert result.route_decision["model_call_budget"] == 0
+    assert result.data["scope"] == "prior listed solvents"
+    assert result.data["temperature_c"] == 80.0
+    assert result.data["min_solubility_pct"] == 10.0
+    assert result.data["results"] == []
+    assert "No solvents met the threshold" in result.display
+
+
+def test_direct_fast_path_does_not_swallow_sequence_or_selectivity_workflows():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    queries = [
+        "Generate the best separation sequence for LDPE/EVOH/PET below 100 C.",
+        "Rank solvent selectivity for LDPE over PET below 100 C.",
+        "Compare solvents for separating EVOH from LDPE and PET below 100 C.",
+    ]
+
+    for query in queries:
+        result = try_direct_tool_fast_path(query)
+
+        assert result is None, query
+
+
 def test_direct_fast_path_handles_routine_multilayer_temperature_spellings():
     from strap.direct_fast_path import try_direct_tool_fast_path
 
@@ -488,6 +602,31 @@ def test_direct_fast_path_safety_compare_plural_cards():
     assert result.route_decision["intent"] == "safety_lookup"
     assert "Dimethyl Formamide" in result.display
     assert "GVL" not in result.display
+
+
+def test_direct_fast_path_safest_followup_uses_prior_polymer_candidates():
+    from strap.direct_fast_path import try_direct_tool_fast_path
+
+    query = (
+        "Session context (compact; use only to resolve follow-ups and do not restate unless relevant):\n"
+        "- Last solvent candidates: polymers=HDPE,EVOH,PET,PVC; "
+        "solvents=cyclohexane, hexane, n-heptane, thf, thp, isopropylamine, "
+        "dimethylsulfoxide, dimethylformamide, methanol, ethanol, ch2cl2, propanone; "
+        "rows=HDPE:cyclohexane, HDPE:hexane, EVOH:isopropylamine, "
+        "EVOH:dimethylsulfoxide, EVOH:dimethylformamide, EVOH:methanol, EVOH:ethanol, "
+        "PET:ch2cl2, PET:dimethylformamide, PVC:propanone; temperature_range=25-100 C\n\n"
+        "User request:\n"
+        "which of these solvents for EVOH is safest"
+    )
+
+    result = try_direct_tool_fast_path(query)
+
+    assert result is not None
+    assert result.tool_name == "compare_solvent_safety_cards"
+    assert result.route_decision["intent"] == "safety_lookup"
+    assert "Available Solvents Summary" not in result.display
+    assert "Dimethyl Sulfoxide" in result.display or "DMSO" in result.display
+    assert "Dimethyl Formamide" in result.display or "DMF" in result.display
 
 
 def test_direct_fast_path_does_not_route_hsp_handle_query_to_safety():

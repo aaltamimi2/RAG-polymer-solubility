@@ -559,7 +559,17 @@ def update_session_context_from_direct_metadata(
 
         if artifact_type == "solvent_candidate_table":
             polymer = entities.get("polymer")
+            polymers = entities.get("polymers")
             solvents = list(entities.get("solvents") or artifact.get("row_order") or [])
+            rows = data.get("rows") if isinstance(data.get("rows"), list) else []
+            rows = [
+                {
+                    "polymer": str(row.get("polymer")),
+                    "solvent": str(row.get("solvent")),
+                }
+                for row in rows
+                if isinstance(row, dict) and row.get("polymer") and row.get("solvent")
+            ]
             if solvents:
                 updated["process"]["solvent_candidates"] = _merge_unique(
                     list(updated["process"].get("solvent_candidates") or []),
@@ -570,6 +580,14 @@ def update_session_context_from_direct_metadata(
                     "artifact_id": artifact.get("artifact_id"),
                     "polymer": str(polymer),
                     "solvents": [str(solvent) for solvent in solvents],
+                    "rows": rows,
+                }
+            elif polymers and solvents:
+                updated["analysis"]["last_solvent_candidate_table"] = {
+                    "artifact_id": artifact.get("artifact_id"),
+                    "polymers": [str(item) for item in polymers],
+                    "solvents": [str(solvent) for solvent in solvents],
+                    "rows": rows,
                 }
 
         elif artifact_type == "solubility_table":
@@ -709,6 +727,18 @@ def build_session_context_block(context: dict[str, Any]) -> str:
                 solvents = _filter_runtime_solvents([str(item) for item in solvents])
                 if solvents:
                     parts.append("solvents=" + ", ".join(str(item) for item in solvents[:12]))
+            if rows := candidate_table.get("rows"):
+                if isinstance(rows, list):
+                    row_parts = []
+                    for row in rows[:20]:
+                        if not isinstance(row, dict):
+                            continue
+                        polymer = str(row.get("polymer") or "").strip()
+                        solvent = str(row.get("solvent") or "").strip()
+                        if polymer and solvent and not _is_runtime_excluded_solvent(solvent):
+                            row_parts.append(f"{polymer}:{solvent}")
+                    if row_parts:
+                        parts.append("rows=" + ", ".join(row_parts))
             if artifact_id := candidate_table.get("artifact_id"):
                 parts.append(f"artifact_id={artifact_id}")
             if parts:

@@ -8,8 +8,11 @@ unselected requests return ``None`` so legacy behavior remains unchanged.
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable, Mapping
 from typing import Any, Literal
+
+logger = logging.getLogger(__name__)
 
 from langchain.agents.middleware.types import AgentMiddleware, ModelResponse
 from langchain_core.messages import AIMessage
@@ -314,6 +317,19 @@ def _typed_runtime_message_status(
     return "typed_failure" if validation.status == "failed" else result.status
 
 
+# Specialists whose deliverables the typed runtime can produce end to end.
+# Interception is only safe when the route plan stays inside this set;
+# anything else (research/RAG/contaminant stages) must reach the orchestrator.
+_TYPED_COVERED_SUBAGENTS = frozenset({
+    "separation-engineer",
+    "safety-analyst",
+    "statistics-ml",
+    "biosteam-analyst",
+    "optimization-engineer",
+    "visualization-specialist",
+})
+
+
 class TypedRuntimeMiddleware(AgentMiddleware):
     """Short-circuit selected typed workflows before legacy routing."""
 
@@ -323,10 +339,94 @@ class TypedRuntimeMiddleware(AgentMiddleware):
         config: PlannerConfig | None = None,
         output_root: str | None = None,
         callable_registry: Mapping[str, StepCallable] | None = None,
+        route_planner=None,
     ) -> None:
         self._config = config
         self._output_root = output_root
         self._callable_registry = callable_registry
+        self._route_planner = route_planner
+
+    def _plan_permits_typed_runtime(self, query: str, session_digest: str | None = None) -> bool:
+        """Gate token-triggered interception behind the route plan's intent."""
+        if self._route_planner is None:
+            return True
+        plan = self._route_planner.plan(query, session_digest=session_digest)
+        if plan.source != "planner":
+            # Deliberate keyword-mode deployment (no backend) keeps legacy
+            # behavior; a degraded planner must not intercept on keywords.
+            permitted = not getattr(self._route_planner, "has_backend", False)
+            if not permitted:
+                logger.warning(
+                    "typed_runtime: skipped — planner degraded; keyword intent is advisory only"
+                )
+            return permitted
+        if plan.is_direct:
+            return True
+        if plan.mode == "orchestrator":
+            logger.info("typed_runtime: skipped — route plan says orchestrator handles query")
+            return False
+        names = set(plan.subagent_names())
+        if names and names <= _TYPED_COVERED_SUBAGENTS:
+            return True
+        logger.info(
+            "typed_runtime: skipped — route plan requires uncovered specialists %s",
+            sorted(names - _TYPED_COVERED_SUBAGENTS),
+        )
+        return False
+
+    def _plan_deliverable_context(self, query: str, session_digest: str | None = None) -> dict[str, Any] | None:
+        """Planner-declared intent as authoritative compile context.
+
+        Deliverables are filtered against the artifact catalog; workflow
+        markers are derived from the plan's step graph (structured data, not
+        query tokens) so routed workflows are reachable without keyword
+        phrasing. The compiler's keyword detection becomes fallback-only.
+        """
+        if self._route_planner is None:
+            return None
+        plan = self._route_planner.plan(query, session_digest=session_digest)
+        if plan.source != "planner":
+            return None
+        from strap.planning.capability_registry import ARTIFACT_TYPES
+
+        context: dict[str, Any] = {}
+        valid = [name for name in plan.deliverables if name in ARTIFACT_TYPES]
+        if valid:
+            context["plan_requested_artifact_types"] = valid
+
+        step_names = set(plan.subagent_names())
+        markers: list[str] = []
+        if "separation-engineer" in step_names:
+            markers.append("separation")
+        if "optimization-engineer" in step_names:
+            markers.append("optimization")
+        if any(step.depends_on for step in plan.steps):
+            markers.append("handoff")
+        if any(name.startswith("optimization_pareto_slices") for name in valid):
+            markers.append("multi_slice")
+        if markers:
+            context["plan_workflow_markers"] = markers
+        return context or None
+
+    def _defer_typed_failure(self, query: str, result: TypedRuntimeResult, session_digest: str | None = None) -> bool:
+        """Never dead-end a planner-routed query on a typed failure.
+
+        When the route plan assigns capable specialists, a compile or
+        execution failure in the typed lane falls through to the orchestrator
+        so the specialist produces the deliverable instead of the user
+        receiving a typed-failure/clarification message.
+        """
+        if result.status != "typed_failure" or self._route_planner is None:
+            return False
+        plan = self._route_planner.plan(query, session_digest=session_digest)
+        if plan.source != "planner" or not plan.is_specialists:
+            return False
+        logger.warning(
+            "typed_runtime: typed_failure deferred to planned specialists %s (%s)",
+            plan.subagent_names(),
+            (result.reason or "")[:120],
+        )
+        return True
 
     def _to_model_response(self, result: TypedRuntimeResult) -> ModelResponse:
         config = self._config or get_planner_config()
@@ -382,15 +482,22 @@ class TypedRuntimeMiddleware(AgentMiddleware):
         followup = maybe_answer_typed_runtime_followup(query, request.messages)
         if followup.should_answer:
             return self._followup_to_model_response(followup)
+        from strap.route_planner import build_session_digest
+
+        session_digest = build_session_digest(request.messages)
+        if not self._plan_permits_typed_runtime(query, session_digest):
+            return handler(request)
         hydration = maybe_hydrate_context_for_selected_followup(query, request.messages)
+        context = dict(hydration.context) if hydration is not None and hydration.context else {}
+        context.update(self._plan_deliverable_context(query, session_digest) or {})
         result = maybe_run_typed_runtime(
             query,
-            context=hydration.context if hydration is not None else None,
+            context=context or None,
             config=self._config,
             output_root=self._output_root,
             callable_registry=self._callable_registry,
         )
-        if result is None:
+        if result is None or self._defer_typed_failure(query, result, session_digest):
             return handler(request)
         return self._to_model_response(result)
 
@@ -402,15 +509,22 @@ class TypedRuntimeMiddleware(AgentMiddleware):
         followup = maybe_answer_typed_runtime_followup(query, request.messages)
         if followup.should_answer:
             return self._followup_to_model_response(followup)
+        from strap.route_planner import build_session_digest
+
+        session_digest = build_session_digest(request.messages)
+        if not self._plan_permits_typed_runtime(query, session_digest):
+            return await handler(request)
         hydration = maybe_hydrate_context_for_selected_followup(query, request.messages)
+        context = dict(hydration.context) if hydration is not None and hydration.context else {}
+        context.update(self._plan_deliverable_context(query, session_digest) or {})
         result = await asyncio.to_thread(
             maybe_run_typed_runtime,
             query,
-            context=hydration.context if hydration is not None else None,
+            context=context or None,
             config=self._config,
             output_root=self._output_root,
             callable_registry=self._callable_registry,
         )
-        if result is None:
+        if result is None or self._defer_typed_failure(query, result, session_digest):
             return await handler(request)
         return self._to_model_response(result)

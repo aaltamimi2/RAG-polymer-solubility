@@ -107,6 +107,7 @@ def test_session_context_tracks_latest_displayed_recommendation_table(tmp_path, 
     injected = session_state.inject_session_context("plot each of these solvents", context)
     assert "Last solvent candidates: polymers=LDPE, EVOH, PET" in injected
     assert "solvents=Dodecane, Dimethyl sulfoxide, N,N-Dimethylformamide" in injected
+    assert "rows=LDPE:Dodecane, EVOH:Dimethyl sulfoxide, PET:N,N-Dimethylformamide" in injected
 
 
 def test_session_context_filters_triethylamine_from_accumulated_candidates(tmp_path, monkeypatch):
@@ -371,6 +372,47 @@ def test_session_context_persists_direct_artifacts_for_followups(tmp_path, monke
     assert "Last solvent candidates" in injected
     assert "polymer=EVOH" in injected
     assert "dimethylformamide" in injected
+
+
+def test_session_context_preserves_candidate_rows_for_multi_polymer_artifacts(tmp_path, monkeypatch):
+    from strap import session_state
+
+    monkeypatch.setenv("DISSOLVE_SESSION_DIR", str(tmp_path))
+    context = session_state.load_session_context("multi-candidate-rows")
+    context = session_state.update_session_context_from_direct_metadata(
+        context,
+        {
+            "strap_artifacts": [
+                {
+                    "artifact_id": "artifact_multi",
+                    "type": "solvent_candidate_table",
+                    "producer": "routine_solvent_candidate_lookup",
+                    "entities": {
+                        "polymers": ["HDPE", "EVOH", "PET", "PVC"],
+                        "solvents": ["cyclohexane", "dimethylsulfoxide", "dimethylformamide"],
+                    },
+                    "data": {
+                        "rows": [
+                            {"polymer": "HDPE", "solvent": "cyclohexane"},
+                            {"polymer": "EVOH", "solvent": "dimethylsulfoxide"},
+                            {"polymer": "EVOH", "solvent": "dimethylformamide"},
+                        ]
+                    },
+                    "row_order": ["cyclohexane", "dimethylsulfoxide", "dimethylformamide"],
+                }
+            ]
+        },
+    )
+
+    latest = context["analysis"]["last_solvent_candidate_table"]
+    assert latest["polymers"] == ["HDPE", "EVOH", "PET", "PVC"]
+    assert latest["rows"] == [
+        {"polymer": "HDPE", "solvent": "cyclohexane"},
+        {"polymer": "EVOH", "solvent": "dimethylsulfoxide"},
+        {"polymer": "EVOH", "solvent": "dimethylformamide"},
+    ]
+    injected = session_state.inject_session_context("which of these solvents for EVOH is safest", context)
+    assert "rows=HDPE:cyclohexane, EVOH:dimethylsulfoxide, EVOH:dimethylformamide" in injected
 
 
 def test_session_context_persists_plot_artifact_for_range_correction(tmp_path, monkeypatch):

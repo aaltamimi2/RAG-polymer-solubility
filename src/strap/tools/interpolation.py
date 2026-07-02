@@ -294,11 +294,59 @@ def predict_solubility_range(
             predictions=[],
             n_points=0,
         )
-    # Anomalous or low-R² → use SQL fallback for the range
+    # Anomalous or low-R² → serve exact SQL grid values for the range — the
+    # same engine the point tool falls back to — so a pair never succeeds in
+    # one solubility tool while erroring in the other.
     if cat == "anomalous" or entry.get("r_squared", 0) < _R2_THRESHOLD:
+        from strap.solubility import get_solubility_curve
+
+        sql_rows = get_solubility_curve(
+            polymer, solvent, t_start_c=t_start_c, t_end_c=t_end_c, method="sql"
+        )
+        if sql_rows:
+            predictions = [
+                {
+                    "temperature_c": float(row["temperature"]),
+                    "solubility_pct": float(row["solubility"]),
+                    "extrapolation": "",
+                    "temperature_use_regime": "measured_sql_grid",
+                }
+                for row in sql_rows
+            ]
+            lines = [
+                f"## Solubility of {polymer} in {solvent} ({t_start_c:.0f}-{t_end_c:.0f} C)",
+                "",
+                "| Temperature (C) | Solubility (%) |",
+                "|---|---|",
+            ]
+            lines.extend(
+                f"| {row['temperature_c']:.1f} | {row['solubility_pct']:.2f} |"
+                for row in predictions
+            )
+            lines.append("")
+            lines.append(
+                "Note: no reliable Apelblat fit exists for this pair "
+                f"(category: {cat}); values are exact measured grid points from "
+                "the solubility database, limited to measured temperatures."
+            )
+            return json_tool_success(
+                "\n".join(lines),
+                tool_name="predict_solubility_range",
+                polymer_name=polymer,
+                solvent_name=solvent,
+                category=cat,
+                method="sql",
+                predictions=predictions,
+                n_points=len(predictions),
+                extrapolated_points=0,
+                range_was_capped=False,
+                requested_t_end_c=requested_t_end_c,
+                r_squared=entry.get("r_squared"),
+            )
         message = (
-            f"**{polymer} in {solvent}**: Interpolation unavailable for this pair. "
-            f"Use `query_database` to look up exact grid-point values."
+            f"**{polymer} in {solvent}**: Interpolation unavailable for this pair and "
+            f"no measured grid values exist in the requested range. "
+            f"Use `query_database` to explore nearby data."
         )
         return json_tool_error(
             message,

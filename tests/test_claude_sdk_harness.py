@@ -6,18 +6,44 @@ import json
 from types import SimpleNamespace
 
 
-def test_claude_model_selection_replaces_non_claude_alias(monkeypatch):
+def test_claude_model_selection_replaces_non_claude_alias_with_haiku_default(monkeypatch):
     from strap.claude_sdk_harness.models import resolve_claude_model_selection
 
-    monkeypatch.setenv("DISSOLVE_CLAUDE_SONNET_MODEL", "claude-test-sonnet")
+    monkeypatch.setenv("DISSOLVE_CLAUDE_HAIKU_MODEL", "claude-test-haiku")
 
     selection = resolve_claude_model_selection("gemini-pro")
 
-    assert selection.alias == "claude-sonnet"
-    assert selection.sdk_model == "claude-test-sonnet"
-    assert selection.provider_model_id == "anthropic:claude-test-sonnet"
+    assert selection.alias == "claude-haiku"
+    assert selection.sdk_model == "claude-test-haiku"
+    assert selection.provider_model_id == "anthropic:claude-test-haiku"
     assert selection.previous_alias == "gemini-pro"
     assert selection.notice
+
+
+def test_claude_model_selection_supports_haiku_45_aliases(monkeypatch):
+    from strap.claude_sdk_harness.models import resolve_claude_model_selection
+
+    monkeypatch.delenv("DISSOLVE_CLAUDE_HAIKU_MODEL", raising=False)
+
+    for alias in ("claude-haiku", "claude-haiku-4.5", "claude-haiku-4-5", "haiku", "haiku-4.5", "haiku-4-5"):
+        selection = resolve_claude_model_selection(alias)
+
+        assert selection.alias == alias
+        assert selection.sdk_model == "claude-haiku-4-5-20251001"
+        assert selection.provider_model_id == "anthropic:claude-haiku-4-5-20251001"
+        assert selection.spec["label"] == "Claude Haiku 4.5"
+
+
+def test_claude_model_selection_supports_haiku_env_override(monkeypatch):
+    from strap.claude_sdk_harness.models import resolve_claude_model_selection
+
+    monkeypatch.setenv("DISSOLVE_CLAUDE_HAIKU_MODEL", "claude-test-haiku")
+
+    selection = resolve_claude_model_selection("haiku")
+
+    assert selection.alias == "haiku"
+    assert selection.sdk_model == "claude-test-haiku"
+    assert selection.provider_model_id == "anthropic:claude-test-haiku"
 
 
 def test_tool_name_map_translates_legacy_to_mcp():

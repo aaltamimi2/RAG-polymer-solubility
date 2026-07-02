@@ -24,9 +24,11 @@ class ClaudeModelSelection:
     notice: str | None = None
 
 
-DEFAULT_CLAUDE_MODEL_ALIAS = "claude-sonnet"
-DEFAULT_CLAUDE_SDK_MODEL = "claude-sonnet-4-6"
-_CLAUDE_ALIASES = ("claude-sonnet", "claude")
+DEFAULT_CLAUDE_MODEL_ALIAS = "claude-haiku"
+DEFAULT_CLAUDE_SONNET_MODEL = "claude-sonnet-4-6"
+DEFAULT_CLAUDE_HAIKU_MODEL = "claude-haiku-4-5-20251001"
+_CLAUDE_SONNET_ALIASES = ("claude-sonnet", "sonnet", "claude")
+_CLAUDE_HAIKU_ALIASES = ("claude-haiku", "claude-haiku-4.5", "claude-haiku-4-5", "haiku", "haiku-4.5", "haiku-4-5")
 
 
 def _normalize_sdk_model(model: str) -> str:
@@ -43,19 +45,31 @@ def _provider_model_id(model: str) -> str:
 
 def claude_model_registry() -> dict[str, ClaudeModelSpec]:
     """Return Claude-compatible model aliases for SDK mode."""
-    model = (
+    sonnet_model = (
         os.getenv("DISSOLVE_CLAUDE_SONNET_MODEL")
         or os.getenv("DISSOLVE_CLAUDE_SDK_MODEL")
-        or DEFAULT_CLAUDE_SDK_MODEL
+        or DEFAULT_CLAUDE_SONNET_MODEL
     )
-    provider_model = _provider_model_id(model)
-    spec: ClaudeModelSpec = {
+    haiku_model = (
+        os.getenv("DISSOLVE_CLAUDE_HAIKU_MODEL")
+        or DEFAULT_CLAUDE_HAIKU_MODEL
+    )
+    sonnet_spec: ClaudeModelSpec = {
         "label": "Claude Sonnet",
-        "model": provider_model,
+        "model": _provider_model_id(sonnet_model),
         "provider": "Anthropic",
         "env_var": "ANTHROPIC_API_KEY",
     }
-    return {alias: dict(spec) for alias in _CLAUDE_ALIASES}
+    haiku_spec: ClaudeModelSpec = {
+        "label": "Claude Haiku 4.5",
+        "model": _provider_model_id(haiku_model),
+        "provider": "Anthropic",
+        "env_var": "ANTHROPIC_API_KEY",
+    }
+    registry: dict[str, ClaudeModelSpec] = {}
+    registry.update({alias: dict(sonnet_spec) for alias in _CLAUDE_SONNET_ALIASES})
+    registry.update({alias: dict(haiku_spec) for alias in _CLAUDE_HAIKU_ALIASES})
+    return registry
 
 
 def is_claude_model_alias(value: str | None) -> bool:

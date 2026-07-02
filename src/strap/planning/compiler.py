@@ -22,6 +22,7 @@ from strap.planning.models import (
     InputContract,
     MissingInput,
     OutputContract,
+    PlanAssumption,
     PlanStep,
     PlanningModel,
     RequestPlan,
@@ -74,6 +75,7 @@ def _artifact_output(
     *artifact_types: str,
     validation_checks: list[str] | None = None,
     path_required: bool = False,
+    required: bool = True,
 ) -> OutputContract:
     return OutputContract(
         contract_id=contract_id,
@@ -81,6 +83,7 @@ def _artifact_output(
             ArtifactContract(
                 artifact_type=artifact_type,
                 path_policy="required" if path_required else "optional",
+                required=required,
             )
             for artifact_type in artifact_types
         ],
@@ -393,8 +396,6 @@ def _compile_biosteam(
         missing.append(MissingInput(name="solvent", reason="BioSTEAM TEA/LCA requires a solvent."))
     if target_plastic is None:
         missing.append(MissingInput(name="target_plastic", reason="BioSTEAM TEA/LCA requires a target polymer."))
-    if not facts.energy_case:
-        missing.append(MissingInput(name="energy_case", reason="BioSTEAM TEA/LCA requires an explicit energy case C1, C2, or C3."))
     payload = _base_payload(query, facts, created_at=created_at, planner_model_id=planner_model_id)
     if missing:
         payload.update({
@@ -405,6 +406,40 @@ def _compile_biosteam(
             "steps": [],
         })
         return RequestPlan(**payload)
+
+    assumptions: list[PlanAssumption] = []
+    energy_case = facts.energy_case
+    if not energy_case:
+        # The simulation tool defaults to C1 (CHP); assuming it beats a
+        # clarification dead-end for an otherwise fully-specified request.
+        energy_case = "C1"
+        assumptions.append(PlanAssumption(
+            key="energy_case",
+            value="C1",
+            source="default",
+            rationale="No energy configuration specified; using the BioSTEAM default C1 (CHP).",
+        ))
+
+    # The typed runtime only expresses single-solvent, single-polymer
+    # simulations (run_biosteam_simulation). Batch solvent comparisons and
+    # sequential multi-polymer recovery belong to the biosteam-analyst
+    # specialist (run_biosteam_batch / run_biosteam_multi_polymer) — mark the
+    # plan's artifacts non-required so selected enforcement defers to legacy
+    # routing instead of silently simulating only the first solvent/polymer.
+    multi_solvent = len(facts.solvents) > 1
+    multi_polymer = len({p for p in facts.polymers}) > 1
+    defer_to_specialist = multi_solvent or multi_polymer
+    if defer_to_specialist:
+        assumptions.append(PlanAssumption(
+            key="typed_enforcement",
+            value="deferred_to_specialist",
+            source="inferred",
+            rationale=(
+                "Batch/multi-polymer BioSTEAM requests are handled by the "
+                "biosteam-analyst specialist; the typed runtime covers "
+                "single-solvent single-polymer simulations only."
+            ),
+        ))
 
     result_cap = _select_capability("biosteam_tea_lca_result", owner="biosteam-analyst")
     plot_requested = "biosteam_tea_lca_plot" in facts.requested_artifact_types
@@ -420,13 +455,14 @@ def _compile_biosteam(
                     "biosteam_result_output",
                     "biosteam_tea_lca_result",
                     validation_checks=["source_is_biosteam_structured_output"],
+                    required=not defer_to_specialist,
                 )
             ],
             tool_args_template=_tool_args(
                 facts,
                 solvent=facts.solvents[0],
                 target_plastic=target_plastic,
-                energy_case=facts.energy_case,
+                energy_case=energy_case,
                 processing_capacity=facts.feed_capacity_tpy,
                 target_plastic_percent=_target_plastic_percent(facts, target_plastic),
                 dissolution_temp_c=facts.temperatures_c[0] if facts.temperatures_c else None,
@@ -459,6 +495,7 @@ def _compile_biosteam(
         "complexity": "moderate",
         "workflow_id": "biosteam_tea_lca_with_plot" if plot_requested else None,
         "steps": steps,
+        "assumptions": assumptions,
     })
     return RequestPlan(**payload)
 

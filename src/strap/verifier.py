@@ -17,7 +17,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from .handoffs import validate_agent_payload
 from .guardrail_checks import get_selectivity_overclaim_errors
-from .routing_classifier import is_direct_answer_query
+from .route_planner import is_direct_route
 from .solubility import get_boiling_point
 
 if TYPE_CHECKING:
@@ -315,7 +315,7 @@ def _is_single_specialist_separation_context(messages: list) -> bool:
 
 def _is_direct_answer_fast_path_context(messages: list) -> bool:
     """Return True for simple orchestrator-only answers where model verification is too costly."""
-    if not is_direct_answer_query(_get_user_query(messages)):
+    if not is_direct_route(_get_user_query(messages)):
         return False
     return not bool(_get_task_tool_registry(messages))
 

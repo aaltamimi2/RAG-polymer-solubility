@@ -35,12 +35,27 @@ def _structured_result_content(agent: str) -> str:
     )
 
 
-def _classifier_for(*subagents: str):
+def _classifier_for(*subagents: str, mode: str = "specialists", confidence: str = "high"):
+    """Fake planner model returning a route-plan payload for the given specialists."""
+    steps = ", ".join(
+        f'{{"subagent": "{name}", "objective": "", "depends_on": []}}' for name in subagents
+    )
     response = MagicMock()
     response.content = (
-        '{"subagents": ['
-        + ", ".join(f'"{name}"' for name in subagents)
-        + '], "confidence": "HIGH"}'
+        f'{{"mode": "{mode if subagents else mode}", "steps": [{steps}], '
+        f'"excluded_subagents": [], "confidence": "{confidence}", "rationale": "test"}}'
+    )
+    model = MagicMock()
+    model.invoke.return_value = response
+    return model
+
+
+def _direct_planner_model():
+    """Fake planner model classifying the query as a direct core-tool lookup."""
+    response = MagicMock()
+    response.content = (
+        '{"mode": "direct", "steps": [], "excluded_subagents": [], '
+        '"confidence": "high", "rationale": "test direct"}'
     )
     model = MagicMock()
     model.invoke.return_value = response
@@ -99,17 +114,32 @@ def test_simple_solvent_lookup_stays_on_orchestrator_fast_path():
     assert allowed == []
 
 
-def test_simple_solvent_lookup_overrides_overeager_llm_router():
+def test_simple_solvent_lookup_planner_direct_mode_yields_no_specialists():
     from strap.routing import RoutingMiddleware
 
     query = "what are good solvents for dissolving LDPE"
-    model = _classifier_for("statistics-ml", "separation-engineer")
+    middleware = RoutingMiddleware(classifier_model=_direct_planner_model())
+
+    allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+
+    assert allowed == []
+
+
+def test_simple_solvent_lookup_invalid_planner_payload_falls_back_direct():
+    """Unusable planner output falls back to the keyword chain, which keeps
+    simple lookups on the orchestrator fast path."""
+    from strap.routing import RoutingMiddleware
+
+    query = "what are good solvents for dissolving LDPE"
+    bad_response = MagicMock()
+    bad_response.content = '{"subagents": ["statistics-ml"]}'  # legacy schema
+    model = MagicMock()
+    model.invoke.return_value = bad_response
     middleware = RoutingMiddleware(classifier_model=model)
 
     allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
 
     assert allowed == []
-    model.invoke.assert_not_called()
 
 
 def test_routine_multilayer_solvent_candidate_query_stays_out_of_statistics_ml():
@@ -121,7 +151,7 @@ def test_routine_multilayer_solvent_candidate_query_stays_out_of_statistics_ml()
         "identify solvents that are promising for dissolving any one of the components "
         "below 100 deg C."
     )
-    middleware = RoutingMiddleware(classifier_model=_classifier_for("statistics-ml", "separation-engineer"))
+    middleware = RoutingMiddleware(classifier_model=None)
 
     hint = classify_query([HumanMessage(content=query)])
     decision = explain_routing_decision(query)
@@ -130,7 +160,61 @@ def test_routine_multilayer_solvent_candidate_query_stays_out_of_statistics_ml()
     assert hint is None
     assert decision["direct_answer"]["is_direct"] is True
     assert allowed == []
-    middleware._classifier_model.invoke.assert_not_called()
+
+
+def test_selectively_worded_routine_candidate_query_stays_direct():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_classifier import classify_query, explain_routing_decision
+
+    query = (
+        "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, "
+        "identify solvents that are promising for selectively dissolving any one "
+        "of these components below 100 °C."
+    )
+    middleware = RoutingMiddleware(classifier_model=None)
+
+    hint = classify_query([HumanMessage(content=query)])
+    decision = explain_routing_decision(query)
+    allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+
+    assert hint is None
+    assert decision["direct_answer"]["is_direct"] is True
+    assert allowed == []
+
+
+def test_routine_candidate_paraphrases_stay_direct_without_exact_stem():
+    from strap.routing import RoutingMiddleware
+    from strap.routing_classifier import explain_routing_decision
+
+    queries = [
+        "Which solvents could dissolve one component of an LDPE/EVOH/PET multilayer below 100 C?",
+        "Give candidate solvents for LDPE/EVOH/PET below 100 C.",
+        "Find solvents for any polymer in an LDPE EVOH PET feedstock at or below 100C.",
+    ]
+
+    for query in queries:
+        middleware = RoutingMiddleware(classifier_model=None)
+
+        allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
+        decision = explain_routing_decision(query)
+
+        assert decision["direct_answer"]["is_direct"] is True, query
+        assert allowed == []
+
+
+def test_sequence_and_selectivity_queries_still_route_to_specialists():
+    from strap.routing_classifier import explain_routing_decision
+
+    queries = [
+        "Generate the best separation sequence for LDPE/EVOH/PET below 100 C.",
+        "Rank solvent selectivity for LDPE over PET below 100 C.",
+        "Compare solvents for separating EVOH from LDPE and PET below 100 C.",
+    ]
+
+    for query in queries:
+        decision = explain_routing_decision(query)
+
+        assert decision["direct_answer"]["is_direct"] is False, query
 
 
 def test_routine_multilayer_solvent_candidate_temperature_spellings_stay_direct():
@@ -156,14 +240,13 @@ def test_routine_multilayer_solvent_candidate_temperature_spellings_stay_direct(
             "identify solvents that are promising for dissolving any one of the components "
             f"{variant}."
         )
-        middleware = RoutingMiddleware(classifier_model=_classifier_for("statistics-ml", "separation-engineer"))
+        middleware = RoutingMiddleware(classifier_model=None)
 
         allowed = middleware._get_allowed_rules([HumanMessage(content=query)])
         decision = explain_routing_decision(query)
 
         assert decision["direct_answer"]["is_direct"] is True, variant
         assert allowed == []
-        middleware._classifier_model.invoke.assert_not_called()
 
 
 def test_router_blocks_statistics_ml_task_for_routine_solvent_candidate_query():
@@ -187,7 +270,7 @@ def test_router_blocks_statistics_ml_task_for_routine_solvent_candidate_query():
     handler.assert_not_called()
     assert isinstance(result, ToolMessage)
     assert result.status == "error"
-    assert "reserved for explicit HSP/RED" in result.content
+    assert "direct core-tool lookup" in result.content
 
 
 def test_router_blocks_any_subagent_task_for_direct_solvent_candidate_query():
@@ -936,11 +1019,9 @@ def test_get_allowed_rules_plans_four_stage_research_workflow():
 def test_wrap_tool_call_blocks_write_todos_before_first_sequential_dispatch():
     from strap.routing import RoutingMiddleware
 
-    response = MagicMock()
-    response.content = '{"subagents": ["contaminant-removal-analyst"], "confidence": "HIGH"}'
-    model = MagicMock()
-    model.invoke.return_value = response
-    middleware = RoutingMiddleware(classifier_model=model)
+    middleware = RoutingMiddleware(
+        classifier_model=_classifier_for("separation-engineer", "contaminant-removal-analyst")
+    )
 
     request = ToolCallRequest(
         tool_call={
@@ -2395,7 +2476,9 @@ class TestRoutingProgress:
             }]),
         ]
 
-        middleware = RoutingMiddleware(classifier_model=_classifier_for("visualization-specialist"))
+        middleware = RoutingMiddleware(
+            classifier_model=_classifier_for("statistics-ml", "visualization-specialist")
+        )
         update = middleware.after_model({"messages": messages}, MagicMock())
 
         assert update is not None
@@ -2608,7 +2691,7 @@ class TestRoutingNormalization:
         assert "answer directly using your own tools" not in system_text
 
     def test_hsp_only_queries_prefer_statistics_ml_over_separation_engineer(self):
-        from strap.routing import _normalize_matched_rules
+        from strap.routing_classifier import _normalize_matched_rules
 
         matched = [
             {"subagent": "statistics-ml", "description": "stats"},
@@ -2623,7 +2706,7 @@ class TestRoutingNormalization:
         assert [rule["subagent"] for rule in normalized] == ["statistics-ml"]
 
     def test_process_design_queries_keep_separation_engineer(self):
-        from strap.routing import _normalize_matched_rules
+        from strap.routing_classifier import _normalize_matched_rules
 
         matched = [
             {"subagent": "statistics-ml", "description": "stats"},
@@ -2641,7 +2724,7 @@ class TestRoutingNormalization:
         ]
 
     def test_process_design_queries_drop_statistics_ml_without_explicit_screening_deliverable(self):
-        from strap.routing import _normalize_matched_rules
+        from strap.routing_classifier import _normalize_matched_rules
 
         matched = [
             {"subagent": "statistics-ml", "description": "stats"},
@@ -2660,7 +2743,7 @@ class TestRoutingNormalization:
         ]
 
     def test_process_design_queries_drop_biosteam_without_explicit_tea_or_lca_intent(self):
-        from strap.routing import _normalize_matched_rules
+        from strap.routing_classifier import _normalize_matched_rules
 
         matched = [
             {"subagent": "separation-engineer", "description": "separation"},
@@ -2675,7 +2758,7 @@ class TestRoutingNormalization:
         assert [rule["subagent"] for rule in normalized] == ["separation-engineer"]
 
     def test_process_only_queries_drop_safety_without_explicit_safety_data_intent(self):
-        from strap.routing import _normalize_matched_rules
+        from strap.routing_classifier import _normalize_matched_rules
 
         matched = [
             {"subagent": "separation-engineer", "description": "separation"},
@@ -2716,8 +2799,10 @@ class TestSeparationRoutePurityAndFallback:
             AIMessage(content="", tool_calls=[_task_call("tc_viz_only", "visualization-specialist")]),
         ]
 
+        # A competent planner omits visualization for "only do process design";
+        # off-plan visualization dispatches are then denied outright.
         middleware = RoutingMiddleware(
-            classifier_model=_classifier_for("separation-engineer", "visualization-specialist")
+            classifier_model=_classifier_for("separation-engineer")
         )
         update = middleware.after_model({"messages": messages}, MagicMock())
 
@@ -2740,7 +2825,7 @@ class TestSeparationRoutePurityAndFallback:
         ]
 
         middleware = RoutingMiddleware(
-            classifier_model=_classifier_for("separation-engineer", "visualization-specialist")
+            classifier_model=_classifier_for("separation-engineer")
         )
         update = middleware.after_model({"messages": messages}, MagicMock())
 
@@ -3441,7 +3526,7 @@ class TestSeparationRoutePurityAndFallback:
         assert artifacts[0]["type"] == "optimization_point_result"
         assert artifacts[0]["data"]["payload"]["analysis_type"] == "point_optimum"
 
-    def test_wrap_model_call_optimization_visualization_fallback_tolerates_extra_allowed_specialists(self):
+    def test_wrap_model_call_optimization_visualization_fallback_fires_on_planned_completion(self):
         from strap.routing import RoutingMiddleware
 
         class _Request:
@@ -3486,9 +3571,7 @@ class TestSeparationRoutePurityAndFallback:
         request = _Request(messages, SystemMessage(content="base system"))
         middleware = RoutingMiddleware(
             classifier_model=_classifier_for(
-                "separation-engineer",
                 "optimization-engineer",
-                "biosteam-analyst",
                 "visualization-specialist",
             )
         )

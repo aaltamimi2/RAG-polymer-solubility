@@ -212,7 +212,9 @@ SOLVENT_REGISTRY: dict[str, dict] = {
         "biosteam": "p-Xylene",
         "bp_db_key": "xylene",
         "cas": "106-42-3",
-        "aliases": ["p-xylene", "para-xylene"],
+        # Bare "xylene" resolves here: the property DB's own key for this
+        # entry is "xylene", making the para isomer the dataset's default.
+        "aliases": ["p-xylene", "para-xylene", "xylene", "xylenes", "mixed xylenes"],
     },
     # ── Alkanes ──
     "n-heptane": {
