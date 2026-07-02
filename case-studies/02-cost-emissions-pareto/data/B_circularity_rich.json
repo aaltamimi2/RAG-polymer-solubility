@@ -1,0 +1,4126 @@
+{
+ "analysis_type": "pareto_front",
+ "schema_version": "1.5",
+ "x_metric": "total_cost",
+ "y_metric": "circularity",
+ "scenario": "B",
+ "feed": 8000.0,
+ "feed_composition": {
+  "PE": 0.5,
+  "EVOH": 0.5
+ },
+ "constraint_mode": "soft",
+ "fallback_policy": "broaden_disclosed",
+ "route_pool_mode": "exact",
+ "n_points_requested": 24,
+ "n_points_raw_feasible": 19,
+ "n_points_feasible": 3,
+ "strap_table_rows": 27,
+ "ideal_points": {
+  "min_total_cost": {
+   "total_cost": 3996364.193,
+   "circularity_score": 0.45828916105825424
+  },
+  "max_circularity": {
+   "total_cost": 6034509.545,
+   "circularity_score": 0.8215490485992021
+  }
+ },
+ "points": [
+  {
+   "point_id": 1,
+   "epsilon": 584640.4262898883,
+   "profit": 15362764.6,
+   "emissions": 22655.958603683102,
+   "raw_circularity_score": 713513.7107198904,
+   "circularity_score": 0.7135137107198904,
+   "total_cost": 2537235.4,
+   "capital_cost": 831337.1199999999,
+   "operational_cost": 1648470.28,
+   "transportation_cost": 57428.0,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "stage3_tech": [],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "wash2_selection": [],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "route_id": "",
+   "matched_route_id": null,
+   "rank": null,
+   "polymer_solvent_map": null,
+   "selection_origin": "exact_route",
+   "wash1_origin_route_id": null,
+   "wash2_origin_route_id": null,
+   "wash1_origin_route_ids": [],
+   "wash2_origin_route_ids": [],
+   "n_equivalent_designs": 1,
+   "stage3_variants": [],
+   "equivalent_designs": [
+    {
+     "stage1_tech": [
+      "st1"
+     ],
+     "stage2_tech": [
+      "gas_h2"
+     ],
+     "stage3_tech": [],
+     "wash1_selection": [
+      "EVOH-Pyridazine"
+     ],
+     "wash2_selection": [],
+     "recovered_polymers": [
+      "EVOH"
+     ],
+     "residual_polymers": [
+      "PE"
+     ],
+     "residual_destination_stage": "stage2",
+     "residual_destination_tech": [
+      "gas_h2"
+     ],
+     "recovered_mass_tpy_by_polymer": {
+      "EVOH": 4000.0
+     },
+     "saleable_recovered_mass_tpy_by_polymer": {
+      "EVOH": 3880.0
+     },
+     "residual_mass_tpy_by_polymer": {
+      "PE": 4000.0
+     },
+     "route_id": "",
+     "matched_route_id": null,
+     "rank": null,
+     "polymer_solvent_map": null,
+     "selection_origin": "exact_route",
+     "wash1_origin_route_id": null,
+     "wash2_origin_route_id": null,
+     "wash1_origin_route_ids": [],
+     "wash2_origin_route_ids": []
+    }
+   ],
+   "raw_point_id": 1,
+   "point_status": "frontier",
+   "is_frontier": true
+  },
+  {
+   "point_id": 2,
+   "epsilon": 568846.518135934,
+   "profit": 14910152.64,
+   "emissions": 1268.8386036831032,
+   "raw_circularity_score": 758047.8730415457,
+   "circularity_score": 0.7580478730415458,
+   "total_cost": 2549847.36,
+   "capital_cost": 831337.1199999999,
+   "operational_cost": 1679814.24,
+   "transportation_cost": 38696.0,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "stage3_tech": [],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "wash2_selection": [],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "route_id": "",
+   "matched_route_id": null,
+   "rank": null,
+   "polymer_solvent_map": null,
+   "selection_origin": "exact_route",
+   "wash1_origin_route_id": null,
+   "wash2_origin_route_id": null,
+   "wash1_origin_route_ids": [],
+   "wash2_origin_route_ids": [],
+   "n_equivalent_designs": 1,
+   "stage3_variants": [],
+   "equivalent_designs": [
+    {
+     "stage1_tech": [
+      "st1"
+     ],
+     "stage2_tech": [
+      "lf"
+     ],
+     "stage3_tech": [],
+     "wash1_selection": [
+      "EVOH-Pyridazine"
+     ],
+     "wash2_selection": [],
+     "recovered_polymers": [
+      "EVOH"
+     ],
+     "residual_polymers": [
+      "PE"
+     ],
+     "residual_destination_stage": "stage2",
+     "residual_destination_tech": [
+      "lf"
+     ],
+     "recovered_mass_tpy_by_polymer": {
+      "EVOH": 4000.0
+     },
+     "saleable_recovered_mass_tpy_by_polymer": {
+      "EVOH": 3880.0
+     },
+     "residual_mass_tpy_by_polymer": {
+      "PE": 4000.0
+     },
+     "route_id": "",
+     "matched_route_id": null,
+     "rank": null,
+     "polymer_solvent_map": null,
+     "selection_origin": "exact_route",
+     "wash1_origin_route_id": null,
+     "wash2_origin_route_id": null,
+     "wash1_origin_route_ids": [],
+     "wash2_origin_route_ids": []
+    }
+   ],
+   "raw_point_id": 2,
+   "point_status": "frontier",
+   "is_frontier": true
+  },
+  {
+   "point_id": 3,
+   "epsilon": 774167.3241373394,
+   "profit": 15954155.1,
+   "emissions": 5151.695482550171,
+   "raw_circularity_score": 821549.0101406819,
+   "circularity_score": 0.8215490101406818,
+   "total_cost": 5773844.9,
+   "capital_cost": 2051629.75,
+   "operational_cost": 3686095.1500000004,
+   "transportation_cost": 36120.0,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "gas_h2cc"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "wash2_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "residual_polymers": [],
+   "residual_destination_stage": null,
+   "residual_destination_tech": [],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {},
+   "route_id": "",
+   "matched_route_id": null,
+   "rank": null,
+   "polymer_solvent_map": null,
+   "selection_origin": "exact_route",
+   "wash1_origin_route_id": null,
+   "wash2_origin_route_id": null,
+   "wash1_origin_route_ids": [],
+   "wash2_origin_route_ids": [],
+   "n_equivalent_designs": 1,
+   "stage3_variants": [
+    "gas_h2cc"
+   ],
+   "equivalent_designs": [
+    {
+     "stage1_tech": [
+      "st1"
+     ],
+     "stage2_tech": [
+      "st2"
+     ],
+     "stage3_tech": [
+      "gas_h2cc"
+     ],
+     "wash1_selection": [
+      "PE-Tetrachloroethylene"
+     ],
+     "wash2_selection": [
+      "EVOH-Ethylene Glycol"
+     ],
+     "recovered_polymers": [
+      "PE",
+      "EVOH"
+     ],
+     "residual_polymers": [],
+     "residual_destination_stage": null,
+     "residual_destination_tech": [],
+     "recovered_mass_tpy_by_polymer": {
+      "PE": 4000.0,
+      "EVOH": 4000.0
+     },
+     "saleable_recovered_mass_tpy_by_polymer": {
+      "PE": 3880.0,
+      "EVOH": 3880.0
+     },
+     "residual_mass_tpy_by_polymer": {},
+     "route_id": "",
+     "matched_route_id": null,
+     "rank": null,
+     "polymer_solvent_map": null,
+     "selection_origin": "exact_route",
+     "wash1_origin_route_id": null,
+     "wash2_origin_route_id": null,
+     "wash1_origin_route_ids": [],
+     "wash2_origin_route_ids": []
+    }
+   ],
+   "raw_point_id": 5,
+   "point_status": "frontier",
+   "is_frontier": true
+  }
+ ],
+ "all_feasible_points": [
+  {
+   "raw_point_id": 1,
+   "point_id": 1,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 2537235.4,
+   "emissions": 22655.958603683102,
+   "circularity_score": 0.7135137107198904,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 2,
+   "point_id": 2,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 2549847.36,
+   "emissions": 1268.8386036831032,
+   "circularity_score": 0.7580478730415458,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 3,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 2550308.6879999996,
+   "emissions": 1379.3319700481231,
+   "circularity_score": 0.7570105875407653,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 4,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 3998785.490000005,
+   "emissions": 14285.733611442294,
+   "circularity_score": 0.5636843912887306,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "we"
+   ],
+   "wash1_selection": [
+    "PE-sec-Butyl Acetate"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "we"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 5,
+   "point_id": 3,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 5773844.9,
+   "emissions": 5151.695482550171,
+   "circularity_score": 0.8215490101406818,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "gas_h2cc"
+   ],
+   "stage3_variants": [
+    "gas_h2cc"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "wash2_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  }
+ ],
+ "epsilon_sweep_points": [
+  {
+   "raw_point_id": 1,
+   "point_id": 1,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 2537235.4,
+   "emissions": 22655.958603683102,
+   "circularity_score": 0.7135137107198904,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 2,
+   "point_id": 2,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 2549847.36,
+   "emissions": 1268.8386036831032,
+   "circularity_score": 0.7580478730415458,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 3,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 2550308.6879999996,
+   "emissions": 1379.3319700481231,
+   "circularity_score": 0.7570105875407653,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 4,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 3998785.490000005,
+   "emissions": 14285.733611442294,
+   "circularity_score": 0.5636843912887306,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "we"
+   ],
+   "wash1_selection": [
+    "PE-sec-Butyl Acetate"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "we"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 5,
+   "point_id": 3,
+   "point_status": "frontier",
+   "is_frontier": true,
+   "selection_origin": "exact_route",
+   "total_cost": 5773844.9,
+   "emissions": 5151.695482550171,
+   "circularity_score": 0.8215490101406818,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "gas_h2cc"
+   ],
+   "stage3_variants": [
+    "gas_h2cc"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "wash2_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  }
+ ],
+ "landscape_points": [
+  {
+   "landscape_point_id": 1,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 2537235.4,
+   "emissions": 22655.958603683102,
+   "circularity_score": 0.7135137107198904,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "EVOH-Pyridazine"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 2,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 2537696.728,
+   "emissions": 22766.45197004812,
+   "circularity_score": 0.7124764251986393,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 3,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 3587721.7405000003,
+   "emissions": 25812.283512502047,
+   "circularity_score": 0.520005563264471,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 4,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 3900598.816,
+   "emissions": 26595.237512393887,
+   "circularity_score": 0.5126550262877602,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-o-Chlorotoluene"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 5,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 3977813.49,
+   "emissions": 26479.25361144229,
+   "circularity_score": 0.5137438988958482,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-sec-Butyl Acetate"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 6,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 3983752.233,
+   "emissions": 26478.07100042027,
+   "circularity_score": 0.5137549994411168,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Isobutyl Acetate"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 7,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 4004484.84,
+   "emissions": 26689.966993016053,
+   "circularity_score": 0.511765679708422,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Xylene"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 8,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 4016089.7879999997,
+   "emissions": 26325.988401356313,
+   "circularity_score": 0.5151827768544442,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Methylcyclohexane"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 9,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 4119979.691,
+   "emissions": 26451.790770013093,
+   "circularity_score": 0.5140017131455392,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Heptane"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 10,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 4393470.8675,
+   "emissions": 28846.800889431222,
+   "circularity_score": 0.4915169061995119,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Dodecanol"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 11,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 4409403.806,
+   "emissions": 26301.574944384643,
+   "circularity_score": 0.5154120192667526,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "gas_h2"
+   ],
+   "wash1_selection": [
+    "PE-Toluene"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "gas_h2"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  },
+  {
+   "landscape_point_id": 12,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 5773844.9,
+   "emissions": 5151.695482550171,
+   "circularity_score": 0.8215490101406818,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "wash2_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 13,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 5789240.714,
+   "emissions": 5153.308558855784,
+   "circularity_score": 0.821533865298324,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "wash2_selection": [
+    "EVOH-Propylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 14,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 6034509.545,
+   "emissions": 5151.695482550171,
+   "circularity_score": 0.821549048599202,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "wash2_selection": [
+    "PE-Tetrachloroethylene"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 15,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 6126827.9585,
+   "emissions": 5716.348258968231,
+   "circularity_score": 0.8162479219737225,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "PE-sec-Butyl Acetate"
+   ],
+   "wash2_selection": [
+    "EVOH-gamma-butyrolactone"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 16,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 6221690.0934999995,
+   "emissions": 5679.654067297193,
+   "circularity_score": 0.8165924107287733,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "PE-Methylcyclohexane"
+   ],
+   "wash2_selection": [
+    "EVOH-butane-1,4-diol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 17,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 6306102.850500001,
+   "emissions": 5791.202740061218,
+   "circularity_score": 0.8155451652210537,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "PE-Heptane"
+   ],
+   "wash2_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  },
+  {
+   "landscape_point_id": 18,
+   "point_status": "landscape_sample",
+   "is_frontier": false,
+   "selection_origin": "landscape_sample",
+   "total_cost": 6568027.2845,
+   "emissions": 5791.202740061218,
+   "circularity_score": 0.8155451993523111,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "st2"
+   ],
+   "stage3_tech": [
+    "py"
+   ],
+   "stage3_variants": [
+    "py"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "wash2_selection": [
+    "PE-Heptane"
+   ],
+   "recovered_polymers": [
+    "PE",
+    "EVOH"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0,
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0,
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {}
+  }
+ ],
+ "dominated_points": [
+  {
+   "raw_point_id": 3,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 2550308.6879999996,
+   "emissions": 1379.3319700481231,
+   "circularity_score": 0.7570105875407653,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "lf"
+   ],
+   "wash1_selection": [
+    "EVOH-Ethylene Glycol"
+   ],
+   "recovered_polymers": [
+    "EVOH"
+   ],
+   "residual_polymers": [
+    "PE"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "lf"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "EVOH": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   }
+  },
+  {
+   "raw_point_id": 4,
+   "point_status": "dominated",
+   "is_frontier": false,
+   "selection_origin": "exact_route",
+   "total_cost": 3998785.490000005,
+   "emissions": 14285.733611442294,
+   "circularity_score": 0.5636843912887306,
+   "stage1_tech": [
+    "st1"
+   ],
+   "stage2_tech": [
+    "we"
+   ],
+   "wash1_selection": [
+    "PE-sec-Butyl Acetate"
+   ],
+   "recovered_polymers": [
+    "PE"
+   ],
+   "residual_polymers": [
+    "EVOH"
+   ],
+   "residual_destination_stage": "stage2",
+   "residual_destination_tech": [
+    "we"
+   ],
+   "recovered_mass_tpy_by_polymer": {
+    "PE": 4000.0
+   },
+   "saleable_recovered_mass_tpy_by_polymer": {
+    "PE": 3880.0
+   },
+   "residual_mass_tpy_by_polymer": {
+    "EVOH": 4000.0
+   }
+  }
+ ],
+ "landscape_summary": {
+  "status": "generated",
+  "objective": "min_total_cost",
+  "n_candidate_designs_generated": 92,
+  "n_candidate_designs_selected": 92,
+  "max_candidate_designs": 120,
+  "truncated": false,
+  "polymers_considered": [
+   "PE",
+   "EVOH"
+  ],
+  "candidate_counts_by_wash_polymer": {
+   "Wash 1": {
+    "PE": 9,
+    "EVOH": 2
+   },
+   "Wash 2": {
+    "PE": 9,
+    "EVOH": 7
+   }
+  },
+  "n_candidate_designs_attempted": 92,
+  "n_candidate_designs_solved": 18,
+  "n_landscape_points": 18,
+  "n_failed_designs": 74,
+  "failures": [
+   {
+    "route_id": "landscape_12",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.18341379549990e+06 (1 solutions)",
+        "Dual Bound         : +6.18341379549990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 1.2936070561409e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_13",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.20099671949990e+06 (1 solutions)",
+        "Dual Bound         : +6.20099671949990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 6.48153945803642e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_14",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.18658714549990e+06 (1 solutions)",
+        "Dual Bound         : +6.18658714549990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 5.63915818929672e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_15",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.16393664949990e+06 (1 solutions)",
+        "Dual Bound         : +6.16393664949990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 4.21656295657158e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_16",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.17933246349990e+06 (1 solutions)",
+        "Dual Bound         : +6.17933246349990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 3.40864062309265e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_17",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.15104508599990e+06 (1 solutions)",
+        "Dual Bound         : +6.15104508599990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 5.3131952881813e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_19",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.18935253849990e+06 (1 solutions)",
+        "Dual Bound         : +6.18935253849990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 5.9385783970356e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_20",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.20693546249990e+06 (1 solutions)",
+        "Dual Bound         : +6.20693546249990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 4.58816066384315e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_21",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.19252588849990e+06 (1 solutions)",
+        "Dual Bound         : +6.19252588849990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 3.74950468540192e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_22",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.16987539249990e+06 (1 solutions)",
+        "Dual Bound         : +6.16987539249990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 2.33110040426254e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_23",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.18527120649990e+06 (1 solutions)",
+        "Dual Bound         : +6.18527120649990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 1.52597203850746e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_24",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.15698382899990e+06 (1 solutions)",
+        "Dual Bound         : +6.15698382899990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 3.43052670359612e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_25",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.13276670149990e+06 (1 solutions)",
+        "Dual Bound         : +6.13276670149990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 5.4873526096344e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_26",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +5.79332204599990e+06 (1 solutions)",
+        "Dual Bound         : +5.79332204599990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 4.5308843255043e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_27",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +5.81090496999990e+06 (1 solutions)",
+        "Dual Bound         : +5.81090496999990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 3.15019860863686e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_28",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +5.79649539599990e+06 (1 solutions)",
+        "Dual Bound         : +5.79649539599990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 2.29664146900177e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_31",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +5.76095333649990e+06 (1 solutions)",
+        "Dual Bound         : +5.76095333649990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 1.97673216462135e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_32",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +5.73673620899990e+06 (1 solutions)",
+        "Dual Bound         : +5.73673620899990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 4.07267361879349e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_33",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.10619912149990e+06 (1 solutions)",
+        "Dual Bound         : +6.10619912149990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 5.68991526961327e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   },
+   {
+    "route_id": "landscape_34",
+    "reason": "min_total_cost solve returned no verified solution within 20s landscape cap",
+    "solver_debug": [
+     {
+      "attempt_index": 1,
+      "solver_name": "scip",
+      "solver_options": {
+       "limits/time": 20
+      },
+      "accepted": false,
+      "label": "min_total_cost",
+      "termination_condition": "optimal",
+      "residual_summary": null,
+      "rejection_reason": {
+       "type": "original_problem_infeasible"
+      },
+      "solver_log_summary": {
+       "original_problem_infeasible": true,
+       "violated_constraint": null,
+       "tail": [
+        "(round 3, fast)       202 del vars, 678 del conss, 0 add conss, 368 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(round 4, fast)       206 del vars, 685 del conss, 0 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 1 clqs, 0 implints",
+        "(0.0s) running MILP presolver",
+        "(0.0s) MILP presolver (2 rounds): 0 aggregations, 6 fixings, 0 bound changes",
+        "(round 5, medium)     212 del vars, 687 del conss, 1 add conss, 370 chg bounds, 11 chg sides, 12 chg coeffs, 1 upgd conss, 1 impls, 0 clqs, 0 implints",
+        "presolving (6 rounds: 6 fast, 2 medium, 1 exhaustive):",
+        "213 deleted vars, 688 deleted constraints, 1 added constraints, 371 tightened bounds, 0 added holes, 11 changed sides, 12 changed coefficients",
+        "1 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+        "transformed 1/1 original solutions to the transformed problem space",
+        "presolving solved problem",
+        "Presolving Time: 0.00",
+        "SCIP Status        : problem is solved [optimal solution found]",
+        "Solving Time (sec) : 0.00",
+        "Solving Nodes      : 0",
+        "Primal Bound       : +6.12378204549990e+06 (1 solutions)",
+        "Dual Bound         : +6.12378204549990e+06",
+        "Gap                : 0.00 %",
+        "[nonlinear] <nlc0>: <x1>*<x3>-<x155>-520650789918.421*<b199> <= 0;",
+        "violation: right hand side is violated by 4.32971864938736e-06",
+        "best solution is not feasible in original problem"
+       ]
+      },
+      "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+     }
+    ]
+   }
+  ]
+ },
+ "frontier_summary": {
+  "n_routes_on_frontier": 0,
+  "route_ids_on_frontier": [],
+  "n_distinct_stage3_techs": 1,
+  "distinct_stage3_techs": [
+   "gas_h2cc"
+  ],
+  "n_equivalent_design_variants": 0
+ },
+ "requested_solvent_filters": {
+  "global": []
+ },
+ "applied_solvent_filters": {},
+ "solvent_filter_warnings": [
+  "BioSTEAM simulation failed (or returned incomplete TEA/GWP) for these candidate pairs and the corresponding rows were dropped to prevent zero-metric ghost rows from polluting the optimization solve: PE+p-Xylene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+camphene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+dipentene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+chlorobenzene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Dodecane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+styrene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+naphthalene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Cyclohexanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+isophorone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+hexamethylphosphoramide (undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'), PE+n-methyl-2-pyrrolidinone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Diphenyl ether (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+1-butanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+diglyme (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+N,N-Dimethylformamide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+benzaldehyde (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+pyridine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Triethylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+benzonitrile (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Acetylacetone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Tetrahydropyran (vapor_pressure_extrapolation_failure:RuntimeError: <System: PE/Tetrahydropyran> <HXutility: H2> Failed to extrapolate vapor pressure method 'LANDOLT'), PE+Cyclohexane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+acetic_anhydride (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+diethyleneglycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+pyrrole (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+ethyl_acetoacetate (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Dimethyl sulfoxide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+dioxane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+2,3-Dihydropyran (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Dimethyl sulfoxide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+resorcinol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+N,N-Dimethylformamide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+n-methyl-2-pyrrolidinone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+acetic_acid (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+hexamethylphosphoramide (undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'), EVOH+diglyme (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+diethyleneglycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Propylene Glycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+pyrrole (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+isopropylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+pyridine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+1-butanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+isophorone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Cyclohexanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Triethylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Acetylacetone (SubprocessError:ModuleNotFoundError: No module named 'plastics')."
+ ],
+ "solvent_filter_status": "not_requested",
+ "simulation_failures": [
+  {
+   "polymer": "PE",
+   "solvent": "p-Xylene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "camphene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "dipentene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "chlorobenzene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Dodecane",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "styrene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "naphthalene",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Cyclohexanol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "isophorone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "hexamethylphosphoramide",
+   "failure_class": "undefined_chemical_alias",
+   "reason": "undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'",
+   "source": "runtime_denylist"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "n-methyl-2-pyrrolidinone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Diphenyl ether",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "1-butanol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "diglyme",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "N,N-Dimethylformamide",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "benzaldehyde",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "pyridine",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Triethylamine",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "benzonitrile",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Acetylacetone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Tetrahydropyran",
+   "failure_class": "vapor_pressure_extrapolation_failure",
+   "reason": "vapor_pressure_extrapolation_failure:RuntimeError: <System: PE/Tetrahydropyran> <HXutility: H2> Failed to extrapolate vapor pressure method 'LANDOLT'",
+   "source": "runtime_denylist"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Cyclohexane",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "acetic_anhydride",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "diethyleneglycol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "pyrrole",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "ethyl_acetoacetate",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Dimethyl sulfoxide",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "dioxane",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "2,3-Dihydropyran",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Dimethyl sulfoxide",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "resorcinol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "N,N-Dimethylformamide",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "n-methyl-2-pyrrolidinone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "acetic_acid",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "hexamethylphosphoramide",
+   "failure_class": "undefined_chemical_alias",
+   "reason": "undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'",
+   "source": "runtime_denylist"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "diglyme",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "diethyleneglycol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Propylene Glycol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "pyrrole",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "isopropylamine",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "pyridine",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "1-butanol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "isophorone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Cyclohexanol",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Triethylamine",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Acetylacetone",
+   "failure_class": "SubprocessError",
+   "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+   "source": "biosteam_simulation"
+  }
+ ],
+ "simulation_skips": [
+  {
+   "polymer": "PE",
+   "solvent": "sec-Butyl Acetate",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Isobutyl Acetate",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Tetrachloroethylene",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "o-Chlorotoluene",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Methylcyclohexane",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Dodecanol",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Heptane",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Toluene",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "PE",
+   "solvent": "Xylene",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Ethylene Glycol",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Pyridazine",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "butane-1,4-diol",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Diethanolamine",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Diethylene glycol",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "Propylene Glycol",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  },
+  {
+   "polymer": "EVOH",
+   "solvent": "gamma-butyrolactone",
+   "reason": "baseline_sufficient",
+   "source": "workbook_baseline"
+  }
+ ],
+ "candidate_telemetry": {
+  "source": {
+   "typed_stage_candidates": false,
+   "route_candidates_present": false,
+   "route_pool_mode": "exact",
+   "constraint_mode": "soft",
+   "fallback_policy": "broaden_disclosed"
+  },
+  "requested": {
+   "global_candidates": [],
+   "by_polymer": {},
+   "counts_by_polymer": {},
+   "source_counts_by_polymer": {},
+   "source_lists_by_polymer": {}
+  },
+  "applied": {
+   "by_polymer": {},
+   "counts_by_polymer": {}
+  },
+  "surviving": {
+   "compiled_rows_total": 27,
+   "by_stage": {
+    "Wash 1": {
+     "PE": [
+      "sec-Butyl Acetate",
+      "Isobutyl Acetate",
+      "Tetrachloroethylene",
+      "o-Chlorotoluene",
+      "Methylcyclohexane",
+      "Dodecanol",
+      "Heptane",
+      "Toluene",
+      "Xylene"
+     ],
+     "EVOH": [
+      "Ethylene Glycol",
+      "Pyridazine"
+     ]
+    },
+    "Wash 2": {
+     "PE": [
+      "sec-Butyl Acetate",
+      "Isobutyl Acetate",
+      "Tetrachloroethylene",
+      "o-Chlorotoluene",
+      "Methylcyclohexane",
+      "Dodecanol",
+      "Heptane",
+      "Toluene",
+      "Xylene"
+     ],
+     "EVOH": [
+      "butane-1,4-diol",
+      "Diethanolamine",
+      "Diethylene glycol",
+      "Ethylene Glycol",
+      "Propylene Glycol",
+      "Pyridazine",
+      "gamma-butyrolactone"
+     ]
+    }
+   },
+   "counts_by_stage": {
+    "Wash 1": {
+     "PE": 9,
+     "EVOH": 2
+    },
+    "Wash 2": {
+     "PE": 9,
+     "EVOH": 7
+    }
+   },
+   "by_polymer": {
+    "PE": [
+     "sec-Butyl Acetate",
+     "Isobutyl Acetate",
+     "Tetrachloroethylene",
+     "o-Chlorotoluene",
+     "Methylcyclohexane",
+     "Dodecanol",
+     "Heptane",
+     "Toluene",
+     "Xylene"
+    ],
+    "EVOH": [
+     "Ethylene Glycol",
+     "Pyridazine",
+     "butane-1,4-diol",
+     "Diethanolamine",
+     "Diethylene glycol",
+     "Propylene Glycol",
+     "gamma-butyrolactone"
+    ]
+   },
+   "counts_by_polymer": {
+    "PE": 9,
+    "EVOH": 7
+   }
+  },
+  "simulation": {
+   "failures_total": 46,
+   "skips_total": 16,
+   "failure_counts_by_class": {
+    "SubprocessError": 43,
+    "undefined_chemical_alias": 2,
+    "vapor_pressure_extrapolation_failure": 1
+   },
+   "skip_counts_by_reason": {
+    "baseline_sufficient": 16
+   },
+   "failures_by_polymer": {
+    "PE": [
+     {
+      "polymer": "PE",
+      "solvent": "p-Xylene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "camphene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "dipentene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "chlorobenzene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Dodecane",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "styrene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "naphthalene",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Cyclohexanol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "isophorone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "hexamethylphosphoramide",
+      "failure_class": "undefined_chemical_alias",
+      "reason": "undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'",
+      "source": "runtime_denylist"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "n-methyl-2-pyrrolidinone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Diphenyl ether",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "1-butanol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "diglyme",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "N,N-Dimethylformamide",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "benzaldehyde",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "pyridine",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Triethylamine",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "benzonitrile",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Acetylacetone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Tetrahydropyran",
+      "failure_class": "vapor_pressure_extrapolation_failure",
+      "reason": "vapor_pressure_extrapolation_failure:RuntimeError: <System: PE/Tetrahydropyran> <HXutility: H2> Failed to extrapolate vapor pressure method 'LANDOLT'",
+      "source": "runtime_denylist"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Cyclohexane",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "acetic_anhydride",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "diethyleneglycol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "pyrrole",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "ethyl_acetoacetate",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Dimethyl sulfoxide",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "dioxane",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "2,3-Dihydropyran",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     }
+    ],
+    "EVOH": [
+     {
+      "polymer": "EVOH",
+      "solvent": "Dimethyl sulfoxide",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "resorcinol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "N,N-Dimethylformamide",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "n-methyl-2-pyrrolidinone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "acetic_acid",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "hexamethylphosphoramide",
+      "failure_class": "undefined_chemical_alias",
+      "reason": "undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'",
+      "source": "runtime_denylist"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "diglyme",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "diethyleneglycol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Propylene Glycol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "pyrrole",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "isopropylamine",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "pyridine",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "1-butanol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "isophorone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Cyclohexanol",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Triethylamine",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Acetylacetone",
+      "failure_class": "SubprocessError",
+      "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+      "source": "biosteam_simulation"
+     }
+    ]
+   },
+   "skips_by_polymer": {
+    "PE": [
+     {
+      "polymer": "PE",
+      "solvent": "sec-Butyl Acetate",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Isobutyl Acetate",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Tetrachloroethylene",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "o-Chlorotoluene",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Methylcyclohexane",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Dodecanol",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Heptane",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Toluene",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "PE",
+      "solvent": "Xylene",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     }
+    ],
+    "EVOH": [
+     {
+      "polymer": "EVOH",
+      "solvent": "Ethylene Glycol",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Pyridazine",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "butane-1,4-diol",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Diethanolamine",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Diethylene glycol",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "Propylene Glycol",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     },
+     {
+      "polymer": "EVOH",
+      "solvent": "gamma-butyrolactone",
+      "reason": "baseline_sufficient",
+      "source": "workbook_baseline"
+     }
+    ]
+   }
+  }
+ },
+ "othertech_telemetry": [
+  {
+   "event": "othertech_metric_fallback",
+   "tech": "py",
+   "metric": "gwp",
+   "value": 0.682266,
+   "source": "piw_paper_julia_reference",
+   "reason": "zero_or_missing_workbook_value"
+  },
+  {
+   "event": "othertech_metric_fallback",
+   "tech": "gas_er",
+   "metric": "gwp",
+   "value": 1.07,
+   "source": "piw_paper_julia_reference",
+   "reason": "zero_or_missing_workbook_value"
+  },
+  {
+   "event": "othertech_metric_fallback",
+   "tech": "gas_h2",
+   "metric": "gwp",
+   "value": 5.42838,
+   "source": "piw_paper_julia_reference",
+   "reason": "zero_or_missing_workbook_value"
+  },
+  {
+   "event": "othertech_metric_fallback",
+   "tech": "gas_h2cc",
+   "metric": "gwp",
+   "value": 2.55583,
+   "source": "piw_paper_julia_reference",
+   "reason": "zero_or_missing_workbook_value"
+  },
+  {
+   "event": "othertech_metric_fallback",
+   "tech": "gas_er",
+   "metric": "capex",
+   "value": 1680302.711,
+   "source": "strap_model_reference",
+   "reason": "zero_or_missing_workbook_value"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "total_energy",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "indirect_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "water_with",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "water_recyc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "lf",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "total_energy",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "indirect_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "disposal",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "we",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "total_energy",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "indirect_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "water_with",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "water_recyc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "disposal",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "py",
+   "metric": "capex",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "water_with",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "water_recyc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_er",
+   "metric": "opex",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "water_with",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "water_recyc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "renewable",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "direct_ghg",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "water_with",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "water_recyc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "htc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "htnc",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  },
+  {
+   "event": "othertech_metric_defaulted",
+   "tech": "gas_h2cc",
+   "metric": "ecot",
+   "value": 0.0,
+   "source": "model_default",
+   "reason": "missing_non_required_metric"
+  }
+ ],
+ "available_othertech": [
+  "lf",
+  "we",
+  "py",
+  "gas_er",
+  "gas_h2",
+  "gas_h2cc"
+ ],
+ "source_handoff_summary": {
+  "summary_kind": "optimizer_consumed_handoff",
+  "status": "none",
+  "typed_handoff": false,
+  "audit_note": "No stage-candidate handoff was supplied; optimization used direct tool arguments and/or the optimizer catalog."
+ },
+ "candidate_summary": {
+  "status": "not_requested",
+  "requested_filters": {
+   "global": []
+  },
+  "applied_filters": {},
+  "warnings": [
+   "BioSTEAM simulation failed (or returned incomplete TEA/GWP) for these candidate pairs and the corresponding rows were dropped to prevent zero-metric ghost rows from polluting the optimization solve: PE+p-Xylene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+camphene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+dipentene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+chlorobenzene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Dodecane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+styrene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+naphthalene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Cyclohexanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+isophorone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+hexamethylphosphoramide (undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'), PE+n-methyl-2-pyrrolidinone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Diphenyl ether (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+1-butanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+diglyme (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+N,N-Dimethylformamide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+benzaldehyde (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+pyridine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Triethylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+benzonitrile (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Acetylacetone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Tetrahydropyran (vapor_pressure_extrapolation_failure:RuntimeError: <System: PE/Tetrahydropyran> <HXutility: H2> Failed to extrapolate vapor pressure method 'LANDOLT'), PE+Cyclohexane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+acetic_anhydride (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+diethyleneglycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+pyrrole (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+ethyl_acetoacetate (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+Dimethyl sulfoxide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+dioxane (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+2,3-Dihydropyran (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Dimethyl sulfoxide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+resorcinol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+N,N-Dimethylformamide (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+n-methyl-2-pyrrolidinone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+acetic_acid (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+hexamethylphosphoramide (undefined_chemical_alias:thermosteam.exceptions.UndefinedChemicalAlias: <BoilerTurbogenerator: BT> 'P4O10'), EVOH+diglyme (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+diethyleneglycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Propylene Glycol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+pyrrole (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+isopropylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+pyridine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+1-butanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+isophorone (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Cyclohexanol (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Triethylamine (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Acetylacetone (SubprocessError:ModuleNotFoundError: No module named 'plastics')."
+  ],
+  "n_pairs_requested": 0,
+  "n_pairs_applied": 0,
+  "n_pairs_broadened": 0,
+  "n_pairs_infeasible": 0
+ },
+ "solver_debug": {
+  "anchors": {
+   "min_total_cost": [
+    {
+     "retry_attempt": 1,
+     "objective": "min_total_cost",
+     "solver_options": {},
+     "accepted": true,
+     "solve_attempts": [
+      {
+       "attempt_index": 1,
+       "solver_name": "scip",
+       "solver_options": {},
+       "accepted": false,
+       "label": "min_total_cost",
+       "termination_condition": "optimal",
+       "residual_summary": null,
+       "rejection_reason": {
+        "type": "original_problem_infeasible"
+       },
+       "solver_log_summary": {
+        "original_problem_infeasible": true,
+        "violated_constraint": null,
+        "tail": [
+         "3 constraints of type <nonlinear>",
+         "Presolving Time: 0.01",
+         "transformed 1/1 original solutions to the transformed problem space",
+         "time | node  | left  |LP iter|LP it/n|mem/heur|mdpt |vars |cons |rows |cuts |sepa|confs|strbr|  dualbound   | primalbound  |  gap   | compl.",
+         "0.0s|     1 |     0 |   458 |     - |  4460k |   0 |  87 | 128 | 120 |   0 |  0 |  13 |   0 | 2.537236e+06 | 6.163937e+06 | 142.94%| unknown",
+         "0.0s|     1 |     0 |   460 |     - |  4474k |   0 |  87 | 128 | 123 |   3 |  1 |  13 |   0 | 2.537236e+06 | 6.163937e+06 | 142.94%| unknown",
+         "(node 1) unresolved numerical troubles in LP 16 -- using pseudo solution instead (loop 1)",
+         "0.0s|     1 |     2 |   828 |     - |  4486k |   0 |  87 | 129 | 127 |   7 |  2 |  14 |   0 | 2.537236e+06 | 6.163937e+06 | 142.94%| unknown",
+         "d12.8s|     3 |     2 |   907 |  29.3 |    mpec|   2 |  87 | 129 | 127 |   7 |  1 |  14 |   0 | 2.537236e+06 | 3.150862e+06 |  24.18%|   9.17%",
+         "d16.2s|     7 |     2 |  1059 |  34.3 |    mpec|   4 |  87 | 127 | 127 |   7 |  2 |  14 |   0 | 2.537236e+06 | 2.549847e+06 |   0.50%|  16.04%",
+         "SCIP Status        : problem is solved [optimal solution found]",
+         "Solving Time (sec) : 16.20",
+         "Solving Nodes      : 19 (total of 20 nodes in 2 runs)",
+         "Primal Bound       : +2.54984733526370e+06 (3 solutions)",
+         "Dual Bound         : +2.54984733526370e+06",
+         "Gap                : 0.00 %",
+         "[linear] <lc612>: <x1>[C] (+3.73599891e+10) -4976.44504<x11>[C] (+0) -6182.35294<x12>[C] (+0) -7557.64706<x13>[C] (+0) -4976.44504<x26>[C] (+0) -6182.35294<x27>[C] (+0) -7557.64706<x28>[C] (+0) -4976.44504<x40>[C] (+0) -6182.35294<x41>[C] (+0) -7557.64706<x42>[C] (+0) -2.02926111e+11<b187>[B] (-9.99999767e-09) -2.03322812e+11<b188>[B] (-9.9999977e-09) -1.90737626e+11<b189>[B] (+5.9997486e-08) -2.01270843e+11<b190>[B] (-9.99999709e-09) -2.03478956e+11<b191>[B] (-9.99999788e-09) -2.21770869e+11<b192>[B] (+0) -2.06620827e+11<b193>[B] (-9.99999829e-09) -2.01354898e+11<b194>[B] (+0) -2.04572003e+11<b195>[B] (-9.99999782e-09) -3.783404e+10<b212>[B] (-9.98260086e-09) -3.73599899e+10<b213>[B] (+1.00000001) -2.02926111e+11<b299>[B] (-0) -2.03322812e+11<b300>[B] (-0) -1.90737626e+11<b301>[B] (+0) -2.01270843e+11<b302>[B] (-0) -2.03478956e+11<b303>[B] (-0) -2.21770869e+11<b304>[B] (+0) -2.06620827e+11<b305>[B] (+0) -2.01354898e+11<b306>[B] (-0) -2.04572003e+11<b307>[B] (+0) -3.783404e+10<b324>[B] (+0) -3.73599899e+10<b325>[B] (+0) -3.81532661e+10<b326>[B] (+0) -3.9093629e+10<b327>[B] (+0) -3.83426967e+10<b328>[B] (+0) -3.80434141e+10<b329>[B] (+0) -3.70146319e+10<b330>[B] (+0) == 0;",
+         ";",
+         "violation: right hand side is violated by 7.62939453125e-06",
+         "best solution is not feasible in original problem"
+        ]
+       },
+       "solver_stdout": "[WARN] Rejecting post-solve solution for min_total_cost: SCIP reported original-problem infeasibility.\n[WARN] Solver status for min_total_cost: optimal \u2014 no feasible solution found"
+      },
+      {
+       "attempt_index": 2,
+       "solver_name": "scip",
+       "solver_options": {
+        "presolving/maxrounds": 0
+       },
+       "accepted": true,
+       "label": "min_total_cost",
+       "termination_condition": "optimal",
+       "residual_summary": {
+        "max_residual": 0.0,
+        "count": 0,
+        "violations": []
+       },
+       "rejection_reason": null,
+       "solver_log_summary": {
+        "original_problem_infeasible": false,
+        "violated_constraint": null,
+        "tail": [
+         "orbital reduction:          3 components of sizes 6, 13, 6",
+         "lexicographic reduction:   25 permutations with support sizes 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2",
+         "handled 8 out of 8 symmetry components",
+         "presolving (0 rounds: 0 fast, 0 medium, 0 exhaustive):",
+         "0 deleted vars, 0 deleted constraints, 0 added constraints, 0 tightened bounds, 0 added holes, 0 changed sides, 0 changed coefficients",
+         "0 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+         "presolved problem has 439 variables (259 bin, 0 int, 180 cont) and 1411 constraints",
+         "1408 constraints of type <linear>",
+         "3 constraints of type <nonlinear>",
+         "Presolving Time: 0.01",
+         "time | node  | left  |LP iter|LP it/n|mem/heur|mdpt |vars |cons |rows |cuts |sepa|confs|strbr|  dualbound   | primalbound  |  gap   | compl.",
+         "p 0.0s|     1 |     0 |     4 |     - |shiftand|   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 |-1.000000e-07 | 3.996364e+06 |    Inf | unknown",
+         "0.0s|     1 |     0 |   105 |     - |    11M |   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 | 3.996364e+06 | 3.996364e+06 |   0.00%| unknown",
+         "0.0s|     1 |     0 |   105 |     - |    11M |   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 | 3.996364e+06 | 3.996364e+06 |   0.00%| unknown",
+         "SCIP Status        : problem is solved [optimal solution found]",
+         "Solving Time (sec) : 0.02",
+         "Solving Nodes      : 1",
+         "Primal Bound       : +3.99636419300000e+06 (1 solutions)",
+         "Dual Bound         : +3.99636419300000e+06",
+         "Gap                : 0.00 %"
+        ]
+       },
+       "objective_value": {
+        "profit": 271635.806999987,
+        "emissions": 5090.951000420273,
+        "CE": 458289.16105825425,
+        "total_cost": 3996364.193
+       },
+       "solver_stdout": "==================================================\n  Single Objective: min_total_cost\n==================================================\n  Profit [USD]:      271,635.81\n  Emissions [tCO2]:  5,090.9510\n  CE Score:          458,289.161058\n  Sales:             4,268,000.00\n  Capital Cost:      1,649,512.15\n  Operational Cost:  2,308,156.04\n  Transport Cost:    38,696.00\n  Total Cost:        3,996,364.19\n  Stage 1:           ['st1']\n  Stage 2:           ['lf']\n  Stage 3:           []\n  STRAP Wash 1:      ['PE-Isobutyl Acetate']\n  STRAP Wash 2:      []\n  E_score:  0.000005  |  GHG_score: 0.776347\n  Water_score: 0.500000  |  Waste_score: 0.750000\n  Subs_score:  0.265093"
+      },
+      {
+       "attempt_index": 3,
+       "solver_name": "scip",
+       "solver_options": {
+        "presolving/maxrounds": 0,
+        "randomization/randomseedshift": 1
+       },
+       "accepted": true,
+       "label": "min_total_cost",
+       "termination_condition": "optimal",
+       "residual_summary": {
+        "max_residual": 0.0,
+        "count": 0,
+        "violations": []
+       },
+       "rejection_reason": null,
+       "solver_log_summary": {
+        "original_problem_infeasible": false,
+        "violated_constraint": null,
+        "tail": [
+         "orbital reduction:          3 components of sizes 6, 13, 6",
+         "lexicographic reduction:   25 permutations with support sizes 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2",
+         "handled 8 out of 8 symmetry components",
+         "presolving (0 rounds: 0 fast, 0 medium, 0 exhaustive):",
+         "0 deleted vars, 0 deleted constraints, 0 added constraints, 0 tightened bounds, 0 added holes, 0 changed sides, 0 changed coefficients",
+         "0 implications, 0 cliques, 0 implied integral variables (0 bin, 0 int, 0 cont)",
+         "presolved problem has 439 variables (259 bin, 0 int, 180 cont) and 1411 constraints",
+         "1408 constraints of type <linear>",
+         "3 constraints of type <nonlinear>",
+         "Presolving Time: 0.01",
+         "time | node  | left  |LP iter|LP it/n|mem/heur|mdpt |vars |cons |rows |cuts |sepa|confs|strbr|  dualbound   | primalbound  |  gap   | compl.",
+         "p 0.0s|     1 |     0 |     4 |     - |shiftand|   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 |-1.000000e-07 | 3.996364e+06 |    Inf | unknown",
+         "0.0s|     1 |     0 |   105 |     - |    11M |   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 | 3.996364e+06 | 3.996364e+06 |   0.00%| unknown",
+         "0.0s|     1 |     0 |   105 |     - |    11M |   0 | 444 | 167 | 162 |   0 |  0 |   4 |   0 | 3.996364e+06 | 3.996364e+06 |   0.00%| unknown",
+         "SCIP Status        : problem is solved [optimal solution found]",
+         "Solving Time (sec) : 0.02",
+         "Solving Nodes      : 1",
+         "Primal Bound       : +3.99636419300000e+06 (1 solutions)",
+         "Dual Bound         : +3.99636419300000e+06",
+         "Gap                : 0.00 %"
+        ]
+       },
+       "objective_value": {
+        "profit": 271635.806999987,
+        "emissions": 5090.951000420273,
+        "CE": 458289.16105825425,
+        "total_cost": 3996364.193
+       },
+       "solver_stdout": "==================================================\n  Single Objective: min_total_cost\n==================================================\n  Profit [USD]:      271,635.81\n  Emissions [tCO2]:  5,090.9510\n  CE Score:          458,289.161058\n  Sales:             4,268,000.00\n  Capital Cost:      1,649,512.15\n  Operational Cost:  2,308,156.04\n  Transport Cost:    38,696.00\n  Total Cost:        3,996,364.19\n  Stage 1:           ['st1']\n  Stage 2:           ['lf']\n  Stage 3:           []\n  STRAP Wash 1:      ['PE-Isobutyl Acetate']\n  STRAP Wash 2:      []\n  E_score:  0.000005  |  GHG_score: 0.776347\n  Water_score: 0.500000  |  Waste_score: 0.750000\n  Subs_score:  0.265093"
+      }
+     ]
+    }
+   ],
+   "max_circularity": [
+    {
+     "retry_attempt": 1,
+     "objective": "max_circularity",
+     "solver_options": {},
+     "accepted": true,
+     "solve_attempts": [
+      {
+       "attempt_index": 1,
+       "solver_name": "scip",
+       "solver_options": {},
+       "accepted": true,
+       "label": "max_circularity",
+       "termination_condition": "optimal",
+       "residual_summary": {
+        "max_residual": 0.0,
+        "count": 0,
+        "violations": []
+       },
+       "rejection_reason": null,
+       "solver_log_summary": {
+        "original_problem_infeasible": false,
+        "violated_constraint": null,
+        "tail": [
+         "2 constraints of type <bounddisjunction>",
+         "3 constraints of type <nonlinear>",
+         "Presolving Time: 0.01",
+         "transformed 2/2 original solutions to the transformed problem space",
+         "time | node  | left  |LP iter|LP it/n|mem/heur|mdpt |vars |cons |rows |cuts |sepa|confs|strbr|  dualbound   | primalbound  |  gap   | compl.",
+         "0.0s|     1 |     0 |  1258 |     - |  4565k |   0 |  88 | 141 | 136 |   0 |  0 |   8 |   0 | 8.585778e+05 | 8.152985e+05 |   5.31%| unknown",
+         "0.0s|     1 |     0 |  1562 |     - |  4583k |   0 |  88 | 141 | 137 |   1 |  1 |   8 |   0 | 8.585485e+05 | 8.152985e+05 |   5.30%| unknown",
+         "0.0s|     1 |     0 |  1564 |     - |  4598k |   0 |  88 | 141 | 139 |   3 |  2 |   8 |   0 | 8.576901e+05 | 8.152985e+05 |   5.20%| unknown",
+         "r 0.0s|     1 |     0 |  1564 |     - |shifting|   0 |  88 | 141 | 139 |   3 |  2 |   8 |   0 | 8.576901e+05 | 8.163247e+05 |   5.07%| unknown",
+         "(node 1) unresolved numerical troubles in LP 26 -- using pseudo solution instead (loop 1)",
+         "0.1s|     1 |     2 |  1903 |     - |  4600k |   0 |  88 | 141 | 139 |   3 |  2 |   8 |   0 | 8.576901e+05 | 8.163247e+05 |   5.07%| unknown",
+         "* 9.1s|    13 |     5 |  2423 |  40.3 |strongbr|   8 |  88 | 143 | 139 |   3 |  2 |  10 |  10 | 8.225878e+05 | 8.215339e+05 |   0.13%|  86.98%",
+         "* 9.1s|    15 |     5 |  2444 |  36.3 |strongbr|   9 |  88 | 143 | 139 |   3 |  1 |  17 |  12 | 8.225878e+05 | 8.215490e+05 |   0.13%|  87.14%",
+         "* 9.1s|    18 |     2 |  2444 |  30.3 |    LP  |   9 |  88 | 145 | 139 |   3 |  1 |  19 |  14 | 8.225878e+05 | 8.215490e+05 |   0.13%|  89.56%",
+         "SCIP Status        : problem is solved [optimal solution found]",
+         "Solving Time (sec) : 9.12",
+         "Solving Nodes      : 19 (total of 20 nodes in 2 runs)",
+         "Primal Bound       : +8.21549048599302e+05 (6 solutions)",
+         "Dual Bound         : +8.21549048599302e+05",
+         "Gap                : 0.00 %"
+        ]
+       },
+       "objective_value": {
+        "profit": 15693490.455,
+        "emissions": 5151.695482550171,
+        "CE": 821549.0485992021,
+        "total_cost": 6034509.545
+       },
+       "solver_stdout": "==================================================\n  Single Objective: max_circularity\n==================================================\n  Profit [USD]:      15,693,490.46\n  Emissions [tCO2]:  5,151.6955\n  CE Score:          821,549.048599\n  Sales:             21,728,000.00\n  Capital Cost:      2,199,274.92\n  Operational Cost:  3,799,114.62\n  Transport Cost:    36,120.00\n  Total Cost:        6,034,509.54\n  Stage 1:           ['st1']\n  Stage 2:           ['st2']\n  Stage 3:           ['py']\n  STRAP Wash 1:      ['EVOH-Ethylene Glycol']\n  STRAP Wash 2:      ['PE-Tetrachloroethylene']\n  E_score:  0.000006  |  GHG_score: 0.758175\n  Water_score: 1.000000  |  Waste_score: 1.000000\n  Subs_score:  1.349565"
+      }
+     ]
+    }
+   ]
+  },
+  "sweep_attempts": [
+   {
+    "attempt_index": 1,
+    "solver_options": {
+     "limits/time": 30
+    },
+    "accepted": true,
+    "n_rows": 19,
+    "n_sweep_point_debug_rows": 24,
+    "n_rejected_sweep_points": 5
+   }
+  ]
+ },
+ "tool_name": "run_waste_management_pareto",
+ "success": true,
+ "pareto_payload_path": "/home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_payload_1b78b6f58a18.json"
+}
