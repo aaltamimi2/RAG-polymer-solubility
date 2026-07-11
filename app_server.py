@@ -67,12 +67,16 @@ PLOTS_DIR.mkdir(parents=True, exist_ok=True)
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 MODEL_ALIASES = {
-    "gemini-3.1-flash-lite-preview": "google_genai:gemini-3.1-flash-lite-preview",
+    # Current Google models.
+    "gemini-3.1-flash-lite": "google_genai:gemini-3.1-flash-lite",
+    "gemini-3.5-flash": "google_genai:gemini-3.5-flash",
     "gemini-3.1-pro-preview": "google_genai:gemini-3.1-pro-preview",
-    "gemini-3-flash-preview": "google_genai:gemini-3-flash-preview",
-    # Backward-compatible aliases for existing clients/localStorage values.
-    "gemini-2.5-flash-lite": "google_genai:gemini-3.1-flash-lite-preview",
-    "gemini-2.5-flash": "google_genai:gemini-3-flash-preview",
+    # Backward-compatible aliases (older/preview names) -> current models, so
+    # existing clients/localStorage values keep resolving.
+    "gemini-3.1-flash-lite-preview": "google_genai:gemini-3.1-flash-lite",
+    "gemini-3-flash-preview": "google_genai:gemini-3.5-flash",
+    "gemini-2.5-flash-lite": "google_genai:gemini-3.1-flash-lite",
+    "gemini-2.5-flash": "google_genai:gemini-3.5-flash",
     "gemini-2.5-pro": "google_genai:gemini-3.1-pro-preview",
 }
 PLOT_SUFFIXES = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
@@ -92,7 +96,7 @@ SUBAGENT_GRAPH_META: dict[str, dict[str, str]] = {
 class ChatRequest(BaseModel):
     message: str
     session_id: str | None = None
-    model: str | None = "gemini-3.1-flash-lite-preview"
+    model: str | None = "gemini-3.1-flash-lite"
 
 
 class ChatResponse(BaseModel):
@@ -151,7 +155,7 @@ class SessionState:
 
 def _normalize_model_name(raw_model: str | None) -> str:
     if not raw_model:
-        return MODEL_ALIASES["gemini-3.1-flash-lite-preview"]
+        return MODEL_ALIASES["gemini-3.1-flash-lite"]
     model = raw_model.strip()
     if ":" in model:
         return model
@@ -834,7 +838,7 @@ async def warm_default_agent_on_startup() -> None:
     if os.getenv("DISSOLVE_WARM_DEFAULT_AGENT", "true").strip().lower() in {"0", "false", "no"}:
         logger.info("Skipping default agent warmup")
         return
-    default_model = MODEL_ALIASES["gemini-3.1-flash-lite-preview"]
+    default_model = MODEL_ALIASES["gemini-3.1-flash-lite"]
     logger.info("Warming default DISSOLVE agent for model %s", default_model)
     await asyncio.to_thread(agent_runtime.warm_agent, default_model)
 

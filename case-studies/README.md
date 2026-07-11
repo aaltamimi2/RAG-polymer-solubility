@@ -27,6 +27,9 @@ figures inherit the current, validated numerics.
 |---|---|---|---|
 | 01 | [Temperature-resolved separation economics](01-pareto-temperature-sweep/) | Selectivity-vs-MSP Pareto frontier across the 8-polymer dissolution sequence, per-step temperature trade-offs | v10 interpolation (live) + 217 cached BioSTEAM sims |
 | 02 | [Cost-vs-emissions / circularity Pareto landscapes](02-cost-emissions-pareto/) | Why single-point "broken" frontiers appear and the fix — landscape + recomputed rich frontier | v10 waste-optimization MINLP (live SCIP, workbook TEA) |
+| 03 | [Reward / evaluation substrate](03-reward-evaluation/) | Physically-gated, decomposed reward scored across a simple→complex query spectrum; the scoring layer for RL and auto-eval | `strap.eval` + deterministic v10 engines |
+| 04 | [Exploratory RL on the harness](04-exploratory-rl/) | Best-of-N exploration + a Thompson contextual bandit that learns exploration breadth per query complexity, online, from the reward substrate | `strap.learn` + `strap.eval` (zero API) |
+| 05 | [Offline RL on logged agent traces](05-offline-rl-from-traces/) | Reward-label last night's live multistage runs, evaluate the harness fixes off-policy, warm-start a bandit, and run trajectory-rooted best-of-N — all with zero new API calls | `strap.eval.trace_ingest` + `strap.learn` replayed from a committed LangSmith-log cache |
 
 ## Legacy case-study material
 

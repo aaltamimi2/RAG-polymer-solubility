@@ -1,0 +1,130 @@
+{
+  "suite": [
+    {
+      "key": "point_solubility",
+      "complexity": "simple",
+      "query": "solubility of LDPE in toluene at 100 C",
+      "reward": 0.991667,
+      "feasible": true,
+      "components": {
+        "physical_validity": null,
+        "grounding": 1.0,
+        "separation_quality": null,
+        "optimization_outcome": null,
+        "richness": null,
+        "completeness": 1.0,
+        "efficiency": 0.9583333333333334
+      }
+    },
+    {
+      "key": "solubility_range",
+      "complexity": "simple",
+      "query": "solubility of HDPE in xylene 25-120 C",
+      "reward": 0.826389,
+      "feasible": true,
+      "components": {
+        "physical_validity": null,
+        "grounding": null,
+        "separation_quality": null,
+        "optimization_outcome": 0.5,
+        "richness": 1.0,
+        "completeness": 1.0,
+        "efficiency": 0.9583333333333334
+      }
+    },
+    {
+      "key": "selectivity_rank",
+      "complexity": "moderate",
+      "query": "rank solvents LDPE vs PET at 100 C",
+      "reward": 0.802083,
+      "feasible": true,
+      "components": {
+        "physical_validity": null,
+        "grounding": null,
+        "separation_quality": null,
+        "optimization_outcome": null,
+        "richness": 1.0,
+        "completeness": 0.5,
+        "efficiency": 0.9583333333333334
+      }
+    },
+    {
+      "key": "separation_sequence",
+      "complexity": "complex",
+      "query": "best separation sequence LDPE/PP/PS",
+      "reward": 0.804213,
+      "feasible": true,
+      "components": {
+        "physical_validity": 1.0,
+        "grounding": 1.0,
+        "separation_quality": 0.2512378,
+        "optimization_outcome": null,
+        "richness": 1.0,
+        "completeness": 1.0,
+        "efficiency": 0.8333333333333334
+      }
+    },
+    {
+      "key": "cost_circularity_pareto",
+      "complexity": "complex",
+      "query": "cost-vs-circularity Pareto PE/EVOH",
+      "reward": 0.881944,
+      "feasible": true,
+      "components": {
+        "physical_validity": null,
+        "grounding": null,
+        "separation_quality": null,
+        "optimization_outcome": 1.0,
+        "richness": 0.75,
+        "completeness": 1.0,
+        "efficiency": 0.6666666666666667
+      }
+    },
+    {
+      "key": "temperature_sweep_frontier",
+      "complexity": "very_complex",
+      "query": "selectivity-vs-MSP frontier over sequence",
+      "reward": 0.701389,
+      "feasible": true,
+      "components": {
+        "physical_validity": null,
+        "grounding": null,
+        "separation_quality": null,
+        "optimization_outcome": 0.5,
+        "richness": 1.0,
+        "completeness": 0.75,
+        "efficiency": 0.5833333333333333
+      }
+    }
+  ],
+  "ablations": [
+    {
+      "variant": "engine_result",
+      "label": "Engine result",
+      "reward": 0.804213,
+      "feasible": true,
+      "physical": 1.0
+    },
+    {
+      "variant": "greedy_top1",
+      "label": "Greedy (top-1 only)",
+      "reward": 0.686566,
+      "feasible": true,
+      "physical": 1.0
+    },
+    {
+      "variant": "infeasible_above_bp",
+      "label": "Infeasible (above BP)",
+      "reward": 0.065715,
+      "feasible": false,
+      "physical": 0.0
+    },
+    {
+      "variant": "fabricated_claim",
+      "label": "Fabricated claim",
+      "reward": 0.065715,
+      "feasible": false,
+      "physical": 0.5
+    }
+  ]
+}

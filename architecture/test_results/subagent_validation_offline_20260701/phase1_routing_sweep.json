@@ -1,0 +1,1562 @@
+{
+  "summary": {
+    "total": 51,
+    "with_problems": 6,
+    "fast_path_executions": 23,
+    "fast_path_errors": 0,
+    "by_family": {
+      "A_point_solubility": {
+        "total": 9,
+        "problems": 0
+      },
+      "A_range_solubility": {
+        "total": 3,
+        "problems": 0
+      },
+      "B_candidates_single": {
+        "total": 3,
+        "problems": 0
+      },
+      "B_candidates_multi": {
+        "total": 2,
+        "problems": 0
+      },
+      "C_hsp": {
+        "total": 4,
+        "problems": 1
+      },
+      "D_separation": {
+        "total": 3,
+        "problems": 0
+      },
+      "E_biosteam": {
+        "total": 8,
+        "problems": 0
+      },
+      "F_optimization": {
+        "total": 6,
+        "problems": 1
+      },
+      "G_chain": {
+        "total": 3,
+        "problems": 1
+      },
+      "H_research": {
+        "total": 3,
+        "problems": 3
+      },
+      "I_safety": {
+        "total": 2,
+        "problems": 0
+      },
+      "J_temp_variants": {
+        "total": 5,
+        "problems": 0
+      }
+    }
+  },
+  "results": [
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of LDPE in toluene at 100 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 63,
+        "display_head": "LDPE in toluene at 100.0 C: **12.77%** | BP 110.6 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_b1b1f5a047d6",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.030106+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of HDPE in xylene at 120 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 75,
+        "display_head": "HDPE in 1,4-dimethylbenzene at 120.0 C: **15.12%** | BP 138.3 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_c6d977cbc28a",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.106663+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of PP in dodecane at 140 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 62,
+        "display_head": "PP in dodecane at 140.0 C: **47.17%** | BP 216.3 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_7c19259a2336",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.183159+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of PS in THF at 25 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 55,
+        "display_head": "PS in thf at 25.0 C: **14.09%** | BP 65.0 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_25d74d847753",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.264803+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of PVC in THF at 60 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 56,
+        "display_head": "PVC in thf at 60.0 C: **17.90%** | BP 65.0 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_df6ca8a77b78",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.346170+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of EVOH in DMSO at 120 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 73,
+        "display_head": "EVOH in dimethylsulfoxide at 120.0 C: **35.43%** | BP 189.0 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_ac41f1d45e1c",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.426405+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of PET in DMSO at 140 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 72,
+        "display_head": "PET in dimethylsulfoxide at 140.0 C: **15.27%** | BP 189.0 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_f315c4ca489a",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.504243+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of PP in o-xylene at 120 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility",
+        "display_chars": 73,
+        "display_head": "PP in 1,2-dimethylbenzene at 120.0 C: **35.70%** | BP 144.5 C | R\u00b2 = 1.00",
+        "route_decision": {
+          "route_id": "route_579e48f4f285",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.581986+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_point_solubility",
+      "query": "What is the solubility of LDPE in decalin at 100 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": null,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_range_solubility",
+      "query": "Show the solubility of LDPE in dodecane from 25 to 140 C.",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility_range",
+        "display_chars": 502,
+        "display_head": "## LDPE in dodecane (25.0\u2013140.0 C) BP 216.3 C\n\n| T (C) | Solubility (%) |\n|-------|----------------|\n| 25.0 | 0.06 |\n| 30.0 | 0.10 |\n| 35.0 | 0.15 |\n| 40.0 | 0.",
+        "route_decision": {
+          "route_id": "route_0043ced32ce0",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility_range"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.661092+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_range_solubility",
+      "query": "Show the solubility of PP in xylene from 60 to 140 C.",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility_range",
+        "display_chars": 598,
+        "display_head": "## PP in 1,4-dimethylbenzene (25.0\u2013140.0 C) BP 138.3 C\n\nAtmospheric note: part or all of this range is at/above the solvent BP (138.3 C).\n| T (C) | Solubility (",
+        "route_decision": {
+          "route_id": "route_0cba08dc1eaf",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility_range"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.739093+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "A_range_solubility",
+      "query": "Show the solubility of PS in toluene from 25 to 100 C.",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "quantitative polymer-solvent solubility lookup; answer with core interpolation tools",
+      "fast_path": {
+        "tool_name": "predict_solubility_range",
+        "display_chars": 365,
+        "display_head": "## PS in toluene (25.0\u2013100.0 C) BP 110.6 C\n\n| T (C) | Solubility (%) |\n|-------|----------------|\n| 25.0 | 3.69 |\n| 30.0 | 4.64 |\n| 35.0 | 5.75 |\n| 40.0 | 7.03 ",
+        "route_decision": {
+          "route_id": "route_c3ee855befdc",
+          "mode": "direct_tool",
+          "intent": "solubility_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "predict_solubility_range"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.814179+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "B_candidates_single",
+      "query": "What solvents dissolve LDPE?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "simple polymer-solvent lookup; answer with core tools without specialist routing",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for LDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_368ac212ed15",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.897143+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "B_candidates_single",
+      "query": "What solvents dissolve PP?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "simple polymer-solvent lookup; answer with core tools without specialist routing",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1699,
+        "display_head": "**Solvents with solubility data for PP**\n\n| solvent          |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:------",
+        "route_decision": {
+          "route_id": "route_6dddcb5988f9",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:28.980150+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "B_candidates_single",
+      "query": "What solvents dissolve PVC?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "simple polymer-solvent lookup; answer with core tools without specialist routing",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1714,
+        "display_head": "**Solvents with solubility data for PVC**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:----",
+        "route_decision": {
+          "route_id": "route_993dc6275b81",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:29.065181+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "B_candidates_multi",
+      "query": "For a multilayer mixed plastic feedstock containing LDPE, EVOH, and PET, identify solvents that are promising for dissolving any one of the components below 100 deg C.",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "routine_solvent_candidate_lookup",
+        "display_chars": 1089,
+        "display_head": "**Routine Solvent-Candidate Lookup**\n\nTemperature ceiling used for lookup: <= 100 C\nMethod: direct solubility database lookup; HSP/statistics-ML was not used.\n\n",
+        "route_decision": {
+          "route_id": "route_704006606830",
+          "mode": "direct_tool",
+          "intent": "catalog_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "routine_solvent_candidate_lookup"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:30.124182+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "note": "display head does not mention requested polymer (may be fine for tables)",
+      "problems": []
+    },
+    {
+      "family": "B_candidates_multi",
+      "query": "Give candidate solvents for HDPE/PP/PS below 120 C.",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "routine_solvent_candidate_lookup",
+        "display_chars": 1039,
+        "display_head": "**Routine Solvent-Candidate Lookup**\n\nTemperature ceiling used for lookup: <= 120 C\nMethod: direct solubility database lookup; HSP/statistics-ML was not used.\n\n",
+        "route_decision": {
+          "route_id": "route_6edc36651eec",
+          "mode": "direct_tool",
+          "intent": "catalog_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "routine_solvent_candidate_lookup"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:30.131881+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "note": "display head does not mention requested polymer (may be fine for tables)",
+      "problems": []
+    },
+    {
+      "family": "C_hsp",
+      "query": "Evaluate PS versus PVC using Hansen solubility parameters and compare RED values for THF.",
+      "expect_mode": "specialists",
+      "expect_primary": "statistics-ml",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "statistics-ml"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "C_hsp",
+      "query": "Make an HSP RED heatmap for EVOH and PET in polar aprotic solvents.",
+      "expect_mode": "specialists",
+      "expect_primary": "statistics-ml",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "statistics-ml",
+        "visualization-specialist"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "C_hsp",
+      "query": "Predict the glass transition temperature for a new polyamide and report confidence.",
+      "expect_mode": "specialists",
+      "expect_primary": "statistics-ml",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "statistics-ml"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "C_hsp",
+      "query": "Run a statistical correlation between solvent LogP and PS solubility with confidence intervals.",
+      "expect_mode": "specialists",
+      "expect_primary": "statistics-ml",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst",
+        "statistics-ml"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['biosteam-analyst'] != expected statistics-ml"
+      ]
+    },
+    {
+      "family": "D_separation",
+      "query": "Generate the best separation sequence for LDPE/EVOH/PET below 100 C.",
+      "expect_mode": "specialists",
+      "expect_primary": "separation-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "D_separation",
+      "query": "Rank solvent selectivity for LDPE over PET at 90 C and identify the best selective solvent.",
+      "expect_mode": "specialists",
+      "expect_primary": "separation-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer"
+      ],
+      "direct_reason": "contains a temperature mention that is not a simple ceiling constraint",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "D_separation",
+      "query": "Plan a sequential separation for HDPE, PP, and PS with antisolvent precipitation options.",
+      "expect_mode": "specialists",
+      "expect_primary": "separation-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Run a techno-economic analysis for recovering PE from a PE/EVOH multilayer using toluene.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Estimate the MSP for LDPE recovery with dodecane at 8000 tonnes per year under the CHP energy configuration.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Compare CAPEX and OPEX for STRAP processing of PET/EVOH at 5000 vs 20000 tonnes per year.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "What is the GWP per kg of recovered polymer for PE dissolution in toluene under Grid versus Grid+Boiler energy scenarios?",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": {
+        "tool_name": "list_available_polymers",
+        "display_chars": 258,
+        "display_head": "**Available Polymers Summary**\n\n**Common Solvents Database:** 11 unique polymers\n\n**Example Polymers:**\n- EVOH\n- HDPE\n- LDPE\n- Nylon6\n- Nylon66\n- PC\n- PES\n- PET",
+        "route_decision": {
+          "route_id": "route_de8254235a25",
+          "mode": "direct_tool",
+          "intent": "catalog_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_polymers"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:30.406673+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Run BioSTEAM for a 60% PE / 40% EVOH feed at 8000 tpy and report MSP, TCI, AOC, and GWP.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Do a life cycle assessment of the STRAP process for polypropylene recovery with xylene, including emissions breakdown.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Batch-screen toluene, xylene, and dodecane for PE recovery economics and rank by MSP.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "E_biosteam",
+      "query": "Simulate multi-polymer sequential recovery of PE then EVOH and report blended MSP and combined TCI.",
+      "expect_mode": "specialists",
+      "expect_primary": "biosteam-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Optimize the processing pathway for maximum profit for a PE/EVOH/PET feed.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "optimization-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Generate the Pareto frontier of total cost versus emissions for a 60/40 PE/EVOH feed at 8000 tpy.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "optimization-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Maximize circularity subject to profit >= 0 for multilayer film waste and show the trade-off frontier.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "optimization-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Run the waste-management superstructure with at least 1 STRAP wash step and up to 2 wash steps, maximizing profit.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "optimization-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Sweep feed compositions from 20% to 80% PE and produce Pareto slices of profit versus GWP for each composition.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "optimization-engineer"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "F_optimization",
+      "query": "Which processing pathway minimizes emissions for a PP/PS/PVC mixed stream? No Pareto analysis needed.",
+      "expect_mode": "specialists",
+      "expect_primary": "optimization-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['biosteam-analyst'] != expected optimization-engineer"
+      ]
+    },
+    {
+      "family": "G_chain",
+      "query": "Design a separation sequence for LDPE/PP/EVOH below 120 C, then estimate MSP and GWP for the route.",
+      "expect_mode": "specialists",
+      "expect_primary": "separation-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer",
+        "biosteam-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "G_chain",
+      "query": "Screen contaminant removal for PFAS in recycled LDPE, then qualify solvents for the separation route.",
+      "expect_mode": "specialists",
+      "expect_primary": "contaminant-removal-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer",
+        "contaminant-removal-analyst"
+      ],
+      "direct_reason": "no direct lookup/recommendation verb",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['separation-engineer'] != expected contaminant-removal-analyst"
+      ]
+    },
+    {
+      "family": "G_chain",
+      "query": "Find the optimal separation sequence for PE/EVOH and then create a separation tree plot.",
+      "expect_mode": "specialists",
+      "expect_primary": "separation-engineer",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "separation-engineer",
+        "visualization-specialist"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "H_research",
+      "query": "Find recent journal articles on techno-economic analysis of solvent-based polyolefin recycling.",
+      "expect_mode": "specialists",
+      "expect_primary": "scholar-researcher",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst",
+        "scholar-researcher"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['biosteam-analyst'] != expected scholar-researcher"
+      ]
+    },
+    {
+      "family": "H_research",
+      "query": "Search patents about Hansen solubility parameter screening for polymer separation.",
+      "expect_mode": "specialists",
+      "expect_primary": "patent-researcher",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "statistics-ml",
+        "patent-researcher"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['statistics-ml'] != expected patent-researcher"
+      ]
+    },
+    {
+      "family": "H_research",
+      "query": "What do our indexed documents say about BioSTEAM TEA assumptions? Cite retrieved chunks.",
+      "expect_mode": "specialists",
+      "expect_primary": "rag-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "biosteam-analyst",
+        "rag-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": [
+        "primary ['biosteam-analyst'] != expected rag-analyst"
+      ]
+    },
+    {
+      "family": "I_safety",
+      "query": "Show the safety card for toluene at 100 C operating temperature.",
+      "expect_mode": null,
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "safety-analyst"
+      ],
+      "direct_reason": "not a direct solvent lookup topic",
+      "fast_path": {
+        "tool_name": "get_solvent_safety_card",
+        "display_chars": 3674,
+        "display_head": "\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 DISSOLVE SAFETY CARD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e\n\u2502 Toluene                                              ",
+        "route_decision": {
+          "route_id": "route_06448b23687d",
+          "mode": "direct_tool",
+          "intent": "safety_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "get_solvent_safety_card"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.324120+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "I_safety",
+      "query": "Compare GSK solvent sustainability scores for toluene, xylene, and DMSO.",
+      "expect_mode": "specialists",
+      "expect_primary": "safety-analyst",
+      "expect_fast_path": null,
+      "fallback_mode": "specialists",
+      "fallback_steps": [
+        "safety-analyst"
+      ],
+      "direct_reason": "no direct lookup/recommendation verb",
+      "fast_path": null,
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "J_temp_variants",
+      "query": "What solvents dissolve HDPE below 100 C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for HDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_edda2843cdb8",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.451119+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "J_temp_variants",
+      "query": "What solvents dissolve HDPE under 100C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for HDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_73c6d41044ae",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.570417+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "J_temp_variants",
+      "query": "What solvents dissolve HDPE up to 100 deg C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for HDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_51642e65e6ad",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.696477+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "J_temp_variants",
+      "query": "What solvents dissolve HDPE at or below 100 \u00b0C?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for HDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_2209c4fd70fb",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.820578+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    },
+    {
+      "family": "J_temp_variants",
+      "query": "What solvents dissolve HDPE below 212 F?",
+      "expect_mode": "direct",
+      "expect_primary": null,
+      "expect_fast_path": true,
+      "fallback_mode": "direct",
+      "fallback_steps": [],
+      "direct_reason": "routine multi-polymer solvent-candidate lookup; answer with core database lookup",
+      "fast_path": {
+        "tool_name": "list_available_solvents",
+        "display_chars": 1715,
+        "display_head": "**Solvents with solubility data for HDPE**\n\n| solvent           |   n_points |   min_temp_c |   max_temp_c |   max_solubility_pct |   avg_solubility_pct |\n|:---",
+        "route_decision": {
+          "route_id": "route_bb98cc415f42",
+          "mode": "direct_tool",
+          "intent": "solvent_candidate_lookup",
+          "executor": "direct_tool_adapter",
+          "allowed_tools": [
+            "list_available_solvents"
+          ],
+          "allowed_subagents": [],
+          "denied_subagents": [
+            "separation-engineer",
+            "safety-analyst",
+            "biosteam-analyst",
+            "scholar-agent",
+            "patent-agent",
+            "rag-agent",
+            "visualization-agent",
+            "statistics-agent",
+            "contaminant-removal-engineer",
+            "optimization-engineer"
+          ],
+          "model_call_budget": 0,
+          "tool_call_budget": 1,
+          "handoff_policy": "disabled",
+          "verifier_policy": "disabled_for_validated_tool_display",
+          "failure_policy": "fail_closed_with_explanation",
+          "reason": "request matched deterministic direct-tool route",
+          "created_at": "2026-07-01T22:55:33.942125+00:00"
+        }
+      },
+      "fast_path_error": null,
+      "problems": []
+    }
+  ]
+}

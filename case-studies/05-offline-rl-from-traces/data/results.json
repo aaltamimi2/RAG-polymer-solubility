@@ -1,0 +1,232 @@
+{
+  "fix_evaluation": [
+    {
+      "order": 2,
+      "label": "run2_budgets_dead",
+      "config_note": "pre-fix: subagent budgets silently dead; 5 dispatches, 2 wasted retries; infeasible",
+      "optimization_reward": 0.4222,
+      "separation_reward": 0.7647,
+      "components": {
+        "separation-engineer": {
+          "physical_validity": 1.0,
+          "grounding": 1.0,
+          "separation_quality": 1.0,
+          "richness": 0.8333,
+          "completeness": 0.5,
+          "efficiency": 0.0
+        },
+        "optimization-engineer": {
+          "optimization_outcome": 0.1,
+          "completeness": 0.5,
+          "efficiency": 0.95
+        }
+      }
+    },
+    {
+      "order": 3,
+      "label": "run3_clean_staged",
+      "config_note": "seed_guard_state + handoff-visibility + budget-trip synthesis; clean 2-dispatch flow; infeasible",
+      "optimization_reward": 0.4,
+      "separation_reward": 0.8186,
+      "components": {
+        "separation-engineer": {
+          "physical_validity": 1.0,
+          "grounding": 1.0,
+          "separation_quality": 1.0,
+          "richness": 0.8333,
+          "completeness": 0.5,
+          "efficiency": 0.4583
+        },
+        "optimization-engineer": {
+          "optimization_outcome": 0.1,
+          "completeness": 0.5,
+          "efficiency": 0.85
+        }
+      }
+    },
+    {
+      "order": 4,
+      "label": "run4_workbook_shortlist",
+      "config_note": "workbook-constrained shortlist; still infeasible -> exposed candidate-admission defect",
+      "optimization_reward": 0.4222,
+      "separation_reward": 0.7745,
+      "components": {
+        "separation-engineer": {
+          "physical_validity": 1.0,
+          "grounding": 1.0,
+          "separation_quality": 1.0,
+          "richness": 0.5,
+          "completeness": 0.5,
+          "efficiency": 0.5833
+        },
+        "optimization-engineer": {
+          "optimization_outcome": 0.1,
+          "completeness": 0.5,
+          "efficiency": 0.95
+        }
+      }
+    },
+    {
+      "order": 5,
+      "label": "run5_baseline_fallback",
+      "config_note": "baseline-fallback fix; first feasible Pareto front produced",
+      "optimization_reward": 0.7333,
+      "separation_reward": 0.799,
+      "components": {
+        "separation-engineer": {
+          "physical_validity": 1.0,
+          "grounding": 1.0,
+          "separation_quality": 1.0,
+          "richness": 0.6667,
+          "completeness": 0.5,
+          "efficiency": 0.5417
+        },
+        "optimization-engineer": {
+          "optimization_outcome": 1.0,
+          "richness": 0.25,
+          "completeness": 0.75,
+          "efficiency": 0.9
+        }
+      }
+    },
+    {
+      "order": 6,
+      "label": "run6_knee_reported",
+      "config_note": "enriched fallback (washes+knee/cheapest); complete deliverable",
+      "optimization_reward": 0.7333,
+      "separation_reward": 0.6471,
+      "components": {
+        "separation-engineer": {
+          "physical_validity": 1.0,
+          "grounding": 0.5,
+          "separation_quality": 1.0,
+          "richness": 0.6667,
+          "completeness": 0.5,
+          "efficiency": 0.5
+        },
+        "optimization-engineer": {
+          "optimization_outcome": 1.0,
+          "richness": 0.25,
+          "completeness": 0.75,
+          "efficiency": 0.9
+        }
+      }
+    }
+  ],
+  "trajectory_rooted": [
+    {
+      "run": "run2_budgets_dead",
+      "polymers": [
+        "LDPE",
+        "EVOH"
+      ],
+      "logged_reward": 0.7647,
+      "best_of_n": {
+        "1": 0.9657,
+        "2": 0.9608,
+        "4": 0.951,
+        "6": 0.9412
+      },
+      "best_n": 1,
+      "headroom": 0.201
+    },
+    {
+      "run": "run3_clean_staged",
+      "polymers": [
+        "PE",
+        "EVOH"
+      ],
+      "logged_reward": 0.8186,
+      "best_of_n": {
+        "1": 0.9657,
+        "2": 0.9608,
+        "4": 0.951,
+        "6": 0.9412
+      },
+      "best_n": 1,
+      "headroom": 0.1471
+    },
+    {
+      "run": "run4_workbook_shortlist",
+      "polymers": [
+        "PE",
+        "EVOH"
+      ],
+      "logged_reward": 0.7745,
+      "best_of_n": {
+        "1": 0.9657,
+        "2": 0.9608,
+        "4": 0.951,
+        "6": 0.9412
+      },
+      "best_n": 1,
+      "headroom": 0.1912
+    },
+    {
+      "run": "run5_baseline_fallback",
+      "polymers": [
+        "HDPE",
+        "LDPE",
+        "EVOH"
+      ],
+      "logged_reward": 0.799,
+      "best_of_n": {
+        "1": 0.8618,
+        "2": 0.8569,
+        "4": 0.896,
+        "6": 0.8862
+      },
+      "best_n": 4,
+      "headroom": 0.097
+    },
+    {
+      "run": "run6_knee_reported",
+      "polymers": [
+        "LDPE",
+        "HDPE",
+        "EVOH"
+      ],
+      "logged_reward": 0.6471,
+      "best_of_n": {
+        "1": 0.8618,
+        "2": 0.8569,
+        "4": 0.896,
+        "6": 0.8862
+      },
+      "best_n": 4,
+      "headroom": 0.2489
+    }
+  ],
+  "warm_start": {
+    "logged_arm": 1,
+    "n_samples": 5,
+    "samples": [
+      [
+        "2 polymers",
+        0.7647
+      ],
+      [
+        "2 polymers",
+        0.8186
+      ],
+      [
+        "2 polymers",
+        0.7745
+      ],
+      [
+        "3 polymers",
+        0.799
+      ],
+      [
+        "3 polymers",
+        0.6471
+      ]
+    ],
+    "pooled_posterior": {
+      "alpha": 4.8039,
+      "beta": 2.1961,
+      "mean": 0.6863
+    }
+  },
+  "no_api_calls": true
+}

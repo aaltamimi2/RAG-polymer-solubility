@@ -1,0 +1,238 @@
+{
+  "summary": {
+    "cases": 16,
+    "with_problems": 0
+  },
+  "problems": [],
+  "cases": [
+    {
+      "name": "tea_c1_explicit",
+      "query": "Run BioSTEAM TEA/LCA for LDPE with Cyclohexane under energy case C1 and report MSP, TCI, A",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_named_chp",
+      "query": "Run BioSTEAM TEA/LCA for LDPE with dodecane at 8000 tonnes per year under the CHP energy c",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_named_grid_boiler",
+      "query": "Simulate the BioSTEAM STRAP process for PET in DMSO under the Grid+Boiler energy scenario ",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_no_energy_defaults_c1",
+      "query": "Run a BioSTEAM TEA for PE recovery using toluene and report MSP, TCI, AOC, and GWP.",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [
+        "energy_case"
+      ],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_plain_tea_wording",
+      "query": "Give me a techno-economic analysis of PE recovery with toluene under energy case C2.",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_plot",
+      "query": "Run a BioSTEAM TEA and LCA for PE in toluene under case C1 and plot the cost and GWP break",
+      "compile_status": "compiled",
+      "mode": "planned_workflow",
+      "workflow_id": "biosteam_tea_lca_with_plot",
+      "artifacts": [
+        "biosteam_tea_lca_plot",
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_batch_defers_to_specialist",
+      "query": "Batch-screen toluene, xylene, and dodecane for PE recovery TEA under case C1 and rank by M",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [
+        "typed_enforcement"
+      ],
+      "runtime_status": "legacy_fallback",
+      "runtime_reason": "Compiled plan is not selected for typed enforcement.",
+      "problems": []
+    },
+    {
+      "name": "tea_multi_polymer_defers",
+      "query": "Run BioSTEAM multi-polymer sequential recovery for PE then EVOH with toluene under case C1",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [
+        "typed_enforcement"
+      ],
+      "runtime_status": "legacy_fallback",
+      "runtime_reason": "Compiled plan is not selected for typed enforcement.",
+      "problems": []
+    },
+    {
+      "name": "pareto_cost_vs_emissions",
+      "query": "Generate the Pareto frontier of total cost versus emissions for a 60% PE / 40% EVOH feed a",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "optimization_pareto_front",
+        "optimization_pareto_landscape"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "pareto_slices_routed",
+      "query": "Have the separation engineer shortlist solvents for a PE/EVOH feed at 8000 tpy using the d",
+      "compile_status": "compiled",
+      "mode": "planned_workflow",
+      "workflow_id": "routed_optimization_slices",
+      "artifacts": [
+        "handoff_payload",
+        "optimization_pareto_front",
+        "optimization_pareto_landscape",
+        "optimization_pareto_slices",
+        "optimization_pareto_slices_plot",
+        "optimization_stage_candidates",
+        "separation_topk_sequences",
+        "sidecar_file"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "routed_optimization_bank_query",
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH under sc",
+      "compile_status": "compiled",
+      "mode": "planned_workflow",
+      "workflow_id": "routed_optimization",
+      "artifacts": [
+        "handoff_payload",
+        "optimization_point_plot",
+        "optimization_point_result",
+        "optimization_stage_candidates",
+        "separation_topk_sequences",
+        "separation_tree_plot"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "pareto_landscape",
+      "query": "Show the full Pareto landscape of all feasible points for total cost versus emissions for ",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "optimization_pareto_front",
+        "optimization_pareto_landscape"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "tea_no_keywords_keyword_only_misses",
+      "query": "What would it cost per kilogram to recover PE from packaging waste using toluene at 8000 t",
+      "compile_status": "unsupported",
+      "mode": "unsupported",
+      "workflow_id": null,
+      "artifacts": [],
+      "assumptions": [],
+      "runtime_status": "legacy_fallback",
+      "runtime_reason": "Compile result 'unsupported'; falling back to legacy runtime.",
+      "problems": []
+    },
+    {
+      "name": "tea_no_keywords_plan_driven",
+      "query": "What would it cost per kilogram to recover PE from packaging waste using toluene at 8000 t",
+      "compile_status": "compiled",
+      "mode": "single_agent",
+      "workflow_id": null,
+      "artifacts": [
+        "biosteam_tea_lca_result"
+      ],
+      "assumptions": [],
+      "runtime_status": "executed",
+      "runtime_reason": "Typed runtime execution completed.",
+      "problems": []
+    },
+    {
+      "name": "research_tea_tokens",
+      "query": "Search Web of Science for recent TEA/LCA studies of solvent-based plastics recycling.",
+      "compile_status": "clarification_required",
+      "gate_permits_interception": false,
+      "problems": []
+    },
+    {
+      "name": "rag_biosteam_tokens",
+      "query": "Search the literature RAG for BioSTEAM TEA/LCA assumptions used in STRAP economics papers.",
+      "compile_status": "clarification_required",
+      "gate_permits_interception": false,
+      "problems": []
+    }
+  ]
+}

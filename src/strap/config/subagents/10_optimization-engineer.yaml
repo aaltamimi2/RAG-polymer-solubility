@@ -67,7 +67,7 @@ system_prompt: |
   3. For multi-composition Pareto requests, composition slices, or prompts that list multiple feed compositions such as `20/60/20, 34/33/33, 5/5/90`, call `run_waste_management_pareto_slices` once with `composition_slices_json`. Do not call only the first slice.
   4. If the user explicitly rejects Pareto/frontier/tradeoff analysis, call `run_waste_management_optimization` with the requested single objective. If no objective is stated, use `objective="max_profit"` and say that was the default.
   5. Ensure the feed is supplied. If legacy per-polymer fraction arguments are omitted for a single fixed composition, you must pass `feed_composition_json`. For multi-slice requests, you must pass `composition_slices_json`. Do not rely on the tool to infer missing fractions from prose.
-  6. When an upstream typed optimization-stage candidate handoff is present, pass the exact attached object into the optimization tool using `stage_candidates_json`. Do not reconstruct the candidate universe yourself and do not paste surrounding prose into JSON args.
+  6. When an upstream typed optimization-stage candidate handoff is present (a RUNTIME-ATTACHED HANDOFF block in your task message), call the optimization tool directly — the runtime injects the attached payload into your tool call as `stage_candidates_json` automatically. You will never see the payload JSON in your context; that is expected. Do not reconstruct the candidate universe yourself, do not paste surrounding prose into JSON args, and never search the filesystem for the payload.
   7. If the routed handoff already includes feed metadata, reuse it directly. If only legacy shortlist fields are available, pass `candidate_solvents` and `polymer_solvent_filters_json` instead.
   8. The optimization tools natively invoke BioSTEAM background models to evaluate operational capacities directly connected to the specified fractions, then solve the Pyomo superstructure optimization model.
   9. Summarize the returned markdown cleanly.
@@ -92,7 +92,7 @@ system_prompt: |
   - If `source_handoff_summary` is present, treat it as the authoritative record of the normalized/backfilled handoff consumed by optimization. It may differ from visible separation prose; report consumed candidate counts and backfill warnings from this field rather than reconstructing them from prior messages.
   - If the tool returns an infeasible result under fail-closed semantics, report that as an infeasible optimization outcome rather than reframing it as a successful solve.
   - If the user did not supply enough feed-composition data to run the optimization, state exactly which inputs are missing instead of fabricating values.
-  - A malformed first optimization tool call is a failure. Do not call the optimization tools until `feed`, `feed_composition_json` or legacy fractions, and any attached `stage_candidates_json` are syntactically valid.
+  - A malformed first optimization tool call is a failure. Do not call the optimization tools until `feed` and `feed_composition_json` (or legacy fractions) are syntactically valid. An attached typed handoff supplies `stage_candidates_json` by runtime injection — never block or delay the tool call waiting to see that payload.
   - Never copy a JSON object plus trailing explanatory prose into `stage_candidates_json` or `feed_composition_json`. Pass the exact object only.
 
   STRUCTURED RESULT REQUIREMENT:
@@ -187,7 +187,7 @@ tool_groups:
 - reflection
 guardrails:
   max_tool_calls: 10
-  token_budget: 100000
+  token_budget: 300000
   synthesis_tools:
   - run_waste_management_optimization
   - run_waste_management_pareto

@@ -34,9 +34,9 @@ def _structured_result_content(agent: str) -> str:
 
 
 def test_model_alias_normalization_supports_default_and_legacy_values():
-    assert app_server._normalize_model_name(None) == "google_genai:gemini-3.1-flash-lite-preview"
+    assert app_server._normalize_model_name(None) == "google_genai:gemini-3.1-flash-lite"
     assert app_server._normalize_model_name("gemini-3.1-pro-preview") == "google_genai:gemini-3.1-pro-preview"
-    assert app_server._normalize_model_name("gemini-2.5-flash") == "google_genai:gemini-3-flash-preview"
+    assert app_server._normalize_model_name("gemini-2.5-flash") == "google_genai:gemini-3.5-flash"
 
 
 def test_status_endpoint_returns_expected_shape():
@@ -57,14 +57,14 @@ def test_chat_endpoint_uses_runtime(monkeypatch):
             images=[],
             elapsed_time=0.12,
             iterations=3,
-            model_used="google_genai:gemini-3.1-flash-lite-preview",
+            model_used="google_genai:gemini-3.1-flash-lite",
         )
 
     monkeypatch.setattr(app_server.agent_runtime, "chat", fake_chat)
 
     response = client.post(
         "/api/chat",
-        json={"message": "hello", "session_id": "session-123", "model": "gemini-3.1-flash-lite-preview"},
+        json={"message": "hello", "session_id": "session-123", "model": "gemini-3.1-flash-lite"},
     )
     assert response.status_code == 200
     payload = response.json()
@@ -97,7 +97,7 @@ def test_workflow_preview_endpoint_returns_topological_plan():
 def test_session_workflow_endpoint_returns_live_execution_status(monkeypatch):
     session = app_server.SessionState(
         session_id="session-workflow",
-        model_name="google_genai:gemini-3.1-flash-lite-preview",
+        model_name="google_genai:gemini-3.1-flash-lite",
     )
     session.last_query = (
         "Find an optimal separation sequence for an HDPE/EVOH mixed waste stream "
@@ -179,7 +179,7 @@ def test_export_session_endpoint_returns_csv(tmp_path, monkeypatch):
     export_manager.export_dir = tmp_path
     export_manager.exports.clear()
 
-    session = app_server.SessionState(session_id="session-export", model_name="google_genai:gemini-3.1-flash-lite-preview")
+    session = app_server.SessionState(session_id="session-export", model_name="google_genai:gemini-3.1-flash-lite")
     session.messages.extend(
         [
             {

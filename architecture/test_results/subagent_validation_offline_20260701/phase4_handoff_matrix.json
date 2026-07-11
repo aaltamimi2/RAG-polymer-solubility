@@ -1,0 +1,450 @@
+{
+  "summary": {
+    "edges_tested": 20,
+    "problems": 0,
+    "typed": 12,
+    "generic": 8,
+    "max_prompt_chars": 1780,
+    "max_payload_chars": 6087
+  },
+  "problems": [],
+  "edges": [
+    {
+      "edge": "biosteam-analyst -> safety-analyst",
+      "declared_artifacts": [
+        "tea.lca.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "biosteam-analyst.to.safety-analyst.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 561,
+      "payload_chars": 831,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "biosteam-analyst -> visualization-specialist",
+      "declared_artifacts": [
+        "tea.lca.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "biosteam_plot.v1",
+      "derived_status": "ok",
+      "prompt_chars": 167,
+      "payload_chars": 773,
+      "payload_keys": [
+        "energy_case",
+        "existing_artifacts",
+        "results",
+        "results_json",
+        "source_handoff_id",
+        "target_plastic"
+      ]
+    },
+    {
+      "edge": "contaminant-removal-analyst -> biosteam-analyst",
+      "declared_artifacts": [
+        "contaminant.screen.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "contaminant_biosteam.v1",
+      "derived_status": "ok",
+      "prompt_chars": 492,
+      "payload_chars": 461,
+      "payload_keys": [
+        "best_solvent",
+        "candidate_solvents",
+        "contaminants",
+        "mode",
+        "other_polymers",
+        "recommended_solvents",
+        "source_handoff_id",
+        "source_task_prompt",
+        "source_user_query",
+        "supported_contaminants",
+        "target_plastic",
+        "unsupported_contaminants"
+      ]
+    },
+    {
+      "edge": "contaminant-removal-analyst -> separation-engineer",
+      "declared_artifacts": [
+        "contaminant.screen.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "contaminant_guided_separation.v1",
+      "derived_status": "ok",
+      "prompt_chars": 373,
+      "payload_chars": 874,
+      "payload_keys": [
+        "candidate_solvents",
+        "caveats",
+        "contaminants",
+        "decision_basis",
+        "mode",
+        "other_polymers",
+        "recommended_solvents",
+        "source_handoff_id",
+        "source_task_prompt",
+        "source_user_query",
+        "supported_contaminants",
+        "target_polymer"
+      ]
+    },
+    {
+      "edge": "optimization-engineer -> visualization-specialist",
+      "declared_artifacts": [
+        "optimization.results.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "optimization_plot_context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 345,
+      "payload_chars": 940,
+      "payload_keys": [
+        "analysis_type",
+        "circularity_score",
+        "emissions",
+        "optimal_washes",
+        "optimization_result_json",
+        "profit",
+        "requested_plot_tool",
+        "source_handoff_id",
+        "source_task_prompt",
+        "source_user_query",
+        "total_cost"
+      ]
+    },
+    {
+      "edge": "patent-researcher -> rag-analyst",
+      "declared_artifacts": [
+        "patent.findings.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "patent_context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 160,
+      "payload_chars": 276,
+      "payload_keys": [
+        "n_results",
+        "patents",
+        "query",
+        "saved_to_rag",
+        "source_handoff_id"
+      ]
+    },
+    {
+      "edge": "rag-analyst -> visualization-specialist",
+      "declared_artifacts": [
+        "rag.answer.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "rag-analyst.to.visualization-specialist.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 653,
+      "payload_chars": 736,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "safety-analyst -> biosteam-analyst",
+      "declared_artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "safety-analyst.to.biosteam-analyst.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 526,
+      "payload_chars": 800,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "safety-analyst -> separation-engineer",
+      "declared_artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "safety-analyst.to.separation-engineer.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 552,
+      "payload_chars": 800,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "safety-analyst -> visualization-specialist",
+      "declared_artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "safety-analyst.to.visualization-specialist.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 550,
+      "payload_chars": 800,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "scholar-researcher -> rag-analyst",
+      "declared_artifacts": [
+        "literature.findings.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "literature_context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 163,
+      "payload_chars": 251,
+      "payload_keys": [
+        "n_results",
+        "papers",
+        "query",
+        "saved_to_rag",
+        "source_handoff_id"
+      ]
+    },
+    {
+      "edge": "scholar-researcher -> statistics-ml",
+      "declared_artifacts": [
+        "literature.findings.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "scholar-researcher.to.statistics-ml.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 559,
+      "payload_chars": 682,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "separation-engineer -> biosteam-analyst",
+      "declared_artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "sequence_batch.v1",
+      "derived_status": "ok",
+      "prompt_chars": 241,
+      "payload_chars": 564,
+      "payload_keys": [
+        "polymers",
+        "sequence_candidates",
+        "source_handoff_id"
+      ]
+    },
+    {
+      "edge": "separation-engineer -> contaminant-removal-analyst",
+      "declared_artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "contaminant_screen.v1",
+      "derived_status": "ok",
+      "prompt_chars": 496,
+      "payload_chars": 695,
+      "payload_keys": [
+        "best_sequence",
+        "candidate_solvents",
+        "polymers",
+        "solvent_mapping",
+        "source_handoff_id",
+        "source_task_prompt",
+        "source_user_query",
+        "steps",
+        "suggested_mode",
+        "supported_polymers",
+        "top_solvents",
+        "unsupported_polymers"
+      ]
+    },
+    {
+      "edge": "separation-engineer -> optimization-engineer",
+      "declared_artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "optimization.stage_candidates.v1",
+      "derived_status": "ok",
+      "prompt_chars": 1780,
+      "payload_chars": 6087,
+      "payload_keys": [
+        "best_sequence",
+        "candidate_backfill_warnings",
+        "candidate_counts_by_polymer",
+        "candidate_pairs",
+        "candidate_solvents",
+        "constraint_mode",
+        "fallback_policy",
+        "feed_capacity_tpy",
+        "feed_composition",
+        "max_unique_solvents_per_polymer",
+        "operating_constraints",
+        "polymer_option_filters"
+      ]
+    },
+    {
+      "edge": "separation-engineer -> safety-analyst",
+      "declared_artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "separation-engineer.to.safety-analyst.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 699,
+      "payload_chars": 1609,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "separation-engineer -> visualization-specialist",
+      "declared_artifacts": [
+        "separation.route.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "separation_plot.v1",
+      "derived_status": "ok",
+      "prompt_chars": 592,
+      "payload_chars": 762,
+      "payload_keys": [
+        "best_sequence",
+        "plot_polymers",
+        "polymers",
+        "preferred_tool",
+        "requested_plot_type",
+        "solvent_mapping",
+        "source_handoff_id",
+        "source_task_prompt",
+        "source_user_query",
+        "steps",
+        "suggested_solvents",
+        "supported_polymers"
+      ]
+    },
+    {
+      "edge": "statistics-ml -> separation-engineer",
+      "declared_artifacts": [
+        "ml.prediction.v1",
+        "statistics.analysis.v1"
+      ],
+      "typed_adapter": false,
+      "source_status": "ok",
+      "derived_contract": "statistics-ml.to.separation-engineer.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 519,
+      "payload_chars": 566,
+      "payload_keys": [
+        "artifacts",
+        "source_consumer",
+        "source_contract",
+        "source_handoff_id",
+        "source_payload",
+        "source_producer",
+        "source_summary"
+      ]
+    },
+    {
+      "edge": "statistics-ml -> visualization-specialist",
+      "declared_artifacts": [
+        "statistics.analysis.v1"
+      ],
+      "typed_adapter": true,
+      "source_status": "ok",
+      "derived_contract": "analysis_plot.v1",
+      "derived_status": "ok",
+      "prompt_chars": 88,
+      "payload_chars": 190,
+      "payload_keys": [
+        "analysis_type",
+        "plot_paths",
+        "source_handoff_id",
+        "summary",
+        "table"
+      ]
+    },
+    {
+      "edge": "separation+optimization -> visualization (JOIN)",
+      "typed_adapter": true,
+      "derived_contract": "multi-source.to.visualization-specialist.context.v1",
+      "derived_status": "ok",
+      "prompt_chars": 1217,
+      "payload_chars": 2887,
+      "payload_keys": [
+        "artifacts",
+        "contracts",
+        "producers",
+        "source_handoff_ids",
+        "source_handoffs"
+      ]
+    }
+  ]
+}

@@ -1140,7 +1140,7 @@ def _adapt_separation_to_optimization(
 
     lines = [
         "Use the adapter-produced optimization stage-candidate handoff as the authoritative decision set for the waste optimization solve.",
-        "A validated structured optimization handoff is attached by the orchestrator. Pass that attached payload exactly as `stage_candidates_json`; do not reconstruct or reserialize it from prose.",
+        "A validated structured optimization handoff is attached to your runtime state (you will not see its JSON in this message). Call the optimization tool directly — the runtime injects the attached payload into the tool call as `stage_candidates_json` automatically. Never reconstruct or reserialize the payload from prose, and never search the filesystem for it.",
         f"Constraint mode: {constraint_mode}.",
         f"Fallback policy: {fallback_policy}.",
         f"Route pool mode: {route_pool_mode}.",

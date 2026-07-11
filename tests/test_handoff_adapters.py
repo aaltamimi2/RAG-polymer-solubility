@@ -946,4 +946,5 @@ def test_build_typed_handoff_separation_to_optimization_carries_feed_metadata_wi
     assert payload["feed_capacity_tpy"] == 8000.0
     assert payload["feed_composition"] == {"LDPE": 0.05, "EVOH": 0.05, "PET": 0.9}
     assert "Exact `stage_candidates_json`" not in task_prompt
-    assert "attached by the orchestrator" in task_prompt
+    assert "attached to your runtime state" in task_prompt
+    assert "injects the attached payload" in task_prompt

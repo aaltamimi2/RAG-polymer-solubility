@@ -1,0 +1,1210 @@
+{
+  "schema": "dissolve.trace_rl.v1",
+  "runs": [
+    {
+      "run_id": "019f3aa0-be3d-7dd3-b6ef-bd08ff7e7fa2",
+      "label": "run2_budgets_dead",
+      "config_note": "pre-fix: subagent budgets silently dead; 5 dispatches, 2 wasted retries; infeasible",
+      "order": 2,
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH: first have the separation engineer propose operating parameters \u2014 the top 3 solvent candidates per polymer with recommended dissolution temperatures below 140 C. Then pass exactly those shortlisted candidates to the optimization engineer to run the cost-versus-emissions Pareto analysis with at least 1 STRAP wash step. Finally identify the Pareto-dominant knee point and report its selected solvents, total cost, and emissions, alongside the cheapest point for comparison.",
+      "structured_results": {
+        "separation-engineer": {
+          "agent": "separation-engineer",
+          "schema_version": "1.0",
+          "polymers": [
+            "LDPE",
+            "EVOH"
+          ],
+          "best_sequence": [
+            "LDPE",
+            "EVOH"
+          ],
+          "steps": [
+            {
+              "step": 1,
+              "polymer": "LDPE",
+              "solvent": "Dodecane",
+              "temperature_c": 120.0,
+              "selectivity_pct": 32.93
+            }
+          ],
+          "min_selectivity_pct": 32.93,
+          "avg_selectivity_pct": 32.93,
+          "top_solvents": [
+            "Dodecane",
+            "Dimethyl sulfoxide",
+            "1,4-Dimethylbenzene"
+          ],
+          "polymer_solvent_candidates": {
+            "LDPE": [
+              {
+                "rank": 1,
+                "solvent": "Dodecane",
+                "selectivity_pct": 32.93,
+                "temperature_c": 120.0
+              },
+              {
+                "rank": 2,
+                "solvent": "1,4-Dimethylbenzene",
+                "selectivity_pct": 32.61,
+                "temperature_c": 120.0
+              },
+              {
+                "rank": 3,
+                "solvent": "1,2-Dimethylbenzene",
+                "selectivity_pct": 31.74,
+                "temperature_c": 120.0
+              }
+            ],
+            "EVOH": [
+              {
+                "rank": 1,
+                "solvent": "Dimethyl sulfoxide",
+                "selectivity_pct": 30.13,
+                "temperature_c": 120.0
+              },
+              {
+                "rank": 2,
+                "solvent": "Dimethylformamide",
+                "selectivity_pct": 12.97,
+                "temperature_c": 120.0
+              },
+              {
+                "rank": 3,
+                "solvent": "Ethylene glycol",
+                "selectivity_pct": 9.07,
+                "temperature_c": 120.0
+              }
+            ]
+          },
+          "solvent_mapping": {
+            "LDPE": "Dodecane"
+          },
+          "top_k_sequences": [
+            {
+              "rank": 1,
+              "sequence": [
+                "LDPE",
+                "EVOH"
+              ],
+              "min_selectivity": 32.93,
+              "solvent_mapping": {
+                "LDPE": "Dodecane"
+              },
+              "steps": [
+                {
+                  "step": 1,
+                  "polymer": "LDPE",
+                  "solvent": "Dodecane",
+                  "temperature_c": 120.0
+                }
+              ]
+            },
+            {
+              "rank": 2,
+              "sequence": [
+                "EVOH",
+                "LDPE"
+              ],
+              "min_selectivity": 30.13,
+              "solvent_mapping": {
+                "EVOH": "Dimethyl sulfoxide"
+              },
+              "steps": [
+                {
+                  "step": 1,
+                  "polymer": "EVOH",
+                  "solvent": "Dimethyl sulfoxide",
+                  "temperature_c": 120.0
+                }
+              ]
+            }
+          ],
+          "supported_polymers": [
+            "LDPE",
+            "EVOH"
+          ],
+          "unsupported_polymers": []
+        },
+        "optimization-engineer": {
+          "agent": "optimization-engineer",
+          "schema_version": "1.3",
+          "analysis_type": "infeasible",
+          "constraint_mode": "ranked_soft",
+          "fallback_policy": "fail_closed",
+          "failure_reason": "all_shortlisted_sims_failed",
+          "message": "After BioSTEAM updates, no workbook rows remain for shortlisted polymer(s): PE, EVOH. The MINLP cannot produce a valid STRAP pathway for these polymers under the current shortlist.",
+          "requested_candidate_pairs": {
+            "PE": [
+              "Dodecane @ 120C",
+              "p-Xylene @ 120C",
+              "o-Xylene @ 120C"
+            ],
+            "EVOH": [
+              "Dimethyl sulfoxide @ 120C",
+              "N,N-Dimethylformamide @ 120C",
+              "Ethylene Glycol @ 120C"
+            ],
+            "global": [
+              "Dodecane @ 120C",
+              "p-Xylene @ 120C",
+              "o-Xylene @ 120C",
+              "Dimethyl sulfoxide @ 120C",
+              "N,N-Dimethylformamide @ 120C",
+              "Ethylene Glycol @ 120C"
+            ]
+          },
+          "applied_candidate_pairs": {
+            "PE": [
+              "Dodecane @ 120C",
+              "p-Xylene @ 120C",
+              "o-Xylene @ 120C"
+            ],
+            "EVOH": [
+              "Dimethyl sulfoxide @ 120C",
+              "N,N-Dimethylformamide @ 120C",
+              "Ethylene Glycol @ 120C"
+            ]
+          },
+          "suggested_relaxation": "BioSTEAM could not populate TEA for any shortlisted (polymer, solvent) pair in this environment, and the workbook has no baseline CAPEX/OPEX for these solvents either. Either (a) expand the optimizer workbook with baseline values for these solvents, or (b) ask separation to restrict its shortlist to the workbook solvents (Heptane, Toluene, Xylene, Methylcyclohexane, etc. for PE; Pyridazine, Ethylene Glycol, gamma-butyrolactone, etc. for EVOH)."
+        }
+      },
+      "ledger_by_agent": {
+        "optimization-engineer": {
+          "prompt_tokens": 19957,
+          "output_tokens": 2239,
+          "llm_calls": 2
+        },
+        "orchestrator": {
+          "prompt_tokens": 110100,
+          "output_tokens": 3367,
+          "llm_calls": 8
+        },
+        "separation-engineer": {
+          "prompt_tokens": 437343,
+          "output_tokens": 16197,
+          "llm_calls": 25
+        }
+      },
+      "tool_calls_by_agent": {
+        "optimization-engineer": 1,
+        "orchestrator": 6,
+        "separation-engineer": 25
+      },
+      "final_answer": ""
+    },
+    {
+      "run_id": "019f3aac-ce0a-79c2-9bf1-8976ab970427",
+      "label": "run3_clean_staged",
+      "config_note": "seed_guard_state + handoff-visibility + budget-trip synthesis; clean 2-dispatch flow; infeasible",
+      "order": 3,
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH: first have the separation engineer propose operating parameters \u2014 the top 3 solvent candidates per polymer with recommended dissolution temperatures below 140 C. Then pass exactly those shortlisted candidates to the optimization engineer to run the cost-versus-emissions Pareto analysis with at least 1 STRAP wash step. Finally identify the Pareto-dominant knee point and report its selected solvents, total cost, and emissions, alongside the cheapest point for comparison.",
+      "structured_results": {
+        "separation-engineer": {
+          "agent": "separation-engineer",
+          "schema_version": "1.0",
+          "polymers": [
+            "PE",
+            "EVOH"
+          ],
+          "supported_polymers": [
+            "EVOH",
+            "HDPE",
+            "LDPE"
+          ],
+          "unsupported_polymers": [],
+          "best_sequence": [
+            "EVOH",
+            "PE"
+          ],
+          "steps": [
+            {
+              "step": 1,
+              "polymer": "EVOH",
+              "solvent": "Dimethyl sulfoxide",
+              "temperature_c": 135.0,
+              "selectivity_pct": 36.0
+            },
+            {
+              "step": 2,
+              "polymer": "PE",
+              "solvent": "Dodecane",
+              "temperature_c": 135.0,
+              "selectivity_pct": 59.7
+            }
+          ],
+          "min_selectivity_pct": 36.0,
+          "avg_selectivity_pct": 47.8,
+          "top_solvents": [
+            "Dimethyl sulfoxide",
+            "Dodecane",
+            "Ethylene glycol",
+            "p-Xylene"
+          ],
+          "polymer_solvent_candidates": {
+            "EVOH": [
+              {
+                "rank": 1,
+                "solvent": "Dimethyl sulfoxide",
+                "temperature_c": 135.0,
+                "selectivity_pct": 36.0
+              },
+              {
+                "rank": 2,
+                "solvent": "Ethylene glycol",
+                "temperature_c": 135.0,
+                "selectivity_pct": 21.6
+              },
+              {
+                "rank": 3,
+                "solvent": "Propylene glycol",
+                "temperature_c": 135.0,
+                "selectivity_pct": 15.2
+              }
+            ],
+            "PE": [
+              {
+                "rank": 1,
+                "solvent": "Dodecane",
+                "temperature_c": 135.0,
+                "selectivity_pct": 59.7
+              },
+              {
+                "rank": 2,
+                "solvent": "p-Xylene",
+                "temperature_c": 135.0,
+                "selectivity_pct": 42.4
+              },
+              {
+                "rank": 3,
+                "solvent": "o-Xylene",
+                "temperature_c": 135.0,
+                "selectivity_pct": 41.5
+              }
+            ]
+          },
+          "solvent_mapping": {
+            "EVOH": "Dimethyl sulfoxide",
+            "PE": "Dodecane"
+          },
+          "top_k_sequences": [
+            {
+              "rank": 1,
+              "sequence": [
+                "EVOH",
+                "PE"
+              ],
+              "min_selectivity": 36.0,
+              "steps": [
+                {
+                  "polymer": "EVOH",
+                  "solvent": "Dimethyl sulfoxide",
+                  "temperature_c": 135.0
+                },
+                {
+                  "polymer": "PE",
+                  "solvent": "Dodecane",
+                  "temperature_c": 135.0
+                }
+              ]
+            },
+            {
+              "rank": 2,
+              "sequence": [
+                "PE",
+                "EVOH"
+              ],
+              "min_selectivity": 36.0,
+              "steps": [
+                {
+                  "polymer": "PE",
+                  "solvent": "Dodecane",
+                  "temperature_c": 135.0
+                },
+                {
+                  "polymer": "EVOH",
+                  "solvent": "Dimethyl sulfoxide",
+                  "temperature_c": 135.0
+                }
+              ]
+            }
+          ]
+        },
+        "optimization-engineer": {
+          "agent": "optimization-engineer",
+          "schema_version": "1.3",
+          "analysis_type": "infeasible",
+          "constraint_mode": "ranked_soft",
+          "fallback_policy": "fail_closed",
+          "failure_reason": "all_shortlisted_sims_failed",
+          "message": "After BioSTEAM updates, no workbook rows remain for shortlisted polymer(s): PE, EVOH. The MINLP cannot produce a valid STRAP pathway for these polymers under the current shortlist.",
+          "requested_candidate_pairs": {
+            "EVOH": [
+              "Dimethyl sulfoxide @ 135C",
+              "Ethylene Glycol @ 135C",
+              "Propylene Glycol @ 135C"
+            ],
+            "PE": [
+              "Dodecane @ 135C",
+              "p-Xylene @ 135C",
+              "o-Xylene @ 135C"
+            ],
+            "global": [
+              "Dodecane @ 135C",
+              "p-Xylene @ 135C",
+              "o-Xylene @ 135C",
+              "Dimethyl sulfoxide @ 135C",
+              "Ethylene Glycol @ 135C",
+              "Propylene Glycol @ 135C"
+            ]
+          },
+          "applied_candidate_pairs": {
+            "PE": [
+              "Dodecane @ 135C",
+              "p-Xylene @ 135C",
+              "o-Xylene @ 135C"
+            ],
+            "EVOH": [
+              "Dimethyl sulfoxide @ 135C",
+              "Ethylene Glycol @ 135C",
+              "Propylene Glycol @ 135C"
+            ]
+          },
+          "suggested_relaxation": "BioSTEAM could not populate TEA for any shortlisted (polymer, solvent) pair in this environment, and the workbook has no baseline CAPEX/OPEX for these solvents either. Either (a) expand the optimizer workbook with baseline values for these solvents, or (b) ask separation to restrict its shortlist to the workbook solvents (Heptane, Toluene, Xylene, Methylcyclohexane, etc. for PE; Pyridazine, Ethylene Glycol, gamma-butyrolactone, etc. for EVOH)."
+        }
+      },
+      "ledger_by_agent": {
+        "optimization-engineer": {
+          "prompt_tokens": 41603,
+          "output_tokens": 2111,
+          "llm_calls": 4
+        },
+        "orchestrator": {
+          "prompt_tokens": 64574,
+          "output_tokens": 2520,
+          "llm_calls": 5
+        },
+        "separation-engineer": {
+          "prompt_tokens": 257887,
+          "output_tokens": 6557,
+          "llm_calls": 13
+        }
+      },
+      "tool_calls_by_agent": {
+        "optimization-engineer": 3,
+        "orchestrator": 3,
+        "separation-engineer": 13
+      },
+      "final_answer": ""
+    },
+    {
+      "run_id": "019f3aae-be4b-7b22-ac8e-925d4f4bee86",
+      "label": "run4_workbook_shortlist",
+      "config_note": "workbook-constrained shortlist; still infeasible -> exposed candidate-admission defect",
+      "order": 4,
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH: first have the separation engineer propose operating parameters \u2014 the top 3 solvent candidates per polymer with recommended dissolution temperatures below 140 C, restricting candidates to process-proven STRAP solvents with existing TEA baselines (heptane, toluene, xylene, methylcyclohexane for PE; pyridazine, ethylene glycol, gamma-butyrolactone for EVOH). Then pass exactly those shortlisted candidates to the optimization engineer to run the cost-versus-emissions Pareto analysis with at least 1 STRAP wash step. Finally identify the Pareto-dominant knee point and report its selected solvents, total cost, and emissions, alongside the cheapest point for comparison.",
+      "structured_results": {
+        "separation-engineer": {
+          "agent": "separation-engineer",
+          "schema_version": "1.0",
+          "polymers": [
+            "PE",
+            "EVOH"
+          ],
+          "best_sequence": [
+            "EVOH",
+            "PE"
+          ],
+          "steps": [
+            {
+              "step": 1,
+              "polymer": "EVOH",
+              "solvent": "Ethylene glycol",
+              "temperature_c": 140.0,
+              "selectivity_pct": 31.1
+            },
+            {
+              "step": 2,
+              "polymer": "PE",
+              "solvent": "o-Xylene",
+              "temperature_c": 135.0,
+              "selectivity_pct": 58.5
+            }
+          ],
+          "min_selectivity_pct": 31.1,
+          "avg_selectivity_pct": 44.8,
+          "top_solvents": [
+            "Ethylene glycol",
+            "o-Xylene",
+            "Toluene"
+          ],
+          "polymer_solvent_candidates": {
+            "PE": [
+              {
+                "rank": 1,
+                "solvent": "o-Xylene",
+                "temperature_c": 135.0,
+                "selectivity_pct": 58.5
+              },
+              {
+                "rank": 2,
+                "solvent": "Toluene",
+                "temperature_c": 105.0,
+                "selectivity_pct": 16.5
+              },
+              {
+                "rank": 3,
+                "solvent": "n-Heptane",
+                "temperature_c": 95.0,
+                "selectivity_pct": 13.0
+              }
+            ],
+            "EVOH": [
+              {
+                "rank": 1,
+                "solvent": "Ethylene glycol",
+                "temperature_c": 140.0,
+                "selectivity_pct": 31.1
+              }
+            ]
+          },
+          "solvent_mapping": {
+            "PE": "o-Xylene",
+            "EVOH": "Ethylene glycol"
+          },
+          "top_k_sequences": [
+            {
+              "rank": 1,
+              "sequence": [
+                "EVOH",
+                "PE"
+              ],
+              "min_selectivity": 31.1,
+              "steps": [
+                {
+                  "polymer": "EVOH",
+                  "solvent": "Ethylene glycol",
+                  "temperature_c": 140.0
+                },
+                {
+                  "polymer": "PE",
+                  "solvent": "o-Xylene",
+                  "temperature_c": 135.0
+                }
+              ]
+            }
+          ],
+          "supported_polymers": [
+            "EVOH"
+          ],
+          "unsupported_polymers": [
+            "PE"
+          ]
+        },
+        "optimization-engineer": {
+          "agent": "optimization-engineer",
+          "schema_version": "1.3",
+          "analysis_type": "infeasible",
+          "constraint_mode": "ranked_soft",
+          "fallback_policy": "fail_closed",
+          "failure_reason": "all_shortlisted_sims_failed",
+          "message": "After BioSTEAM updates, no workbook rows remain for shortlisted polymer(s): PE, EVOH. The MINLP cannot produce a valid STRAP pathway for these polymers under the current shortlist.",
+          "requested_candidate_pairs": [
+            {
+              "polymer": "PE",
+              "solvents": [
+                "o-Xylene @ 135C",
+                "Toluene @ 105C",
+                "Heptane @ 95C",
+                "Acetylacetone @ 40C"
+              ]
+            },
+            {
+              "polymer": "EVOH",
+              "solvents": [
+                "Ethylene Glycol @ 140C",
+                "Dimethyl sulfoxide @ 160C",
+                "N,N-Dimethylformamide @ 140C"
+              ]
+            }
+          ],
+          "applied_candidate_pairs": [
+            {
+              "polymer": "PE",
+              "solvents": [
+                "o-Xylene @ 135C",
+                "Toluene @ 105C",
+                "Heptane @ 95C",
+                "Acetylacetone @ 40C"
+              ]
+            },
+            {
+              "polymer": "EVOH",
+              "solvents": [
+                "Ethylene Glycol @ 140C",
+                "Dimethyl sulfoxide @ 160C",
+                "N,N-Dimethylformamide @ 140C"
+              ]
+            }
+          ],
+          "suggested_relaxation": "BioSTEAM could not populate TEA for any shortlisted (polymer, solvent) pair in this environment, and the workbook has no baseline CAPEX/OPEX for these solvents either. Either (a) expand the optimizer workbook with baseline values for these solvents, or (b) ask separation to restrict its shortlist to the workbook solvents (Heptane, Toluene, Xylene, Methylcyclohexane, etc. for PE; Pyridazine, Ethylene Glycol, gamma-butyrolactone, etc. for EVOH)."
+        }
+      },
+      "ledger_by_agent": {
+        "optimization-engineer": {
+          "prompt_tokens": 19829,
+          "output_tokens": 1870,
+          "llm_calls": 2
+        },
+        "orchestrator": {
+          "prompt_tokens": 50970,
+          "output_tokens": 3028,
+          "llm_calls": 4
+        },
+        "separation-engineer": {
+          "prompt_tokens": 242703,
+          "output_tokens": 11292,
+          "llm_calls": 13
+        }
+      },
+      "tool_calls_by_agent": {
+        "optimization-engineer": 1,
+        "orchestrator": 4,
+        "separation-engineer": 10
+      },
+      "final_answer": ""
+    },
+    {
+      "run_id": "019f3ab9-04cd-7731-9e84-e7ff27de53af",
+      "label": "run5_baseline_fallback",
+      "config_note": "baseline-fallback fix; first feasible Pareto front produced",
+      "order": 5,
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH: first have the separation engineer propose operating parameters \u2014 the top 3 solvent candidates per polymer with recommended dissolution temperatures below 140 C. Then pass exactly those shortlisted candidates to the optimization engineer to run the cost-versus-emissions Pareto analysis with at least 1 STRAP wash step. Finally identify the Pareto-dominant knee point and report its selected solvents, total cost, and emissions, alongside the cheapest point for comparison.",
+      "structured_results": {
+        "separation-engineer": {
+          "agent": "separation-engineer",
+          "schema_version": "1.0",
+          "polymers": [
+            "HDPE",
+            "LDPE",
+            "EVOH"
+          ],
+          "best_sequence": [
+            "PE",
+            "EVOH"
+          ],
+          "steps": [
+            {
+              "step": 1,
+              "polymer": "PE",
+              "solvent": "Dodecane",
+              "temperature_c": 135.0,
+              "selectivity_pct": 59.7
+            },
+            {
+              "step": 2,
+              "polymer": "EVOH",
+              "solvent": "Dimethyl sulfoxide",
+              "temperature_c": 140.0,
+              "selectivity_pct": 37.1
+            }
+          ],
+          "min_selectivity_pct": 37.1,
+          "avg_selectivity_pct": 48.4,
+          "top_solvents": [
+            "Dodecane",
+            "Dimethyl sulfoxide",
+            "Ethylene glycol"
+          ],
+          "polymer_solvent_candidates": {
+            "PE": [
+              {
+                "rank": 1,
+                "solvent": "Dodecane",
+                "temperature_c": 135.0,
+                "selectivity_pct": 59.7
+              },
+              {
+                "rank": 2,
+                "solvent": "1,4-Dimethylbenzene",
+                "temperature_c": 135.0,
+                "selectivity_pct": 42.4
+              },
+              {
+                "rank": 3,
+                "solvent": "1,2-Dimethylbenzene",
+                "temperature_c": 135.0,
+                "selectivity_pct": 41.5
+              }
+            ],
+            "EVOH": [
+              {
+                "rank": 1,
+                "solvent": "Dimethyl sulfoxide",
+                "temperature_c": 140.0,
+                "selectivity_pct": 37.1
+              },
+              {
+                "rank": 2,
+                "solvent": "Ethylene glycol",
+                "temperature_c": 140.0,
+                "selectivity_pct": 28.3
+              },
+              {
+                "rank": 3,
+                "solvent": "Propylene glycol",
+                "temperature_c": 140.0,
+                "selectivity_pct": 18.2
+              }
+            ]
+          },
+          "solvent_mapping": {
+            "PE": "Dodecane",
+            "EVOH": "Dimethyl sulfoxide"
+          },
+          "top_k_sequences": [
+            {
+              "rank": 1,
+              "sequence": [
+                "PE",
+                "EVOH"
+              ],
+              "min_selectivity": 37.1,
+              "steps": [
+                {
+                  "polymer": "PE",
+                  "solvent": "Dodecane",
+                  "temperature_c": 135.0
+                },
+                {
+                  "polymer": "EVOH",
+                  "solvent": "Dimethyl sulfoxide",
+                  "temperature_c": 140.0
+                }
+              ]
+            }
+          ],
+          "unsupported_polymers": []
+        },
+        "optimization-engineer": {
+          "agent": "optimization-engineer",
+          "schema_version": "1.5",
+          "analysis_type": "pareto_front",
+          "x_metric": "total_cost",
+          "y_metric": "emissions",
+          "route_pool_mode": "slot_independent",
+          "n_points_feasible": 1,
+          "pareto_payload_path": "/home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_payload_d8b6dc9903fb.json",
+          "points": [
+            {
+              "point_id": 1,
+              "route_id": "",
+              "matched_route_id": null,
+              "selection_origin": "candidate_pool",
+              "wash1_origin_route_id": null,
+              "wash2_origin_route_id": null,
+              "total_cost": 2559500.68,
+              "emissions": 1444.61197004812,
+              "stage3_tech": [],
+              "stage3_variants": [],
+              "wash1_selection": [
+                "EVOH-Ethylene Glycol"
+              ],
+              "wash2_selection": [],
+              "recovered_polymers": [
+                "EVOH"
+              ],
+              "residual_polymers": [
+                "PE"
+              ],
+              "residual_destination_stage": "stage2",
+              "residual_destination_tech": [
+                "lf"
+              ],
+              "n_equivalent_designs": 1
+            }
+          ],
+          "all_feasible_points": [
+            {
+              "raw_point_id": 1,
+              "point_status": "frontier",
+              "total_cost": 2559500.68,
+              "emissions": 1444.61197004812
+            }
+          ],
+          "landscape_points": [
+            {
+              "raw_point_id": 1,
+              "point_status": "landscape_sample",
+              "selection_origin": "landscape_sample",
+              "total_cost": 2559500.68,
+              "emissions": 1444.61197004812,
+              "wash1_selection": [
+                "EVOH-Ethylene Glycol"
+              ],
+              "wash2_selection": []
+            },
+            {
+              "raw_point_id": 2,
+              "point_status": "landscape_sample",
+              "selection_origin": "landscape_sample",
+              "total_cost": 4007904.808,
+              "emissions": 5237.56699301605,
+              "wash1_selection": [
+                "PE-Xylene"
+              ],
+              "wash2_selection": []
+            }
+          ],
+          "landscape_summary": {
+            "n_candidate_designs_attempted": 5,
+            "n_candidate_designs_solved": 2,
+            "n_landscape_points": 2,
+            "objective": "min_total_cost"
+          },
+          "route_reports": [],
+          "frontier_summary": {
+            "n_routes_on_frontier": 0,
+            "n_distinct_stage3_techs": 0,
+            "distinct_stage3_techs": [],
+            "n_cross_product_points": 0,
+            "n_equivalent_design_variants": 0
+          },
+          "candidate_telemetry": {
+            "requested": {
+              "counts_by_polymer": {
+                "PE": 6,
+                "EVOH": 6
+              }
+            },
+            "surviving": {
+              "counts_by_polymer": {
+                "PE": 1,
+                "EVOH": 2
+              }
+            },
+            "simulation": {
+              "failure_counts_by_class": {
+                "SubprocessError": 6
+              }
+            }
+          },
+          "source_handoff_summary": {
+            "summary_kind": "optimizer_consumed_handoff",
+            "status": "typed_handoff",
+            "source_handoff_id": "h_51662810307d",
+            "candidate_counts_by_polymer": {
+              "PE": 3,
+              "EVOH": 3
+            },
+            "candidate_backfill_warnings": []
+          },
+          "candidate_summary": {
+            "status": "partially_applied_with_fallback",
+            "warnings": [
+              "BioSTEAM simulation failed (or returned incomplete TEA/GWP) for these candidate pairs and the corresponding rows were dropped to prevent zero-metric ghost rows from polluting the optimization solve: PE+Dodecane @ 135C (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+p-Xylene @ 135C (SubprocessError:ModuleNotFoundError: No module named 'plastics'), PE+o-Xylene @ 135C (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Dimethyl sulfoxide @ 140C (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Ethylene Glycol @ 140C (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+Propylene Glycol @ 140C (SubprocessError:ModuleNotFoundError: No module named 'plastics').",
+              "Slot-independent typed handoff uses the full candidate_pairs pool for optimization; route_candidates are retained for provenance only."
+            ]
+          },
+          "simulation_failures": [
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "PE",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "Dodecane @ 135C",
+              "source": "biosteam_simulation"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "PE",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "p-Xylene @ 135C",
+              "source": "biosteam_simulation"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "PE",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "o-Xylene @ 135C",
+              "source": "biosteam_simulation"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "EVOH",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "Dimethyl sulfoxide @ 140C",
+              "source": "biosteam_simulation"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "EVOH",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "Ethylene Glycol @ 140C",
+              "source": "biosteam_simulation"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "EVOH",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'",
+              "solvent": "Propylene Glycol @ 140C",
+              "source": "biosteam_simulation"
+            }
+          ],
+          "simulation_skips": [
+            {
+              "polymer": "PE",
+              "reason": "baseline_sufficient",
+              "solvent": "Xylene",
+              "source": "workbook_baseline"
+            },
+            {
+              "polymer": "EVOH",
+              "reason": "baseline_sufficient",
+              "solvent": "Ethylene Glycol",
+              "source": "workbook_baseline"
+            },
+            {
+              "polymer": "EVOH",
+              "reason": "baseline_sufficient",
+              "solvent": "Propylene Glycol",
+              "source": "workbook_baseline"
+            }
+          ]
+        }
+      },
+      "ledger_by_agent": {
+        "optimization-engineer": {
+          "prompt_tokens": 42911,
+          "output_tokens": 3857,
+          "llm_calls": 3
+        },
+        "orchestrator": {
+          "prompt_tokens": 65796,
+          "output_tokens": 2570,
+          "llm_calls": 5
+        },
+        "separation-engineer": {
+          "prompt_tokens": 252203,
+          "output_tokens": 6871,
+          "llm_calls": 13
+        }
+      },
+      "tool_calls_by_agent": {
+        "optimization-engineer": 2,
+        "orchestrator": 4,
+        "separation-engineer": 11
+      },
+      "final_answer": ""
+    },
+    {
+      "run_id": "019f3abd-52a2-77c1-82e8-b20c48d53fb2",
+      "label": "run6_knee_reported",
+      "config_note": "enriched fallback (washes+knee/cheapest); complete deliverable",
+      "order": 6,
+      "query": "For a mixed plastic feedstock of 8000 tonnes/year composed of 60% PE and 40% EVOH: first have the separation engineer propose operating parameters \u2014 the top 3 solvent candidates per polymer with recommended dissolution temperatures below 140 C. Then pass exactly those shortlisted candidates to the optimization engineer to run the cost-versus-emissions Pareto analysis with at least 1 STRAP wash step. Finally identify the Pareto-dominant knee point and report its selected solvents, total cost, and emissions, alongside the cheapest point for comparison.",
+      "structured_results": {
+        "separation-engineer": {
+          "agent": "separation-engineer",
+          "schema_version": "1.0",
+          "polymers": [
+            "LDPE",
+            "HDPE",
+            "EVOH"
+          ],
+          "supported_polymers": [
+            "LDPE",
+            "HDPE",
+            "EVOH"
+          ],
+          "unsupported_polymers": [
+            "AMIXEDPLASTICFEEDSTOCK",
+            "60PE",
+            "DOWNSTREAMOPTIMIZATION"
+          ],
+          "best_sequence": [
+            "LDPE",
+            "HDPE",
+            "EVOH"
+          ],
+          "steps": [
+            {
+              "step": 1,
+              "polymer": "LDPE, HDPE",
+              "solvent": "Dodecane",
+              "temperature_c": 140.0,
+              "selectivity_pct": 88.7
+            },
+            {
+              "step": 2,
+              "polymer": "EVOH",
+              "solvent": "Dimethyl sulfoxide",
+              "temperature_c": 140.0,
+              "selectivity_pct": 37.1
+            }
+          ],
+          "min_selectivity_pct": 37.1,
+          "avg_selectivity_pct": 62.9,
+          "top_solvents": [
+            "Dodecane",
+            "Dimethyl sulfoxide",
+            "1,2-Dimethylbenzene",
+            "Ethylene glycol",
+            "Diphenylether"
+          ],
+          "polymer_solvent_candidates": {
+            "LDPE": [
+              {
+                "rank": 1,
+                "solvent": "Dodecane",
+                "temperature_c": 140.0,
+                "selectivity_pct": 88.7
+              },
+              {
+                "rank": 2,
+                "solvent": "1,2-Dimethylbenzene",
+                "temperature_c": 140.0,
+                "selectivity_pct": 70.9
+              },
+              {
+                "rank": 3,
+                "solvent": "Diphenylether",
+                "temperature_c": 140.0,
+                "selectivity_pct": 55.5
+              }
+            ],
+            "HDPE": [
+              {
+                "rank": 1,
+                "solvent": "Dodecane",
+                "temperature_c": 140.0,
+                "selectivity_pct": 90.1
+              },
+              {
+                "rank": 2,
+                "solvent": "1,2-Dimethylbenzene",
+                "temperature_c": 140.0,
+                "selectivity_pct": 57.7
+              },
+              {
+                "rank": 3,
+                "solvent": "Diphenylether",
+                "temperature_c": 140.0,
+                "selectivity_pct": 42.7
+              }
+            ],
+            "EVOH": [
+              {
+                "rank": 1,
+                "solvent": "Dimethyl sulfoxide",
+                "temperature_c": 140.0,
+                "selectivity_pct": 37.1
+              },
+              {
+                "rank": 2,
+                "solvent": "Ethylene glycol",
+                "temperature_c": 140.0,
+                "selectivity_pct": 28.3
+              },
+              {
+                "rank": 3,
+                "solvent": "Propylene glycol",
+                "temperature_c": 140.0,
+                "selectivity_pct": 18.2
+              }
+            ]
+          },
+          "solvent_mapping": {
+            "LDPE": "Dodecane",
+            "HDPE": "Dodecane",
+            "EVOH": "Dimethyl sulfoxide"
+          },
+          "top_k_sequences": [
+            {
+              "rank": 1,
+              "sequence": [
+                "LDPE/HDPE",
+                "EVOH"
+              ],
+              "min_selectivity": 37.1,
+              "steps": [
+                {
+                  "polymer": "LDPE/HDPE",
+                  "solvent": "Dodecane",
+                  "temperature_c": 140.0
+                },
+                {
+                  "polymer": "EVOH",
+                  "solvent": "Dimethyl sulfoxide",
+                  "temperature_c": 140.0
+                }
+              ]
+            }
+          ]
+        },
+        "optimization-engineer": {
+          "agent": "optimization-engineer",
+          "schema_version": "1.5",
+          "analysis_type": "pareto_front",
+          "x_metric": "total_cost",
+          "y_metric": "emissions",
+          "route_pool_mode": "exact",
+          "n_points_feasible": 1,
+          "pareto_payload_path": "/home/aaltamimi2/langchain-STRAP-v10-core/plots/optimization_payloads/pareto_payload_3056c2e377c9.json",
+          "points": [
+            {
+              "point_id": 1,
+              "route_id": "",
+              "matched_route_id": null,
+              "selection_origin": "exact_route",
+              "wash1_selection": [
+                "EVOH-Pyridazine"
+              ],
+              "wash2_selection": [],
+              "total_cost": 2559039.352,
+              "emissions": 1334.1186036831,
+              "stage3_tech": [],
+              "recovered_polymers": [
+                "EVOH"
+              ],
+              "residual_polymers": [
+                "PE"
+              ],
+              "residual_destination_stage": "stage2",
+              "residual_destination_tech": [
+                "lf"
+              ],
+              "n_equivalent_designs": 1
+            }
+          ],
+          "all_feasible_points": [
+            {
+              "raw_point_id": 1,
+              "point_status": "frontier",
+              "total_cost": 2559039.352,
+              "emissions": 1334.1186036831
+            }
+          ],
+          "landscape_points": [
+            {
+              "raw_point_id": 2,
+              "point_status": "landscape_sample",
+              "selection_origin": "landscape_sample",
+              "total_cost": 2559500.68,
+              "emissions": 1444.61197004812,
+              "wash1_selection": [
+                "EVOH-Ethylene Glycol"
+              ],
+              "wash2_selection": []
+            },
+            {
+              "raw_point_id": 3,
+              "point_status": "landscape_sample",
+              "selection_origin": "landscape_sample",
+              "total_cost": 4123399.659,
+              "emissions": 4999.39077001084,
+              "wash1_selection": [
+                "PE-Heptane"
+              ],
+              "wash2_selection": []
+            }
+          ],
+          "landscape_summary": {
+            "n_candidate_designs_attempted": 14,
+            "n_candidate_designs_solved": 6,
+            "n_landscape_points": 6,
+            "objective": "min_total_cost"
+          },
+          "candidate_telemetry": {
+            "requested": {
+              "counts_by_polymer": {
+                "EVOH": 3,
+                "PE": 3
+              }
+            },
+            "surviving": {
+              "counts_by_polymer": {
+                "EVOH": 3,
+                "PE": 2
+              }
+            },
+            "simulation": {
+              "failure_counts_by_class": {
+                "SubprocessError": 2
+              }
+            }
+          },
+          "source_handoff_summary": {
+            "summary_kind": "optimizer_consumed_handoff",
+            "status": "none",
+            "typed_handoff": false
+          },
+          "candidate_summary": {
+            "status": "partially_applied_with_fallback",
+            "warnings": [
+              "BioSTEAM simulation failed (or returned incomplete TEA/GWP) for these candidate pairs and the corresponding rows were dropped to prevent zero-metric ghost rows from polluting the optimization solve: PE+o-Xylene (SubprocessError:ModuleNotFoundError: No module named 'plastics'), EVOH+gamma-butyrolactone (SubprocessError:ModuleNotFoundError: No module named 'plastics')."
+            ]
+          },
+          "simulation_failures": [
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "PE",
+              "solvent": "o-Xylene",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'"
+            },
+            {
+              "failure_class": "SubprocessError",
+              "polymer": "EVOH",
+              "solvent": "gamma-butyrolactone",
+              "reason": "SubprocessError:ModuleNotFoundError: No module named 'plastics'"
+            }
+          ],
+          "simulation_skips": [
+            {
+              "polymer": "PE",
+              "solvent": "Heptane",
+              "reason": "baseline_sufficient"
+            },
+            {
+              "polymer": "PE",
+              "solvent": "Toluene",
+              "reason": "baseline_sufficient"
+            },
+            {
+              "polymer": "EVOH",
+              "solvent": "Ethylene Glycol",
+              "reason": "baseline_sufficient"
+            },
+            {
+              "polymer": "EVOH",
+              "solvent": "Pyridazine",
+              "reason": "baseline_sufficient"
+            }
+          ]
+        }
+      },
+      "ledger_by_agent": {
+        "optimization-engineer": {
+          "prompt_tokens": 66016,
+          "output_tokens": 8126,
+          "llm_calls": 5
+        },
+        "orchestrator": {
+          "prompt_tokens": 137023,
+          "output_tokens": 3422,
+          "llm_calls": 8
+        },
+        "separation-engineer": {
+          "prompt_tokens": 126870,
+          "output_tokens": 6332,
+          "llm_calls": 7
+        }
+      },
+      "tool_calls_by_agent": {
+        "optimization-engineer": 2,
+        "orchestrator": 5,
+        "separation-engineer": 12
+      },
+      "final_answer": ""
+    }
+  ]
+}

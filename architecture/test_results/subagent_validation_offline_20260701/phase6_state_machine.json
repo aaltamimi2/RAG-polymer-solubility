@@ -1,0 +1,104 @@
+{
+  "summary": {
+    "checks": 19,
+    "passed": 19,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "shape": "single",
+      "ok": true,
+      "detail": "plan projected"
+    },
+    {
+      "shape": "single",
+      "ok": true,
+      "detail": "single-specialist route stays advisory (no forced dispatch)"
+    },
+    {
+      "shape": "single",
+      "ok": true,
+      "detail": "result counted as completed"
+    },
+    {
+      "shape": "single",
+      "ok": true,
+      "detail": "repeat dispatch after completion blocked"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "ordered plan ['separation-engineer', 'biosteam-analyst']"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "multi-specialist route force-synthesizes the first dispatch"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "downstream dispatch before producer blocked"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "pending edge ('separation-engineer', 'biosteam-analyst')"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "ready handoff detected for downstream dispatch"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "off-plan specialist blocked mid-workflow"
+    },
+    {
+      "shape": "chain",
+      "ok": true,
+      "detail": "both steps completed"
+    },
+    {
+      "shape": "join",
+      "ok": true,
+      "detail": "join consumer blocked until all upstream handoffs exist"
+    },
+    {
+      "shape": "join",
+      "ok": true,
+      "detail": "bare join dispatch corrected toward handoff-provided prompt"
+    },
+    {
+      "shape": "join",
+      "ok": true,
+      "detail": "join dispatch with guard-required prompt + handoff_id allowed"
+    },
+    {
+      "shape": "retry",
+      "ok": true,
+      "detail": "failed dispatch tracked"
+    },
+    {
+      "shape": "retry",
+      "ok": true,
+      "detail": "retry of failed dispatch allowed"
+    },
+    {
+      "shape": "retry",
+      "ok": true,
+      "detail": "success supersedes failure"
+    },
+    {
+      "shape": "direct",
+      "ok": true,
+      "detail": "task() blocked under direct plan"
+    },
+    {
+      "shape": "guards",
+      "ok": true,
+      "detail": "write_todos blocked before first dispatch"
+    }
+  ]
+}

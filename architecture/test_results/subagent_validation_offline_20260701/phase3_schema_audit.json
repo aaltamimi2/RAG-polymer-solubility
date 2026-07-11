@@ -1,0 +1,622 @@
+{
+  "summary": {
+    "agents": 10,
+    "errors": 0,
+    "warnings": 8,
+    "infos": 2,
+    "capability_edges": 19,
+    "typed_adapters": 11
+  },
+  "findings": [
+    {
+      "severity": "info",
+      "agent": null,
+      "check": "planning_contracts",
+      "detail": "artifact thermal.prediction.v1 produced by ['statistics-ml'] has no declared consumer (terminal deliverable?)"
+    },
+    {
+      "severity": "info",
+      "agent": null,
+      "check": "planning_contracts",
+      "detail": "artifact visualization.artifact.v1 produced by ['visualization-specialist'] has no declared consumer (terminal deliverable?)"
+    },
+    {
+      "severity": "warn",
+      "agent": "safety-analyst",
+      "check": "adapter_coverage",
+      "detail": "capability edge biosteam-analyst -> safety-analyst (tea.lca.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "visualization-specialist",
+      "check": "adapter_coverage",
+      "detail": "capability edge rag-analyst -> visualization-specialist (rag.answer.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "biosteam-analyst",
+      "check": "adapter_coverage",
+      "detail": "capability edge safety-analyst -> biosteam-analyst (safety.assessment.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "separation-engineer",
+      "check": "adapter_coverage",
+      "detail": "capability edge safety-analyst -> separation-engineer (safety.assessment.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "visualization-specialist",
+      "check": "adapter_coverage",
+      "detail": "capability edge safety-analyst -> visualization-specialist (safety.assessment.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "statistics-ml",
+      "check": "adapter_coverage",
+      "detail": "capability edge scholar-researcher -> statistics-ml (literature.findings.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "safety-analyst",
+      "check": "adapter_coverage",
+      "detail": "capability edge separation-engineer -> safety-analyst (separation.route.v1, solvent.shortlist.v1) has NO typed adapter; falls back to generic context prompt"
+    },
+    {
+      "severity": "warn",
+      "agent": "separation-engineer",
+      "check": "adapter_coverage",
+      "detail": "capability edge statistics-ml -> separation-engineer (ml.prediction.v1, statistics.analysis.v1) has NO typed adapter; falls back to generic context prompt"
+    }
+  ],
+  "capability_edges": [
+    {
+      "producer": "biosteam-analyst",
+      "consumer": "safety-analyst",
+      "artifacts": [
+        "tea.lca.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "biosteam-analyst",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "tea.lca.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "contaminant-removal-analyst",
+      "consumer": "biosteam-analyst",
+      "artifacts": [
+        "contaminant.screen.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "contaminant-removal-analyst",
+      "consumer": "separation-engineer",
+      "artifacts": [
+        "contaminant.screen.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "optimization-engineer",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "optimization.results.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "patent-researcher",
+      "consumer": "rag-analyst",
+      "artifacts": [
+        "patent.findings.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "rag-analyst",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "rag.answer.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "safety-analyst",
+      "consumer": "biosteam-analyst",
+      "artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "safety-analyst",
+      "consumer": "separation-engineer",
+      "artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "safety-analyst",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "safety.assessment.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "scholar-researcher",
+      "consumer": "rag-analyst",
+      "artifacts": [
+        "literature.findings.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "scholar-researcher",
+      "consumer": "statistics-ml",
+      "artifacts": [
+        "literature.findings.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "separation-engineer",
+      "consumer": "biosteam-analyst",
+      "artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "separation-engineer",
+      "consumer": "contaminant-removal-analyst",
+      "artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "separation-engineer",
+      "consumer": "optimization-engineer",
+      "artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "separation-engineer",
+      "consumer": "safety-analyst",
+      "artifacts": [
+        "separation.route.v1",
+        "solvent.shortlist.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "separation-engineer",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "separation.route.v1"
+      ],
+      "typed_adapter": true
+    },
+    {
+      "producer": "statistics-ml",
+      "consumer": "separation-engineer",
+      "artifacts": [
+        "ml.prediction.v1",
+        "statistics.analysis.v1"
+      ],
+      "typed_adapter": false
+    },
+    {
+      "producer": "statistics-ml",
+      "consumer": "visualization-specialist",
+      "artifacts": [
+        "statistics.analysis.v1"
+      ],
+      "typed_adapter": true
+    }
+  ],
+  "per_agent": {
+    "separation-engineer": {
+      "tool_groups": [
+        "separation_core",
+        "adaptive_separation",
+        "interpolation",
+        "solvent_lookup",
+        "reflection"
+      ],
+      "granted_tools": [
+        "analyze_multi_polymer_precipitation",
+        "analyze_precipitation_temperature",
+        "analyze_selective_antisolvent_precipitation",
+        "analyze_selective_solubility_enhanced",
+        "build_compatibility_matrix",
+        "calculate_selectivity_detailed",
+        "check_atmospheric_feasibility",
+        "check_multi_polymer_atmospheric_feasibility",
+        "compare_polymer_pairs_precipitation",
+        "find_antisolvent_pairs",
+        "find_antisolvents",
+        "find_challenging_polymer_pairs",
+        "find_differential_precipitation_solvents",
+        "find_optimal_separation_conditions",
+        "find_optimal_separation_sequence",
+        "get_supported_polymers_and_solvents",
+        "list_interpolation_coverage",
+        "lookup_solvent_gwp",
+        "lookup_solvent_price",
+        "optimize_separation_temperature",
+        "plan_multiple_separation_schemes",
+        "plan_sequential_separation",
+        "predict_solubility",
+        "predict_solubility_range",
+        "rank_solvents_for_separation",
+        "rank_solvents_selectivity",
+        "think",
+        "view_alternative_separation_sequence"
+      ],
+      "budgets": {
+        "max_tool_calls": 12,
+        "token_budget": 180000,
+        "truncate_tool_results_after": 2000
+      },
+      "prompt_cited_tools": [
+        "analyze_multi_polymer_precipitation",
+        "analyze_precipitation_temperature",
+        "analyze_selective_antisolvent_precipitation",
+        "analyze_selective_solubility_enhanced",
+        "build_compatibility_matrix",
+        "calculate_selectivity_detailed",
+        "check_atmospheric_feasibility",
+        "check_multi_polymer_atmospheric_feasibility",
+        "compare_polymer_pairs_precipitation",
+        "find_antisolvent_pairs",
+        "find_antisolvents",
+        "find_challenging_polymer_pairs",
+        "find_differential_precipitation_solvents",
+        "find_optimal_separation_conditions",
+        "find_optimal_separation_sequence",
+        "get_supported_polymers_and_solvents",
+        "lookup_solvent_gwp",
+        "lookup_solvent_price",
+        "optimize_separation_temperature",
+        "plan_multiple_separation_schemes",
+        "plan_sequential_separation",
+        "predict_solubility",
+        "predict_solubility_range",
+        "rank_solvents_for_separation",
+        "view_alternative_separation_sequence"
+      ]
+    },
+    "safety-analyst": {
+      "tool_groups": [
+        "safety_card",
+        "safety_gsk",
+        "safety_pubchem",
+        "solvent_lookup",
+        "reflection"
+      ],
+      "granted_tools": [
+        "compare_pubchem_safety",
+        "compare_solvent_safety_cards",
+        "get_family_alternatives",
+        "get_pubchem_safety_info",
+        "get_pubchem_toxicity",
+        "get_solvent_gscore",
+        "get_solvent_safety_card",
+        "lookup_solvent_gwp",
+        "lookup_solvent_price",
+        "think",
+        "visualize_gscores",
+        "visualize_pubchem_safety"
+      ],
+      "budgets": {
+        "max_tool_calls": 12,
+        "token_budget": 150000,
+        "truncate_tool_results_after": 1500
+      },
+      "prompt_cited_tools": [
+        "compare_pubchem_safety",
+        "compare_solvent_safety_cards",
+        "get_family_alternatives",
+        "get_pubchem_safety_info",
+        "get_pubchem_toxicity",
+        "get_solvent_gscore",
+        "get_solvent_safety_card"
+      ]
+    },
+    "biosteam-analyst": {
+      "tool_groups": [
+        "biosteam",
+        "solvent_lookup",
+        "reflection"
+      ],
+      "granted_tools": [
+        "compare_biosteam_scenarios",
+        "get_biosteam_solvents",
+        "lookup_solvent_gwp",
+        "lookup_solvent_price",
+        "run_biosteam_batch",
+        "run_biosteam_multi_polymer",
+        "run_biosteam_parameter_sweep",
+        "run_biosteam_simulation",
+        "run_biosteam_tornado",
+        "run_biosteam_uncertainty",
+        "think",
+        "visualize_biosteam_results"
+      ],
+      "budgets": {
+        "max_tool_calls": 14,
+        "token_budget": 200000,
+        "truncate_tool_results_after": 2000
+      },
+      "prompt_cited_tools": [
+        "get_biosteam_solvents",
+        "run_biosteam_batch",
+        "run_biosteam_multi_polymer",
+        "run_biosteam_parameter_sweep",
+        "run_biosteam_simulation",
+        "run_biosteam_tornado",
+        "run_biosteam_uncertainty",
+        "visualize_biosteam_results"
+      ]
+    },
+    "scholar-researcher": {
+      "tool_groups": [
+        "scholar",
+        "sidecar_write",
+        "reflection"
+      ],
+      "granted_tools": [
+        "search_arxiv",
+        "search_google_scholar",
+        "search_web_of_science",
+        "think",
+        "write_sidecar"
+      ],
+      "budgets": {
+        "max_tool_calls": 6,
+        "token_budget": 120000,
+        "truncate_tool_results_after": null
+      },
+      "prompt_cited_tools": [
+        "search_arxiv",
+        "search_google_scholar",
+        "search_web_of_science",
+        "write_sidecar"
+      ]
+    },
+    "patent-researcher": {
+      "tool_groups": [
+        "patent",
+        "sidecar_write",
+        "reflection"
+      ],
+      "granted_tools": [
+        "lookup_patent",
+        "search_google_patents",
+        "search_patentsview",
+        "search_polymer_patents",
+        "think",
+        "write_sidecar"
+      ],
+      "budgets": {
+        "max_tool_calls": 6,
+        "token_budget": 120000,
+        "truncate_tool_results_after": null
+      },
+      "prompt_cited_tools": [
+        "lookup_patent",
+        "search_google_patents",
+        "search_patentsview",
+        "write_sidecar"
+      ]
+    },
+    "rag-analyst": {
+      "tool_groups": [
+        "rag_core",
+        "rag_diagnostics",
+        "sidecar_read",
+        "reflection"
+      ],
+      "granted_tools": [
+        "analyze_dense_vs_sparse",
+        "analyze_document_similarity",
+        "analyze_query_expansion",
+        "analyze_reranking_impact",
+        "analyze_search_diagnostics",
+        "analyze_section_boost",
+        "ask_literature",
+        "check_rag_chunk_quality",
+        "clear_rag_index",
+        "download_pdf_to_rag",
+        "get_rag_chunk_report",
+        "get_rag_status",
+        "ingest_pdf_to_rag",
+        "read_sidecar",
+        "run_full_rag_diagnostics",
+        "search_literature_rag",
+        "think",
+        "visualize_embedding_space",
+        "visualize_rag_chunks",
+        "visualize_retrieval_patterns"
+      ],
+      "budgets": {
+        "max_tool_calls": 8,
+        "token_budget": 200000,
+        "truncate_tool_results_after": 2000
+      },
+      "prompt_cited_tools": [
+        "ask_literature",
+        "read_sidecar",
+        "search_literature_rag"
+      ]
+    },
+    "visualization-specialist": {
+      "tool_groups": [
+        "visualization",
+        "separation_plot",
+        "biosteam",
+        "result_extractor",
+        "reflection"
+      ],
+      "granted_tools": [
+        "build_handoff",
+        "compare_biosteam_scenarios",
+        "create_process_flow_diagram",
+        "create_selectivity_heatmap",
+        "create_separation_tree_plot",
+        "get_all_subagent_results",
+        "get_biosteam_solvents",
+        "get_handoff_details",
+        "get_subagent_result",
+        "get_subagent_results",
+        "list_handoffs",
+        "plot_atmospheric_feasibility",
+        "plot_comparison_dashboard",
+        "plot_dynamic_programming_separation_options",
+        "plot_interpolation_vs_sql",
+        "plot_multi_panel_analysis",
+        "plot_optimization_pareto_front",
+        "plot_optimization_pareto_slices",
+        "plot_optimization_point_result",
+        "plot_precipitation_curves",
+        "plot_selectivity_heatmap",
+        "plot_solubility_vs_temperature",
+        "plot_solubility_vs_temperature_interactive",
+        "plot_solvent_properties",
+        "run_biosteam_batch",
+        "run_biosteam_multi_polymer",
+        "run_biosteam_parameter_sweep",
+        "run_biosteam_simulation",
+        "run_biosteam_tornado",
+        "run_biosteam_uncertainty",
+        "think",
+        "visualize_biosteam_results"
+      ],
+      "budgets": {
+        "max_tool_calls": 5,
+        "token_budget": null,
+        "truncate_tool_results_after": 500
+      },
+      "prompt_cited_tools": [
+        "create_selectivity_heatmap",
+        "create_separation_tree_plot",
+        "get_handoff_details",
+        "plot_atmospheric_feasibility",
+        "plot_comparison_dashboard",
+        "plot_dynamic_programming_separation_options",
+        "plot_multi_panel_analysis",
+        "plot_optimization_pareto_front",
+        "plot_optimization_pareto_slices",
+        "plot_optimization_point_result",
+        "plot_precipitation_curves",
+        "plot_selectivity_heatmap",
+        "plot_solubility_vs_temperature",
+        "plot_solubility_vs_temperature_interactive",
+        "visualize_biosteam_results"
+      ]
+    },
+    "statistics-ml": {
+      "tool_groups": [
+        "statistical",
+        "ml_prediction",
+        "thermal_prediction",
+        "database_query",
+        "reflection"
+      ],
+      "granted_tools": [
+        "check_column_values",
+        "compare_groups_statistically",
+        "correlation_analysis",
+        "describe_table",
+        "generate_solubility_for_new_polymer",
+        "list_generated_polymers",
+        "list_hsp_supported_polymers",
+        "list_hsp_supported_solvents",
+        "list_tables",
+        "lookup_tg",
+        "predict_solubility_ml",
+        "predict_thermal_properties",
+        "query_database",
+        "regression_analysis",
+        "screen_hsp_solubility_matrix",
+        "statistical_summary",
+        "think",
+        "validate_and_query"
+      ],
+      "budgets": {
+        "max_tool_calls": 12,
+        "token_budget": 100000,
+        "truncate_tool_results_after": null
+      },
+      "prompt_cited_tools": [
+        "describe_table",
+        "list_hsp_supported_polymers",
+        "list_hsp_supported_solvents",
+        "list_tables",
+        "lookup_tg",
+        "predict_solubility_ml",
+        "screen_hsp_solubility_matrix"
+      ]
+    },
+    "contaminant-removal-analyst": {
+      "tool_groups": [
+        "contaminant_removal",
+        "reflection"
+      ],
+      "granted_tools": [
+        "compare_contaminant_removal_modes",
+        "list_supported_contaminants",
+        "screen_contaminant_leaching",
+        "screen_contaminant_strap_removal",
+        "think"
+      ],
+      "budgets": {
+        "max_tool_calls": 6,
+        "token_budget": 120000,
+        "truncate_tool_results_after": 2500
+      },
+      "prompt_cited_tools": [
+        "compare_contaminant_removal_modes",
+        "list_supported_contaminants",
+        "screen_contaminant_leaching",
+        "screen_contaminant_strap_removal"
+      ]
+    },
+    "optimization-engineer": {
+      "tool_groups": [
+        "waste_optimization",
+        "reflection"
+      ],
+      "granted_tools": [
+        "run_waste_management_optimization",
+        "run_waste_management_pareto",
+        "run_waste_management_pareto_slices",
+        "think"
+      ],
+      "budgets": {
+        "max_tool_calls": 10,
+        "token_budget": 100000,
+        "truncate_tool_results_after": 2500
+      },
+      "prompt_cited_tools": [
+        "run_waste_management_optimization",
+        "run_waste_management_pareto",
+        "run_waste_management_pareto_slices"
+      ]
+    }
+  }
+}

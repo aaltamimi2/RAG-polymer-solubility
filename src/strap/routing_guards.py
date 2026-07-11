@@ -767,6 +767,59 @@ def _get_point_metric_value(point: dict, metric: str):
     return None
 
 
+# Metrics where smaller is better; the knee heuristic (nearest to the
+# normalized utopia corner) is only meaningful when both axes minimize.
+_MINIMIZE_METRICS = {"total_cost", "cost", "emissions", "gwp", "msp"}
+
+
+def _describe_knee_and_cheapest_points(points: list, x_metric: str, y_metric: str) -> list[str]:
+    """Deterministic knee/cheapest identification for the fallback summary.
+
+    Users routinely ask for "the Pareto-dominant/knee point" and "the cheapest
+    point"; the structured payload has everything needed to answer without a
+    model call, so the grounded fallback should answer it explicitly."""
+    numeric = []
+    for point in points:
+        if not isinstance(point, dict):
+            continue
+        try:
+            x = float(_get_point_metric_value(point, x_metric))
+            y = float(_get_point_metric_value(point, y_metric))
+        except (TypeError, ValueError):
+            continue
+        numeric.append((point, x, y))
+    if not numeric:
+        return []
+
+    x_is_cost = str(x_metric or "").strip().lower() in _MINIMIZE_METRICS
+    both_minimize = x_is_cost and str(y_metric or "").strip().lower() in _MINIMIZE_METRICS
+
+    if len(numeric) == 1:
+        only = numeric[0][0]
+        return [
+            f"Knee point: Point {only.get('point_id')} — the frontier has a single "
+            "feasible point, so the knee (Pareto-dominant) and cheapest points coincide."
+        ]
+    if not both_minimize:
+        return []
+
+    xs = [x for _, x, _ in numeric]
+    ys = [y for _, _, y in numeric]
+    x_span = (max(xs) - min(xs)) or 1.0
+    y_span = (max(ys) - min(ys)) or 1.0
+    knee = min(
+        numeric,
+        key=lambda item: ((item[1] - min(xs)) / x_span) ** 2 + ((item[2] - min(ys)) / y_span) ** 2,
+    )[0]
+    cheapest = min(numeric, key=lambda item: item[1])[0]
+    lines = [
+        f"Knee point (nearest to the normalized utopia corner): Point {knee.get('point_id')}."
+    ]
+    if x_is_cost:
+        lines.append(f"Cheapest point (min {x_metric}): Point {cheapest.get('point_id')}.")
+    return lines
+
+
 def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage | None:
     dispatch, payload, _, status = _get_latest_task_payload_bundle(messages, "optimization-engineer")
     if dispatch is None or not isinstance(payload, dict):
@@ -837,7 +890,19 @@ def _build_separation_optimization_payload_fallback(messages: list) -> AIMessage
                 line = f"- Point {point_id}: {x_metric} {x_value}; {y_metric} {y_value}"
                 if route_id:
                     line += f"; route {route_id}"
+                washes = []
+                for slot_key, slot_label in (("wash1_selection", "Wash 1"), ("wash2_selection", "Wash 2")):
+                    slot_values = point.get(slot_key)
+                    if isinstance(slot_values, list) and slot_values:
+                        washes.append(f"{slot_label}: {', '.join(str(v) for v in slot_values)}")
+                if washes:
+                    line += f"; {'; '.join(washes)}"
+                recovered = point.get("recovered_polymers")
+                if isinstance(recovered, list) and recovered:
+                    line += f"; recovers {', '.join(str(p) for p in recovered)}"
                 lines.append(line)
+            knee_lines = _describe_knee_and_cheapest_points(points, x_metric, y_metric)
+            lines.extend(knee_lines)
 
         warnings = payload.get("solvent_filter_warnings") or []
         if warnings:

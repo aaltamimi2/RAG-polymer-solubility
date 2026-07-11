@@ -29,6 +29,7 @@ class TestIterationLimit:
         handler = MagicMock(return_value=_make_model_response())
         mw.wrap_model_call(req, handler)
         mw.wrap_model_call(req, handler)
+        mw.wrap_model_call(req, handler)  # 3rd call: budget trip grants the final synthesis pass
         result = mw.wrap_model_call(req, MagicMock())
         assert isinstance(result, AIMessage)
         assert "Max iterations" in result.content
@@ -60,6 +61,7 @@ class TestIterationLimit:
         handler = MagicMock(return_value=_make_model_response())
         for _ in range(3):
             mw.wrap_model_call(req, handler)
+        mw.wrap_model_call(req, handler)  # budget trip grants the final synthesis pass
         result = mw.wrap_model_call(req, MagicMock())
         assert isinstance(result, AIMessage)
         assert "Max iterations" in result.content
@@ -76,7 +78,11 @@ class TestTokenBudget:
         handler = MagicMock(
             return_value=_make_model_response(input_tokens=80_000, output_tokens=30_000)
         )
-        result = mw.wrap_model_call(req, handler)
+        first = mw.wrap_model_call(req, handler)
+        # over budget but the response has no tool calls: it already is the final answer
+        assert not isinstance(first, AIMessage)
+        mw.wrap_model_call(req, handler)  # pre-call trip grants the final synthesis pass
+        result = mw.wrap_model_call(req, MagicMock())
         assert isinstance(result, AIMessage)
         assert "Token budget" in result.content
 
@@ -90,7 +96,11 @@ class TestTokenBudget:
         handler = MagicMock(
             return_value=_make_model_response(input_tokens=2000, output_tokens=4000)
         )
-        result = mw.wrap_model_call(req, handler)
+        first = mw.wrap_model_call(req, handler)
+        # over budget but the response has no tool calls: it already is the final answer
+        assert not isinstance(first, AIMessage)
+        mw.wrap_model_call(req, handler)  # pre-call trip grants the final synthesis pass
+        result = mw.wrap_model_call(req, MagicMock())
         assert isinstance(result, AIMessage)
         assert "Token budget" in result.content
 
@@ -105,7 +115,9 @@ class TestTokenBudget:
             return_value=_make_model_response(input_tokens=1000, output_tokens=500)
         )
         mw.wrap_model_call(req, handler)
-        result = mw.wrap_model_call(req, handler)
+        mw.wrap_model_call(req, handler)   # crosses the budget; passes through (no tool calls)
+        mw.wrap_model_call(req, handler)   # pre-call trip grants the final synthesis pass
+        result = mw.wrap_model_call(req, MagicMock())
         assert isinstance(result, AIMessage)
         assert "Token budget" in result.content
 
@@ -144,8 +156,11 @@ class TestTokenBudget:
         resp = MagicMock()
         resp.result = [ai_msg]
 
+        first = mw.wrap_model_call(req, MagicMock(return_value=resp))
+        # over budget, no tool calls: passes through as the final answer
+        assert first is resp
+        mw.wrap_model_call(req, MagicMock(return_value=resp))  # synthesis grant
         result = mw.wrap_model_call(req, MagicMock(return_value=resp))
-
         assert isinstance(result, AIMessage)
         assert "Token budget" in result.content
 
@@ -171,8 +186,11 @@ class TestTokenBudget:
         resp = MagicMock()
         resp.result = [ai_msg]
 
+        first = mw.wrap_model_call(req, MagicMock(return_value=resp))
+        # over budget, no tool calls: passes through as the final answer
+        assert first is resp
+        mw.wrap_model_call(req, MagicMock(return_value=resp))  # synthesis grant
         result = mw.wrap_model_call(req, MagicMock(return_value=resp))
-
         assert isinstance(result, AIMessage)
         assert "Token budget" in result.content
 
@@ -1588,3 +1606,164 @@ def test_wrap_tool_call_repairs_separation_top_k_solvents_from_user_query():
     assert result.content == "ok"
     repaired_request = handler.call_args.args[0]
     assert repaired_request.tool_call["args"]["top_k_solvents"] == 8
+
+
+class TestNodeContextIsolation:
+    """langgraph executes each graph node in a copied context, so ContextVar
+    writes inside a node (before_agent, wrap_model_call) are discarded when the
+    node finishes. Budgets therefore only accumulate when the task tool seeds
+    the guard state in the subagent's parent context (seed_guard_state) and the
+    nodes mutate that shared object in place. Live-run regression: the
+    2026-07-07 multistage stress test saw a specialist make 30 model calls and
+    26 billable tool calls without tripping max_iterations=25 / max_tool_calls=10.
+    """
+
+    @staticmethod
+    def _run_isolated(fn, *args):
+        import contextvars
+
+        return contextvars.copy_context().run(fn, *args)
+
+    def _request(self):
+        req = MagicMock()
+        req.messages = []
+        req.system_message = None
+        return req
+
+    def test_unseeded_budgets_do_not_accumulate_across_nodes(self):
+        """Documents the failure mode: per-node context copies zero the counters."""
+        import contextvars
+
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(max_iterations=2)
+        handler = MagicMock(return_value=_make_model_response())
+
+        def scenario():
+            # before_agent's reset lives and dies with its own node context
+            self._run_isolated(mw.before_agent, None, None)
+            return [
+                self._run_isolated(mw.wrap_model_call, self._request(), handler)
+                for _ in range(5)
+            ]
+
+        # A virgin context: nothing seeded, exactly like an unseeded agent run.
+        outs = contextvars.Context().run(scenario)
+        assert not any(
+            isinstance(out, AIMessage) and "Max iterations" in str(out.content)
+            for out in outs
+        )
+
+    def test_seeded_budgets_trip_across_isolated_nodes(self):
+        """seed_guard_state() in the parent context makes the caps bind again."""
+        from strap.guardrails import SubagentGuardMiddleware, seed_guard_state
+
+        mw = SubagentGuardMiddleware(max_iterations=2)
+        seed_guard_state()  # what task() now does immediately before subagent.invoke
+        handler = MagicMock(return_value=_make_model_response())
+        self._run_isolated(mw.wrap_model_call, self._request(), handler)
+        self._run_isolated(mw.wrap_model_call, self._request(), handler)
+        self._run_isolated(mw.wrap_model_call, self._request(), handler)  # synthesis grant
+        result = self._run_isolated(mw.wrap_model_call, self._request(), MagicMock())
+        assert isinstance(result, AIMessage)
+        assert "Max iterations" in result.content
+
+    def test_seeded_token_budget_trips_across_isolated_nodes(self):
+        from strap.guardrails import SubagentGuardMiddleware, seed_guard_state
+
+        mw = SubagentGuardMiddleware(token_budget=100_000, max_iterations=50)
+        seed_guard_state()
+        handler = MagicMock(
+            return_value=_make_model_response(input_tokens=60_000, output_tokens=1_000)
+        )
+        first = self._run_isolated(mw.wrap_model_call, self._request(), handler)
+        # Under budget: the handler's response passes through untouched.
+        assert not isinstance(first, AIMessage)
+        # Second call crosses the budget; with no tool calls it passes through
+        # as the final answer. The third call trips pre-call and spends the
+        # synthesis grant; the fourth is the hard stop.
+        second = self._run_isolated(mw.wrap_model_call, self._request(), handler)
+        assert not isinstance(second, AIMessage)
+        self._run_isolated(mw.wrap_model_call, self._request(), handler)
+        result = self._run_isolated(mw.wrap_model_call, self._request(), MagicMock())
+        assert isinstance(result, AIMessage)
+        assert "token budget" in str(result.content).lower()
+
+
+class TestBudgetFinalSynthesis:
+    """A budget trip grants exactly one tool-free synthesis call so the spent
+    budget becomes an answer instead of a bare '[LIMIT]' string (which the
+    orchestrator can only respond to by re-dispatching from scratch)."""
+
+    def _request(self, system_message=None):
+        req = MagicMock()
+        req.messages = []
+        req.system_message = system_message
+        return req
+
+    def test_first_trip_grants_tool_free_synthesis_call(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(max_iterations=0)
+        mw.before_agent(None, None)
+        req = self._request()
+        synth_resp = _make_model_response(content="final synthesis")
+        handler = MagicMock(return_value=synth_resp)
+
+        out = mw.wrap_model_call(req, handler)
+
+        assert out is synth_resp
+        assert handler.call_count == 1
+        req.override.assert_called_once()
+        assert req.override.call_args.kwargs["tools"] == []
+        # the grant is single-use: the next trip hard-stops
+        result = mw.wrap_model_call(req, MagicMock())
+        assert isinstance(result, AIMessage)
+        assert "Max iterations" in result.content
+
+    def test_synthesis_directive_appended_to_system_message(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(max_iterations=0)
+        mw.before_agent(None, None)
+        req = self._request(system_message=SystemMessage(content="You are a specialist."))
+        handler = MagicMock(return_value=_make_model_response(content="done"))
+
+        mw.wrap_model_call(req, handler)
+
+        new_system = req.override.call_args.kwargs["system_message"]
+        assert "FINAL model call" in str(new_system.content)
+        assert "tools are disabled" in str(new_system.content)
+
+    def test_post_call_token_trip_with_pending_tool_calls_gets_synthesis(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(token_budget=1000, max_iterations=50)
+        mw.before_agent(None, None)
+        req = self._request()
+        over_budget = _make_model_response(
+            tool_calls=[{"name": "expensive_tool", "args": {}, "id": "tc1"}],
+            input_tokens=900,
+            output_tokens=200,
+        )
+        synth = _make_model_response(content="wrapped up from gathered results")
+        handler = MagicMock(side_effect=[over_budget, synth])
+
+        out = mw.wrap_model_call(req, handler)
+
+        # the pending expensive tool call is dropped; the synthesis answer wins
+        assert out is synth
+        assert handler.call_count == 2
+
+    def test_synthesis_provider_failure_falls_back_to_hard_stop(self):
+        from strap.guardrails import SubagentGuardMiddleware
+
+        mw = SubagentGuardMiddleware(max_iterations=0)
+        mw.before_agent(None, None)
+        req = self._request()
+        handler = MagicMock(side_effect=RuntimeError("provider 400"))
+
+        out = mw.wrap_model_call(req, handler)
+
+        assert isinstance(out, AIMessage)
+        assert "Max iterations" in out.content

@@ -500,7 +500,7 @@ def test_cli_model_command_switches_model(monkeypatch):
     agent_module.main()
 
     assert created_models == [
-        "google_genai:gemini-3.1-flash-lite-preview",
+        "google_genai:gemini-3.1-flash-lite",
         "google_genai:gemini-3.1-pro-preview",
     ]
 
@@ -546,7 +546,7 @@ def test_cli_model_command_falls_back_to_table_without_tty(monkeypatch):
 
     agent_module.main()
 
-    assert created_models == ["google_genai:gemini-3.1-flash-lite-preview"]
+    assert created_models == ["google_genai:gemini-3.1-flash-lite"]
     assert any("/model to open the selector" in str(item) for item in printed)
 
 

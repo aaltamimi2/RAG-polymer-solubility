@@ -94,6 +94,107 @@ _GENERIC_DIRECT_HINT = (
     "and keep the response compact. Do not invent constraints the user did not "
     "provide.]"
 )
+
+# Injected on the direct path when this turn has prior conversation. The direct
+# hints tell the model to "resolve referents from the compact session context",
+# but that context is only built for the planner — without it, a follow-up like
+# "what solvents are good under 80C" (after "solubility of LDPE?") loses the
+# polymer and the model calls a generic unscoped list tool. This makes the
+# carried-over subject explicit so referents resolve and lookups stay scoped.
+_DIRECT_FOLLOWUP_DIRECTIVE = (
+    "\n\n[FOLLOW-UP CONTEXT: This turn may continue the prior conversation. "
+    "Resolve elliptical/pronoun references in the current message (e.g. 'what "
+    "solvents are good', 'plot those', 'at 80C') against the SUBJECT of the "
+    "prior turn shown below — carry forward the polymer(s) and named solvents, "
+    "and scope every tool call to them (pass the polymer argument). Apply any "
+    "NEW constraint in the current message, such as a temperature range, on top "
+    "of that carried-over subject. Never answer a scoped follow-up with a "
+    "generic, unscoped catalog listing.]\n"
+)
+
+# -- mid-turn replanning triggers ----------------------------------
+_MAX_PLAN_REVISIONS_PER_TURN = 2
+_STEP_BUDGET_FAILURE_MARKER = "exhausting its step budget"
+_STRUCTURED_RESULT_BLOCK_RE = None  # compiled lazily below
+
+
+def _qualifying_step_failure(messages: list, plan: RoutePlan) -> tuple[str, str, str] | None:
+    """Return (tool_call_id, subagent, reason) when the latest returned
+    plan-step dispatch ended in a state that may invalidate the remaining plan:
+    a task tool error, a step-budget exhaustion, or an infeasible structured
+    result. None otherwise."""
+    import json
+    import re
+
+    global _STRUCTURED_RESULT_BLOCK_RE
+    if _STRUCTURED_RESULT_BLOCK_RE is None:
+        _STRUCTURED_RESULT_BLOCK_RE = re.compile(
+            r"<STRUCTURED_RESULT>\s*(\{.*?\})\s*</STRUCTURED_RESULT>", re.DOTALL
+        )
+
+    dispatches = _extract_returned_subagent_calls(messages)
+    if not dispatches:
+        return None
+    plan_names = set(plan.subagent_names())
+    latest = None
+    for dispatch in dispatches:  # message order; keep the latest plan-step dispatch
+        if dispatch.get("subagent") in plan_names:
+            latest = dispatch
+    if latest is None:
+        return None
+
+    tool_results = _get_tool_message_registry(messages)
+    result = tool_results.get(latest["tool_call_id"])
+    if result is None:
+        return None
+    message = result["message"]
+    content = message.content if isinstance(message.content, str) else str(message.content)
+
+    if getattr(message, "status", None) == "error":
+        return latest["tool_call_id"], latest["subagent"], f"task error — {content[:200]}"
+    if _STEP_BUDGET_FAILURE_MARKER in content:
+        return latest["tool_call_id"], latest["subagent"], f"step budget exhausted — {content[:200]}"
+    match = _STRUCTURED_RESULT_BLOCK_RE.search(content)
+    if match:
+        try:
+            payload = json.loads(match.group(1))
+        except json.JSONDecodeError:
+            payload = {}
+        if str(payload.get("analysis_type") or "").strip().lower() == "infeasible" or payload.get("no_data") is True:
+            reason = str(
+                payload.get("message") or payload.get("failure_reason") or "infeasible result"
+            )
+            return latest["tool_call_id"], latest["subagent"], f"infeasible — {reason[:200]}"
+    return None
+
+
+def _plan_step_statuses(
+    messages: list,
+    plan: RoutePlan,
+    failed_subagent: str,
+    failed_reason: str,
+) -> dict[str, str]:
+    """Annotate each prior-plan step for the [PLAN REVISION REQUEST] block."""
+    tool_results = _get_tool_message_registry(messages)
+    returned_status: dict[str, str] = {}
+    for dispatch in _extract_returned_subagent_calls(messages):
+        result = tool_results.get(dispatch["tool_call_id"])
+        message = result["message"] if result else None
+        is_error = getattr(message, "status", None) == "error"
+        returned_status[dispatch["subagent"]] = "error" if is_error else "ok"
+    statuses: dict[str, str] = {}
+    for step in plan.steps:
+        if step.subagent == failed_subagent:
+            statuses[step.subagent] = f"FAILED: {failed_reason}"
+        elif returned_status.get(step.subagent) == "ok":
+            statuses[step.subagent] = "completed"
+        elif step.subagent in returned_status:
+            statuses[step.subagent] = "returned with errors"
+        else:
+            statuses[step.subagent] = "not started"
+    return statuses
+
+
 # ------------------------------------------------------------------
 # Middleware helpers
 # ------------------------------------------------------------------
@@ -139,6 +240,7 @@ class RoutingMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
         request = self._inject_hint(request)
+        self._maybe_replan(request.messages)
         allowed_rules = self._get_allowed_rules(request.messages)
         short_circuit = _build_single_specialist_completion_response(request.messages, allowed_rules)
         if short_circuit is not None:
@@ -173,6 +275,7 @@ class RoutingMiddleware(AgentMiddleware):
         handler: Callable[[ModelRequest], ModelCallResult],
     ) -> ModelCallResult:
         request = self._inject_hint(request)
+        self._maybe_replan(request.messages)
         allowed_rules = self._get_allowed_rules(request.messages)
         short_circuit = _build_single_specialist_completion_response(request.messages, allowed_rules)
         if short_circuit is not None:
@@ -322,6 +425,11 @@ class RoutingMiddleware(AgentMiddleware):
             plan = self._get_plan(query_text or "", request.messages)
             if plan.is_direct:
                 hint = build_direct_answer_hint(query_text or "") or _GENERIC_DIRECT_HINT
+                # Carry the prior-turn subject onto the direct path so follow-up
+                # referents resolve and lookups stay scoped to the polymer.
+                digest = build_session_digest(request.messages)
+                if digest:
+                    hint = f"{hint}{_DIRECT_FOLLOWUP_DIRECTIVE}{digest}"
             elif plan.is_specialists:
                 hint = _build_hint_from_matches(allowed_rules, query_text=query_text or "")
             else:
@@ -397,6 +505,51 @@ class RoutingMiddleware(AgentMiddleware):
             query_text,
             session_digest=build_session_digest(messages) if messages else None,
         )
+
+    def _maybe_replan(self, messages: list) -> None:
+        """Mid-turn plan revision after a qualifying step outcome.
+
+        Runs before the allowed-rules computation so a revision, when applied,
+        feeds every downstream guard in the same model call. The plan's
+        structure is otherwise frozen for the turn; only a typed step failure
+        (task error, step-budget exhaustion, infeasible structured result) can
+        trigger a revision, each outcome can trigger at most one, and at most
+        two revisions are applied per turn. A degraded planner never revises —
+        the orchestrator model is left to adapt on its own.
+        """
+        query_text = (_get_last_human_message(messages) or "").strip()
+        if not query_text:
+            return
+        plan = self._get_plan(query_text, messages)
+        if not plan.steps or not self._planner.is_authoritative(plan):
+            return
+        revision_markers = [
+            str(note) for note in plan.validation_notes
+            if str(note).startswith("revised_after:")
+        ]
+        if len(revision_markers) >= _MAX_PLAN_REVISIONS_PER_TURN:
+            return
+        outcome = _qualifying_step_failure(messages, plan)
+        if outcome is None:
+            return
+        tool_call_id, subagent, reason = outcome
+        if f"revised_after:{tool_call_id}" in revision_markers:
+            return
+        revised = self._planner.revise(
+            query_text,
+            session_digest=build_session_digest(messages) if messages else None,
+            prior_plan=plan,
+            step_statuses=_plan_step_statuses(messages, plan, subagent, reason),
+            outcome_key=tool_call_id,
+        )
+        if revised is not None:
+            logger.info(
+                "routing_middleware: mid-turn replan after %s outcome on %s — steps %s -> %s",
+                reason.split(" — ", 1)[0],
+                subagent,
+                plan.subagent_names(),
+                revised.subagent_names(),
+            )
 
     def _get_allowed_rules(self, messages: list) -> list[dict]:
         """Return the planned specialist set for the active query as rule dicts."""

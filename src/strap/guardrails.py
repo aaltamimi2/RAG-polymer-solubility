@@ -22,6 +22,7 @@ from .guardrail_checks import (
     get_structured_result_errors,
 )
 from .guardrail_messages import (
+    budget_final_synthesis_directive,
     iteration_limit_message,
     separation_analysis_coverage_repair_message,
     separation_feasibility_repair_message,
@@ -68,11 +69,29 @@ class _GuardState:
     tool_budget_repairs: int = 0
     separation_analysis_repairs: int = 0
     visualization_required_tool_repairs: int = 0
+    final_synthesis_used: bool = False
 
 
 _guard_state: contextvars.ContextVar[_GuardState] = contextvars.ContextVar(
     "_guard_state"
 )
+
+
+def seed_guard_state() -> _GuardState:
+    """Seed a fresh guard state in the *current* context.
+
+    langgraph executes every node in a copied context, so a ContextVar set
+    inside a node (``before_agent``, ``wrap_model_call``) is discarded when the
+    node finishes — only in-place mutations of an object seeded in the parent
+    context are visible across nodes. Call this immediately before
+    ``subagent.invoke``/``ainvoke`` (the task tool body is the parent context
+    of every node in the subagent's graph) so iteration/token/tool budgets
+    actually accumulate across model calls instead of resetting to zero on
+    every node.
+    """
+    state = _GuardState()
+    _guard_state.set(state)
+    return state
 _MAX_STRUCTURED_RESULT_REPAIRS = 1
 _SEPARATION_NON_ANALYSIS_TOOLS = {
     "think",
@@ -104,9 +123,10 @@ class SubagentGuardMiddleware(AgentMiddleware):
       synthesize immediately.
     - Truncates old ToolMessage content to limit quadratic context growth.
 
-    When a limit is hit the middleware short-circuits with an AIMessage
-    containing no tool calls, which causes the LangGraph agent loop to
-    terminate gracefully.
+    When a limit is hit the middleware grants exactly one final tool-free
+    model call (a synthesis pass over the results already gathered) and then
+    short-circuits with an AIMessage containing no tool calls, which causes
+    the LangGraph agent loop to terminate gracefully.
     """
 
     def __init__(
@@ -130,6 +150,11 @@ class SubagentGuardMiddleware(AgentMiddleware):
         self._agent_name = agent_name
 
     # -- per-invocation state (ContextVar-isolated) ---------------------------
+    # The authoritative reset is seed_guard_state(), called by the task tool in
+    # the parent context of the subagent graph. Sets made here inside graph
+    # nodes only survive when hooks run in a shared context (direct calls in
+    # unit tests); under langgraph each node gets a copied context and the
+    # fallback below would otherwise hand every node a fresh zeroed state.
 
     @property
     def _state(self) -> _GuardState:
@@ -161,9 +186,9 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
             )
-            return AIMessage(content=iteration_limit_message())
+            return self._budget_final_synthesis(request, handler, iteration_limit_message())
         if self._token_budget_exhausted():
-            return AIMessage(content=token_budget_message())
+            return self._budget_final_synthesis(request, handler, token_budget_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
@@ -192,7 +217,9 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._state.total_output_tokens,
                 total_tokens,
             )
-            return AIMessage(content=token_budget_message())
+            if not self._response_has_tool_calls(response):
+                return response  # already a final text answer
+            return self._budget_final_synthesis(request, handler, token_budget_message())
 
         # Track and enforce tool-call limit
         return self._enforce_tool_call_limit(response)
@@ -208,9 +235,9 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 "SubagentGuard: iteration limit (%d) reached",
                 self._max_iterations,
             )
-            return AIMessage(content=iteration_limit_message())
+            return await self._abudget_final_synthesis(request, handler, iteration_limit_message())
         if self._token_budget_exhausted():
-            return AIMessage(content=token_budget_message())
+            return await self._abudget_final_synthesis(request, handler, token_budget_message())
 
         # Detect synthesis tool results in the conversation
         self._detect_synthesis_tools(request.messages)
@@ -239,10 +266,56 @@ class SubagentGuardMiddleware(AgentMiddleware):
                 self._state.total_output_tokens,
                 total_tokens,
             )
-            return AIMessage(content=token_budget_message())
+            if not self._response_has_tool_calls(response):
+                return response  # already a final text answer
+            return await self._abudget_final_synthesis(request, handler, token_budget_message())
 
         # Track and enforce tool-call limit
         return self._enforce_tool_call_limit(response)
+
+    # -- budget-trip final synthesis ------------------------------------------
+    # Ending the loop with a bare "[LIMIT] ..." string throws away everything
+    # the specialist gathered; the orchestrator then re-dispatches from scratch
+    # (observed live 2026-07-07: two wasted separation-engineer runs). Instead,
+    # grant exactly one tool-free model call so the spent budget becomes an
+    # answer, then hard-stop.
+
+    @staticmethod
+    def _response_has_tool_calls(response) -> bool:
+        for message in getattr(response, "result", None) or []:
+            if getattr(message, "tool_calls", None):
+                return True
+        return False
+
+    def _final_synthesis_request(self, request: ModelRequest, reason: str) -> ModelRequest:
+        from deepagents.middleware._utils import append_to_system_message
+
+        overrides: dict[str, Any] = {"tools": []}
+        if request.system_message is not None:
+            overrides["system_message"] = append_to_system_message(
+                request.system_message, budget_final_synthesis_directive(reason)
+            )
+        return request.override(**overrides)
+
+    def _budget_final_synthesis(self, request: ModelRequest, handler, reason: str):
+        if self._state.final_synthesis_used:
+            return AIMessage(content=reason)
+        self._state.final_synthesis_used = True
+        try:
+            return handler(self._final_synthesis_request(request, reason))
+        except Exception:
+            logger.exception("SubagentGuard: final synthesis call failed; hard-stopping")
+            return AIMessage(content=reason)
+
+    async def _abudget_final_synthesis(self, request: ModelRequest, handler, reason: str):
+        if self._state.final_synthesis_used:
+            return AIMessage(content=reason)
+        self._state.final_synthesis_used = True
+        try:
+            return await handler(self._final_synthesis_request(request, reason))
+        except Exception:
+            logger.exception("SubagentGuard: final synthesis call failed; hard-stopping")
+            return AIMessage(content=reason)
 
     @hook_config(can_jump_to=["model"])
     def after_model(self, state, runtime):

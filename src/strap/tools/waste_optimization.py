@@ -475,6 +475,17 @@ def _derive_filters_from_stage_candidates(
     polymer_filters: dict[str, list[str]] = {}
     global_candidates: list[str] = []
     seen_global: set[str] = set()
+
+    def _admit(options: list[str], seen_options: set[str], label: str) -> None:
+        text = str(label or "").strip()
+        if not text or text in seen_options:
+            return
+        seen_options.add(text)
+        options.append(text)
+        if text not in seen_global:
+            seen_global.add(text)
+            global_candidates.append(text)
+
     for stage in payload.get("stages") or []:
         if not isinstance(stage, dict):
             continue
@@ -487,16 +498,27 @@ def _derive_filters_from_stage_candidates(
         for pair in stage_candidates:
             if not isinstance(pair, dict):
                 continue
-            option_label = str(pair.get("optimizer_option") or pair.get("solvent") or "").strip()
-            if not option_label or option_label in seen_options:
-                continue
-            seen_options.add(option_label)
-            options.append(option_label)
-            if option_label not in seen_global:
-                seen_global.add(option_label)
-                global_candidates.append(option_label)
+            # Admit both the temperature-suffixed option label and the bare
+            # solvent name: the bare name keeps the workbook-baseline row
+            # eligible, so a failed temperature-specific simulation degrades to
+            # baseline economics instead of dropping the solvent entirely.
+            _admit(options, seen_options, str(pair.get("optimizer_option") or ""))
+            _admit(options, seen_options, str(pair.get("solvent") or ""))
         if options:
             polymer_filters[polymer] = options
+
+    # The adapter also ships bare-name per-polymer filters; merge them so the
+    # derived allowlist never narrows below the adapter's explicit intent.
+    payload_filters = payload.get("polymer_solvent_filters")
+    if isinstance(payload_filters, dict):
+        for polymer_raw, solvents in payload_filters.items():
+            polymer = _normalize_optimization_polymer(polymer_raw)
+            if polymer is None or not isinstance(solvents, list):
+                continue
+            options = polymer_filters.setdefault(polymer, [])
+            seen_options = set(options)
+            for solvent in solvents:
+                _admit(options, seen_options, str(solvent or ""))
 
     return (
         polymer_filters,

@@ -162,3 +162,12 @@ def late_separation_todo_message() -> str:
         "Continue from the existing separation tool results and synthesize instead of "
         "calling `write_todos` again."
     )
+
+
+def budget_final_synthesis_directive(reason: str) -> str:
+    return (
+        f"\n\n[LIMIT] {reason} This is your FINAL model call and tools are disabled. "
+        "Synthesize your complete answer NOW from the tool results already gathered. "
+        "If your contract requires a <STRUCTURED_RESULT> block, include it, populated "
+        "only from data you actually obtained. Do not mention the budget; just answer."
+    )

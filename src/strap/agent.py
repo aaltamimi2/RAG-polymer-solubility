@@ -443,13 +443,19 @@ def _cli_model_registry() -> dict[str, CliModelSpec]:
     return {
         "gemini": {
             "label": "Gemini 3.1 Flash Lite",
-            "model": "google_genai:gemini-3.1-flash-lite-preview",
+            "model": "google_genai:gemini-3.1-flash-lite",
             "provider": "Google",
             "env_var": "GOOGLE_API_KEY",
         },
         "gemini-flash-lite": {
             "label": "Gemini 3.1 Flash Lite",
-            "model": "google_genai:gemini-3.1-flash-lite-preview",
+            "model": "google_genai:gemini-3.1-flash-lite",
+            "provider": "Google",
+            "env_var": "GOOGLE_API_KEY",
+        },
+        "gemini-flash": {
+            "label": "Gemini 3.5 Flash",
+            "model": "google_genai:gemini-3.5-flash",
             "provider": "Google",
             "env_var": "GOOGLE_API_KEY",
         },
@@ -830,8 +836,38 @@ def _get_or_create_thread_id(session_arg: str | None = None) -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _durable_checkpointer():
+    """Durable cross-restart thread persistence; in-process fallback.
+
+    Threads are separated inside one database by ``configurable.thread_id``,
+    mirroring how the CLI already persists per-session checkpoints.
+    """
+    db_path = Path(
+        os.getenv("DISSOLVE_CHECKPOINT_DB")
+        or Path.home() / ".dissolve" / "checkpoints.sqlite3"
+    )
+    try:
+        import sqlite3
+
+        from langgraph.checkpoint.sqlite import SqliteSaver
+
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path), check_same_thread=False)
+        logger.info("Durable checkpointer: %s", db_path)
+        return SqliteSaver(conn)
+    except Exception:
+        logger.warning(
+            "SqliteSaver unavailable — conversation state will not survive restarts "
+            "(install langgraph-checkpoint-sqlite); using in-process MemorySaver.",
+            exc_info=True,
+        )
+        from langgraph.checkpoint.memory import MemorySaver
+
+        return MemorySaver()
+
+
 def create_dissolve_agent(
-    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-3.1-flash-lite-preview"),
+    model_name: str = os.getenv("STRAP_MODEL", "google_genai:gemini-3.1-flash-lite"),
     subagent_overrides: dict[str, SubagentOverride] | None = None,
     checkpointer=None,
     enable_persistence: bool = False,
@@ -852,10 +888,13 @@ def create_dissolve_agent(
             the agent graph is compiled with cross-turn memory.  Pass any
             ``BaseCheckpointSaver`` (e.g. ``MemorySaver``, ``SqliteSaver``).
         enable_persistence: When ``True`` and *checkpointer* is ``None``,
-            automatically create an in-process ``MemorySaver`` checkpointer so
-            that conversation state survives across ``invoke()`` calls within
-            the same Python process.  For durable disk persistence, pass a
-            ``SqliteSaver`` via *checkpointer* instead.
+            create a durable ``SqliteSaver`` checkpointer at
+            ``$DISSOLVE_CHECKPOINT_DB`` (default
+            ``~/.dissolve/checkpoints.sqlite3``) so conversation threads
+            survive process restarts; falls back to an in-process
+            ``MemorySaver`` if the sqlite checkpointer is unavailable.
+            (The interactive CLI instead uses a per-session database under
+            ``~/.dissolve/sessions/<thread>/``.)
 
             Example::
 
@@ -864,13 +903,12 @@ def create_dissolve_agent(
                 })
     """
     if enable_persistence and checkpointer is None:
-        from langgraph.checkpoint.memory import MemorySaver
-        checkpointer = MemorySaver()
+        checkpointer = _durable_checkpointer()
     model = init_chat_model(model_name)
 
     # Lightweight Gemini Flash model shared by the route planner and the
     # output verifier — single instance, no extra cost.
-    flash_model = init_chat_model("google_genai:gemini-3-flash-preview")
+    flash_model = init_chat_model("google_genai:gemini-3.5-flash")
 
     # One route plan per query, shared by every routing consumer. The planner
     # decides intent; regex shape-matching only proposes fast-path execution.
@@ -914,20 +952,27 @@ def create_dissolve_agent(
     # extracts <STRUCTURED_RESULT> JSON blocks into a per-invocation registry.
     result_extractor = StructuredResultExtractorMiddleware(artifact_root=scratch_dir)
 
+    # Persistent cross-session memory (Claude-Code-style markdown fact files):
+    # index injected into the orchestrator prompt each model call; save/delete
+    # tools let the model write durable facts it should recall next session.
+    from .memory_store import DissolveMemoryMiddleware, get_memory_tools
+
+    persistent_memory = DissolveMemoryMiddleware()
+
     # Middleware order (innermost → outermost):
-    #   direct_fast_path → typed_runtime → routing → output_verifier → result_extractor → orchestrator_guard
+    #   direct_fast_path → typed_runtime → routing → output_verifier → result_extractor → orchestrator_guard → persistent_memory
     original_subagent_middleware = deepagents_graph.SubAgentMiddleware
     deepagents_graph.SubAgentMiddleware = TracedSubAgentMiddleware
     try:
         agent = create_deep_agent(
             model=model,
-            tools=get_core_tools() + get_result_extractor_tools(),
+            tools=get_core_tools() + get_result_extractor_tools() + get_memory_tools(),
             subagents=_build_subagents(overrides=subagent_overrides),
             system_prompt=build_system_prompt(generate_routing_table()),
             memory=["./AGENTS.md"],
             skills=["./skills/"],
             backend=FilesystemBackend(root_dir=str(_PACKAGE_DIR)),
-            middleware=[direct_fast_path, typed_runtime, routing, output_verifier, result_extractor, orchestrator_guard],
+            middleware=[direct_fast_path, typed_runtime, routing, output_verifier, result_extractor, orchestrator_guard, persistent_memory],
             name="dissolve-agent",
             checkpointer=checkpointer,
         )

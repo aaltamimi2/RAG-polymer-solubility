@@ -1,0 +1,144 @@
+{
+  "summary": {
+    "checks": 27,
+    "passed": 27,
+    "failed": 0
+  },
+  "checks": [
+    {
+      "section": "A_coverage",
+      "ok": true,
+      "detail": "11 polymers available"
+    },
+    {
+      "section": "A_coverage",
+      "ok": true,
+      "detail": "32 solvents available"
+    },
+    {
+      "section": "A_coverage",
+      "ok": true,
+      "detail": "327 fitted pairs"
+    },
+    {
+      "section": "A_coverage",
+      "ok": true,
+      "detail": "25 random pairs predict at 80C (0 failures: [])"
+    },
+    {
+      "section": "A_coverage",
+      "ok": true,
+      "detail": "alias resolution ['xylene', 'THF', 'DCM', 'dmso', 'o-xylene', 'toluene', 'dodecane'] ([] failed)"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "1 polymer x 3 solvents range tables ([])"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "4 polymers x toluene range tables ([])"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "LDPE candidate listing has 32 solvents"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "differential precipitation HDPE-before-LDPE returns ranked solvents"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "reverse ordering LDPE-before-HDPE also answers"
+    },
+    {
+      "section": "B_shapes",
+      "ok": true,
+      "detail": "selectivity ranking LDPE vs PET at 100C (None)"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "request to 90C clamps curve at 90 (SQL data reaches 160)"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "request to 160C reaches 160"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "no extrapolation label inside fitted range"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "beyond fitted range extends to 200 with 8 labeled extrapolations"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "250C request capped at hard sensitivity limit with flag"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "point (80C=4.009779) matches range row (4.009779)"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "interpolation tracks SQL data within 5pp mean error on sampled pairs ([])"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "unknown solvent yields structured error (unknown_solvent)"
+    },
+    {
+      "section": "C_interp",
+      "ok": true,
+      "detail": "inverted range handled without crash"
+    },
+    {
+      "section": "F_consistency",
+      "ok": true,
+      "detail": "21 anomalous/low-R2 pairs behave identically in point and range tools (SQL fallback engine) ([])"
+    },
+    {
+      "section": "D_visuals",
+      "ok": true,
+      "detail": "3 polymers x 2 solvents screening plot rendered (['ldpe_hdpe_pp_toluene_dodecane_solubility_vs_temp.png'], [73138] bytes)"
+    },
+    {
+      "section": "D_visuals",
+      "ok": true,
+      "detail": "extrapolation-annotated single-pair plot rendered"
+    },
+    {
+      "section": "E_handoff",
+      "ok": true,
+      "detail": "solubility-rich payload stores ok (ok)"
+    },
+    {
+      "section": "E_handoff",
+      "ok": true,
+      "detail": "sep->optimization-engineer: status=ok, prompt=1753c, temps preserved=True"
+    },
+    {
+      "section": "E_handoff",
+      "ok": true,
+      "detail": "sep->biosteam-analyst: status=ok, prompt=157c, temps preserved=True"
+    },
+    {
+      "section": "E_handoff",
+      "ok": true,
+      "detail": "sep->visualization-specialist: status=ok, prompt=537c, temps preserved=True"
+    }
+  ]
+}

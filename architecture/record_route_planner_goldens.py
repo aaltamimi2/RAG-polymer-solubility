@@ -38,7 +38,7 @@ from strap.route_planner import (  # noqa: E402
     validate_route_payload,
 )
 
-PLANNER_MODEL = "google_genai:gemini-3-flash-preview"
+PLANNER_MODEL = "google_genai:gemini-3.5-flash"
 GOLDENS_PATH = _ROOT / "tests" / "fixtures" / "route_planner_goldens.json"
 QUERY_BANK_PATH = _ROOT / "docs" / "subagent_query_bank-v1.xlsx"
 

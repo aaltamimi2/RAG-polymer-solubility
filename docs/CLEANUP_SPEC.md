@@ -122,6 +122,22 @@ through.
   3 frontier points natively (currently 2 incl. phantom); the 84 waste-opt
   tests stay green.
 
+### P1.4 State-borne guard counters for the orchestrator — **Effort M · Risk Med**
+Found by the 2026-07-07 live stress test: langgraph runs each node in a copied
+context, so ContextVar *sets* inside nodes are discarded — `SubagentGuardMiddleware`
+budgets silently never accumulated. Fixed for **subagents** by `seed_guard_state()`
+in the task tool (parent context of the subagent graph; see
+`tests/test_guardrails.py::TestNodeContextIsolation`). The **orchestrator's**
+guard instance (`agent.py` `orchestrator_guard`) still relies on the in-node
+fallback and therefore does not accumulate across turns — it is currently
+protected only by routing guards and the top-level `recursion_limit`.
+- **Fix:** move guard counters into graph state (middleware `state_schema` +
+  `before_agent`/`after_model` state updates) or seed at every public invoke
+  surface (app_server, CLI, eval harnesses). State-borne is the durable option.
+- **Verify:** an orchestrator-level runaway (mock model that always calls a
+  free tool) trips `max_iterations=50` in a compiled-graph test, not just in
+  direct-hook unit tests.
+
 ---
 
 ## P2 — Helper consolidation & dead-code removal

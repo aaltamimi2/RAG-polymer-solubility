@@ -127,6 +127,16 @@ from strap.solvent_registry import resolve_to_interp_key, resolve_to_bp_db_key
 
 POLYMER_ALIASES: dict[str, str] = {
     "POLYETHYLENE": "HDPE",
+    # "PE" is the umbrella polyethylene token used across the harness (the
+    # optimizer, query_context and handoff_adapters all fold LDPE/HDPE up into
+    # "PE"). The solubility DB keeps LDPE and HDPE as SEPARATE physical keys, so
+    # a generic "PE" needs a designated representative here. HDPE is chosen —
+    # consistent with POLYETHYLENE→HDPE and conservative (higher crystallinity =
+    # harder to dissolve, so a solvent that clears HDPE clears LDPE too). LDPE
+    # and HDPE remain independently addressable by their exact keys; only a bare
+    # "PE" maps to HDPE. (Without this alias "PE" substring-matches LDPE, HDPE,
+    # PET and PES — four chemically distinct polymers — and resolves arbitrarily.)
+    "PE": "HDPE",
     "NYLON 6": "NYLON6",
     "NYLON 66": "NYLON66",
     "NYLON-6": "NYLON6",
@@ -142,6 +152,24 @@ POLYMER_ALIASES: dict[str, str] = {
 }
 
 
+def _unique_substring_match(norm: str, candidates: set[str]) -> Optional[str]:
+    """Rigorous last-resort substring match: resolve only when *unambiguous*.
+
+    ``candidates`` is a set, whose iteration order varies across processes under
+    Python string-hash randomization. The old code returned the *first* match in
+    that order, which was both nondeterministic AND chemically unsafe — ``PE``
+    substring-matches four distinct polymers (LDPE, HDPE, PET, PES) and resolved
+    to a different one per process; ``dimethylbenzene`` matches both xylene
+    isomers. Exact keys and the curated alias tables handle every real input, so
+    substring is only a typo/spacing safety net: accept it only when exactly one
+    candidate matches. Zero or multiple matches → ``None``, surfacing the
+    ambiguity instead of silently conflating distinct species. Fully
+    deterministic (depends only on the match count, never on set order).
+    """
+    matches = [c for c in candidates if norm in c or c in norm]
+    return matches[0] if len(matches) == 1 else None
+
+
 def resolve_polymer(name: str, known_polymers: set[str]) -> Optional[str]:
     """3-strategy fuzzy match: exact → alias → substring."""
     norm = name.strip().upper()
@@ -150,10 +178,7 @@ def resolve_polymer(name: str, known_polymers: set[str]) -> Optional[str]:
     alias = POLYMER_ALIASES.get(norm)
     if alias and alias in known_polymers:
         return alias
-    for kp in known_polymers:
-        if norm in kp or kp in norm:
-            return kp
-    return None
+    return _unique_substring_match(norm, known_polymers)
 
 
 def resolve_solvent(name: str, known_solvents: set[str]) -> Optional[str]:
@@ -164,10 +189,7 @@ def resolve_solvent(name: str, known_solvents: set[str]) -> Optional[str]:
     alias = resolve_to_interp_key(norm)
     if alias and alias in known_solvents:
         return alias
-    for ks in known_solvents:
-        if norm in ks or ks in norm:
-            return ks
-    return None
+    return _unique_substring_match(norm, known_solvents)
 
 
 def _normalize_pair_for_exclusion(polymer: str, solvent: str) -> tuple[str, str]:

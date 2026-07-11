@@ -196,7 +196,7 @@ tool_groups:
 - reflection
 guardrails:
   max_tool_calls: 12
-  token_budget: 180000
+  token_budget: 400000
   synthesis_tools:
   - plan_sequential_separation
   - plan_multiple_separation_schemes

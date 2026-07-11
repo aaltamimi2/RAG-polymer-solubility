@@ -283,6 +283,42 @@ def test_derive_filters_from_stage_candidates_reads_constraint_metadata():
     assert fallback_policy == "fail_closed"
 
 
+def test_derive_filters_admits_bare_solvent_names_alongside_option_labels():
+    """Live regression (2026-07-07 multistage stress test): temperature-suffixed
+    optimizer_option labels ("Toluene @ 105C") excluded the workbook-baseline
+    rows ("Toluene") from the allowlist, so when every temperature-specific
+    BioSTEAM sim failed the whole polymer had zero rows and the solve went
+    infeasible. The bare solvent name must ride along so baselines stay
+    eligible as a fallback."""
+    polymer_filters, global_candidates, _, _ = _derive_filters_from_stage_candidates(
+        {
+            "stages": [
+                {
+                    "stage_id": "wash_1",
+                    "target_polymer": "PE",
+                    "candidate_pairs": [
+                        {"polymer": "PE", "solvent": "Toluene", "optimizer_option": "Toluene @ 105C"},
+                        {"polymer": "PE", "solvent": "Heptane", "optimizer_option": "Heptane @ 95C"},
+                    ],
+                },
+                {
+                    "stage_id": "wash_2",
+                    "target_polymer": "EVOH",
+                    "candidate_pairs": [
+                        {"polymer": "EVOH", "solvent": "Ethylene Glycol", "optimizer_option": "Ethylene Glycol @ 140C"},
+                    ],
+                },
+            ],
+            "polymer_solvent_filters": {"PE": ["Xylene"]},
+        }
+    )
+
+    assert polymer_filters["PE"] == ["Toluene @ 105C", "Toluene", "Heptane @ 95C", "Heptane", "Xylene"]
+    assert polymer_filters["EVOH"] == ["Ethylene Glycol @ 140C", "Ethylene Glycol"]
+    assert "Toluene" in global_candidates and "Toluene @ 105C" in global_candidates
+    assert "Xylene" in global_candidates  # adapter's bare-name filters merge in
+
+
 def test_apply_solvent_filters_can_fail_closed_on_missing_overlap():
     df = pd.DataFrame(
         [

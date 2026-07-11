@@ -25,7 +25,7 @@ import json
 import logging
 import re
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Callable, Protocol
 
 if TYPE_CHECKING:
@@ -287,6 +287,27 @@ A: {{"mode": "specialists", "steps": [{{"subagent": "visualization-specialist", 
 
 Q: "thanks, that looks right"
 A: {{"mode": "orchestrator", "steps": [], "excluded_subagents": [], "confidence": "high", "rationale": "conversational"}}
+
+A [PLAN REVISION REQUEST] block, when present, means a step of the active plan
+ended in a state (failure, step-budget exhaustion, infeasible result) that may
+invalidate the remaining steps. Rules for revisions:
+10. Produce a corrected FULL plan for what still needs to happen to answer the
+user's request from here. Do not include steps that already completed
+successfully — their results are retained and passed downstream automatically.
+11. Re-dispatching the failed specialist is allowed only when the outcome
+suggests different instructions would succeed (e.g. narrow the scope). If the
+outcome is a physical/data infeasibility, do NOT retry the same work: either
+pivot to a specialist that can still add value, or return mode "orchestrator"
+so the orchestrator synthesizes an honest final answer (including the
+infeasibility and its suggested relaxation) from the results already produced.
+
+[PLAN REVISION REQUEST]
+Prior plan for this request:
+1. separation-engineer — shortlist solvents [completed]
+2. optimization-engineer — Pareto optimization on the shortlist [FAILED: infeasible — no candidate pair could be evaluated]
+[CURRENT REQUEST]
+For the PE/EVOH feed, shortlist solvents then run the cost-emissions Pareto and report the knee point.
+A: {{"mode": "orchestrator", "steps": [], "excluded_subagents": [], "deliverables": [], "confidence": "high", "rationale": "optimization is infeasible for the produced shortlist; synthesize the honest infeasibility answer with the suggested relaxation instead of retrying"}}
 """
 
 _prompt_cache: str | None = None
@@ -498,6 +519,25 @@ def build_session_digest(messages: list | None) -> str | None:
         lines.extend(dict.fromkeys(runtime_lines))
     digest = "\n".join(lines)
     return digest[:_DIGEST_MAX_CHARS]
+
+
+def _render_revision_request(prior_plan: RoutePlan, step_statuses: dict[str, str]) -> str:
+    """Render the [PLAN REVISION REQUEST] block the planner prompt understands."""
+    lines = [
+        "[PLAN REVISION REQUEST]",
+        "A step of the active plan ended in a state that may invalidate the remaining steps.",
+        "Prior plan for this request:",
+    ]
+    for index, step in enumerate(prior_plan.steps, start=1):
+        status = step_statuses.get(step.subagent, "not started")
+        objective = step.objective or step.subagent
+        lines.append(f"{index}. {step.subagent} — {objective} [{status}]")
+    if not prior_plan.steps:
+        lines.append(f"(mode {prior_plan.mode} with no specialist steps)")
+    lines.append(
+        "Produce the corrected plan for what still needs to happen (see revision rules)."
+    )
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -827,6 +867,15 @@ class RoutePlanner:
         """
         return self._backend is not None
 
+    @staticmethod
+    def _cache_key(query_text: str, session_digest: str | None) -> str:
+        key = normalize_query_key(query_text)
+        if session_digest:
+            import hashlib
+
+            key = f"{key}|{hashlib.sha1(session_digest.encode()).hexdigest()[:10]}"
+        return key
+
     def plan(self, query_text: str, *, session_digest: str | None = None) -> RoutePlan:
         query_text = (query_text or "").strip()
         if not query_text:
@@ -835,11 +884,7 @@ class RoutePlanner:
         # Same query in a different session state must replan: the digest is
         # part of the cache identity, so follow-ups never reuse a plan made
         # under different context.
-        key = normalize_query_key(query_text)
-        if session_digest:
-            import hashlib
-
-            key = f"{key}|{hashlib.sha1(session_digest.encode()).hexdigest()[:10]}"
+        key = self._cache_key(query_text, session_digest)
         cached = self._cache.get(key)
         if cached is not None:
             activate_route_plan(cached)
@@ -903,11 +948,85 @@ class RoutePlanner:
     def is_authoritative(self, plan: RoutePlan) -> bool:
         """Whether hard (execution-affecting) decisions may rely on this plan.
 
-        Planner-sourced plans are always authoritative. Fallback plans are
-        authoritative only in deliberate keyword-mode deployments (no
-        backend); with a backend configured they are advisory-only.
+        Planner-sourced plans (including mid-turn revisions) are always
+        authoritative. Fallback plans are authoritative only in deliberate
+        keyword-mode deployments (no backend); with a backend configured they
+        are advisory-only.
         """
-        return plan.source == "planner" or not self.has_backend
+        return plan.source in ("planner", "planner_revision") or not self.has_backend
+
+    def revise(
+        self,
+        query_text: str,
+        *,
+        session_digest: str | None = None,
+        prior_plan: RoutePlan,
+        step_statuses: dict[str, str],
+        outcome_key: str,
+    ) -> RoutePlan | None:
+        """Re-plan mid-turn after a step outcome that may invalidate the plan.
+
+        ``step_statuses`` maps each prior-plan subagent to a short status
+        annotation ("completed", "FAILED: <reason>", "not started").
+        ``outcome_key`` identifies the triggering outcome (the failed task's
+        tool_call_id); it is stamped into the revised plan's validation notes
+        so the same outcome never triggers a second revision.
+
+        On success the revised plan **overwrites the cached plan** for
+        (query, session_digest) — every routing consumer sees the revision for
+        the rest of the turn. Returns None (original plan stays active) when
+        the backend is missing, errors, or emits an unusable payload.
+        """
+        if self._backend is None:
+            return None
+        query_text = (query_text or "").strip()
+        if not query_text:
+            return None
+
+        revision_block = _render_revision_request(prior_plan, step_statuses)
+        augmented_digest = (
+            f"{session_digest}\n\n{revision_block}" if session_digest else revision_block
+        )
+        payload = None
+        try:
+            payload = self._call_backend(query_text, augmented_digest)
+        except Exception:
+            logger.warning("route_planner: revision backend raised", exc_info=True)
+            return None
+        if isinstance(payload, str):
+            payload = extract_json_payload(payload)
+        if payload is None:
+            return None
+        revised = validate_route_payload(query_text, payload)
+        if revised is None:
+            logger.warning(
+                "route_planner: revision payload failed validation for query=%s",
+                query_text[:80],
+            )
+            return None
+
+        # Carry prior revision markers forward so a per-turn revision cap can
+        # count every revision, not just the latest one.
+        prior_markers = tuple(
+            note for note in prior_plan.validation_notes
+            if str(note).startswith("revised_after:")
+        )
+        revised = replace(
+            revised,
+            source="planner_revision",
+            validation_notes=revised.validation_notes + prior_markers + (f"revised_after:{outcome_key}",),
+        )
+        key = self._cache_key(query_text, session_digest)
+        self._cache[key] = revised
+        activate_route_plan(revised)
+        logger.info(
+            "route_planner: REVISED plan after %s — mode=%s steps=%s (was steps=%s)",
+            outcome_key,
+            revised.mode,
+            revised.subagent_names(),
+            prior_plan.subagent_names(),
+        )
+        return revised
 
 
 def plan_query(
